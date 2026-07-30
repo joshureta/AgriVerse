@@ -60,13 +60,9 @@ export default function Login() {
               </button>
             </form>
 
-            <div className="login-divider" aria-hidden="true">
-              <span>New to AgriVerse?</span>
-            </div>
-
-            <a className="login-register-link" href="/register">
-              Create a Buyer account
-            </a>
+            <p className="login-register">
+              Don&apos;t have an account? <a href="/register">Sign up</a>
+            </p>
           </div>
         </div>
 
@@ -103,4 +99,3 @@ export default function Login() {
     </main>
   )
 }
-

@@ -185,49 +185,32 @@
   box-shadow: 0 13px 26px rgba(24, 92, 53, 0.26);
 }
 
-.login-button:focus-visible,
-.login-register-link:focus-visible {
+.login-button:focus-visible {
   outline: 3px solid rgba(24, 92, 53, 0.3);
   outline-offset: 3px;
 }
 
-.login-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 25px 0 17px;
-  color: #78827b;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+.login-register {
+  margin: 25px 0 0;
+  color: #526157;
+  font-size: 13px;
+  text-align: center;
 }
 
-.login-divider::before,
-.login-divider::after {
-  content: "";
-  height: 1px;
-  flex: 1;
-  background: rgba(41, 79, 51, 0.18);
-}
-
-.login-register-link {
-  min-height: 46px;
-  display: grid;
-  place-items: center;
-  box-sizing: border-box;
-  border: 1px solid rgba(24, 92, 53, 0.35);
-  border-radius: 11px;
+.login-register a {
   color: var(--login-forest);
-  background: rgba(255, 255, 255, 0.38);
-  font-size: 14px;
   font-weight: 800;
   text-decoration: none;
-  transition: border-color 160ms ease, background 160ms ease;
 }
 
-.login-register-link:hover {
-  border-color: var(--login-forest);
-  background: rgba(255, 255, 255, 0.72);
+.login-register a:hover {
+  text-decoration: underline;
+}
+
+.login-register a:focus-visible {
+  outline: 3px solid rgba(24, 92, 53, 0.3);
+  outline-offset: 3px;
+  border-radius: 3px;
 }
 
 .login-hero {
