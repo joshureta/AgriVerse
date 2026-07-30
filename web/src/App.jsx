@@ -1,7 +1,12 @@
+import BuyerLanding from './pages/buyer/BuyerLanding.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 
 function App() {
+  if (window.location.pathname === '/buyer') {
+    return <BuyerLanding />
+  }
+
   if (window.location.pathname === '/login') {
     return <Login />
   }
