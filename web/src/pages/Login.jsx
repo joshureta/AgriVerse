@@ -1,9 +1,42 @@
+import { useEffect, useState } from 'react'
+import { useAuth } from '../hooks/useAuth.js'
+import { supabase } from '../lib/supabase.js'
 import '../styles/login.css'
 
 export default function Login() {
-  function handleSubmit(event) {
+  const { loading: sessionLoading, user } = useAuth()
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!sessionLoading && user) {
+      window.location.replace('/buyer')
+    }
+  }, [sessionLoading, user])
+
+  async function handleSubmit(event) {
     event.preventDefault()
-    // Supabase login will be connected here later.
+    const form = new FormData(event.currentTarget)
+
+    setError('')
+    setLoading(true)
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: form.get('email').trim(),
+      password: form.get('password'),
+    })
+
+    if (signInError) {
+      setError(
+        signInError.message.toLowerCase().includes('email not confirmed')
+          ? 'Verify your email before logging in. Check your inbox for the confirmation message.'
+          : signInError.message,
+      )
+      setLoading(false)
+      return
+    }
+
+    window.location.replace('/buyer')
   }
 
   return (
@@ -25,6 +58,12 @@ export default function Login() {
             </div>
 
             <form className="login-form" onSubmit={handleSubmit}>
+              {error && (
+                <div className="login-alert" role="alert">
+                  {error}
+                </div>
+              )}
+
               <label className="login-field">
                 <span>Email address</span>
                 <input
@@ -32,6 +71,7 @@ export default function Login() {
                   type="email"
                   autoComplete="email"
                   placeholder="you@example.com"
+                  disabled={loading}
                   required
                 />
               </label>
@@ -43,6 +83,7 @@ export default function Login() {
                   type="password"
                   autoComplete="current-password"
                   placeholder="Enter your password"
+                  disabled={loading}
                   required
                 />
               </label>
@@ -55,8 +96,8 @@ export default function Login() {
                 <a href="/forgot-password">Forgot password?</a>
               </div>
 
-              <button className="login-button" type="submit">
-                Log in
+              <button className="login-button" type="submit" disabled={loading}>
+                {loading ? 'Logging in…' : 'Log in'}
               </button>
             </form>
 

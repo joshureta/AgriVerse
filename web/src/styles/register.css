@@ -101,6 +101,24 @@ body {
   gap: 15px;
 }
 
+.register-alert {
+  padding: 11px 13px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.register-alert-error {
+  color: #8c2020;
+  background: #fff0f0;
+}
+
+.register-alert-success {
+  color: #17602d;
+  background: #eaf8e8;
+}
+
 .register-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -169,6 +187,20 @@ body {
 .register-button:focus-visible {
   outline: 3px solid rgba(24, 92, 53, 0.3);
   outline-offset: 3px;
+}
+
+.register-field input:disabled,
+.register-field select:disabled {
+  cursor: not-allowed;
+  color: #7f8982;
+  background: rgba(240, 243, 236, 0.82);
+  opacity: 0.8;
+}
+
+.register-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+  transform: none;
 }
 
 .register-login {

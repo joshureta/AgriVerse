@@ -94,6 +94,16 @@
   gap: 17px;
 }
 
+.login-alert {
+  padding: 11px 13px;
+  border-radius: 9px;
+  color: #8c2020;
+  background: #fff0f0;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+}
+
 .login-field {
   display: grid;
   gap: 7px;
@@ -188,6 +198,12 @@
 .login-button:focus-visible {
   outline: 3px solid rgba(24, 92, 53, 0.3);
   outline-offset: 3px;
+}
+
+.login-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+  transform: none;
 }
 
 .login-register {

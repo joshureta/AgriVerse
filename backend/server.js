@@ -5,6 +5,7 @@ const cors = require("cors");
 require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 
 const { supabaseConfig } = require("./supabase");
+const { requireAuth } = require("./middleware/auth");
 
 const app = express();
 
@@ -45,6 +46,17 @@ app.get("/api/health", (req, res) => {
     supabase: healthy
       ? { configured: true }
       : { configured: false, error: supabaseConfig.error },
+  });
+});
+
+app.get("/api/auth/me", requireAuth, (req, res) => {
+  res.json({
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      emailConfirmedAt: req.user.email_confirmed_at,
+    },
+    profile: req.profile,
   });
 });
 

@@ -1,6 +1,18 @@
+import { useAuth } from '../../hooks/useAuth.js'
 import '../../styles/buyer/buyerLanding.css'
 
 export default function BuyerLanding() {
+  const { profile, signOut } = useAuth()
+
+  async function handleSignOut() {
+    await signOut()
+    window.location.replace('/login')
+  }
+
+  function handleNewsletterSubmit(event) {
+    event.preventDefault()
+  }
+
   return (
     <main className="buyer-page">
       <header className="buyer-header">
@@ -17,11 +29,11 @@ export default function BuyerLanding() {
             <a className="buyer-cart" href="#orders" aria-label="Shopping cart">🛒</a>
             <div className="buyer-profile">
               <span className="buyer-profile-icon" aria-hidden="true">●</span>
-              <span>Profile Name</span>
+              <span>{profile?.full_name || 'Buyer'}</span>
               <span aria-hidden="true">▾</span>
               <div className="buyer-profile-menu">
                 <a href="#profile">My Profile</a>
-                <a href="/login">Sign Out</a>
+                <button type="button" onClick={handleSignOut}>Sign Out</button>
               </div>
             </div>
           </div>
@@ -92,7 +104,7 @@ export default function BuyerLanding() {
               Stay connected with our latest news and price alerts to never
               miss a great deal.
             </p>
-            <form className="buyer-newsletter">
+            <form className="buyer-newsletter" onSubmit={handleNewsletterSubmit}>
               <label className="sr-only" htmlFor="buyer-newsletter-email">
                 Email address
               </label>

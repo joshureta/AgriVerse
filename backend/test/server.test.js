@@ -49,3 +49,11 @@ test("unknown routes return JSON 404 responses", async () => {
   assert.equal(response.status, 404);
   assert.equal(body.error, "Route not found");
 });
+
+test("protected routes require an access token", async () => {
+  const response = await fetch(`${baseUrl}/api/auth/me`);
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(body.error, "Authentication required");
+});

@@ -108,11 +108,19 @@
   display: grid;
 }
 
-.buyer-profile-menu a {
+.buyer-profile-menu a,
+.buyer-profile-menu button {
   padding: 10px 13px;
+  border: 0;
+  color: white;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.buyer-profile-menu a:hover {
+.buyer-profile-menu a:hover,
+.buyer-profile-menu button:hover {
   background: rgba(255, 255, 255, 0.12);
 }
 
