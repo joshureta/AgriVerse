@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth.js'
+import { getHomePathForRole } from '../lib/authRouting.js'
 import { supabase } from '../lib/supabase.js'
 import jtoledoLogo from '../assets/Jtoledologo.png'
 import '../styles/login.css'
 
 export default function Login() {
-  const { loading: sessionLoading, user } = useAuth()
+  const { loading: sessionLoading, profile, user } = useAuth()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
-    if (!sessionLoading && user) {
-      window.location.replace('/buyer')
+    if (!sessionLoading && user && profile) {
+      window.location.replace(getHomePathForRole(profile.role))
     }
-  }, [sessionLoading, user])
+  }, [profile, sessionLoading, user])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -23,7 +24,10 @@ export default function Login() {
     setError('')
     setLoading(true)
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const {
+      data: signInData,
+      error: signInError,
+    } = await supabase.auth.signInWithPassword({
       email: form.get('email').trim(),
       password: form.get('password'),
     })
@@ -38,7 +42,19 @@ export default function Login() {
       return
     }
 
-    window.location.replace('/buyer')
+    const { data: signedInProfile, error: profileLoadError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', signInData.user.id)
+      .single()
+
+    if (profileLoadError || !signedInProfile) {
+      setError('Your account was signed in, but its profile could not be loaded.')
+      setLoading(false)
+      return
+    }
+
+    window.location.replace(getHomePathForRole(signedInProfile.role))
   }
 
   return (

@@ -4,6 +4,7 @@
   "description": "",
   "main": "server.js",
   "scripts": {
+    "admin:create": "node scripts/provision-admin.js",
     "dev": "node --watch server.js",
     "start": "node server.js",
     "test": "node --test"
