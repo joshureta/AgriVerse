@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import deleteIcon from '../../assets/delete-icon.png'
+import userManagementIcon from '../../assets/user-management-icon.png'
+import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
@@ -6,20 +9,6 @@ import '../../styles/user-management.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 5
-
-const navItems = [
-  { href: '/admin', icon: 'dashboard', label: 'Dashboard' },
-  { href: '/admin/users', icon: 'users', label: 'User Management', active: true },
-  { icon: 'operations', label: 'Operations' },
-  { icon: 'records', label: 'Records' },
-  { icon: 'monitoring', label: 'Monitoring' },
-]
-
-function formatDashboardDate(date) {
-  return new Intl.DateTimeFormat('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-  }).format(date)
-}
 
 function formatCreatedAt(value) {
   if (!value) return '—'
@@ -82,7 +71,7 @@ async function apiRequest(path, options = {}, retry = true) {
 }
 
 export default function UserManagement() {
-  const { profile, signOut, user: currentUser } = useAuth()
+  const { user: currentUser } = useAuth()
   const [users, setUsers] = useState([])
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 })
   const [page, setPage] = useState(1)
@@ -92,9 +81,7 @@ export default function UserManagement() {
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [signingOut, setSigningOut] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const displayName = profile?.full_name || 'Administrator'
 
   const loadUsers = useCallback(async () => {
     if (!currentUser?.id) return
@@ -121,12 +108,6 @@ export default function UserManagement() {
     const delay = window.setTimeout(loadUsers, search ? 300 : 0)
     return () => window.clearTimeout(delay)
   }, [loadUsers, refreshKey, search])
-
-  async function handleSignOut() {
-    setSigningOut(true)
-    await signOut()
-    window.location.replace('/login')
-  }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -175,40 +156,17 @@ export default function UserManagement() {
 
   return (
     <main className="admin-dashboard user-management-page">
-      <aside className="admin-sidebar">
-        <a className="admin-logo" href="/admin" aria-label="Jtoledo Trading admin home">
-          <span className="admin-logo-mark" aria-hidden="true">J</span>
-          <span>JTOLEDO</span>
-        </a>
-        <nav className="admin-nav" aria-label="Admin navigation">
-          {navItems.map((item) => (
-            <a className={item.active ? 'is-active' : ''} href={item.href || '#'} key={item.label}>
-              <span className={`admin-nav-icon icon-${item.icon}`} aria-hidden="true" />
-              {item.label}
-            </a>
-          ))}
-        </nav>
-        <div className="admin-sidebar-footer">
-          <span>Administrator workspace</span><strong>Jtoledo Trading</strong>
-        </div>
-      </aside>
+      <AdminSidebar active="users" />
 
       <section className="admin-workspace">
-        <header className="admin-topbar">
-          <div className="admin-date"><span aria-hidden="true">▣</span><time>{formatDashboardDate(new Date())}</time></div>
-          <div className="admin-account">
-            <button className="admin-notification" type="button" aria-label="Notifications">●<span /></button>
-            <div className="admin-avatar" aria-hidden="true">{displayName.charAt(0).toUpperCase()}</div>
-            <div className="admin-identity"><strong>{displayName}</strong><span>Admin</span></div>
-            <button className="admin-signout" type="button" onClick={handleSignOut} disabled={signingOut}>
-              {signingOut ? 'Wait…' : 'Sign out'}
-            </button>
-          </div>
-        </header>
+        <AdminTopbar />
 
         <div className="user-management-content">
           <header className="user-page-heading">
-            <div><span className="user-heading-icon" aria-hidden="true">♟</span><h1>User Management</h1></div>
+            <div>
+              <img className="user-heading-icon" src={userManagementIcon} alt="" />
+              <h1>User Management</h1>
+            </div>
             <button type="button" onClick={() => setModal({ mode: 'add' })}><span>＋</span>Add User</button>
           </header>
 
@@ -243,7 +201,7 @@ export default function UserManagement() {
                       <td>{formatCreatedAt(user.created_at)}</td>
                       <td><div className="user-actions">
                         <button type="button" className="edit-user" onClick={() => setModal({ mode: 'edit', user })} aria-label={`Edit ${user.full_name}`}>✎</button>
-                        <button type="button" className="delete-user" onClick={() => handleDelete(user)} disabled={user.id === currentUser?.id} aria-label={`Delete ${user.full_name}`}>▣</button>
+                        <button type="button" className="delete-user" onClick={() => handleDelete(user)} disabled={user.id === currentUser?.id} aria-label={`Delete ${user.full_name}`}><img src={deleteIcon} alt="" /></button>
                       </div></td>
                     </tr>
                   ))}

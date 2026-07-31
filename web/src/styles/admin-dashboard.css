@@ -81,6 +81,101 @@
   cursor: pointer;
 }
 
+.admin-nav-group {
+  display: grid;
+}
+
+.admin-nav-group-trigger {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 0;
+  border-radius: 9px;
+  padding: 0 13px;
+  color: rgba(255, 255, 255, 0.88);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-nav-group-trigger:hover,
+.admin-nav-group-trigger:focus-visible,
+.admin-nav-group-trigger.is-open {
+  color: white;
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.admin-nav-chevron {
+  width: 7px;
+  height: 7px;
+  box-sizing: border-box;
+  margin-left: auto;
+  margin-right: 3px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transform-origin: center;
+  opacity: 0.82;
+  transition: transform 180ms ease;
+}
+
+.admin-nav-group-trigger.is-open .admin-nav-chevron {
+  transform: rotate(-135deg) translate(-1px, -1px);
+}
+
+.admin-nav-submenu {
+  max-height: 0;
+  display: grid;
+  gap: 4px;
+  overflow: hidden;
+  margin-left: 31px;
+  opacity: 0;
+  transition: max-height 200ms ease, opacity 160ms ease, padding 200ms ease;
+}
+
+.admin-nav-submenu.is-open {
+  max-height: 104px;
+  padding: 2px 0 7px;
+  opacity: 1;
+}
+
+.admin-nav-submenu button {
+  min-height: 39px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 9px;
+  color: white;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.admin-nav-submenu button:hover,
+.admin-nav-submenu button:focus-visible,
+.admin-nav-submenu button.is-active {
+  background: rgba(133, 190, 61, 0.88);
+  outline: none;
+}
+
+.admin-nav-submenu img {
+  width: 20px;
+  height: 20px;
+  display: block;
+  flex: 0 0 20px;
+  object-fit: contain;
+}
+
 .admin-nav-icon {
   width: 22px;
   height: 22px;
@@ -145,13 +240,13 @@
 }
 
 .admin-topbar {
-  min-height: 66px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
   box-sizing: border-box;
-  padding: 9px clamp(22px, 3vw, 44px);
+  padding: 7px clamp(22px, 3vw, 44px);
   border-bottom: 1px solid #e8ece4;
   background: rgba(255, 255, 255, 0.94);
 }
@@ -164,9 +259,11 @@
   font-size: 12px;
 }
 
-.admin-date > span {
-  color: var(--admin-green);
-  font-size: 18px;
+.admin-date > img {
+  width: 30px;
+  height: 30px;
+  display: block;
+  object-fit: contain;
 }
 
 .admin-account {
@@ -177,14 +274,22 @@
 
 .admin-notification {
   position: relative;
-  width: 35px;
-  height: 35px;
+  width: 40px;
+  height: 40px;
   border: 0;
   border-radius: 50%;
   color: var(--admin-green);
   background: #f4f7ef;
   font-size: 17px;
   cursor: pointer;
+}
+
+.admin-notification > img {
+  width: 30px;
+  height: 30px;
+  display: block;
+  margin: auto;
+  object-fit: contain;
 }
 
 .admin-notification > span {

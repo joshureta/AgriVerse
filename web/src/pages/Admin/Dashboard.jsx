@@ -1,14 +1,9 @@
 import { useState } from 'react'
+import dateIcon from '../../assets/admin-date-icon.png'
+import notificationIcon from '../../assets/admin-notification-icon.png'
+import { AdminSidebar } from '../../components/AdminNavigation.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
 import '../../styles/admin-dashboard.css'
-
-const navItems = [
-  { href: '/admin', icon: 'dashboard', label: 'Dashboard', active: true },
-  { href: '/admin/users', icon: 'users', label: 'User Management' },
-  { icon: 'operations', label: 'Operations' },
-  { icon: 'records', label: 'Records' },
-  { icon: 'monitoring', label: 'Monitoring' },
-]
 
 const activities = [
   { text: 'James completed field planting', status: 'done', time: '8 min ago' },
@@ -87,39 +82,12 @@ export default function AdminDashboard() {
 
   return (
     <main className="admin-dashboard">
-      <aside className="admin-sidebar">
-        <a className="admin-logo" href="/admin" aria-label="Jtoledo Trading admin home">
-          <span className="admin-logo-mark" aria-hidden="true">J</span>
-          <span>JTOLEDO</span>
-        </a>
-
-        <nav className="admin-nav" aria-label="Admin navigation">
-          {navItems.map((item) => (
-            <a
-              className={item.active ? 'is-active' : ''}
-              href={item.href || '#'}
-              key={item.label}
-              aria-current={item.active ? 'page' : undefined}
-            >
-              <span
-                className={`admin-nav-icon icon-${item.icon}`}
-                aria-hidden="true"
-              />
-              {item.label}
-            </a>
-          ))}
-        </nav>
-
-        <div className="admin-sidebar-footer">
-          <span>Administrator workspace</span>
-          <strong>Jtoledo Trading</strong>
-        </div>
-      </aside>
+      <AdminSidebar active="dashboard" />
 
       <section className="admin-workspace">
         <header className="admin-topbar">
           <div className="admin-date">
-            <span aria-hidden="true">▣</span>
+            <img src={dateIcon} alt="" />
             <time dateTime={new Date().toISOString()}>
               {formatDashboardDate(new Date())}
             </time>
@@ -127,7 +95,7 @@ export default function AdminDashboard() {
 
           <div className="admin-account">
             <button className="admin-notification" type="button" aria-label="Notifications">
-              ♟
+              <img src={notificationIcon} alt="" />
               <span aria-hidden="true" />
             </button>
             <div className="admin-avatar" aria-hidden="true">
