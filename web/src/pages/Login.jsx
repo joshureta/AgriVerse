@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth.js'
 import { supabase } from '../lib/supabase.js'
+import jtoledoLogo from '../assets/Jtoledologo.png'
 import '../styles/login.css'
 
 export default function Login() {
   const { loading: sessionLoading, user } = useAuth()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     if (!sessionLoading && user) {
@@ -45,15 +47,14 @@ export default function Login() {
         <div className="login-form-panel">
           <div className="login-form-wrap">
             <div className="login-brand">
-              <span className="login-brand-mark" aria-hidden="true">A</span>
-              <span>AgriVerse</span>
+              <img src={jtoledoLogo} alt="Jtoledo Trading" />
             </div>
 
             <div className="login-heading-group">
               <p className="login-kicker">Welcome back</p>
-              <h1 className="login-heading" id="login-title">Log in to your account</h1>
+              <h1 className="login-heading" id="login-title">Sign in to your account</h1>
               <p className="login-subtitle">
-                Enter your account details to continue to AgriVerse.
+                Enter your account details.
               </p>
             </div>
 
@@ -78,14 +79,24 @@ export default function Login() {
 
               <label className="login-field">
                 <span>Password</span>
-                <input
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="Enter your password"
-                  disabled={loading}
-                  required
-                />
+                <div className="login-input-shell">
+                  <input
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    placeholder="Enter your password"
+                    disabled={loading}
+                    required
+                  />
+                  <button
+                    className={`login-password-toggle${showPassword ? ' is-visible' : ''}`}
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-pressed={showPassword}
+                    disabled={loading}
+                  />
+                </div>
               </label>
 
               <div className="login-options">
@@ -97,7 +108,8 @@ export default function Login() {
               </div>
 
               <button className="login-button" type="submit" disabled={loading}>
-                {loading ? 'Logging in…' : 'Log in'}
+                {loading && <span className="login-spinner" aria-hidden="true" />}
+                <span>{loading ? 'Signing in…' : 'Sign in'}</span>
               </button>
             </form>
 
@@ -107,33 +119,14 @@ export default function Login() {
           </div>
         </div>
 
-        <aside className="login-hero" aria-label="AgriVerse community">
+        <aside className="login-hero" aria-label="Welcome to Jtoledo Trading">
           <div className="login-hero-content">
-            <p className="login-hero-eyebrow">Your agricultural community</p>
-            <h2>Grow better, together.</h2>
+            <h2>Welcome to<br />Jtoledo Trading</h2>
             <p className="login-hero-copy">
-              Access trusted sellers, agricultural products, farm updates,
-              and the people who help every harvest move forward.
+              JToledo Trading is a privately owned agricultural enterprise in
+              Tagaytay specializing in pineapple farming and distribution, with
+              over 25 years of farming operations managed by Joseph Toledo.
             </p>
-
-            <div className="login-highlights">
-              <div>
-                <strong>Connect</strong>
-                <span>with local agricultural partners</span>
-              </div>
-              <div>
-                <strong>Discover</strong>
-                <span>products and farm opportunities</span>
-              </div>
-              <div>
-                <strong>Support</strong>
-                <span>stronger farming communities</span>
-              </div>
-            </div>
-
-            <span className="login-image-note">
-              Your supplied farm image will appear in this panel
-            </span>
           </div>
         </aside>
       </section>
