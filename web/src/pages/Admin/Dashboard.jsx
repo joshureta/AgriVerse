@@ -3,11 +3,11 @@ import { useAuth } from '../../hooks/useAuth.js'
 import '../../styles/admin-dashboard.css'
 
 const navItems = [
-  { icon: '▦', label: 'Dashboard', active: true },
-  { icon: '♙', label: 'User Management' },
-  { icon: '⚙', label: 'Operations' },
-  { icon: '▤', label: 'Records' },
-  { icon: '▥', label: 'Monitoring' },
+  { icon: 'dashboard', label: 'Dashboard', active: true },
+  { icon: 'users', label: 'User Management' },
+  { icon: 'operations', label: 'Operations' },
+  { icon: 'records', label: 'Records' },
+  { icon: 'monitoring', label: 'Monitoring' },
 ]
 
 const activities = [
@@ -101,7 +101,10 @@ export default function AdminDashboard() {
               key={item.label}
               aria-current={item.active ? 'page' : undefined}
             >
-              <span aria-hidden="true">{item.icon}</span>
+              <span
+                className={`admin-nav-icon icon-${item.icon}`}
+                aria-hidden="true"
+              />
               {item.label}
             </button>
           ))}

@@ -24,9 +24,11 @@
   box-sizing: border-box;
   padding: 26px 18px 24px;
   color: white;
-  background:
-    radial-gradient(circle at 0 0, rgba(136, 190, 69, 0.28), transparent 220px),
-    linear-gradient(165deg, #17662f, #0f5028);
+  background: radial-gradient(
+    circle at 50% 50%,
+    #479237 0%,
+    #1f5f2b 100%
+  );
 }
 
 .admin-logo {
@@ -78,12 +80,33 @@
   cursor: pointer;
 }
 
-.admin-nav button > span {
+.admin-nav-icon {
   width: 22px;
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 21px;
-  font-weight: 400;
-  text-align: center;
+  height: 22px;
+  flex: 0 0 22px;
+  background-image: url('../assets/admin-sidebar-icons.png');
+  background-repeat: no-repeat;
+  background-size: 110px 22px;
+}
+
+.icon-dashboard {
+  background-position: 0 0;
+}
+
+.icon-users {
+  background-position: -22px 0;
+}
+
+.icon-operations {
+  background-position: -44px 0;
+}
+
+.icon-records {
+  background-position: -66px 0;
+}
+
+.icon-monitoring {
+  background-position: -88px 0;
 }
 
 .admin-nav button:hover,
