@@ -3,8 +3,8 @@ import { useAuth } from '../../hooks/useAuth.js'
 import '../../styles/admin-dashboard.css'
 
 const navItems = [
-  { icon: 'dashboard', label: 'Dashboard', active: true },
-  { icon: 'users', label: 'User Management' },
+  { href: '/admin', icon: 'dashboard', label: 'Dashboard', active: true },
+  { href: '/admin/users', icon: 'users', label: 'User Management' },
   { icon: 'operations', label: 'Operations' },
   { icon: 'records', label: 'Records' },
   { icon: 'monitoring', label: 'Monitoring' },
@@ -95,9 +95,9 @@ export default function AdminDashboard() {
 
         <nav className="admin-nav" aria-label="Admin navigation">
           {navItems.map((item) => (
-            <button
+            <a
               className={item.active ? 'is-active' : ''}
-              type="button"
+              href={item.href || '#'}
               key={item.label}
               aria-current={item.active ? 'page' : undefined}
             >
@@ -106,7 +106,7 @@ export default function AdminDashboard() {
                 aria-hidden="true"
               />
               {item.label}
-            </button>
+            </a>
           ))}
         </nav>
 

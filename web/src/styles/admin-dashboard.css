@@ -63,7 +63,7 @@
   margin-top: 72px;
 }
 
-.admin-nav button {
+.admin-nav a {
   min-height: 46px;
   display: flex;
   align-items: center;
@@ -77,6 +77,7 @@
   font-size: 13px;
   font-weight: 750;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -109,15 +110,15 @@
   background-position: -88px 0;
 }
 
-.admin-nav button:hover,
-.admin-nav button:focus-visible,
-.admin-nav button.is-active {
+.admin-nav a:hover,
+.admin-nav a:focus-visible,
+.admin-nav a.is-active {
   color: white;
   background: rgba(133, 190, 61, 0.82);
   outline: none;
 }
 
-.admin-nav button.is-active {
+.admin-nav a.is-active {
   box-shadow: 0 8px 20px rgba(8, 47, 22, 0.24);
 }
 
@@ -825,7 +826,7 @@
     display: none;
   }
 
-  .admin-nav button {
+  .admin-nav a {
     min-width: max-content;
   }
 
