@@ -1,64 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth.js'
+import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/user-management.css'
 
-const initialUsers = [
-  {
-    id: 1,
-    name: 'James Dela Cruz',
-    email: 'james@example.com',
-    role: 'Farm Worker',
-    status: 'Active',
-    location: 'Tagaytay City',
-    joined: 'Jul 24, 2026',
-  },
-  {
-    id: 2,
-    name: 'Maria Santos',
-    email: 'maria@example.com',
-    role: 'Buyer',
-    status: 'Active',
-    location: 'Silang, Cavite',
-    joined: 'Jul 22, 2026',
-  },
-  {
-    id: 3,
-    name: 'Juan Reyes',
-    email: 'juan@example.com',
-    role: 'Driver',
-    status: 'Active',
-    location: 'Amadeo, Cavite',
-    joined: 'Jul 18, 2026',
-  },
-  {
-    id: 4,
-    name: 'Yuri Mendoza',
-    email: 'yuri@example.com',
-    role: 'Farm Worker',
-    status: 'Inactive',
-    location: 'Tagaytay City',
-    joined: 'Jul 12, 2026',
-  },
-  {
-    id: 5,
-    name: 'Ana Villanueva',
-    email: 'ana@example.com',
-    role: 'Seller',
-    status: 'Active',
-    location: 'Alfonso, Cavite',
-    joined: 'Jul 8, 2026',
-  },
-  {
-    id: 6,
-    name: 'Carlo Garcia',
-    email: 'carlo@example.com',
-    role: 'Buyer',
-    status: 'Pending',
-    location: 'Mendez, Cavite',
-    joined: 'Jul 4, 2026',
-  },
-]
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
+const PAGE_SIZE = 5
 
 const navItems = [
   { href: '/admin', icon: 'dashboard', label: 'Dashboard' },
@@ -70,51 +17,110 @@ const navItems = [
 
 function formatDashboardDate(date) {
   return new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   }).format(date)
 }
 
-function getInitials(name) {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map((part) => part.charAt(0))
-    .join('')
-    .toUpperCase()
+function formatCreatedAt(value) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+  }).format(new Date(value))
+}
+
+function roleLabel(role) {
+  return {
+    admin: 'Admin',
+    buyer: 'Buyer',
+    farm_worker: 'Farm Worker',
+  }[role] || role
+}
+
+async function readAccessToken(refresh = false) {
+  const result = refresh
+    ? await supabase.auth.refreshSession()
+    : await supabase.auth.getSession()
+
+  if (result.error) throw new Error(result.error.message)
+  const token = result.data.session?.access_token
+  if (!token) throw new Error('Your session has ended. Please sign in again.')
+  return token
+}
+
+async function apiRequest(path, options = {}, retry = true) {
+  const token = await readAccessToken()
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 12000)
+
+  try {
+    const response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...options.headers,
+      },
+    })
+
+    if (response.status === 401 && retry) {
+      await readAccessToken(true)
+      return apiRequest(path, options, false)
+    }
+
+    const body = response.status === 204 ? null : await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body?.error || `Request failed (${response.status})`)
+    return body
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('The backend did not respond. Make sure it is running on port 5000.')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
 }
 
 export default function UserManagement() {
-  const { profile, signOut } = useAuth()
-  const [users, setUsers] = useState(initialUsers)
+  const { profile, signOut, user: currentUser } = useAuth()
+  const [users, setUsers] = useState([])
+  const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 })
+  const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [roleFilter, setRoleFilter] = useState('All roles')
-  const [statusFilter, setStatusFilter] = useState('All statuses')
-  const [selectedUsers, setSelectedUsers] = useState([])
-  const [showAddUser, setShowAddUser] = useState(false)
+  const [roleFilter, setRoleFilter] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [modal, setModal] = useState(null)
+  const [saving, setSaving] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
-  const displayName = profile?.full_name || 'Josh Ureta'
+  const [refreshKey, setRefreshKey] = useState(0)
+  const displayName = profile?.full_name || 'Administrator'
 
-  const filteredUsers = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase()
+  const loadUsers = useCallback(async () => {
+    if (!currentUser?.id) return
+    setLoading(true)
+    setError('')
 
-    return users.filter((user) => {
-      const matchesSearch = !normalizedSearch
-        || user.name.toLowerCase().includes(normalizedSearch)
-        || user.email.toLowerCase().includes(normalizedSearch)
-        || user.location.toLowerCase().includes(normalizedSearch)
-      const matchesRole = roleFilter === 'All roles' || user.role === roleFilter
-      const matchesStatus = statusFilter === 'All statuses'
-        || user.status === statusFilter
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
+    if (search.trim()) params.set('search', search.trim())
+    if (roleFilter) params.set('role', roleFilter)
 
-      return matchesSearch && matchesRole && matchesStatus
-    })
-  }, [roleFilter, search, statusFilter, users])
+    try {
+      const data = await apiRequest(`/api/admin/users?${params}`)
+      setUsers(data.users || [])
+      setPagination(data.pagination || { page, total: 0, totalPages: 1 })
+    } catch (requestError) {
+      setUsers([])
+      setError(requestError.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [currentUser?.id, page, roleFilter, search])
 
-  const activeCount = users.filter((user) => user.status === 'Active').length
-  const pendingCount = users.filter((user) => user.status === 'Pending').length
+  useEffect(() => {
+    const delay = window.setTimeout(loadUsers, search ? 300 : 0)
+    return () => window.clearTimeout(delay)
+  }, [loadUsers, refreshKey, search])
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -122,53 +128,49 @@ export default function UserManagement() {
     window.location.replace('/login')
   }
 
-  function toggleSelected(userId) {
-    setSelectedUsers((current) => (
-      current.includes(userId)
-        ? current.filter((id) => id !== userId)
-        : [...current, userId]
-    ))
-  }
-
-  function toggleAllVisible() {
-    const visibleIds = filteredUsers.map((user) => user.id)
-    const allVisibleSelected = visibleIds.length > 0
-      && visibleIds.every((id) => selectedUsers.includes(id))
-
-    setSelectedUsers((current) => (
-      allVisibleSelected
-        ? current.filter((id) => !visibleIds.includes(id))
-        : [...new Set([...current, ...visibleIds])]
-    ))
-  }
-
-  function toggleUserStatus(userId) {
-    setUsers((current) => current.map((user) => (
-      user.id === userId
-        ? { ...user, status: user.status === 'Active' ? 'Inactive' : 'Active' }
-        : user
-    )))
-  }
-
-  function handleAddUser(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+    setSaving(true)
+    setError('')
     const form = new FormData(event.currentTarget)
-    const name = form.get('name').trim()
-    const email = form.get('email').trim()
+    const payload = {
+      full_name: String(form.get('full_name') || '').trim(),
+      role: form.get('role'),
+    }
 
-    setUsers((current) => [
-      {
-        id: Date.now(),
-        name,
-        email,
-        role: form.get('role'),
-        status: 'Pending',
-        location: form.get('location').trim() || 'Not provided',
-        joined: 'Today',
-      },
-      ...current,
-    ])
-    setShowAddUser(false)
+    if (modal.mode === 'add') {
+      payload.email = String(form.get('email') || '').trim()
+      payload.password = String(form.get('password') || '')
+    }
+
+    try {
+      await apiRequest(
+        modal.mode === 'add' ? '/api/admin/users' : `/api/admin/users/${modal.user.id}`,
+        {
+          method: modal.mode === 'add' ? 'POST' : 'PATCH',
+          body: JSON.stringify(payload),
+        },
+      )
+      setModal(null)
+      setPage(1)
+      setRefreshKey((value) => value + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(user) {
+    if (!window.confirm(`Delete ${user.full_name}? This also removes their sign-in account.`)) return
+    setError('')
+    try {
+      await apiRequest(`/api/admin/users/${user.id}`, { method: 'DELETE' })
+      if (users.length === 1 && page > 1) setPage((value) => value - 1)
+      else setRefreshKey((value) => value + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+    }
   }
 
   return (
@@ -178,57 +180,27 @@ export default function UserManagement() {
           <span className="admin-logo-mark" aria-hidden="true">J</span>
           <span>JTOLEDO</span>
         </a>
-
         <nav className="admin-nav" aria-label="Admin navigation">
           {navItems.map((item) => (
-            <a
-              className={item.active ? 'is-active' : ''}
-              href={item.href || '#'}
-              key={item.label}
-              aria-current={item.active ? 'page' : undefined}
-            >
-              <span
-                className={`admin-nav-icon icon-${item.icon}`}
-                aria-hidden="true"
-              />
+            <a className={item.active ? 'is-active' : ''} href={item.href || '#'} key={item.label}>
+              <span className={`admin-nav-icon icon-${item.icon}`} aria-hidden="true" />
               {item.label}
             </a>
           ))}
         </nav>
-
         <div className="admin-sidebar-footer">
-          <span>Administrator workspace</span>
-          <strong>Jtoledo Trading</strong>
+          <span>Administrator workspace</span><strong>Jtoledo Trading</strong>
         </div>
       </aside>
 
       <section className="admin-workspace">
         <header className="admin-topbar">
-          <div className="admin-date">
-            <span aria-hidden="true">▣</span>
-            <time dateTime={new Date().toISOString()}>
-              {formatDashboardDate(new Date())}
-            </time>
-          </div>
-
+          <div className="admin-date"><span aria-hidden="true">▣</span><time>{formatDashboardDate(new Date())}</time></div>
           <div className="admin-account">
-            <button className="admin-notification" type="button" aria-label="Notifications">
-              ♟
-              <span aria-hidden="true" />
-            </button>
-            <div className="admin-avatar" aria-hidden="true">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-            <div className="admin-identity">
-              <strong>{displayName}</strong>
-              <span>Admin</span>
-            </div>
-            <button
-              className="admin-signout"
-              type="button"
-              onClick={handleSignOut}
-              disabled={signingOut}
-            >
+            <button className="admin-notification" type="button" aria-label="Notifications">●<span /></button>
+            <div className="admin-avatar" aria-hidden="true">{displayName.charAt(0).toUpperCase()}</div>
+            <div className="admin-identity"><strong>{displayName}</strong><span>Admin</span></div>
+            <button className="admin-signout" type="button" onClick={handleSignOut} disabled={signingOut}>
               {signingOut ? 'Wait…' : 'Sign out'}
             </button>
           </div>
@@ -236,223 +208,75 @@ export default function UserManagement() {
 
         <div className="user-management-content">
           <header className="user-page-heading">
-            <div>
-              <p>Administration</p>
-              <h1>User Management</h1>
-              <span>View and manage everyone using the Jtoledo Trading platform.</span>
-            </div>
-            <button type="button" onClick={() => setShowAddUser(true)}>
-              <span aria-hidden="true">+</span>
-              Add user
-            </button>
+            <div><span className="user-heading-icon" aria-hidden="true">♟</span><h1>User Management</h1></div>
+            <button type="button" onClick={() => setModal({ mode: 'add' })}><span>＋</span>Add User</button>
           </header>
-
-          <section className="user-summary-grid" aria-label="User overview">
-            <article>
-              <span className="user-summary-icon">◎</span>
-              <div><strong>{users.length}</strong><p>Total users</p></div>
-              <small>All accounts</small>
-            </article>
-            <article>
-              <span className="user-summary-icon is-active">✓</span>
-              <div><strong>{activeCount}</strong><p>Active users</p></div>
-              <small>Currently enabled</small>
-            </article>
-            <article>
-              <span className="user-summary-icon is-pending">◷</span>
-              <div><strong>{pendingCount}</strong><p>Pending</p></div>
-              <small>Awaiting approval</small>
-            </article>
-            <article>
-              <span className="user-summary-icon is-worker">♣</span>
-              <div>
-                <strong>{users.filter((user) => user.role === 'Farm Worker').length}</strong>
-                <p>Farm workers</p>
-              </div>
-              <small>Workforce accounts</small>
-            </article>
-          </section>
 
           <section className="users-panel">
             <div className="users-toolbar">
+              <select value={roleFilter} onChange={(event) => { setRoleFilter(event.target.value); setPage(1) }} aria-label="Filter by role">
+                <option value="">Filter by role</option>
+                <option value="admin">Admin</option>
+                <option value="buyer">Buyer</option>
+                <option value="farm_worker">Farm Worker</option>
+              </select>
               <label className="user-search">
+                <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search full name" />
                 <span aria-hidden="true">⌕</span>
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search name, email, or location"
-                  aria-label="Search users"
-                />
               </label>
-
-              <div className="user-filters">
-                <select
-                  value={roleFilter}
-                  onChange={(event) => setRoleFilter(event.target.value)}
-                  aria-label="Filter users by role"
-                >
-                  <option>All roles</option>
-                  <option>Buyer</option>
-                  <option>Farm Worker</option>
-                  <option>Driver</option>
-                  <option>Seller</option>
-                </select>
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  aria-label="Filter users by status"
-                >
-                  <option>All statuses</option>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                  <option>Pending</option>
-                </select>
-              </div>
             </div>
 
-            {selectedUsers.length > 0 && (
-              <div className="bulk-selection">
-                <strong>{selectedUsers.length} selected</strong>
-                <button type="button" onClick={() => setSelectedUsers([])}>
-                  Clear selection
-                </button>
-              </div>
-            )}
-
+            {error && <div className="users-error" role="alert">{error}</div>}
             <div className="users-table-wrap">
               <table className="users-table">
-                <thead>
-                  <tr>
-                    <th>
-                      <input
-                        type="checkbox"
-                        checked={
-                          filteredUsers.length > 0
-                          && filteredUsers.every((user) => selectedUsers.includes(user.id))
-                        }
-                        onChange={toggleAllVisible}
-                        aria-label="Select all visible users"
-                      />
-                    </th>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                    <th>Joined</th>
-                    <th><span className="sr-only">Actions</span></th>
-                  </tr>
-                </thead>
+                <thead><tr><th>ID</th><th>FULL NAME</th><th>ROLE</th><th>CREATED AT</th><th>ACTIONS</th></tr></thead>
                 <tbody>
-                  {filteredUsers.map((user) => (
+                  {loading ? (
+                    <tr><td className="users-state" colSpan="5">Loading users…</td></tr>
+                  ) : users.length === 0 ? (
+                    <tr><td className="users-state" colSpan="5">No users found.</td></tr>
+                  ) : users.map((user) => (
                     <tr key={user.id}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedUsers.includes(user.id)}
-                          onChange={() => toggleSelected(user.id)}
-                          aria-label={`Select ${user.name}`}
-                        />
-                      </td>
-                      <td>
-                        <div className="user-cell">
-                          <span className="user-avatar">{getInitials(user.name)}</span>
-                          <div><strong>{user.name}</strong><span>{user.email}</span></div>
-                        </div>
-                      </td>
-                      <td><span className="role-pill">{user.role}</span></td>
-                      <td>{user.location}</td>
-                      <td>
-                        <span className={`status-pill is-${user.status.toLowerCase()}`}>
-                          <i />
-                          {user.status}
-                        </span>
-                      </td>
-                      <td>{user.joined}</td>
-                      <td>
-                        <button
-                          className="user-action"
-                          type="button"
-                          onClick={() => toggleUserStatus(user.id)}
-                          aria-label={`${user.status === 'Active' ? 'Deactivate' : 'Activate'} ${user.name}`}
-                          title={user.status === 'Active' ? 'Deactivate user' : 'Activate user'}
-                        >
-                          •••
-                        </button>
-                      </td>
+                      <td className="user-id" title={user.id}>{user.id}</td>
+                      <td><strong>{user.full_name}</strong></td>
+                      <td><span className={`role-pill role-${user.role}`}>{roleLabel(user.role)}</span></td>
+                      <td>{formatCreatedAt(user.created_at)}</td>
+                      <td><div className="user-actions">
+                        <button type="button" className="edit-user" onClick={() => setModal({ mode: 'edit', user })} aria-label={`Edit ${user.full_name}`}>✎</button>
+                        <button type="button" className="delete-user" onClick={() => handleDelete(user)} disabled={user.id === currentUser?.id} aria-label={`Delete ${user.full_name}`}>▣</button>
+                      </div></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-
-              {filteredUsers.length === 0 && (
-                <div className="empty-users">
-                  <strong>No users found</strong>
-                  <p>Try changing your search or filters.</p>
-                </div>
-              )}
             </div>
-
             <footer className="users-footer">
-              <span>Showing {filteredUsers.length} of {users.length} mock users</span>
+              <span>{pagination.total} total user{pagination.total === 1 ? '' : 's'}</span>
               <div>
-                <button type="button" disabled>Previous</button>
-                <strong>1</strong>
-                <button type="button" disabled>Next</button>
+                <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button>
+                <strong>{page}</strong>
+                <button type="button" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button>
               </div>
             </footer>
           </section>
         </div>
       </section>
 
-      {showAddUser && (
+      {modal && (
         <div className="user-modal-backdrop" role="presentation">
-          <section
-            className="user-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="add-user-title"
-          >
-            <button
-              className="user-modal-close"
-              type="button"
-              onClick={() => setShowAddUser(false)}
-              aria-label="Close add user form"
-            >
-              ×
-            </button>
-            <p>Frontend preview</p>
-            <h2 id="add-user-title">Add a new user</h2>
-            <span>This creates a temporary row only. It is not saved to Supabase.</span>
-
-            <form onSubmit={handleAddUser}>
-              <label>
-                <span>Full name</span>
-                <input name="name" placeholder="Enter full name" required />
-              </label>
-              <label>
-                <span>Email address</span>
-                <input name="email" type="email" placeholder="user@example.com" required />
-              </label>
-              <div>
-                <label>
-                  <span>Role</span>
-                  <select name="role" defaultValue="Buyer">
-                    <option>Buyer</option>
-                    <option>Farm Worker</option>
-                    <option>Driver</option>
-                    <option>Seller</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Location</span>
-                  <input name="location" placeholder="City or municipality" />
-                </label>
-              </div>
-              <footer>
-                <button type="button" onClick={() => setShowAddUser(false)}>Cancel</button>
-                <button type="submit">Add mock user</button>
-              </footer>
+          <section className="user-modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+            <button className="user-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">×</button>
+            <p>{modal.mode === 'add' ? 'Create account' : 'Update profile'}</p>
+            <h2 id="user-modal-title">{modal.mode === 'add' ? 'Add a new user' : 'Edit user'}</h2>
+            <span>The table displays only the four requested profile fields.</span>
+            <form onSubmit={handleSubmit}>
+              <label><span>Full name</span><input name="full_name" defaultValue={modal.user?.full_name || ''} required minLength="2" maxLength="100" /></label>
+              {modal.mode === 'add' && <>
+                <label><span>Email address</span><input name="email" type="email" required placeholder="user@example.com" /></label>
+                <label><span>Temporary password</span><input name="password" type="password" required minLength="8" placeholder="At least 8 characters" /></label>
+              </>}
+              <label><span>Role</span><select name="role" defaultValue={modal.user?.role || 'buyer'}><option value="buyer">Buyer</option><option value="farm_worker">Farm Worker</option><option value="admin">Admin</option></select></label>
+              <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save user'}</button></footer>
             </form>
           </section>
         </div>

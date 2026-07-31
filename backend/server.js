@@ -6,6 +6,7 @@ require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 
 const { supabaseConfig } = require("./supabase");
 const { requireAuth } = require("./middleware/auth");
+const adminUsersRouter = require("./routes/admin-users");
 
 const app = express();
 
@@ -59,6 +60,8 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
     profile: req.profile,
   });
 });
+
+app.use("/api/admin/users", adminUsersRouter);
 
 const PORT = process.env.PORT || 5000;
 

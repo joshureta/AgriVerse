@@ -10,12 +10,10 @@ async function requireAuth(req, res, next) {
 
   try {
     const supabase = getSupabase();
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser(token);
+    const { data: claimData, error: claimError } = await supabase.auth.getClaims(token);
+    const claims = claimData?.claims;
 
-    if (userError || !user) {
+    if (claimError || !claims?.sub) {
       return res.status(401).json({ error: "Invalid or expired session" });
     }
 
@@ -24,14 +22,18 @@ async function requireAuth(req, res, next) {
       .select(
         "id, full_name, mobile_number, country, region, province, city_municipality, barangay, role, worker_category",
       )
-      .eq("id", user.id)
+      .eq("id", claims.sub)
       .single();
 
     if (profileError || !profile) {
       return res.status(403).json({ error: "User profile is not available" });
     }
 
-    req.user = user;
+    req.user = {
+      id: claims.sub,
+      email: claims.email || null,
+      email_confirmed_at: null,
+    };
     req.profile = profile;
     return next();
   } catch (error) {
