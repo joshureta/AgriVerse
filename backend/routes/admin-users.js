@@ -54,7 +54,7 @@ router.get("/", async (req, res, next) => {
 
     let query = supabase
       .from("profiles")
-      .select("id, full_name, role, created_at", { count: "exact" })
+      .select("id, full_name, email, role, created_at", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(from, from + pageSize - 1);
 
@@ -124,12 +124,13 @@ router.post("/", async (req, res, next) => {
       .upsert(
         {
           id: createdUserId,
+          email,
           full_name: fullName,
           ...roleFields(role),
         },
         { onConflict: "id" },
       )
-      .select("id, full_name, role, created_at")
+      .select("id, full_name, email, role, created_at")
       .single();
 
     if (profileError) {
@@ -155,7 +156,7 @@ router.patch("/:id", async (req, res, next) => {
       .from("profiles")
       .update({ full_name: fullName, ...roleFields(role) })
       .eq("id", req.params.id)
-      .select("id, full_name, role, created_at")
+      .select("id, full_name, email, role, created_at")
       .single();
 
     if (error) {
