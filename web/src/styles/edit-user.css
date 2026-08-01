@@ -1,0 +1,36 @@
+.edit-user-page { background: #fafcf5; }
+.edit-user-content { width: min(980px, calc(100% - 44px)); margin: 0 auto; padding: 25px 0 50px; }
+.edit-user-back { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 22px; color: #176b35; font-size: 13px; font-weight: 850; text-decoration: none; }
+.edit-user-back span { font-size: 27px; font-weight: 400; line-height: .7; }
+.edit-user-back:hover, .edit-user-back:focus-visible { color: #0c4f26; outline: none; text-decoration: underline; }
+.edit-user-card { overflow: hidden; border: 1px solid #d9e4d7; border-radius: 10px; background: #fff; box-shadow: 0 16px 38px rgba(26,73,34,.09); }
+.edit-user-card > header { padding: 19px 30px; color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); }
+.edit-user-card > header span { color: rgba(255,255,255,.7); font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.edit-user-card h1 { margin: 3px 0 0; font-size: 23px; }
+.edit-user-card form { display: grid; gap: 24px; padding: 28px 32px 32px; }
+.edit-user-note { border-left: 4px solid #72ad3e; border-radius: 5px; padding: 12px 14px; color: #4d5c50; background: #f3f8ef; font-size: 11px; line-height: 1.55; }
+.edit-user-message { border-radius: 7px; padding: 11px 13px; font-size: 11px; }
+.edit-user-message.is-error, .edit-user-state.is-error { color: #a52323; background: #fff0f0; }
+.edit-user-message.is-success { color: #176332; background: #eaf6e7; }
+.edit-user-card fieldset { min-width: 0; margin: 0; border: 0; padding: 0; }
+.edit-user-card legend { width: 100%; box-sizing: border-box; margin-bottom: 13px; padding-bottom: 8px; border-bottom: 1px solid #e4ebe1; color: #1c5f31; font-size: 12px; font-weight: 900; }
+.edit-user-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 15px 22px; }
+.edit-user-field { min-width: 0; display: grid; gap: 7px; }
+.edit-user-field > span { color: #253328; font-size: 10px; font-weight: 800; }
+.edit-user-field input, .edit-user-field select { width: 100%; min-width: 0; min-height: 40px; box-sizing: border-box; border: 1px solid #d3dbd1; border-radius: 6px; padding: 0 11px; color: #354139; background: #f4f6f3; font: inherit; font-size: 11px; }
+.edit-user-field.is-editable input, .edit-user-field.is-editable select { border-color: #a9c5aa; color: #111; background: #fff; }
+.edit-user-field.is-editable input:focus, .edit-user-field.is-editable select:focus { border-color: #287840; outline: 3px solid rgba(71,146,55,.13); }
+.edit-user-field select:disabled { cursor: not-allowed; color: #79827b; background: #f4f6f3; opacity: 1; }
+.edit-role-options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.edit-role-options label { min-height: 43px; display: flex; align-items: center; justify-content: center; border: 1px solid #bbcfba; border-radius: 7px; color: #31533a; background: #f9fbf8; font-size: 11px; font-weight: 800; cursor: pointer; transition: 160ms ease; }
+.edit-role-options label:hover { border-color: #4b8d5a; }
+.edit-role-options label.is-selected { border-color: #1f652f; color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); box-shadow: 0 7px 16px rgba(31,95,43,.16); }
+.edit-role-options input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+.edit-user-card footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 3px; }
+.edit-user-card footer button, .edit-user-card footer a { min-width: 112px; min-height: 41px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; border: 1px solid #9fb29f; border-radius: 6px; padding: 0 18px; font: inherit; font-size: 11px; font-weight: 850; text-decoration: none; cursor: pointer; }
+.edit-user-card footer button { border-color: #1f5f2b; color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); }
+.edit-user-card footer button:disabled { cursor: not-allowed; opacity: .45; }
+.edit-user-card footer a { color: #27362b; background: #fff; }
+.edit-user-state { border: 1px solid #dae3d7; border-radius: 9px; padding: 40px; color: #607064; background: #fff; text-align: center; }
+@media (max-width:760px) { .edit-user-content { width: min(100% - 28px,680px); padding-top: 18px; } .edit-user-card form { padding: 23px 22px 27px; } .edit-user-grid { grid-template-columns: 1fr; } }
+@media (max-width:480px) { .edit-user-card > header { padding: 17px 20px; } .edit-user-card h1 { font-size: 20px; } .edit-role-options { grid-template-columns: 1fr; } .edit-user-card footer { display: grid; grid-template-columns: 1fr 1fr; } .edit-user-card footer button, .edit-user-card footer a { min-width: 0; } }

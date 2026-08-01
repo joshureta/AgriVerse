@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import dateIcon from '../../assets/admin-date-icon.png'
 import notificationIcon from '../../assets/admin-notification-icon.png'
+import dashboardIllustration from '../../assets/admin-dashboard-illustration.png'
 import { AdminSidebar } from '../../components/AdminNavigation.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
 import '../../styles/admin-dashboard.css'
@@ -124,6 +125,7 @@ export default function AdminDashboard() {
               <p>Here is what is happening across your farm operations today.</p>
             </div>
             <div className="admin-hero-art" aria-hidden="true">
+              <img src={dashboardIllustration} alt="" />
               <span className="hero-sun" />
               <span className="hero-field hero-field-one" />
               <span className="hero-field hero-field-two" />

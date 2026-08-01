@@ -4,6 +4,13 @@ const { getSupabase } = require("../supabase");
 
 const router = express.Router();
 const allowedRoles = new Set(["admin", "buyer", "farm_worker"]);
+const allowedWorkerCategories = new Set([
+  "driver",
+  "crop_management_worker",
+  "seller",
+]);
+const profileSelect =
+  "id, full_name, email, mobile_number, country, region, province, city_municipality, barangay, role, worker_category, created_at";
 
 router.use(requireAuth, requireRole("admin"));
 
@@ -33,10 +40,44 @@ function readRole(value) {
   return role;
 }
 
-function roleFields(role) {
+function readEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw httpError(400, "A valid email address is required");
+  }
+
+  return email;
+}
+
+function readMobileNumber(value) {
+  const mobileNumber = String(value || "").trim();
+
+  if (mobileNumber.length > 30) {
+    throw httpError(400, "Mobile number must contain no more than 30 characters");
+  }
+
+  return mobileNumber || null;
+}
+
+function readWorkerCategory(value, role) {
+  if (role !== "farm_worker") return null;
+
+  const workerCategory = String(value || "").trim().toLowerCase();
+  if (!allowedWorkerCategories.has(workerCategory)) {
+    throw httpError(
+      400,
+      "Farm workers must have a driver, crop management worker, or seller category",
+    );
+  }
+
+  return workerCategory;
+}
+
+function roleFields(role, workerCategory) {
   return {
     role,
-    worker_category: role === "farm_worker" ? "crop_management_worker" : null,
+    worker_category: readWorkerCategory(workerCategory, role),
   };
 }
 
@@ -88,6 +129,28 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+router.get("/:id", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase()
+      .from("profiles")
+      .select(profileSelect)
+      .eq("id", req.params.id)
+      .single();
+
+    if (error?.code === "PGRST116") {
+      throw httpError(404, "User profile was not found");
+    }
+
+    if (error) {
+      throw error;
+    }
+
+    return res.json({ user: data });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post("/", async (req, res, next) => {
   const supabase = getSupabase();
   let createdUserId = null;
@@ -95,12 +158,8 @@ router.post("/", async (req, res, next) => {
   try {
     const fullName = readFullName(req.body.full_name);
     const role = readRole(req.body.role);
-    const email = String(req.body.email || "").trim().toLowerCase();
+    const email = readEmail(req.body.email);
     const password = String(req.body.password || "");
-
-    if (!email || !email.includes("@")) {
-      throw httpError(400, "A valid email address is required");
-    }
 
     if (password.length < 8) {
       throw httpError(400, "Temporary password must contain at least 8 characters");
@@ -126,7 +185,11 @@ router.post("/", async (req, res, next) => {
           id: createdUserId,
           email,
           full_name: fullName,
-          ...roleFields(role),
+          ...roleFields(
+            role,
+            req.body.worker_category ||
+              (role === "farm_worker" ? "crop_management_worker" : null),
+          ),
         },
         { onConflict: "id" },
       )
@@ -148,28 +211,60 @@ router.post("/", async (req, res, next) => {
 });
 
 router.patch("/:id", async (req, res, next) => {
+  const supabase = getSupabase();
+  let originalAuthUser = null;
+
   try {
     const fullName = readFullName(req.body.full_name);
+    const email = readEmail(req.body.email);
+    const mobileNumber = readMobileNumber(req.body.mobile_number);
     const role = readRole(req.body.role);
-    const supabase = getSupabase();
+    const workerCategory = readWorkerCategory(req.body.worker_category, role);
+    const { data: authData, error: authLookupError } =
+      await supabase.auth.admin.getUserById(req.params.id);
+
+    if (authLookupError || !authData.user) {
+      throw httpError(404, authLookupError?.message || "Authentication user was not found");
+    }
+
+    originalAuthUser = authData.user;
+    const { error: authUpdateError } = await supabase.auth.admin.updateUserById(
+      req.params.id,
+      {
+        email,
+        email_confirm: true,
+        user_metadata: {
+          ...originalAuthUser.user_metadata,
+          full_name: fullName,
+          mobile_number: mobileNumber,
+        },
+      },
+    );
+
+    if (authUpdateError) {
+      throw httpError(400, authUpdateError.message);
+    }
+
     const { data: profile, error } = await supabase
       .from("profiles")
-      .update({ full_name: fullName, ...roleFields(role) })
+      .update({
+        full_name: fullName,
+        email,
+        mobile_number: mobileNumber,
+        ...roleFields(role, workerCategory),
+      })
       .eq("id", req.params.id)
-      .select("id, full_name, email, role, created_at")
+      .select(profileSelect)
       .single();
 
     if (error) {
+      await supabase.auth.admin.updateUserById(req.params.id, {
+        email: originalAuthUser.email,
+        email_confirm: true,
+        user_metadata: originalAuthUser.user_metadata,
+      });
       throw error;
     }
-
-    const { data: authData } = await supabase.auth.admin.getUserById(req.params.id);
-    await supabase.auth.admin.updateUserById(req.params.id, {
-      user_metadata: {
-        ...authData.user?.user_metadata,
-        full_name: fullName,
-      },
-    });
 
     return res.json({ user: profile });
   } catch (error) {

@@ -252,7 +252,7 @@ export default function UserManagement() {
                       <td><span className={`role-pill role-${user.role}`}>{roleLabel(user.role)}</span></td>
                       <td>{formatCreatedAt(user.created_at)}</td>
                       <td><div className="user-actions">
-                        <button type="button" className="edit-user" onClick={() => setModal({ mode: 'edit', user })} aria-label={`Edit ${user.full_name}`}>✎</button>
+                        <button type="button" className="edit-user" onClick={() => window.location.assign(`/admin/users/edit?id=${encodeURIComponent(user.id)}`)} aria-label={`Edit ${user.full_name}`}>✎</button>
                         <button type="button" className="delete-user" onClick={() => handleDelete(user)} disabled={user.id === currentUser?.id} aria-label={`Delete ${user.full_name}`}><img src={deleteIcon} alt="" /></button>
                       </div></td>
                     </tr>

@@ -3,6 +3,7 @@ import dateIcon from '../assets/admin-date-icon.png'
 import inventoryIcon from '../assets/inventory-icon.png'
 import notificationIcon from '../assets/admin-notification-icon.png'
 import taskScheduleIcon from '../assets/task-schedule-icon.png'
+import agriverseWordmark from '../assets/agriverse-wordmark.png'
 import { useAuth } from '../hooks/useAuth.js'
 
 const navItems = [
@@ -29,9 +30,8 @@ export function AdminSidebar({ active }) {
 
   return (
     <aside className="admin-sidebar">
-      <a className="admin-logo" href="/admin" aria-label="Jtoledo Trading admin home">
-        <span className="admin-logo-mark" aria-hidden="true">J</span>
-        <span>JTOLEDO</span>
+      <a className="admin-logo" href="/admin" aria-label="AgriVerse admin home">
+        <img className="admin-logo-image" src={agriverseWordmark} alt="AgriVerse" />
       </a>
 
       <nav className="admin-nav" aria-label="Admin navigation">
@@ -90,7 +90,7 @@ export function AdminSidebar({ active }) {
 
       <div className="admin-sidebar-footer">
         <span>Administrator workspace</span>
-        <strong>Jtoledo Trading</strong>
+        <strong>AgriVerse</strong>
       </div>
     </aside>
   )
