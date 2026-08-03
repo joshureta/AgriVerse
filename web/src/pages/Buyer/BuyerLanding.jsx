@@ -1,131 +1,25 @@
-import { useAuth } from '../../hooks/useAuth.js'
-import '../../styles/buyer/buyerLanding.css'
+import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import buyerHomeBackground from '../../assets/buyer/buyer-home-background.png'
+import orderPanel from '../../assets/buyer/pineapple-order.png'
+import chatPanel from '../../assets/buyer/chat-farmer.png'
+import '../../styles/Buyer/buyerLanding.css'
 
 export default function BuyerLanding() {
-  const { profile, signOut } = useAuth()
-
-  async function handleSignOut() {
-    await signOut()
-    window.location.replace('/login')
-  }
-
-  function handleNewsletterSubmit(event) {
-    event.preventDefault()
-  }
-
   return (
     <main className="buyer-page">
-      <header className="buyer-header">
-        <div className="buyer-header-top">
-          <a className="buyer-brand" href="/buyer" aria-label="JToledo Trading home">
-            <span className="buyer-brand-mark" aria-hidden="true">J</span>
-            <span>
-              <strong>JTOLEDO</strong>
-              <small>TRADING</small>
-            </span>
+      <BuyerHeader active="home" />
+      <section className="buyer-home" id="home" aria-labelledby="buyer-welcome-title" style={{ backgroundImage: `url(${buyerHomeBackground})` }}>
+        <h1 className="buyer-welcome" id="buyer-welcome-title">Welcome <strong>Buyer!</strong></h1>
+        <nav className="buyer-home-actions" aria-label="Buyer actions">
+          <a className="buyer-image-action buyer-order-action" id="orders" href="/buyer/order">
+            <img src={orderPanel} alt="Order fresh pineapples — Order now" />
           </a>
-
-          <div className="buyer-account-actions">
-            <a className="buyer-cart" href="#orders" aria-label="Shopping cart">🛒</a>
-            <div className="buyer-profile">
-              <span className="buyer-profile-icon" aria-hidden="true">●</span>
-              <span>{profile?.full_name || 'Buyer'}</span>
-              <span aria-hidden="true">▾</span>
-              <div className="buyer-profile-menu">
-                <a href="#profile">My Profile</a>
-                <button type="button" onClick={handleSignOut}>Sign Out</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <nav className="buyer-nav" aria-label="Main navigation">
-          <a href="#about">About Us</a>
-          <a className="active" href="/buyer">Home</a>
-          <a href="#orders">Orders</a>
+          <a className="buyer-image-action buyer-chat-action" id="messages" href="#messages">
+            <img src={chatPanel} alt="Chat with the farm — Directly message the farm" />
+          </a>
         </nav>
-      </header>
-
-      <section className="buyer-hero" aria-labelledby="buyer-welcome-title">
-        <div className="buyer-hero-overlay">
-          <h1 id="buyer-welcome-title">Welcome Buyer!</h1>
-
-          <div className="buyer-actions">
-            <article className="buyer-action-card buyer-order-card" id="orders">
-              <div className="buyer-card-art" aria-hidden="true">🍍</div>
-              <div className="buyer-card-content">
-                <h2>Order Fresh Pineapples</h2>
-                <a href="#shop">Order Now</a>
-              </div>
-            </article>
-
-            <article className="buyer-action-card buyer-chat-card">
-              <div className="buyer-card-art" aria-hidden="true">💬</div>
-              <div className="buyer-card-content">
-                <h2>Chat with Farm</h2>
-                <p>Directly message with the farm</p>
-                <a href="#messages">Message Now</a>
-              </div>
-            </article>
-          </div>
-        </div>
       </section>
-
-      <footer className="buyer-footer">
-        <div className="buyer-footer-grid">
-          <section id="about">
-            <h2>About Jtoledo Trading</h2>
-            <p>
-              JToledo Trading is a privately owned agricultural enterprise in
-              Tagaytay specializing in pineapple farming and distribution,
-              with over 25 years of farming operations managed by Joseph Toledo.
-            </p>
-          </section>
-
-          <section>
-            <h2>Navigation</h2>
-            <a href="#about">About Us</a>
-            <a href="#contact">Contact Us</a>
-          </section>
-
-          <section id="contact">
-            <h2>Contact</h2>
-            <p>
-              Mobile Number: 09089947150<br />
-              Email: jperatoleedo7@gmail.com<br />
-              107 Daling Malabag, Brgy. Maitim 2nd,<br />
-              Silang, Cavite 4118, Philippines
-            </p>
-          </section>
-
-          <section>
-            <h2>Stay Connected</h2>
-            <p>
-              Stay connected with our latest news and price alerts to never
-              miss a great deal.
-            </p>
-            <form className="buyer-newsletter" onSubmit={handleNewsletterSubmit}>
-              <label className="sr-only" htmlFor="buyer-newsletter-email">
-                Email address
-              </label>
-              <input
-                id="buyer-newsletter-email"
-                type="email"
-                placeholder="Email Address"
-              />
-              <button type="submit" aria-label="Subscribe">➤</button>
-            </form>
-          </section>
-        </div>
-
-        <div className="buyer-footer-bottom">
-          <span>© 2026 All rights reserved.</span>
-          <div>
-            <a href="#terms">Terms &amp; Conditions</a>
-            <a href="#privacy">Private Policy</a>
-          </div>
-        </div>
-      </footer>
+      <BuyerFooter />
     </main>
   )
 }

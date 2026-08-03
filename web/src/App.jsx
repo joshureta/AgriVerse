@@ -2,8 +2,11 @@ import ProtectedRoute from './components/ProtectedRoute.jsx'
 import AuthConfirm from './pages/AuthConfirm.jsx'
 import AdminDashboard from './pages/Admin/Dashboard.jsx'
 import EditUser from './pages/Admin/EditUser.jsx'
+import InventoryManagement from './pages/Admin/InventoryManagement.jsx'
 import UserManagement from './pages/Admin/UserManagement.jsx'
 import BuyerLanding from './pages/buyer/BuyerLanding.jsx'
+import BuyerCart from './pages/buyer/BuyerCart.jsx'
+import BuyerOrders from './pages/buyer/BuyerOrders.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -18,7 +21,7 @@ function App() {
     )
   }
 
-  if (window.location.pathname === '/admin/users') {
+  if (path === '/admin/users') {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
         <UserManagement />
@@ -26,7 +29,7 @@ function App() {
     )
   }
 
-  if (window.location.pathname === '/admin') {
+  if (path === '/admin') {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
         <AdminDashboard />
@@ -34,7 +37,23 @@ function App() {
     )
   }
 
-  if (window.location.pathname === '/buyer') {
+  if (path === '/buyer/order' || path === '/buyer/orders') {
+    return (
+      <ProtectedRoute allowedRoles={['buyer']}>
+        <BuyerOrders />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/buyer/cart' || path === '/buyer/shopping-cart') {
+    return (
+      <ProtectedRoute allowedRoles={['buyer']}>
+        <BuyerCart />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/buyer') {
     return (
       <ProtectedRoute allowedRoles={['buyer']}>
         <BuyerLanding />
@@ -42,19 +61,19 @@ function App() {
     )
   }
 
-  if (window.location.pathname === '/auth/confirm') {
+  if (path === '/auth/confirm') {
     return <AuthConfirm />
   }
 
-  if (window.location.pathname === '/forgot-password') {
+  if (path === '/forgot-password') {
     return <ForgotPassword />
   }
 
-  if (window.location.pathname === '/reset-password') {
+  if (path === '/reset-password') {
     return <ResetPassword />
   }
 
-  if (window.location.pathname === '/login') {
+  if (path === '/login') {
     return <Login />
   }
 

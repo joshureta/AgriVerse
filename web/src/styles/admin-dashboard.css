@@ -9,7 +9,7 @@
   grid-template-columns: 232px minmax(0, 1fr);
   color: #15251a;
   background: var(--admin-cream);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--sans);
 }
 
 .admin-dashboard button,

@@ -9,7 +9,7 @@
   background:
     radial-gradient(circle at 85% 10%, rgba(159, 211, 78, 0.45), transparent 30%),
     linear-gradient(145deg, #ffffe4, #efff91);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--sans);
 }
 
 .auth-status-card,
@@ -151,4 +151,3 @@
     transform: rotate(360deg);
   }
 }
-
