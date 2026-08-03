@@ -26,7 +26,9 @@ function formatDashboardDate(date) {
 }
 
 export function AdminSidebar({ active }) {
-  const [operationsOpen, setOperationsOpen] = useState(false)
+  const [operationsOpen, setOperationsOpen] = useState(
+    active === 'tasks' || active === 'inventory',
+  )
 
   return (
     <aside className="admin-sidebar">
@@ -64,14 +66,18 @@ export function AdminSidebar({ active }) {
             className={`admin-nav-submenu${operationsOpen ? ' is-open' : ''}`}
             id="operations-submenu"
           >
-            <button className="is-active" type="button">
+            <button className={active === 'tasks' ? 'is-active' : ''} type="button">
               <img src={taskScheduleIcon} alt="" />
               <span>Task and Schedule</span>
             </button>
-            <button type="button">
+            <a
+              className={active === 'inventory' ? 'is-active' : ''}
+              href="/admin/inventory"
+              aria-current={active === 'inventory' ? 'page' : undefined}
+            >
               <img src={inventoryIcon} alt="" />
               <span>Inventory</span>
-            </button>
+            </a>
           </div>
         </div>
 

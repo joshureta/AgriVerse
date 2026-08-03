@@ -7,6 +7,7 @@ require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 const { supabaseConfig } = require("./supabase");
 const { requireAuth } = require("./middleware/auth");
 const adminUsersRouter = require("./routes/admin-users");
+const adminInventoryRouter = require("./routes/admin-inventory");
 
 const app = express();
 
@@ -62,6 +63,7 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 });
 
 app.use("/api/admin/users", adminUsersRouter);
+app.use("/api/admin/inventory", adminInventoryRouter);
 
 const PORT = process.env.PORT || 5000;
 
