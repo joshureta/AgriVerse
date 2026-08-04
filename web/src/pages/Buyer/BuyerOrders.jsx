@@ -1,73 +1,94 @@
 import { useState } from 'react'
 import { CircleUserRound, Minus, Plus, ShoppingCart, Star } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
-import orderBackground from '../../assets/buyer/buyer-order-background.png'
-import pineappleImage from '../../assets/buyer/two-pineapples.png'
+import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import '../../styles/Buyer/buyerLanding.css'
-import '../../styles/Buyer/buyerCommerce.css'
+import '../../styles/Buyer/shoppingCart.css'
 
 const products = [
-  { id: 'small', name: 'Small Pineapple', weight: '400g – 800g', price: 45 },
-  { id: 'medium', name: 'Medium Pineapple', weight: '900g – 1.4kg', price: 60 },
-  { id: 'large', name: 'Large Pineapple', weight: '1.5kg – 2kg', price: 80 },
+  { id: 'small', name: 'Small Pineapple', weight: '400g – 500g', price: 50 },
+  { id: 'medium', name: 'Medium Pineapple', weight: '600g – 900g', price: 65 },
+  { id: 'large', name: 'Large Pineapple', weight: '1kg – 1.5kg', price: 80 },
+]
+
+const reviews = [
+  { name: 'Juan D.', date: 'May 12, 2026', text: 'Sweet and juicy, worth the price!' },
+  { name: 'Maria S.', date: 'May 9, 2026', text: 'Fast delivery and fresh pineapple.' },
+  { name: 'Kevin L.', date: 'May 7, 2026', text: 'Good packaging, will order again!' },
 ]
 
 export default function BuyerOrders() {
-  const [quantities, setQuantities] = useState({ small: 50, medium: 0, large: 0 })
+  const [quantities, setQuantities] = useState({ small: 50, medium: 50, large: 50 })
 
   function updateQuantity(id, amount) {
     setQuantities((current) => ({ ...current, [id]: Math.max(0, current[id] + amount) }))
   }
 
-  return (
-    <main className="buyer-page buyer-commerce-page">
-      <BuyerHeader active="orders" cartCount={quantities.small > 0 ? 1 : 0} />
-      <section className="commerce-stage" style={{ backgroundImage: `url(${orderBackground})` }}>
-        <div className="commerce-heading">
-          <p>FRESH FROM THE FARM</p>
-          <h1>Order Fresh Pineapple</h1>
-          <span>Fill in your order to proceed with your purchase</span>
-        </div>
+  const orderTotal = products.reduce((sum, product) => sum + product.price * quantities[product.id], 0)
 
-        <section className="product-panel" aria-labelledby="product-quantity-title">
-          <h2 id="product-quantity-title">Product Quantity</h2>
-          <div className="product-list">
-            {products.map((product) => {
-              const total = product.price * quantities[product.id]
-              return (
-                <article className="product-card" key={product.id}>
-                  <img src={pineappleImage} alt="Two fresh pineapples" />
-                  <div className="product-copy">
-                    <h3>{product.name}</h3>
-                    <p>{product.weight}</p>
-                    <button type="button" className="add-cart-button"><ShoppingCart aria-hidden="true" /> Add to cart</button>
-                  </div>
-                  <div className="product-price">PHP {product.price.toFixed(2)}</div>
-                  <div className="quantity-control" aria-label={`${product.name} quantity`}>
+  return (
+    <main className="buyer-page marketplace-page">
+      <BuyerHeader active="orders" cartCount={1} />
+      <section className="marketplace-order-layout">
+        <div className="marketplace-order-main">
+          <header className="marketplace-title">
+            <h1>Order Fresh Pineapples</h1>
+            <p>Cultivating pineapples for over 25 years</p>
+          </header>
+
+          <section className="pineapple-selection" aria-labelledby="pineapple-size-title">
+            <h2 id="pineapple-size-title">Choose Your Pineapple Size</h2>
+            <div className="pineapple-product-grid">
+              {products.map((product) => (
+                <article className="pineapple-product-card" key={product.id}>
+                  <img src={pineappleImage} alt={`${product.name} product`} />
+                  <h3>{product.name}</h3>
+                  <p>{product.weight}</p>
+                  <strong>PHP {product.price.toFixed(2)}</strong>
+                  <div className="marketplace-quantity" aria-label={`${product.name} quantity`}>
                     <button type="button" onClick={() => updateQuantity(product.id, -1)} aria-label={`Reduce ${product.name}`}><Minus /></button>
                     <output>{quantities[product.id]}</output>
                     <button type="button" onClick={() => updateQuantity(product.id, 1)} aria-label={`Add ${product.name}`}><Plus /></button>
                   </div>
-                  <strong className="product-total">Total: PHP {total.toLocaleString()}</strong>
                 </article>
-              )
-            })}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
 
-        <section className="review-panel" aria-labelledby="customer-reviews-title">
-          <h2 id="customer-reviews-title">Customer Reviews <span>(82)</span></h2>
-          <div className="review-list">
-            {['Sweet and juicy, worth the price!', 'Fast delivery and fresh pineapple', 'Good packaging, will order again'].map((review) => (
-              <article className="review-row" key={review}>
-                <CircleUserRound aria-hidden="true" />
-                <p>{review}</p>
-                <div aria-label="5 out of 5 stars">{Array.from({ length: 5 }, (_, index) => <Star key={index} fill="currentColor" />)}</div>
-              </article>
-            ))}
-          </div>
-          <button className="reviews-button" type="button">View All Reviews</button>
-        </section>
+          <section className="marketplace-reviews" aria-labelledby="marketplace-reviews-title">
+            <h2 id="marketplace-reviews-title">Customer Reviews</h2>
+            <div className="marketplace-review-grid">
+              {reviews.map((review) => (
+                <article className="marketplace-review-card" key={review.name}>
+                  <div className="review-stars" aria-label="5 out of 5 stars">
+                    {Array.from({ length: 5 }, (_, index) => <Star key={index} fill="currentColor" />)}
+                  </div>
+                  <p>{review.text}</p>
+                  <div className="review-author">
+                    <CircleUserRound aria-hidden="true" />
+                    <span><strong>{review.name}</strong><small>{review.date}</small></span>
+                    <em>Verified Buyer</em>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <aside className="order-summary" aria-labelledby="order-summary-title">
+          <h2 id="order-summary-title">Order Summary</h2>
+          <div className="order-summary-labels"><span>Product</span><span>Quantity</span><span>Total</span></div>
+          {products.map((product) => (
+            <div className="summary-product" key={product.id}>
+              <img src={pineappleImage} alt="" />
+              <span><strong>{product.name.replace(' Pineapple', '')}</strong><small>Pineapple<br />{product.weight}</small></span>
+              <b>{quantities[product.id]}</b>
+              <b>{(product.price * quantities[product.id]).toLocaleString()}</b>
+            </div>
+          ))}
+          <div className="summary-total">Total: <strong>PHP {orderTotal.toLocaleString()}</strong></div>
+          <a className="summary-cart-button" href="/buyer/cart"><ShoppingCart aria-hidden="true" /> Add to Cart</a>
+        </aside>
       </section>
       <BuyerFooter />
     </main>

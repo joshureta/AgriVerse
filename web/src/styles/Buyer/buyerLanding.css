@@ -44,28 +44,18 @@ body:has(.buyer-page) #root {
   position: relative;
   z-index: 10;
   width: 100%;
-  min-height: 180px;
+  min-height: 140px;
   box-shadow: 0 3px 15px rgba(20, 79, 34, 0.2);
 }
 
 .buyer-header-main {
   position: relative;
   width: min(calc(100% - 88px), 1500px);
-  height: 128px;
+  height: 62px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin: 0 auto;
-}
-
-.buyer-header-main::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.2);
 }
 
 .buyer-header-alerts,
@@ -73,6 +63,7 @@ body:has(.buyer-page) #root {
   display: flex;
   align-items: center;
   gap: 12px;
+  transform: translateY(8px);
 }
 
 .buyer-header-account {
@@ -121,14 +112,16 @@ body:has(.buyer-page) #root {
   stroke-width: 2.4;
 }
 
-.buyer-status-dot {
+.buyer-status-dot,
+.buyer-cart-count {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: -2px;
+  right: -2px;
   min-width: 14px;
   height: 14px;
   display: grid;
   place-items: center;
+  padding: 0 3px;
   border: 2px solid #397f32;
   border-radius: 999px;
   color: #fff;
@@ -136,22 +129,24 @@ body:has(.buyer-page) #root {
   font-size: 8px;
   font-weight: 800;
   line-height: 1;
+  pointer-events: none;
 }
 
 .buyer-brand {
   position: absolute;
-  top: 46%;
+  top: calc(100% + 30px);
   left: 50%;
-  width: 150px;
-  height: 84px;
+  z-index: 2;
+  width: 112px;
+  height: 76px;
   display: grid;
   place-items: center;
   transform: translate(-50%, -50%);
 }
 
 .buyer-brand img {
-  width: 122px;
-  height: 122px;
+  width: 90px;
+  height: 90px;
   display: block;
   object-fit: contain;
   filter: drop-shadow(0 2px 2px rgba(15, 62, 22, 0.28));
@@ -259,16 +254,16 @@ body:has(.buyer-page) #root {
 
 .buyer-main-nav {
   width: 100%;
-  height: 52px;
+  height: 78px;
   display: flex;
   align-items: stretch;
   justify-content: center;
-  gap: clamp(48px, 8vw, 118px);
+  gap: clamp(180px, 24vw, 390px);
   margin: 0;
 }
 
 .buyer-main-nav a {
-  min-width: 124px;
+  min-width: 112px;
   height: 34px;
   align-self: center;
   display: grid;
@@ -527,7 +522,7 @@ body:has(.buyer-page) #root {
   }
 
   .buyer-main-nav {
-    gap: 18px;
+    gap: clamp(130px, 22vw, 210px);
   }
 
   .buyer-home {
@@ -571,7 +566,12 @@ body:has(.buyer-page) #root {
     display: none;
   }
 
+  .buyer-header-account {
+    transform: none;
+  }
+
   .buyer-brand {
+    top: 50%;
     width: 96px;
     height: 66px;
   }

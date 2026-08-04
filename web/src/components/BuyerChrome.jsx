@@ -59,16 +59,14 @@ export function BuyerHeader({ active = 'home', cartCount = 0 }) {
 
       <nav className="buyer-main-nav" aria-label="Buyer navigation">
         <a href="/buyer#about">About Us</a>
-        <a className={active === 'home' ? 'is-active' : ''} href="/buyer" aria-current={active === 'home' ? 'page' : undefined}>Home</a>
-        <a className={active === 'orders' || active === 'cart' ? 'is-active' : ''} href="/buyer/order" aria-current={active === 'orders' || active === 'cart' ? 'page' : undefined}>Orders</a>
+        <a className={active === 'orders' || active === 'cart' ? 'is-active' : ''} href="/buyer/order" aria-current={active === 'orders' || active === 'cart' ? 'page' : undefined}>Order</a>
       </nav>
 
       <details className="buyer-mobile-menu">
         <summary aria-label="Open navigation"><Menu aria-hidden="true" /></summary>
         <nav aria-label="Mobile buyer navigation">
           <a href="/buyer#about">About Us</a>
-          <a href="/buyer">Home</a>
-          <a href="/buyer/order">Orders</a>
+          <a href="/buyer/order">Order</a>
           <a href="/buyer/cart">Shopping Cart</a>
           <a href="#profile">My Profile</a>
           <button type="button" onClick={handleSignOut}>Sign Out</button>
