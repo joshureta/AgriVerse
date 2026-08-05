@@ -3,6 +3,7 @@ import AuthConfirm from './pages/AuthConfirm.jsx'
 import AdminDashboard from './pages/Admin/Dashboard.jsx'
 import EditUser from './pages/Admin/EditUser.jsx'
 import InventoryManagement from './pages/Admin/InventoryManagement.jsx'
+import TaskScheduleManagement from './pages/Admin/TaskScheduleManagement.jsx'
 import UserManagement from './pages/Admin/UserManagement.jsx'
 import BuyerLanding from './pages/buyer/BuyerLanding.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
@@ -11,6 +12,14 @@ import Register from './pages/Register.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 
 function App() {
+  if (window.location.pathname === '/admin/tasks') {
+    return (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <TaskScheduleManagement />
+      </ProtectedRoute>
+    )
+  }
+
   if (window.location.pathname === '/admin/inventory') {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
