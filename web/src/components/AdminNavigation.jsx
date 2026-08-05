@@ -66,10 +66,21 @@ export function AdminSidebar({ active }) {
             className={`admin-nav-submenu${operationsOpen ? ' is-open' : ''}`}
             id="operations-submenu"
           >
+<<<<<<< HEAD
             <button className={active === 'tasks' ? 'is-active' : ''} type="button">
               <img src={taskScheduleIcon} alt="" />
               <span>Task and Schedule</span>
             </button>
+=======
+            <a
+              className={active === 'tasks' ? 'is-active' : ''}
+              href="/admin/tasks"
+              aria-current={active === 'tasks' ? 'page' : undefined}
+            >
+              <img src={taskScheduleIcon} alt="" />
+              <span>Task and Schedule</span>
+            </a>
+>>>>>>> origin/Task&Sched-Management
             <a
               className={active === 'inventory' ? 'is-active' : ''}
               href="/admin/inventory"
