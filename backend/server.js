@@ -9,6 +9,7 @@ const { requireAuth } = require("./middleware/auth");
 const adminUsersRouter = require("./routes/admin-users");
 const adminInventoryRouter = require("./routes/admin-inventory");
 const adminTasksRouter = require("./routes/admin-tasks");
+const workerTasksRouter = require("./routes/worker-tasks");
 
 const app = express();
 
@@ -66,6 +67,7 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 app.use("/api/admin/users", adminUsersRouter);
 app.use("/api/admin/inventory", adminInventoryRouter);
 app.use("/api/admin/tasks", adminTasksRouter);
+app.use("/api/worker/tasks", workerTasksRouter);
 
 const PORT = process.env.PORT || 5000;
 
