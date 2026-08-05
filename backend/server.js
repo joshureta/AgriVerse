@@ -8,10 +8,7 @@ const { supabaseConfig } = require("./supabase");
 const { requireAuth } = require("./middleware/auth");
 const adminUsersRouter = require("./routes/admin-users");
 const adminInventoryRouter = require("./routes/admin-inventory");
-<<<<<<< HEAD
-=======
 const adminTasksRouter = require("./routes/admin-tasks");
->>>>>>> origin/Task&Sched-Management
 
 const app = express();
 
@@ -68,10 +65,7 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 
 app.use("/api/admin/users", adminUsersRouter);
 app.use("/api/admin/inventory", adminInventoryRouter);
-<<<<<<< HEAD
-=======
 app.use("/api/admin/tasks", adminTasksRouter);
->>>>>>> origin/Task&Sched-Management
 
 const PORT = process.env.PORT || 5000;
 

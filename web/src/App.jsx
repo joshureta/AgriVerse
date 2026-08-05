@@ -3,10 +3,7 @@ import AuthConfirm from './pages/AuthConfirm.jsx'
 import AdminDashboard from './pages/Admin/Dashboard.jsx'
 import EditUser from './pages/Admin/EditUser.jsx'
 import InventoryManagement from './pages/Admin/InventoryManagement.jsx'
-<<<<<<< HEAD
-=======
 import TaskScheduleManagement from './pages/Admin/TaskScheduleManagement.jsx'
->>>>>>> origin/Task&Sched-Management
 import UserManagement from './pages/Admin/UserManagement.jsx'
 import BuyerLanding from './pages/Buyer/BuyerLanding.jsx'
 import ShoppingCart from './pages/Buyer/ShoppingCart.jsx'
@@ -17,12 +14,9 @@ import Register from './pages/Register.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 
 function App() {
-<<<<<<< HEAD
   const path = window.location.pathname
 
-  if (path === '/admin/users/edit') {
-=======
-  if (window.location.pathname === '/admin/tasks') {
+  if (path === '/admin/tasks') {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
         <TaskScheduleManagement />
@@ -30,16 +24,7 @@ function App() {
     )
   }
 
-  if (window.location.pathname === '/admin/inventory') {
-    return (
-      <ProtectedRoute allowedRoles={['admin']}>
-        <InventoryManagement />
-      </ProtectedRoute>
-    )
-  }
-
-  if (window.location.pathname === '/admin/users/edit') {
->>>>>>> origin/Task&Sched-Management
+  if (path === '/admin/users/edit') {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
         <EditUser />
