@@ -121,12 +121,153 @@
 .profile-info-row strong { font-weight: 800; }
 .profile-info-row span { min-width: 0; overflow-wrap: anywhere; }
 
+.profile-card.is-editing {
+  align-items: start;
+}
+
+.profile-card.is-editing .profile-identity {
+  padding-top: 28px;
+}
+
+.profile-edit-form {
+  width: 100%;
+}
+
+.profile-form-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 26px;
+}
+
+.profile-form-heading h2 { margin: 0; }
+
+.profile-form-heading > button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  color: #287a3b;
+  background: #edf6e9;
+  cursor: pointer;
+}
+
+.profile-form-heading > button:hover,
+.profile-form-heading > button:focus-visible { outline: 3px solid rgba(45, 126, 47, 0.15); background: #e1f0dc; }
+
+.profile-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 22px;
+}
+
+.profile-form-field {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  color: #1b612f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profile-form-field input {
+  width: 100%;
+  height: 48px;
+  border: 1px solid #bdd4bc;
+  border-radius: 9px;
+  padding: 0 14px;
+  color: #152019;
+  background: #fffef9;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.profile-form-field input:focus {
+  outline: none;
+  border-color: #398847;
+  box-shadow: 0 0 0 3px rgba(57, 136, 71, 0.14);
+}
+
+.profile-form-field.is-readonly input {
+  color: #647067;
+  background: #f3f5ef;
+}
+
+.profile-form-field small {
+  color: #778078;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.profile-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.profile-form-actions button {
+  min-height: 48px;
+  border-radius: 10px;
+  padding: 0 22px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.profile-form-actions button:disabled { cursor: wait; opacity: 0.68; }
+
+.profile-cancel-button {
+  border: 1px solid #78a77e;
+  color: #26753a;
+  background: #fff;
+}
+
+.profile-save-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  color: #fff;
+  background: linear-gradient(180deg, #4a9d40, #2b7c34);
+  box-shadow: 0 7px 14px rgba(39, 116, 56, 0.18);
+}
+
+.profile-save-button svg { width: 18px; height: 18px; }
+.profile-cancel-button:hover,
+.profile-cancel-button:focus-visible,
+.profile-save-button:hover,
+.profile-save-button:focus-visible { outline: 3px solid rgba(45, 126, 47, 0.16); transform: translateY(-1px); }
+
+.profile-form-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 0;
+  border-radius: 8px;
+  padding: 10px 13px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.profile-form-alert svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.profile-form-alert.is-error { color: #9a2c2c; background: #fff0ee; }
+.profile-form-alert.is-success { color: #237538; background: #edf7e9; }
+
 @media (max-width: 980px) {
   .profile-content { width: min(calc(100% - 40px), 900px); }
   .profile-card { grid-template-columns: 210px minmax(0, 1fr); gap: 28px; padding-left: 36px; }
   .profile-avatar-large { width: 160px; height: 160px; }
   .profile-information { padding-inline: 28px; }
   .profile-info-row { grid-template-columns: 25px 115px minmax(0, 1fr); font-size: 14px; }
+  .profile-form-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {
@@ -136,6 +277,7 @@
   .profile-identity { flex-direction: row; justify-content: center; gap: 34px; }
   .profile-edit-button { margin-top: 0; }
   .profile-information { width: 100%; }
+  .profile-card.is-editing .profile-identity { padding-top: 0; }
 }
 
 @media (max-width: 540px) {
@@ -150,4 +292,6 @@
   .profile-information h2 { font-size: 28px; text-align: center; }
   .profile-info-row { grid-template-columns: 25px 1fr; gap: 5px 10px; }
   .profile-info-row span { grid-column: 2; }
+  .profile-form-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .profile-form-actions button { padding-inline: 12px; }
 }
