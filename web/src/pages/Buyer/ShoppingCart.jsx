@@ -45,7 +45,7 @@ export default function ShoppingCart() {
               <strong>PHP {total.toLocaleString()}</strong>
               <div className="shopping-cart-actions">
                 <a className="shopping-cart-add-more" href="/buyer/order"><CartIcon aria-hidden="true" /> Add More</a>
-                <button type="button">Check Out</button>
+                <a className="shopping-cart-checkout" href="/buyer/checkout">Check Out</a>
               </div>
             </div>
           </section>

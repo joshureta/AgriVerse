@@ -220,7 +220,7 @@ body:has(.buyer-page) #root {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 148px;
+  width: 164px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 10px;
@@ -255,11 +255,13 @@ body:has(.buyer-page) #root {
 .buyer-main-nav {
   width: 100%;
   height: 78px;
-  display: flex;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(112px, 180px));
+  align-items: center;
   justify-content: center;
-  gap: clamp(180px, 24vw, 390px);
+  gap: clamp(40px, 6vw, 90px);
   margin: 0;
+  padding-top: 26px;
 }
 
 .buyer-main-nav a {
@@ -273,6 +275,18 @@ body:has(.buyer-page) #root {
   font-size: 14px;
   font-weight: 800;
   transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.buyer-main-nav a[href="/buyer"] {
+  display: none;
+}
+
+.buyer-main-nav a[href="/buyer#about"] {
+  grid-column: 1;
+}
+
+.buyer-main-nav a[href="/buyer/order"] {
+  grid-column: 3;
 }
 
 .buyer-main-nav a:hover,
@@ -522,7 +536,8 @@ body:has(.buyer-page) #root {
   }
 
   .buyer-main-nav {
-    gap: clamp(130px, 22vw, 210px);
+    grid-template-columns: repeat(3, minmax(112px, 150px));
+    gap: clamp(28px, 5vw, 48px);
   }
 
   .buyer-home {

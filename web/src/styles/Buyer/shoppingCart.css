@@ -463,7 +463,8 @@
   margin-top: 16px;
 }
 
-.shopping-cart-grand-total button {
+.shopping-cart-grand-total button,
+.shopping-cart-checkout {
   min-height: 52px;
   border: 0;
   border-radius: 8px;
@@ -477,9 +478,17 @@
 }
 
 .shopping-cart-grand-total button:hover,
-.shopping-cart-grand-total button:focus-visible {
+.shopping-cart-grand-total button:focus-visible,
+.shopping-cart-checkout:hover,
+.shopping-cart-checkout:focus-visible {
   outline: 3px solid rgba(240, 170, 0, 0.2);
   background: #d99a00;
+}
+
+.shopping-cart-checkout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .shopping-cart-empty {

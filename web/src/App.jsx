@@ -8,6 +8,9 @@ import UserManagement from './pages/Admin/UserManagement.jsx'
 import BuyerLanding from './pages/Buyer/BuyerLanding.jsx'
 import ShoppingCart from './pages/Buyer/ShoppingCart.jsx'
 import BuyerOrders from './pages/Buyer/BuyerOrders.jsx'
+import BuyerCheckout from './pages/Buyer/BuyerCheckout.jsx'
+import DeliveryProgress from './pages/Buyer/DeliveryProgress.jsx'
+import BuyerProfile from './pages/Buyer/BuyerProfile.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -15,6 +18,30 @@ import ResetPassword from './pages/ResetPassword.jsx'
 
 function App() {
   const path = window.location.pathname
+
+  if (path === '/buyer/profile') {
+    return (
+      <ProtectedRoute allowedRoles={['buyer']}>
+        <BuyerProfile />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/buyer/delivery-progress') {
+    return (
+      <ProtectedRoute allowedRoles={['buyer']}>
+        <DeliveryProgress />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/buyer/checkout') {
+    return (
+      <ProtectedRoute allowedRoles={['buyer']}>
+        <BuyerCheckout />
+      </ProtectedRoute>
+    )
+  }
 
   if (path === '/admin/tasks') {
     return (
