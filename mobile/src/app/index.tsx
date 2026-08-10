@@ -6,7 +6,7 @@ import { useAuth } from '@/context/auth-context';
 export default function IndexScreen() {
   const { loading, profile } = useAuth();
 
-  if (!loading) return <Redirect href={profile ? '/WorkerTask' : '/login'} />;
+  if (!loading) return <Redirect href={profile ? '/WorkerTaskPending' : '/login'} />;
 
   return (
     <View style={styles.container}>
