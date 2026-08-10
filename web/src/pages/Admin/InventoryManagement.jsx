@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import archiveIcon from '../../assets/archive-inventory-icon.png'
 import inventoryIcon from '../../assets/inventory-management-icon-green.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
@@ -8,7 +8,11 @@ import '../../styles/inventory-management.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 5
-const emptyItemForm = { item_type: '', item_name: '', variant: '', stock_quantity: '' }
+const emptyItemForm = {
+  inventory_category_id: '', unit_id: '', item_name: '', stock_quantity: '',
+  size_id: '', harvest_date: '', formulation: '', expiration_date: '', pesticide_type: '',
+  equipment_type_id: '', condition: '', availability: '', last_maintenance: '',
+}
 
 async function readAccessToken(refresh = false) {
   const result = refresh
@@ -61,6 +65,7 @@ function formatDate(value) {
 
 export default function InventoryManagement() {
   const [items, setItems] = useState([])
+  const [options, setOptions] = useState({ categories: [], units: [], pineappleSizes: [], equipmentTypes: [] })
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 })
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -73,18 +78,17 @@ export default function InventoryManagement() {
   const [stockForm, setStockForm] = useState({ item_id: '', quantity: '' })
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const itemTypes = useMemo(
-    () => [...new Set(items.map((item) => item.item_type))].sort(),
-    [items],
-  )
   const stockItem = items.find((item) => String(item.id) === String(stockForm.item_id))
+  const selectedCategory = options.categories.find(
+    (category) => String(category.id) === String(itemForm.inventory_category_id),
+  )
 
   const loadItems = useCallback(async () => {
     setLoading(true)
     setError('')
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
     if (search.trim()) params.set('search', search.trim())
-    if (type) params.set('type', type)
+    if (type) params.set('categoryId', type)
 
     try {
       const data = await apiRequest(`/api/admin/inventory?${params}`)
@@ -99,21 +103,43 @@ export default function InventoryManagement() {
   }, [page, search, type])
 
   useEffect(() => {
+    apiRequest('/api/admin/inventory/options')
+      .then((data) => setOptions(data))
+      .catch((requestError) => setError(requestError.message))
+  }, [])
+
+  useEffect(() => {
     const delay = window.setTimeout(loadItems, search ? 300 : 0)
     return () => window.clearTimeout(delay)
   }, [loadItems, refreshKey, search])
 
   function openAddItem() {
-    setItemForm(emptyItemForm)
+    setItemForm({
+      ...emptyItemForm,
+      inventory_category_id: options.categories[0]?.id || '',
+      unit_id: options.units[0]?.id || '',
+      size_id: options.pineappleSizes[0]?.id || '',
+      equipment_type_id: options.equipmentTypes[0]?.id || '',
+    })
     setModal({ mode: 'add-item' })
   }
 
   function openEditItem(item) {
     setItemForm({
-      item_type: item.item_type,
+      ...emptyItemForm,
+      inventory_category_id: item.inventory_category_id,
+      unit_id: item.unit_id,
       item_name: item.item_name,
-      variant: item.variant,
       stock_quantity: item.stock_quantity,
+      size_id: item.details?.size_id || '',
+      harvest_date: item.details?.harvest_date || '',
+      formulation: item.details?.formulation || '',
+      expiration_date: item.details?.expiration_date || '',
+      pesticide_type: item.details?.pesticide_type || '',
+      equipment_type_id: item.details?.equipment_type_id || '',
+      condition: item.details?.condition || '',
+      availability: item.details?.availability || '',
+      last_maintenance: item.details?.last_maintenance || '',
     })
     setModal({ mode: 'edit-item', item })
   }
@@ -128,7 +154,14 @@ export default function InventoryManagement() {
         editing ? `/api/admin/inventory/${modal.item.id}` : '/api/admin/inventory',
         {
           method: editing ? 'PATCH' : 'POST',
-          body: JSON.stringify({ ...itemForm, stock_quantity: Number(itemForm.stock_quantity) }),
+          body: JSON.stringify({
+            ...itemForm,
+            inventory_category_id: Number(itemForm.inventory_category_id),
+            unit_id: Number(itemForm.unit_id),
+            size_id: itemForm.size_id ? Number(itemForm.size_id) : null,
+            equipment_type_id: itemForm.equipment_type_id ? Number(itemForm.equipment_type_id) : null,
+            stock_quantity: Number(itemForm.stock_quantity),
+          }),
         },
       )
       setModal(null)
@@ -191,7 +224,7 @@ export default function InventoryManagement() {
                 <span className="sr-only">Filter by item type</span>
                 <select value={type} onChange={(event) => { setType(event.target.value); setPage(1) }}>
                   <option value="">All item types</option>
-                  {itemTypes.map((itemType) => <option key={itemType}>{itemType}</option>)}
+                  {options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}
                 </select>
               </label>
               <label className="inventory-search">
@@ -253,9 +286,27 @@ export default function InventoryManagement() {
           <h2 id="inventory-modal-title">{modal.mode === 'add-item' ? 'Add Item' : `Edit ${modal.item.item_name}`}</h2>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
           <form onSubmit={saveItem}>
-            <label><span>Item type</span><input value={itemForm.item_type} onChange={(event) => setItemForm({ ...itemForm, item_type: event.target.value })} required maxLength="60" /></label>
+            <label><span>Item type</span><select value={itemForm.inventory_category_id} onChange={(event) => setItemForm({ ...emptyItemForm, inventory_category_id: event.target.value, unit_id: itemForm.unit_id, item_name: itemForm.item_name, stock_quantity: itemForm.stock_quantity, size_id: options.pineappleSizes[0]?.id || '', equipment_type_id: options.equipmentTypes[0]?.id || '' })} required><option value="" disabled>Select item type</option>{options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
             <label><span>Item name</span><input value={itemForm.item_name} onChange={(event) => setItemForm({ ...itemForm, item_name: event.target.value })} required maxLength="100" /></label>
-            <label><span>Variant</span><input value={itemForm.variant} onChange={(event) => setItemForm({ ...itemForm, variant: event.target.value })} required maxLength="100" /></label>
+            <label><span>Unit</span><select value={itemForm.unit_id} onChange={(event) => setItemForm({ ...itemForm, unit_id: event.target.value })} required><option value="" disabled>Select unit</option>{options.units.map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_name} ({unit.abbreviation})</option>)}</select></label>
+            {selectedCategory?.code === 'pineapple' && <>
+              <label><span>Size</span><select value={itemForm.size_id} onChange={(event) => setItemForm({ ...itemForm, size_id: event.target.value })} required><option value="" disabled>Select size</option>{options.pineappleSizes.map((size) => <option value={size.id} key={size.id}>{size.size_name}</option>)}</select></label>
+              <label><span>Harvest date</span><input type="date" value={itemForm.harvest_date} onChange={(event) => setItemForm({ ...itemForm, harvest_date: event.target.value })} /></label>
+            </>}
+            {selectedCategory?.code === 'fertilizer' && <>
+              <label><span>Formulation</span><input value={itemForm.formulation} onChange={(event) => setItemForm({ ...itemForm, formulation: event.target.value })} required maxLength="120" /></label>
+              <label><span>Expiration date</span><input type="date" value={itemForm.expiration_date} onChange={(event) => setItemForm({ ...itemForm, expiration_date: event.target.value })} /></label>
+            </>}
+            {selectedCategory?.code === 'pesticide' && <>
+              <label><span>Pesticide type</span><input value={itemForm.pesticide_type} onChange={(event) => setItemForm({ ...itemForm, pesticide_type: event.target.value })} required maxLength="120" /></label>
+              <label><span>Expiration date</span><input type="date" value={itemForm.expiration_date} onChange={(event) => setItemForm({ ...itemForm, expiration_date: event.target.value })} /></label>
+            </>}
+            {selectedCategory?.code === 'equipment' && <>
+              <label><span>Equipment type</span><select value={itemForm.equipment_type_id} onChange={(event) => setItemForm({ ...itemForm, equipment_type_id: event.target.value })} required><option value="" disabled>Select equipment type</option>{options.equipmentTypes.map((equipmentType) => <option value={equipmentType.id} key={equipmentType.id}>{equipmentType.type_name}</option>)}</select></label>
+              <label><span>Condition</span><input value={itemForm.condition} onChange={(event) => setItemForm({ ...itemForm, condition: event.target.value })} required maxLength="80" /></label>
+              <label><span>Availability</span><input value={itemForm.availability} onChange={(event) => setItemForm({ ...itemForm, availability: event.target.value })} required maxLength="80" /></label>
+              <label><span>Last maintenance</span><input type="date" value={itemForm.last_maintenance} onChange={(event) => setItemForm({ ...itemForm, last_maintenance: event.target.value })} /></label>
+            </>}
             <label><span>Stock quantity</span><input type="number" min="0" value={itemForm.stock_quantity} onChange={(event) => setItemForm({ ...itemForm, stock_quantity: event.target.value })} required /></label>
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Item'}</button></footer>
           </form>

@@ -17,7 +17,7 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -52,7 +52,53 @@
 
 body {
   margin: 0;
+  background: #fafcf5;
 }
+
+.app-error-page {
+  width: 100%;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 24px;
+  background: #fafcf5;
+  font-family: var(--sans);
+}
+
+.app-error-card {
+  width: min(520px, 100%);
+  box-sizing: border-box;
+  border: 1px solid #d7e4d4;
+  border-radius: 14px;
+  padding: 34px;
+  color: #26342a;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(35, 73, 39, .12);
+  text-align: center;
+}
+
+.app-error-card h1 { margin: 0 0 12px; color: #196c35; font-size: 30px; }
+.app-error-card p { margin: 0 0 22px; color: #9d2828; }
+.app-error-card > div { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.app-error-card button,
+.app-error-card a {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 16px;
+  color: #fff;
+  background: #196c35;
+  font: inherit;
+  font-weight: 750;
+  text-decoration: none;
+  cursor: pointer;
+}
+.app-error-card a { background: #4d5f52; }
 
 #root {
   width: 1126px;

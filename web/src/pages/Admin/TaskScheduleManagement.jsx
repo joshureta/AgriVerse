@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import completedTaskIcon from '../../assets/completed-task-card-icon.png'
 import totalTaskIcon from '../../assets/total-task-card-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
@@ -9,10 +9,12 @@ import '../../styles/task-schedule-management.css'
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 4
 const emptyForm = {
-  assigned_worker_id: '', category: '', field: '', priority: '', status: 'pending',
+  assigned_worker_id: '', category_id: '', field_id: '', priority_id: '', status_id: '',
   start_date: '', start_time: '', estimated_duration_minutes: '60', description: '',
 }
-const statusLabels = { pending: 'Pending', in_progress: 'In Progress', completed: 'Completed' }
+const emptyOptions = {
+  workers: [], categories: [], fields: [], priorities: [], statuses: [], scheduleStatuses: [],
+}
 
 async function readAccessToken(refresh = false) {
   const result = refresh ? await supabase.auth.refreshSession() : await supabase.auth.getSession()
@@ -49,13 +51,16 @@ async function apiRequest(path, options = {}, retry = true) {
 
 function formatSchedule(value) {
   if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
   return new Intl.DateTimeFormat('en-US', {
     month: '2-digit', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit',
-  }).format(new Date(value))
+  }).format(date)
 }
 
 function localDateParts(value) {
   const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return { start_date: '', start_time: '' }
   const offset = date.getTimezoneOffset() * 60000
   const local = new Date(date.getTime() - offset).toISOString()
   return { start_date: local.slice(0, 10), start_time: local.slice(11, 16) }
@@ -96,7 +101,7 @@ function TaskModalHeader({ title }) {
 
 export default function TaskScheduleManagement() {
   const [tasks, setTasks] = useState([])
-  const [options, setOptions] = useState({ workers: [], categories: [], fields: [] })
+  const [options, setOptions] = useState(emptyOptions)
   const [summary, setSummary] = useState({ total: 0, inProgress: 0, completed: 0, availableWorkers: 0 })
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 })
   const [search, setSearch] = useState('')
@@ -108,6 +113,10 @@ export default function TaskScheduleManagement() {
   const [modal, setModal] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [refreshKey, setRefreshKey] = useState(0)
+  const statusLabels = useMemo(
+    () => Object.fromEntries((options.statuses || []).map((status) => [status.code, status.status_name])),
+    [options.statuses],
+  )
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
@@ -117,7 +126,7 @@ export default function TaskScheduleManagement() {
     if (filter) params.set('status', filter)
     try {
       const data = await apiRequest(`/api/admin/tasks?${params}`)
-      setTasks(data.tasks || [])
+      setTasks(Array.isArray(data.tasks) ? data.tasks : [])
       setSummary(data.summary || { total: 0, inProgress: 0, completed: 0, availableWorkers: 0 })
       setPagination(data.pagination || { total: 0, totalPages: 1 })
     } catch (requestError) {
@@ -130,7 +139,9 @@ export default function TaskScheduleManagement() {
 
   useEffect(() => {
     apiRequest('/api/admin/tasks/options')
-      .then((data) => setOptions(data))
+      .then((data) => setOptions(Object.fromEntries(
+        Object.keys(emptyOptions).map((key) => [key, Array.isArray(data?.[key]) ? data[key] : []]),
+      )))
       .catch((requestError) => setError(requestError.message))
   }, [])
 
@@ -141,7 +152,14 @@ export default function TaskScheduleManagement() {
 
   function openNewTask() {
     setError('')
-    setForm({ ...emptyForm, assigned_worker_id: options.workers[0]?.id || '', category: options.categories[0] || '', field: options.fields[0] || '' })
+    setForm({
+      ...emptyForm,
+      assigned_worker_id: options.workers[0]?.id || '',
+      category_id: options.categories[0]?.id || '',
+      field_id: options.fields[0]?.id || '',
+      priority_id: options.priorities[0]?.id || '',
+      status_id: options.statuses.find((status) => status.code === 'pending')?.id || options.statuses[0]?.id || '',
+    })
     setModal({ mode: 'add' })
   }
 
@@ -149,10 +167,10 @@ export default function TaskScheduleManagement() {
     setError('')
     setForm({
       assigned_worker_id: task.assigned_worker_id,
-      category: task.category,
-      field: task.field,
-      priority: task.priority,
-      status: task.status,
+      category_id: task.category_id,
+      field_id: task.field_id,
+      priority_id: task.priority_id,
+      status_id: task.status_id,
       ...localDateParts(task.schedule_start),
       estimated_duration_minutes: String(task.estimated_duration_minutes),
       description: task.description || '',
@@ -170,11 +188,12 @@ export default function TaskScheduleManagement() {
         method: editing ? 'PATCH' : 'POST',
         body: JSON.stringify({
           assigned_worker_id: form.assigned_worker_id,
-          category: form.category,
-          field: form.field,
-          priority: form.priority,
-          status: editing ? form.status : 'pending',
-          schedule_start: new Date(`${form.start_date}T${form.start_time}`).toISOString(),
+          category_id: Number(form.category_id),
+          field_id: Number(form.field_id),
+          priority_id: Number(form.priority_id),
+          status_id: Number(form.status_id),
+          schedule_date: form.start_date,
+          start_time: form.start_time,
           estimated_duration_minutes: Number(form.estimated_duration_minutes),
           description: form.description,
         }),
@@ -209,14 +228,14 @@ export default function TaskScheduleManagement() {
 
           <section className="tasks-panel">
             <div className="tasks-toolbar">
-              <label className="task-filter"><span className="sr-only">Filter tasks by status</span><select value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1) }}><option value="">Filter by</option><option value="pending">Pending</option><option value="in_progress">In Progress</option><option value="completed">Completed</option></select><i aria-hidden="true" /></label>
+              <label className="task-filter"><span className="sr-only">Filter tasks by status</span><select value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1) }}><option value="">Filter by</option>{options.statuses.map((status) => <option value={status.code} key={status.id}>{status.status_name}</option>)}</select><i aria-hidden="true" /></label>
               <label className="task-search"><span className="sr-only">Search tasks</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search tasks" /><span aria-hidden="true" /></label>
             </div>
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
             <div className="tasks-table-wrap">
               <table className="tasks-table">
                 <thead><tr><th>ASSIGNED<br />WORKER</th><th>CATEGORY</th><th>FIELD</th><th>SCHEDULE</th><th>PRIORITY</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
-                <tbody>{loading ? <tr><td className="tasks-empty" colSpan="7">Loading tasks…</td></tr> : tasks.length ? tasks.map((task) => <tr key={task.id}><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td>{task.category}</td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-priority priority-${task.priority}`}>{task.priority}</span></td><td><span className={`task-status status-${task.status}`}>{statusLabels[task.status]}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></div></td></tr>) : <tr><td className="tasks-empty" colSpan="7">No tasks found.</td></tr>}</tbody>
+                <tbody>{loading ? <tr><td className="tasks-empty" colSpan="7">Loading tasks…</td></tr> : tasks.length ? tasks.map((task) => <tr key={task.id}><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td>{task.category}</td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-priority priority-${task.priority}`}>{task.priority_label}</span></td><td><span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></div></td></tr>) : <tr><td className="tasks-empty" colSpan="7">No tasks found.</td></tr>}</tbody>
               </table>
             </div>
             <footer className="task-pagination"><span>{pagination.total} total task{pagination.total === 1 ? '' : 's'}</span><div><button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button><strong>{page}</strong><button type="button" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button></div></footer>
@@ -235,8 +254,8 @@ export default function TaskScheduleManagement() {
                 <label><span>Field</span><input value={modal.task.field} readOnly /></label>
               </div>
               <div className="task-dialog-side">
-                <label><span>Priority Level</span><input value={modal.task.priority} readOnly /></label>
-                <label><span>Status Level</span><input value={statusLabels[modal.task.status]} readOnly /></label>
+                <label><span>Priority Level</span><input value={modal.task.priority_label} readOnly /></label>
+                <label><span>Status Level</span><input value={modal.task.status_label || statusLabels[modal.task.status]} readOnly /></label>
                 <label><span>Start Date &amp; Time</span><div className="date-time-pair"><input value={localDateParts(modal.task.schedule_start).start_date} readOnly /><input value={localDateParts(modal.task.schedule_start).start_time} readOnly /></div></label>
                 <label><span>Estimated Duration</span><input value={durationLabel(modal.task.estimated_duration_minutes)} readOnly /></label>
               </div>
@@ -254,13 +273,13 @@ export default function TaskScheduleManagement() {
             {error && <div className="task-modal-error" role="alert">{error}</div>}
             <div className="task-dialog-grid">
               <div className="task-dialog-main">
-                <label><span>Select Category</span><select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} required><option value="" disabled>Select Category</option>{options.categories.map((category) => <option key={category}>{category}</option>)}</select></label>
+                <label><span>Select Category</span><select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="" disabled>Select Category</option>{options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
                 <label><span>Select Worker</span><select value={form.assigned_worker_id} onChange={(event) => setForm({ ...form, assigned_worker_id: event.target.value })} required><option value="" disabled>Select Worker</option>{options.workers.map((worker) => <option value={worker.id} key={worker.id}>{worker.full_name}</option>)}</select></label>
-                <label><span>Select Field</span><select value={form.field} onChange={(event) => setForm({ ...form, field: event.target.value })} required><option value="" disabled>Select Field</option>{options.fields.map((field) => <option key={field}>{field}</option>)}</select></label>
+                <label><span>Select Field</span><select value={form.field_id} onChange={(event) => setForm({ ...form, field_id: event.target.value })} required><option value="" disabled>Select Field</option>{options.fields.map((field) => <option value={field.id} key={field.id}>{field.field_name}</option>)}</select></label>
               </div>
               <div className="task-dialog-side">
-                <label><span>Priority Level</span><select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })} required><option value="" disabled>Select Level</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
-                {modal.mode === 'edit' && <label><span>Status Level</span><select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}><option value="pending">Pending</option><option value="in_progress">In Progress</option><option value="completed">Completed</option></select></label>}
+                <label><span>Priority Level</span><select value={form.priority_id} onChange={(event) => setForm({ ...form, priority_id: event.target.value })} required><option value="" disabled>Select Level</option>{options.priorities.map((priority) => <option value={priority.id} key={priority.id}>{priority.priority_name}</option>)}</select></label>
+                {modal.mode === 'edit' && <label><span>Status Level</span><select value={form.status_id} onChange={(event) => setForm({ ...form, status_id: event.target.value })}>{options.statuses.map((status) => <option value={status.id} key={status.id}>{status.status_name}</option>)}</select></label>}
                 <label><span>Start Date &amp; Time</span><div className="date-time-pair"><input type="date" value={form.start_date} onChange={(event) => setForm({ ...form, start_date: event.target.value })} required /><input type="time" value={form.start_time} onChange={(event) => setForm({ ...form, start_time: event.target.value })} required /></div></label>
                 <label><span>Estimated Duration</span><select value={form.estimated_duration_minutes} onChange={(event) => setForm({ ...form, estimated_duration_minutes: event.target.value })}><option value="30">30 Minutes</option><option value="60">1 Hour</option><option value="120">2 Hours</option><option value="240">4 Hours</option><option value="480">8 Hours</option></select></label>
               </div>
