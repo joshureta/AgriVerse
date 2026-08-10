@@ -100,6 +100,19 @@ test("lookup routes require an access token", async () => {
 test("schedule routes require an access token", async () => {
   const response = await fetch(`${baseUrl}/api/admin/schedules`);
   const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(body.error, "Authentication required");
+});
+
+test("worker completion routes require an access token", async () => {
+  const response = await fetch(`${baseUrl}/api/worker/tasks/1/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ completed_at: new Date().toISOString() }),
+  });
+  const body = await response.json();
+
   assert.equal(response.status, 401);
   assert.equal(body.error, "Authentication required");
 });

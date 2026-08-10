@@ -33,7 +33,7 @@ export default function LoginScreen() {
     setError('');
     try {
       await signIn(email.trim(), password);
-      router.replace('/WorkerTask');
+      router.replace('/WorkerTaskPending');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to sign in.');
     } finally {
