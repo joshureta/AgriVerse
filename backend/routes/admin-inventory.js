@@ -160,15 +160,31 @@ router.get("/options", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.post("/categories", async (req, res, next) => {
+  try {
+    const categoryName = readText(req.body.category_name, "Category name", 80);
+    const description = readText(req.body.description, "Description", 300, true);
+    const code = categoryName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    if (!code) throw httpError(400, "Category name must contain letters or numbers");
+    const { data, error } = await getSupabase().from("inventory_categories")
+      .insert({ category_name: categoryName, code, description }).select("id, category_name, code").single();
+    if (error?.code === "23505") throw httpError(409, "That inventory category already exists");
+    if (error) throw error;
+    return res.status(201).json({ category: data });
+  } catch (error) { return next(error); }
+});
+
 router.get("/", async (req, res, next) => {
   try {
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 5, 1), 50);
     const search = String(req.query.search || "").trim().replace(/[,%()]/g, "");
     const categoryId = req.query.categoryId ? readId(req.query.categoryId, "Inventory category") : null;
+    const archived = String(req.query.archived || "false").toLowerCase() === "true";
     const from = (page - 1) * pageSize;
     let query = getSupabase().from("inventory_items").select(inventorySelect, { count: "exact" })
-      .is("archived_at", null).order("updated_at", { ascending: false }).range(from, from + pageSize - 1);
+      .order(archived ? "archived_at" : "updated_at", { ascending: false }).range(from, from + pageSize - 1);
+    query = archived ? query.not("archived_at", "is", null) : query.is("archived_at", null);
     if (search) query = query.ilike("item_name", `%${search}%`);
     if (categoryId) query = query.eq("inventory_category_id", categoryId);
     const { data, error, count } = await query;
@@ -228,6 +244,16 @@ router.post("/:id/archive", async (req, res, next) => {
     const id = readId(req.params.id);
     const { error } = await getSupabase().from("inventory_items")
       .update({ archived_at: new Date().toISOString() }).eq("id", id).is("archived_at", null);
+    if (error) throwDatabaseError(error);
+    return res.json({ item: await fetchItem(id) });
+  } catch (error) { return next(error); }
+});
+
+router.post("/:id/restore", async (req, res, next) => {
+  try {
+    const id = readId(req.params.id);
+    const { error } = await getSupabase().from("inventory_items")
+      .update({ archived_at: null }).eq("id", id).not("archived_at", "is", null);
     if (error) throwDatabaseError(error);
     return res.json({ item: await fetchItem(id) });
   } catch (error) { return next(error); }
