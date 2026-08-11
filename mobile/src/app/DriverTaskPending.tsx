@@ -1,8 +1,9 @@
-import { styles } from '@/styles/worker-task-pending.styles';
+import { styles } from '@/styles/driver-task-pending.styles';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -20,6 +21,7 @@ import { apiRequest } from '@/lib/api';
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
 type WorkerTaskRecord = {
   id: number;
+  order_id?: number | string;
   category: string;
   field: string;
   priority: 'high' | 'medium' | 'low';
@@ -27,6 +29,10 @@ type WorkerTaskRecord = {
   schedule_start: string;
   estimated_duration_minutes: number;
   description: string | null;
+  receiver_name?: string | null;
+  contact_number?: string | null;
+  delivery_location?: string | null;
+  vehicle_name?: string | null;
 };
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
@@ -36,13 +42,28 @@ const filters: { label: string; value: TaskStatus }[] = [
   { label: 'Completed', value: 'completed' },
 ];
 
-const categoryIcons: Record<string, string> = {
-  Planting: '🌱',
-  Irrigation: '💧',
-  Fertilizer: '🌿',
-  'Crop Inspection': '🔎',
-  Harvesting: '🍍',
-};
+const vehicleImage = require('@/assets/images/driver-equipment.png');
+
+function DetailField({ label, value }: { label: string; value: string | number }) {
+  return (
+    <View style={styles.detailBox}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
+function VehicleField({ value }: { value?: string | null }) {
+  return (
+    <View style={[styles.detailBox, styles.vehicleField]}>
+      <Text style={styles.detailLabel}>Select Vehicle</Text>
+      <View style={styles.vehicleSelect}>
+        <Text numberOfLines={1} style={styles.vehicleValue}>{value || ''}</Text>
+        <View style={styles.chevron} />
+      </View>
+    </View>
+  );
+}
 
 function TaskCard({
   task,
@@ -64,7 +85,7 @@ function TaskCard({
     <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
       <Pressable onPress={onExpand} style={styles.taskSummary}>
         <View style={styles.taskIconCircle}>
-          <Text style={styles.taskIcon}>{categoryIcons[task.category] || '✓'}</Text>
+          <Image source={vehicleImage} style={styles.taskIcon} />
         </View>
         <View style={styles.taskTitleArea}>
           <Text style={styles.taskCategory}>{task.category}</Text>
@@ -79,20 +100,11 @@ function TaskCard({
 
       {expanded ? (
         <View style={styles.details}>
-          <View style={styles.detailBox}>
-            <Text style={styles.detailLabel}>FIELD</Text>
-            <Text style={styles.detailValue}>{task.field}</Text>
-          </View>
-          <View style={styles.detailBox}>
-            <Text style={styles.detailLabel}>DESCRIPTION</Text>
-            <Text style={styles.detailValue}>{task.description || 'No additional description provided.'}</Text>
-          </View>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>
-              {new Date(task.schedule_start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-            </Text>
-            <Text style={styles.metaText}>{task.estimated_duration_minutes} min</Text>
-          </View>
+          <DetailField label="Order ID" value={task.order_id || task.id} />
+          <DetailField label="Receiver Name" value={task.receiver_name || 'Not provided'} />
+          <DetailField label="Contact Number" value={task.contact_number || 'Not provided'} />
+          <DetailField label="Delivery Location" value={task.delivery_location || task.field || 'Not provided'} />
+          <VehicleField value={task.vehicle_name} />
           {task.status !== 'completed' ? (
             <Pressable disabled={busy} onPress={() => onStatusChange(nextStatus)} style={styles.startButton}>
               {busy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.startButtonText}>{actionLabel}</Text>}
@@ -108,7 +120,7 @@ function TaskCard({
   );
 }
 
-export default function WorkerTaskPending() {
+export default function DriverTaskPending() {
   const { width } = useWindowDimensions();
   const { loading: authLoading, profile, signOut } = useAuth();
   const [tasks, setTasks] = useState<WorkerTaskRecord[]>([]);
@@ -152,7 +164,7 @@ export default function WorkerTaskPending() {
       });
       setTasks((current) => current.filter((item) => item.id !== task.id));
       setSummary((current) => ({ ...current, pending: Math.max(0, current.pending - 1), active: current.active + 1 }));
-      if (result.task.status === 'in_progress') router.replace('/WorkerTaskActive');
+      if (result.task.status === 'in_progress') router.replace('/DriverTaskActive');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not update this task.');
     } finally {
@@ -190,8 +202,8 @@ export default function WorkerTaskPending() {
             <Pressable
               key={item.value}
               onPress={() => {
-                if (item.value === 'in_progress') router.push('/WorkerTaskActive');
-                else if (item.value === 'completed') router.push('/WorkerTaskCompleted');
+                if (item.value === 'in_progress') router.push('/DriverTaskActive');
+                else if (item.value === 'completed') router.push('/DriverTaskCompleted');
                 else setFilter(item.value);
               }}
               style={[styles.filterButton, filter === item.value && styles.filterButtonActive]}>

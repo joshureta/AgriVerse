@@ -1,9 +1,10 @@
-import { styles } from '@/styles/worker-task-completion.styles';
+import { styles } from '@/styles/driver-task-completion.styles';
 import { BlurView } from 'expo-blur';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,10 +18,13 @@ import {
 
 import { useAuth } from '@/context/auth-context';
 import { taskCompletionBlurTargetRef } from '@/components/task-completion-blur-target';
+import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
+import { WorkerHeader } from '@/components/worker-header';
 import { apiRequest } from '@/lib/api';
 
 type WorkerTask = {
   id: number;
+  order_id?: number | string;
   category: string;
   field: string;
   status: 'pending' | 'in_progress' | 'completed';
@@ -28,6 +32,7 @@ type WorkerTask = {
 };
 
 const GREEN = '#176d34';
+const vehicleImage = require('@/assets/images/driver-equipment.png');
 
 function formatCurrentTime() {
   return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
@@ -47,7 +52,7 @@ function ClockIcon() {
   return <View style={styles.clock}><View style={styles.clockHour} /><View style={styles.clockMinute} /></View>;
 }
 
-export default function WorkerTaskCompletionScreen() {
+export default function DriverTaskCompletionScreen() {
   const { width } = useWindowDimensions();
   const { taskId } = useLocalSearchParams<{ taskId?: string }>();
   const { loading: authLoading, profile } = useAuth();
@@ -101,7 +106,7 @@ export default function WorkerTaskCompletionScreen() {
           completion_notes: insights.trim() || null,
         }),
       });
-      router.replace('/WorkerTaskCompleted');
+      router.replace('/DriverTaskCompleted');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not complete this task.');
     } finally {
@@ -125,6 +130,7 @@ export default function WorkerTaskCompletionScreen() {
         style={styles.blurBackdrop}
         tint="extraLight"
       />
+      <WorkerHeader />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView contentContainerStyle={[styles.page, { paddingHorizontal: pagePadding }]} keyboardShouldPersistTaps="handled">
           {loading ? (
@@ -132,14 +138,14 @@ export default function WorkerTaskCompletionScreen() {
           ) : task ? (
             <View style={styles.formCard}>
               <View style={styles.categoryHeader}>
-                <View style={styles.categoryIcon}><Text style={styles.categoryEmoji}>🌱</Text></View>
+                <View style={styles.categoryIcon}><Image source={vehicleImage} style={styles.categoryImage} /></View>
                 <Text style={styles.categoryTitle}>{task.category}</Text>
               </View>
 
               <View style={styles.formBody}>
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.label}>Field</Text>
-                  <Text style={styles.readonlyStrong}>{task.field}</Text>
+                  <Text style={styles.label}>ORDER ID</Text>
+                  <Text style={styles.readonlyStrong}>{task.order_id || task.id}</Text>
                 </View>
 
                 <View style={styles.fieldGroup}>
@@ -167,7 +173,7 @@ export default function WorkerTaskCompletionScreen() {
                 </View>
 
                 <View style={[styles.fieldGroup, styles.insightsGroup]}>
-                  <Text style={styles.label}>Insights (Optional)</Text>
+                  <Text style={styles.label}>Proof of Delivery</Text>
                   <TextInput
                     accessibilityLabel="Completion insights"
                     maxLength={2000}
@@ -191,11 +197,12 @@ export default function WorkerTaskCompletionScreen() {
           ) : (
             <View style={styles.errorCard}>
               <Text style={styles.errorText}>{error}</Text>
-              <Pressable onPress={() => router.replace('/WorkerTaskActive')}><Text style={styles.backText}>Return to active tasks</Text></Pressable>
+              <Pressable onPress={() => router.replace('/DriverTaskActive')}><Text style={styles.backText}>Return to active tasks</Text></Pressable>
             </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      <WorkerBottomNavigation activeTab="tasks" />
     </SafeAreaView>
   );
 }

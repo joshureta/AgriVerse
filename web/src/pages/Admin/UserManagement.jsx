@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import deleteIcon from '../../assets/delete-icon.png'
 import userManagementIcon from '../../assets/user-management-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import { workerCategories } from '../../constants/user-options.js'
 import { useAuth } from '../../hooks/useAuth.js'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
@@ -147,6 +148,9 @@ export default function UserManagement() {
     if (modal.mode === 'add') {
       payload.email = String(form.get('email') || '').trim()
       payload.password = String(form.get('password') || '')
+      if (payload.role === 'farm_worker') {
+        payload.worker_category = form.get('worker_category')
+      }
     }
 
     try {
@@ -179,6 +183,8 @@ export default function UserManagement() {
     }
   }
 
+  const modalRole = modal?.role ?? modal?.user?.role ?? 'buyer'
+
   return (
     <main className="admin-dashboard user-management-page">
       <AdminSidebar active="users" />
@@ -192,7 +198,7 @@ export default function UserManagement() {
               <img className="user-heading-icon" src={userManagementIcon} alt="" />
               <h1>User Management</h1>
             </div>
-            <button type="button" onClick={() => setModal({ mode: 'add' })}><span>＋</span>Add User</button>
+            <button type="button" onClick={() => setModal({ mode: 'add', role: 'buyer' })}><span>＋</span>Add User</button>
           </header>
 
           <section className="users-panel">
@@ -285,7 +291,29 @@ export default function UserManagement() {
                 <label><span>Email address</span><input name="email" type="email" required placeholder="user@example.com" /></label>
                 <label><span>Temporary password</span><input name="password" type="password" required minLength="8" placeholder="At least 8 characters" /></label>
               </>}
-              <label><span>Role</span><select name="role" defaultValue={modal.user?.role || 'buyer'}><option value="buyer">Buyer</option><option value="farm_worker">Farm Worker</option><option value="admin">Admin</option></select></label>
+              <label>
+                <span>Role</span>
+                <select
+                  name="role"
+                  value={modalRole}
+                  onChange={(event) => setModal((current) => ({ ...current, role: event.target.value }))}
+                >
+                  <option value="buyer">Buyer</option>
+                  <option value="farm_worker">Farm Worker</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              {modalRole === 'farm_worker' && (
+                <label>
+                  <span>Worker Category</span>
+                  <select name="worker_category" defaultValue="" required>
+                    <option value="" disabled>Select worker category</option>
+                    {workerCategories.map((option) => (
+                      <option value={option.value} key={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save user'}</button></footer>
             </form>
           </section>
