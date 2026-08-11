@@ -2,54 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CircleUserRound, Minus, Plus, ShoppingCart, Star } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
-import { supabase } from '../../lib/supabase.js'
+import { loadPineappleProducts, readBuyerCart, writeBuyerCart } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/shoppingCart.css'
-
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 
 const reviews = [
   { name: 'Juan D.', date: 'May 12, 2026', text: 'Sweet and juicy, worth the price!' },
   { name: 'Maria S.', date: 'May 9, 2026', text: 'Fast delivery and fresh pineapple.' },
   { name: 'Kevin L.', date: 'May 7, 2026', text: 'Good packaging, will order again!' },
 ]
-
-async function readAccessToken(refresh = false) {
-  const result = refresh
-    ? await supabase.auth.refreshSession()
-    : await supabase.auth.getSession()
-  if (result.error) throw new Error(result.error.message)
-  const token = result.data.session?.access_token
-  if (!token) throw new Error('Your session has ended. Please sign in again.')
-  return token
-}
-
-async function loadPineappleProducts(retry = true) {
-  const token = await readAccessToken()
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 12000)
-
-  try {
-    const response = await fetch(`${API_URL}/api/buyer/products/pineapples`, {
-      signal: controller.signal,
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (response.status === 401 && retry) {
-      await readAccessToken(true)
-      return loadPineappleProducts(false)
-    }
-    const body = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(body.error || `Unable to load pineapple inventory (${response.status})`)
-    return body.products || []
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new Error('The inventory server did not respond. Make sure the Express backend is running on port 5000.')
-    }
-    throw error
-  } finally {
-    window.clearTimeout(timeout)
-  }
-}
 
 export default function BuyerOrders() {
   const [products, setProducts] = useState([])
@@ -63,9 +24,13 @@ export default function BuyerOrders() {
     try {
       const loadedProducts = await loadPineappleProducts()
       setProducts(loadedProducts)
-      setQuantities((current) => Object.fromEntries(
-        loadedProducts.map((product) => [product.id, Math.min(current[product.id] || 0, product.stock_quantity)]),
-      ))
+      setQuantities((current) => {
+        const savedQuantities = new Map(readBuyerCart().map((item) => [String(item.id), Number(item.quantity) || 0]))
+        return Object.fromEntries(loadedProducts.map((product) => [
+          product.id,
+          Math.min(current[product.id] ?? savedQuantities.get(String(product.id)) ?? 0, product.stock_quantity),
+        ]))
+      })
     } catch (requestError) {
       setProducts([])
       setError(requestError.message)
@@ -102,7 +67,7 @@ export default function BuyerOrders() {
       stock_quantity: product.stock_quantity,
       inventory_item_ids: product.inventory_item_ids,
     }))
-    window.localStorage.setItem('agriverseBuyerCart', JSON.stringify(cartItems))
+    writeBuyerCart(cartItems)
     window.location.assign('/buyer/cart')
   }
 

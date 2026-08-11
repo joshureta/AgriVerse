@@ -152,6 +152,73 @@
   font-size: 13px;
 }
 
+.shopping-cart-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.shopping-cart-heading-row h2 {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  color: #1f7136;
+  font-size: 30px;
+}
+
+.shopping-cart-heading-row h2 svg {
+  width: 34px;
+  height: 34px;
+}
+
+.shopping-cart-heading-row > button,
+.shopping-cart-error button {
+  min-height: 38px;
+  border: 1px solid #79a77e;
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #1f7136;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.shopping-cart-heading-row > button:hover,
+.shopping-cart-error button:hover {
+  background: #edf6e8;
+}
+
+.shopping-cart-items {
+  display: grid;
+  gap: 20px;
+}
+
+.shopping-cart-notice,
+.shopping-cart-error {
+  margin: 0 0 20px;
+  border: 1px solid #bfd5b9;
+  border-radius: 10px;
+  padding: 13px 16px;
+  color: #2c7139;
+  background: #f1f8ed;
+  font-size: 13px;
+}
+
+.shopping-cart-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  border-color: #e7bcbc;
+  color: #a42626;
+  background: #fff3f3;
+}
+
 .marketplace-stock-label {
   margin-top: 8px;
   color: #348247;
@@ -458,6 +525,14 @@ button.summary-cart-button:disabled {
   font-size: 15px;
 }
 
+.shopping-cart-item-name small {
+  display: block;
+  margin-top: 7px;
+  color: #388c47;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .shopping-cart-unit-price {
   align-self: start;
   justify-self: end;
@@ -590,6 +665,13 @@ button.summary-cart-button:disabled {
   justify-content: center;
 }
 
+.shopping-cart-checkout.is-disabled {
+  opacity: 0.58;
+  background: #9da69a;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
 .shopping-cart-empty {
   border: 1px solid #edf0e5;
   border-radius: 18px;
@@ -654,6 +736,16 @@ button.summary-cart-button:disabled {
 
   .shopping-cart-content {
     margin-top: 42px;
+  }
+
+  .shopping-cart-heading-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .shopping-cart-error {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .shopping-cart-item {
