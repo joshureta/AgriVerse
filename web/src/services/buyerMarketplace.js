@@ -69,6 +69,31 @@ export async function placeBuyerOrder(order, retry = true) {
   }
 }
 
+export async function loadBuyerOrders(retry = true) {
+  const token = await readAccessToken()
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 12000)
+
+  try {
+    const response = await fetch(`${API_URL}/api/buyer/orders`, {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (response.status === 401 && retry) {
+      await readAccessToken(true)
+      return loadBuyerOrders(false)
+    }
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body.error || `Unable to load orders (${response.status})`)
+    return body.orders || []
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('The order server did not respond. Please try again.')
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
 export function readBuyerCart() {
   try {
     const stored = JSON.parse(window.localStorage.getItem(CART_STORAGE_KEY) || '[]')

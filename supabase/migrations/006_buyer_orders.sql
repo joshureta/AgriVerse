@@ -18,6 +18,12 @@ create table if not exists public.buyer_orders (
   delivery_province text,
   delivery_city_municipality text,
   delivery_barangay text,
+  estimated_delivery_at timestamptz not null default (now() + interval '2 days'),
+  confirmed_at timestamptz,
+  preparing_at timestamptz,
+  out_for_delivery_at timestamptz,
+  delivered_at timestamptz,
+  cancelled_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint buyer_orders_note_length check (customer_note is null or char_length(customer_note) <= 1000)
@@ -46,6 +52,29 @@ create table if not exists public.buyer_order_inventory_allocations (
 create index if not exists buyer_orders_buyer_created_idx on public.buyer_orders(buyer_id, created_at desc);
 create index if not exists buyer_orders_status_idx on public.buyer_orders(order_status, created_at desc);
 create index if not exists buyer_order_items_order_idx on public.buyer_order_items(order_id);
+
+create or replace function public.set_buyer_order_status_timestamps()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at = now();
+  if new.order_status is distinct from old.order_status then
+    if new.order_status = 'confirmed' and new.confirmed_at is null then new.confirmed_at = now(); end if;
+    if new.order_status = 'preparing' and new.preparing_at is null then new.preparing_at = now(); end if;
+    if new.order_status = 'out_for_delivery' and new.out_for_delivery_at is null then new.out_for_delivery_at = now(); end if;
+    if new.order_status = 'delivered' and new.delivered_at is null then new.delivered_at = now(); end if;
+    if new.order_status = 'cancelled' and new.cancelled_at is null then new.cancelled_at = now(); end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists buyer_orders_set_status_timestamps on public.buyer_orders;
+create trigger buyer_orders_set_status_timestamps
+  before update on public.buyer_orders
+  for each row execute procedure public.set_buyer_order_status_timestamps();
 
 create or replace function public.place_buyer_order(
   p_buyer_id uuid,

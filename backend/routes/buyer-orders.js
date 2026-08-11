@@ -5,11 +5,66 @@ const { getSupabase } = require("../supabase");
 const router = express.Router();
 router.use(requireAuth, requireRole("buyer"));
 
+const orderSelect = [
+  "id, order_number, delivery_method, payment_method, payment_status, order_status",
+  "subtotal, shipping_fee, total_amount, customer_note",
+  "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
+  "estimated_delivery_at, confirmed_at, preparing_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
+  "items:buyer_order_items(id, pineapple_size_id, product_name, weight_label, quantity, unit_price, line_total)",
+].join(",");
+
 function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
   return error;
 }
+
+function serializeOrder(order) {
+  return {
+    ...order,
+    subtotal: Number(order.subtotal),
+    shipping_fee: Number(order.shipping_fee),
+    total_amount: Number(order.total_amount),
+    items: (order.items || []).map((item) => ({
+      ...item,
+      unit_price: Number(item.unit_price),
+      line_total: Number(item.line_total),
+    })),
+  };
+}
+
+router.get("/", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase()
+      .from("buyer_orders")
+      .select(orderSelect)
+      .eq("buyer_id", req.user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return res.json({ orders: (data || []).map(serializeOrder) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/:id", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid order ID");
+    const { data, error } = await getSupabase()
+      .from("buyer_orders")
+      .select(orderSelect)
+      .eq("id", id)
+      .eq("buyer_id", req.user.id)
+      .single();
+    if (error?.code === "PGRST116") throw httpError(404, "Order not found");
+    if (error) throw error;
+    return res.json({ order: serializeOrder(data) });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 router.post("/", async (req, res, next) => {
   try {
