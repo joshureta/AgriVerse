@@ -1,3 +1,4 @@
+import { styles } from '@/styles/login.styles';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -7,7 +8,6 @@ import {
   Platform,
   Pressable,
   SafeAreaView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -32,8 +32,12 @@ export default function LoginScreen() {
     setSubmitting(true);
     setError('');
     try {
-      await signIn(email.trim(), password);
-      router.replace('/WorkerTaskPending');
+      const profile = await signIn(email.trim(), password);
+      router.replace(
+        profile.worker_category === 'driver'
+          ? '/DriverTaskDashboard'
+          : '/WorkerTaskPending',
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to sign in.');
     } finally {
@@ -98,57 +102,3 @@ export default function LoginScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#eef6df' },
-  container: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  brand: { alignItems: 'center', marginBottom: 22 },
-  logo: { width: 112, height: 112, resizeMode: 'contain' },
-  brandName: { color: '#176c35', fontSize: 31, fontWeight: '900', marginTop: -8 },
-  tagline: { color: '#5d765f', fontSize: 14, marginTop: 2 },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 22,
-    padding: 24,
-    shadowColor: '#173d20',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 5,
-  },
-  title: { color: '#174e2b', fontSize: 27, fontWeight: '800' },
-  subtitle: { color: '#657269', fontSize: 14, lineHeight: 20, marginTop: 5, marginBottom: 22 },
-  label: { color: '#1d3424', fontSize: 13, fontWeight: '700', marginBottom: 7, marginTop: 8 },
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#cddbc7',
-    backgroundColor: '#fbfcf8',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    color: '#101a13',
-    fontSize: 15,
-  },
-  passwordRow: {
-    height: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#cddbc7',
-    backgroundColor: '#fbfcf8',
-    borderRadius: 12,
-  },
-  passwordInput: { flex: 1, color: '#101a13', fontSize: 15, paddingHorizontal: 15 },
-  eyeButton: { paddingHorizontal: 14, height: '100%', justifyContent: 'center' },
-  eyeText: { color: '#18753a', fontSize: 13, fontWeight: '800' },
-  error: { color: '#bb2828', fontSize: 13, marginTop: 13, lineHeight: 18 },
-  button: {
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#18753a',
-    borderRadius: 13,
-    marginTop: 22,
-  },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-});

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import { workerCategories } from '../../constants/user-options.js'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/edit-user.css'
@@ -10,12 +11,6 @@ const roles = [
   { value: 'farm_worker', label: 'Farm Worker' },
   { value: 'admin', label: 'Admin' },
 ]
-const workerCategories = [
-  { value: 'driver', label: 'Driver' },
-  { value: 'crop_management_worker', label: 'Crop Management Worker' },
-  { value: 'seller', label: 'Seller' },
-]
-
 async function getToken(refresh = false) {
   const result = refresh
     ? await supabase.auth.refreshSession()

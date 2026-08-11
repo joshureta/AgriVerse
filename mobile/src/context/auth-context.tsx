@@ -15,7 +15,7 @@ type AuthContextValue = {
   loading: boolean;
   session: Session | null;
   profile: WorkerProfile | null;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<WorkerProfile>;
   signOut: () => Promise<void>;
 };
 
@@ -68,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const workerProfile = await getWorkerProfile();
       setSession(data.session);
       setProfile(workerProfile);
+      return workerProfile;
     } catch (error) {
       await supabase.auth.signOut();
       throw error;

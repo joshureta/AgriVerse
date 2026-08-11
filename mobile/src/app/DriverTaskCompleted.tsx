@@ -1,8 +1,9 @@
-import { styles } from '@/styles/worker-task-completed.styles';
+import { styles } from '@/styles/driver-task-pending.styles';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -28,14 +29,7 @@ type WorkerTaskRecord = {
 };
 
 const GREEN = '#176d34';
-const taskIcons: Record<string, string> = {
-  Harvesting: '🚜',
-  Fertilizing: '🌿',
-  Fertilizer: '🌿',
-  Irrigation: '🌧️',
-  Planting: '🌱',
-  'Pests & Disease Control': '🔎',
-};
+const vehicleImage = require('@/assets/images/driver-equipment.png');
 
 function CompletedIcon() {
   return <View style={styles.completedIcon}><Text style={styles.completedCheck}>✓</Text></View>;
@@ -44,17 +38,19 @@ function CompletedIcon() {
 function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
   return (
     <View style={styles.taskCard}>
-      <View style={styles.taskIconBox}><Text style={styles.taskIcon}>{taskIcons[task.category] || '🌾'}</Text></View>
-      <View style={styles.taskCopy}>
-        <Text style={styles.taskCategory}>{task.category}</Text>
-        <Text numberOfLines={1} style={styles.taskDescription}>{task.description || `${task.category} task`}</Text>
+      <View style={styles.taskSummary}>
+        <View style={styles.taskIconCircle}><Image source={vehicleImage} style={styles.taskIcon} /></View>
+        <View style={styles.taskTitleArea}>
+          <Text style={styles.taskCategory}>{task.category}</Text>
+          <Text numberOfLines={1} style={styles.taskDescription}>{task.description || `${task.category} task`}</Text>
+        </View>
+        <CompletedIcon />
       </View>
-      <CompletedIcon />
     </View>
   );
 }
 
-export default function WorkerTaskCompletedScreen() {
+export default function DriverTaskCompletedScreen() {
   const { width } = useWindowDimensions();
   const { loading: authLoading, profile } = useAuth();
   const [tasks, setTasks] = useState<WorkerTaskRecord[]>([]);
@@ -91,10 +87,10 @@ export default function WorkerTaskCompletedScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
         refreshControl={<RefreshControl colors={[GREEN]} refreshing={refreshing} onRefresh={() => loadTasks(true)} />}>
-        <Text style={styles.pageTitle}>Today’s Tasks</Text>
+        <Text style={styles.sectionTitle}>Today’s Tasks</Text>
         <View style={styles.filters}>
-          <Pressable onPress={() => router.replace('/WorkerTaskPending')} style={styles.filterButton}><Text style={styles.filterText}>Pending</Text></Pressable>
-          <Pressable onPress={() => router.replace('/WorkerTaskActive')} style={styles.filterButton}><Text style={styles.filterText}>Active</Text></Pressable>
+          <Pressable onPress={() => router.replace('/DriverTaskPending')} style={styles.filterButton}><Text style={[styles.filterText, styles.completedFilterText]}>Pending</Text></Pressable>
+          <Pressable onPress={() => router.replace('/DriverTaskActive')} style={styles.filterButton}><Text style={[styles.filterText, styles.completedFilterText]}>Active</Text></Pressable>
           <Pressable accessibilityState={{ selected: true }} style={[styles.filterButton, styles.filterButtonActive]}><Text style={[styles.filterText, styles.filterTextActive]}>Completed</Text></Pressable>
         </View>
 
@@ -104,7 +100,7 @@ export default function WorkerTaskCompletedScreen() {
         ) : tasks.length ? (
           tasks.map((task) => <CompletedTaskCard key={task.id} task={task} />)
         ) : (
-          <View style={styles.emptyState}><CompletedIcon /><Text style={styles.emptyTitle}>No completed tasks</Text><Text style={styles.emptyCopy}>Completed work will appear here.</Text></View>
+          <View style={styles.emptyBox}><CompletedIcon /><Text style={styles.emptyTitle}>No completed tasks</Text><Text style={styles.emptyText}>Completed work will appear here.</Text></View>
         )}
       </ScrollView>
       <WorkerBottomNavigation activeTab="tasks" />

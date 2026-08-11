@@ -160,6 +160,7 @@ router.post("/", async (req, res, next) => {
     const role = readRole(req.body.role);
     const email = readEmail(req.body.email);
     const password = String(req.body.password || "");
+    const workerCategory = readWorkerCategory(req.body.worker_category, role);
 
     if (password.length < 8) {
       throw httpError(400, "Temporary password must contain at least 8 characters");
@@ -185,15 +186,11 @@ router.post("/", async (req, res, next) => {
           id: createdUserId,
           email,
           full_name: fullName,
-          ...roleFields(
-            role,
-            req.body.worker_category ||
-              (role === "farm_worker" ? "crop_management_worker" : null),
-          ),
+          ...roleFields(role, workerCategory),
         },
         { onConflict: "id" },
       )
-      .select("id, full_name, email, role, created_at")
+      .select("id, full_name, email, role, worker_category, created_at")
       .single();
 
     if (profileError) {

@@ -1,8 +1,9 @@
-import { styles } from '@/styles/worker-task-active.styles';
+import { styles } from '@/styles/driver-task-pending.styles';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -21,34 +22,40 @@ import { apiRequest } from '@/lib/api';
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
 type WorkerTaskRecord = {
   id: number;
+  order_id?: number | string;
   category: string;
   field: string;
   priority: 'high' | 'medium' | 'low';
   status: TaskStatus;
   description: string | null;
+  receiver_name?: string | null;
+  contact_number?: string | null;
+  delivery_location?: string | null;
+  vehicle_name?: string | null;
 };
 
 const GREEN = '#176d34';
-const taskIcons: Record<string, string> = {
-  Planting: '🌱',
-  Fertilizing: '🌿',
-  Fertilizer: '🌿',
-  'Pests & Disease Control': '🔎',
-  'Crop Inspection': '🔎',
-  Irrigation: '💧',
-  Harvesting: '🍍',
-};
+const vehicleImage = require('@/assets/images/driver-equipment.png');
+
+function DetailField({ label, value }: { label: string; value: string | number }) {
+  return (
+    <View style={styles.detailBox}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
 
 function FilterTabs() {
   return (
     <View style={styles.filters}>
-      <Pressable onPress={() => router.replace('/WorkerTaskPending')} style={styles.filterButton}>
+      <Pressable onPress={() => router.replace('/DriverTaskPending')} style={styles.filterButton}>
         <Text style={styles.filterText}>Pending</Text>
       </Pressable>
       <Pressable accessibilityState={{ selected: true }} style={[styles.filterButton, styles.filterButtonActive]}>
         <Text style={[styles.filterText, styles.filterTextActive]}>Active</Text>
       </Pressable>
-      <Pressable onPress={() => router.replace('/WorkerTaskCompleted')} style={styles.filterButton}>
+      <Pressable onPress={() => router.replace('/DriverTaskCompleted')} style={styles.filterButton}>
         <Text style={styles.filterText}>Completed</Text>
       </Pressable>
     </View>
@@ -67,28 +74,25 @@ function ActiveTaskCard({
   task: WorkerTaskRecord;
 }) {
   return (
-    <View style={[styles.taskShell, expanded && styles.taskShellExpanded]}>
+    <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
       <Pressable onPress={onToggle} style={styles.taskSummary}>
-        <View style={styles.taskIconBox}><Text style={styles.taskIcon}>{taskIcons[task.category] || '🌾'}</Text></View>
+        <View style={styles.taskIconCircle}><Image source={vehicleImage} style={styles.taskIcon} /></View>
         <View style={styles.taskTitleArea}>
           <Text style={styles.taskCategory}>{task.category}</Text>
           <Text numberOfLines={1} style={styles.taskDescription}>{task.description || `${task.category} task`}</Text>
         </View>
-        <View style={styles.priorityPill}><Text style={styles.priorityText}>{task.priority}</Text></View>
+        <View style={styles.priority}><Text style={styles.priorityText}>{task.priority}</Text></View>
       </Pressable>
 
       {expanded ? (
-        <View style={styles.expandedCard}>
-          <View style={styles.fieldBox}>
-            <Text style={styles.detailLabel}>Field</Text>
-            <Text style={styles.fieldValue}>{task.field}</Text>
-          </View>
-          <View style={styles.descriptionBox}>
-            <Text style={styles.detailLabel}>Description</Text>
-            <Text style={styles.detailDescription}>{task.description || 'No description provided.'}</Text>
-          </View>
-          <Pressable onPress={onComplete} style={({ pressed }) => [styles.completeButton, pressed && styles.buttonPressed]}>
-            <Text style={styles.completeButtonText}>Mark as Completed</Text>
+        <View style={styles.details}>
+          <DetailField label="Order ID" value={task.order_id || task.id} />
+          <DetailField label="Receiver Name" value={task.receiver_name || 'Not provided'} />
+          <DetailField label="Contact Number" value={task.contact_number || 'Not provided'} />
+          <DetailField label="Delivery Location" value={task.delivery_location || task.field || 'Not provided'} />
+          <DetailField label="Vehicle Used" value={task.vehicle_name || 'Not provided'} />
+          <Pressable onPress={onComplete} style={({ pressed }) => [styles.startButton, pressed && styles.buttonPressed]}>
+            <Text style={styles.startButtonText}>Mark as Completed</Text>
           </Pressable>
         </View>
       ) : null}
@@ -96,7 +100,7 @@ function ActiveTaskCard({
   );
 }
 
-export default function WorkerTaskActiveScreen() {
+export default function DriverTaskActiveScreen() {
   const { width } = useWindowDimensions();
   const { loading: authLoading, profile } = useAuth();
   const [tasks, setTasks] = useState<WorkerTaskRecord[]>([]);
@@ -137,7 +141,7 @@ export default function WorkerTaskActiveScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
         refreshControl={<RefreshControl colors={[GREEN]} refreshing={refreshing} onRefresh={() => loadTasks(true)} />}>
-        <Text style={styles.pageTitle}>Today’s Tasks</Text>
+        <Text style={styles.sectionTitle}>Today’s Tasks</Text>
         <FilterTabs />
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {loading ? (
@@ -147,13 +151,13 @@ export default function WorkerTaskActiveScreen() {
             <ActiveTaskCard
               expanded={expandedId === task.id}
               key={task.id}
-              onComplete={() => router.push({ pathname: '/WorkerTaskCompletion', params: { taskId: String(task.id) } })}
+              onComplete={() => router.push({ pathname: '/DriverTaskCompletion', params: { taskId: String(task.id) } })}
               onToggle={() => setExpandedId((current) => current === task.id ? null : task.id)}
               task={task}
             />
           ))
         ) : (
-          <View style={styles.emptyState}><Text style={styles.emptyCheck}>✓</Text><Text style={styles.emptyTitle}>No active tasks</Text><Text style={styles.emptyCopy}>Start a pending task to see it here.</Text></View>
+          <View style={styles.emptyBox}><Text style={styles.emptyIcon}>✓</Text><Text style={styles.emptyTitle}>No active tasks</Text><Text style={styles.emptyText}>Start a pending task to see it here.</Text></View>
         )}
       </ScrollView>
       <WorkerBottomNavigation activeTab="tasks" />
