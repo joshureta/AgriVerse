@@ -42,6 +42,61 @@
   padding-top: 27px;
 }
 
+.pineapple-selection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.pineapple-selection-heading h2 {
+  margin: 0;
+  color: #1f7136;
+  font-size: 21px;
+  font-weight: 750;
+}
+
+.pineapple-selection-heading button,
+.marketplace-inventory-message button {
+  min-height: 36px;
+  border: 1px solid #76a87c;
+  border-radius: 8px;
+  padding: 0 15px;
+  color: #1f7136;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.pineapple-selection-heading button:hover,
+.marketplace-inventory-message button:hover {
+  background: #edf6e8;
+}
+
+.marketplace-inventory-message {
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 26px;
+  border: 1px solid #dce8d8;
+  border-radius: 18px;
+  padding: 30px;
+  color: #536457;
+  background: #fff;
+  text-align: center;
+}
+
+.marketplace-inventory-message p { margin: 0; }
+.marketplace-inventory-message.is-error {
+  border-color: #efc9c9;
+  color: #a22626;
+  background: #fff5f5;
+}
+
 .pineapple-selection > h2,
 .marketplace-reviews > h2,
 .order-summary > h2,
@@ -97,6 +152,17 @@
   font-size: 13px;
 }
 
+.marketplace-stock-label {
+  margin-top: 8px;
+  color: #348247;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.pineapple-product-card.is-unavailable {
+  opacity: 0.62;
+}
+
 .marketplace-quantity,
 .shopping-cart-quantity {
   width: 100%;
@@ -126,6 +192,13 @@
 .shopping-cart-quantity button:focus-visible {
   outline: none;
   background: #e9f3dc;
+}
+
+.marketplace-quantity button:disabled,
+.shopping-cart-quantity button:disabled {
+  color: #a9b5a8;
+  background: #f3f5f1;
+  cursor: not-allowed;
 }
 
 .marketplace-quantity svg,
@@ -270,6 +343,17 @@
   font-weight: 650;
 }
 
+.order-summary-empty {
+  margin: 22px 0;
+  border: 1px dashed #c8d6c3;
+  border-radius: 10px;
+  padding: 20px 12px;
+  color: #6b776c;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .summary-cart-button,
 .shopping-cart-add-more {
   min-height: 44px;
@@ -283,6 +367,21 @@
   font-size: 14px;
   font-weight: 750;
   box-shadow: 0 7px 14px rgba(36, 105, 48, 0.18);
+}
+
+button.summary-cart-button {
+  width: 100%;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button.summary-cart-button:disabled {
+  outline: none;
+  color: #e2e6df;
+  background: #9da99b;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
 .summary-cart-button:hover,
@@ -520,6 +619,11 @@
 @media (max-width: 720px) {
   .marketplace-order-main {
     padding-inline: 16px;
+  }
+
+  .pineapple-selection-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .pineapple-product-grid,
