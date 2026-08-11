@@ -82,6 +82,18 @@ test("buyer product routes require an access token", async () => {
   assert.equal(body.error, "Authentication required");
 });
 
+test("buyer checkout routes require an access token", async () => {
+  const response = await fetch(`${baseUrl}/api/buyer/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(body.error, "Authentication required");
+});
+
 test("admin task routes require an access token", async () => {
   const response = await fetch(`${baseUrl}/api/admin/tasks`);
   const body = await response.json();

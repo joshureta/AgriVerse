@@ -40,6 +40,35 @@ export async function loadPineappleProducts(retry = true) {
   }
 }
 
+export async function placeBuyerOrder(order, retry = true) {
+  const token = await readAccessToken()
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 15000)
+
+  try {
+    const response = await fetch(`${API_URL}/api/buyer/orders`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(order),
+    })
+    if (response.status === 401 && retry) {
+      await readAccessToken(true)
+      return placeBuyerOrder(order, false)
+    }
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body.error || `Unable to place order (${response.status})`)
+    return body.order
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Checkout timed out. Please verify your connection and try again.')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
 export function readBuyerCart() {
   try {
     const stored = JSON.parse(window.localStorage.getItem(CART_STORAGE_KEY) || '[]')

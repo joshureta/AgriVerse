@@ -13,6 +13,7 @@ const workerTasksRouter = require("./routes/worker-tasks");
 const adminLookupsRouter = require("./routes/admin-lookups");
 const adminSchedulesRouter = require("./routes/admin-schedules");
 const buyerProductsRouter = require("./routes/buyer-products");
+const buyerOrdersRouter = require("./routes/buyer-orders");
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.use("/api/worker/tasks", workerTasksRouter);
 app.use("/api/admin/lookups", adminLookupsRouter);
 app.use("/api/admin/schedules", adminSchedulesRouter);
 app.use("/api/buyer/products", buyerProductsRouter);
+app.use("/api/buyer/orders", buyerOrdersRouter);
 
 const PORT = process.env.PORT || 5000;
 
