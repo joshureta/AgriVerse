@@ -15,9 +15,25 @@ import ForgotPassword from './pages/ForgotPassword.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
+import SellerDashboard from './pages/FarmWorker/SellerDashboard.jsx'
 
 function App() {
   const path = window.location.pathname
+
+  if (
+    path === '/farm-worker/dashboard' ||
+    path === '/seller' ||
+    path === '/seller/dashboard'
+  ) {
+    return (
+      <ProtectedRoute
+        allowedRoles={['farm_worker']}
+        allowedWorkerCategories={['seller']}
+      >
+        <SellerDashboard />
+      </ProtectedRoute>
+    )
+  }
 
   if (path === '/buyer/profile') {
     return (
