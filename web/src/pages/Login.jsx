@@ -13,7 +13,7 @@ export default function Login() {
 
   useEffect(() => {
     if (!sessionLoading && user && profile) {
-      window.location.replace(getHomePathForRole(profile.role))
+      window.location.replace(getHomePathForRole(profile.role, profile.worker_category))
     }
   }, [profile, sessionLoading, user])
 
@@ -44,7 +44,7 @@ export default function Login() {
 
     const { data: signedInProfile, error: profileLoadError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, worker_category')
       .eq('id', signInData.user.id)
       .single()
 
@@ -54,7 +54,9 @@ export default function Login() {
       return
     }
 
-    window.location.replace(getHomePathForRole(signedInProfile.role))
+    window.location.replace(
+      getHomePathForRole(signedInProfile.role, signedInProfile.worker_category),
+    )
   }
 
   return (
