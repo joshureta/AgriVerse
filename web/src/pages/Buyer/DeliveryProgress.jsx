@@ -51,22 +51,24 @@ function IconBadge({ icon: Icon }) {
 function createMilestones(order) {
   const rank = statusRank[order.order_status] ?? 0
   return [
-    { label: 'Order Placed', date: order.created_at, icon: ReceiptText, complete: true },
+    { label: 'Order Placed', date: order.created_at, icon: ReceiptText },
     {
       label: 'Confirmed & Packing',
       date: order.preparing_at || order.confirmed_at,
       icon: PackageOpen,
-      complete: rank >= 1,
     },
-    { label: 'In Transit', date: order.out_for_delivery_at, icon: Truck, complete: rank >= 2 },
+    { label: 'In Transit', date: order.out_for_delivery_at, icon: Truck },
     {
       label: 'Delivered',
       date: order.delivered_at || order.estimated_delivery_at,
       icon: Check,
-      complete: rank >= 3,
       estimated: !order.delivered_at,
     },
-  ]
+  ].map((milestone, index) => ({
+    ...milestone,
+    complete: index < rank,
+    current: index === rank,
+  }))
 }
 
 function orderItemsText(order) {
@@ -120,7 +122,6 @@ export default function DeliveryProgress() {
             <h1>Orders &amp; Delivery Progress</h1>
             <p>Track your real orders from confirmation to delivery.</p>
           </div>
-          {!loading && <button type="button" onClick={fetchOrders}>Refresh orders</button>}
         </header>
 
         {error && <div className="delivery-message is-error" role="alert"><span>{error}</span><button type="button" onClick={fetchOrders}>Try again</button></div>}
@@ -159,12 +160,12 @@ export default function DeliveryProgress() {
             {selectedOrder.order_status === 'cancelled'
               ? <div className="delivery-cancelled">This order was cancelled on {formatDate(selectedOrder.cancelled_at)}.</div>
               : <div className="delivery-timeline">
-                {milestones.map(({ label, date, icon, complete, estimated }, index) => (
-                  <div className={`delivery-milestone ${complete ? 'is-complete' : ''}`} key={label}>
+                {milestones.map(({ label, date, icon, complete, current, estimated }, index) => (
+                  <div className={`delivery-milestone ${complete ? 'is-complete' : ''} ${current ? 'is-current' : ''}`} key={label}>
                     {index > 0 && <span className="milestone-line" aria-hidden="true" />}
                     <IconBadge icon={icon} />
                     <strong>{label}</strong>
-                    <time>{estimated && !complete ? 'Estimated: ' : ''}{formatDate(date)}</time>
+                    <time>{estimated && !complete && !current ? 'Estimated: ' : ''}{formatDate(date)}</time>
                   </div>
                 ))}
               </div>}
