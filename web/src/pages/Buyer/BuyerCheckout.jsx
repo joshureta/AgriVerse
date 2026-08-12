@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Banknote,
   Check,
-  CreditCard,
-  PackageCheck,
   QrCode,
-  Truck,
   WalletCards,
+  X,
 } from 'lucide-react'
-import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
+import bankIcon from '../../assets/buyer/checkout/bank.png'
+import cashIcon from '../../assets/buyer/checkout/cash.png'
+import deliveryIcon from '../../assets/buyer/checkout/delivery.png'
+import pickupIcon from '../../assets/buyer/checkout/pickup.png'
 import {
   loadPineappleProducts,
   buyerCartQuantity,
@@ -36,6 +37,20 @@ function ChoiceCard({ checked, children, className = '', onSelect }) {
   )
 }
 
+function CheckoutIcon({ name }) {
+  const icons = { bank: bankIcon, cash: cashIcon, delivery: deliveryIcon, pickup: pickupIcon }
+  return <img className="checkout-generated-icon" src={icons[name]} alt="" aria-hidden="true" />
+}
+
+const emptyAddress = {
+  full_name: '', mobile_number: '', country: 'Philippines', region: '', province: '', city_municipality: '', barangay: '',
+}
+
+function addressIsComplete(address) {
+  return ['full_name', 'mobile_number', 'country', 'region', 'city_municipality', 'barangay']
+    .every((field) => String(address[field] || '').trim())
+}
+
 export default function BuyerCheckout() {
   const { profile } = useAuth()
   const [items, setItems] = useState([])
@@ -47,6 +62,9 @@ export default function BuyerCheckout() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [placedOrder, setPlacedOrder] = useState(null)
+  const [addressModalOpen, setAddressModalOpen] = useState(false)
+  const [addressSource, setAddressSource] = useState('saved')
+  const [alternateAddress, setAlternateAddress] = useState(emptyAddress)
 
   useEffect(() => {
     let active = true
@@ -82,14 +100,26 @@ export default function BuyerCheckout() {
     return () => { active = false }
   }, [])
 
+  const savedAddress = useMemo(() => ({
+    full_name: profile?.full_name || '',
+    mobile_number: profile?.mobile_number || '',
+    country: profile?.country || 'Philippines',
+    region: profile?.region || '',
+    province: profile?.province || '',
+    city_municipality: profile?.city_municipality || '',
+    barangay: profile?.barangay || '',
+  }), [profile])
+
+  useEffect(() => {
+    setAlternateAddress((current) => current.full_name ? current : savedAddress)
+  }, [savedAddress])
+
+  const deliveryAddress = addressSource === 'saved' ? savedAddress : alternateAddress
   const address = useMemo(() => {
-    const locality = [profile?.barangay, profile?.city_municipality].filter(Boolean).join(', ')
-    const region = [profile?.province, profile?.region, profile?.country].filter(Boolean).join(', ')
-    return {
-      locality: locality || 'Address not provided',
-      region: region || 'Location not provided',
-    }
-  }, [profile])
+    const locality = [deliveryAddress.barangay, deliveryAddress.city_municipality].filter(Boolean).join(', ')
+    const region = [deliveryAddress.province, deliveryAddress.region, deliveryAddress.country].filter(Boolean).join(', ')
+    return { locality: locality || 'Address not provided', region: region || 'Location not provided' }
+  }, [deliveryAddress])
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const shippingFee = deliveryMethod === 'delivery' && items.length > 0 ? 100 : 0
@@ -98,6 +128,11 @@ export default function BuyerCheckout() {
   async function submitOrder(event) {
     event.preventDefault()
     if (items.length === 0 || placedOrder) return
+    if (deliveryMethod === 'delivery' && !addressIsComplete(deliveryAddress)) {
+      setError('Complete the recipient and delivery address before placing your order.')
+      setAddressModalOpen(true)
+      return
+    }
     setPlacing(true)
     setError('')
     try {
@@ -105,6 +140,7 @@ export default function BuyerCheckout() {
         delivery_method: deliveryMethod,
         payment_method: paymentMethod,
         customer_note: notes,
+        delivery_address: deliveryMethod === 'delivery' && addressSource === 'alternate' ? alternateAddress : null,
         items: items.map((item) => ({ product_id: item.id, quantity: item.quantity })),
       })
       writeBuyerCart([])
@@ -119,6 +155,7 @@ export default function BuyerCheckout() {
   return (
     <main className="buyer-page checkout-page">
       <BuyerHeader active="orders" cartCount={placedOrder ? 0 : buyerCartQuantity(items)} />
+      <BuyerJourneyNav current="checkout" />
 
       <div className="checkout-shell">
         <header className="checkout-heading">
@@ -131,16 +168,33 @@ export default function BuyerCheckout() {
 
         <section className="checkout-card checkout-address" aria-labelledby="delivery-address-title">
           <div className="checkout-address-head">
-            <h2 id="delivery-address-title">{profile?.full_name || 'Buyer'}</h2>
-            <a href="/buyer/profile">Edit information</a>
+            <h2 id="delivery-address-title">{deliveryAddress.full_name || 'Buyer'}</h2>
+            <button type="button" onClick={() => setAddressModalOpen(true)}>Edit information</button>
           </div>
           <div className="checkout-address-rule" />
           <address>
             {address.locality}<br />
             {address.region}<br />
-            {profile?.mobile_number || 'Mobile number not provided'}
+            {deliveryAddress.mobile_number || 'Mobile number not provided'}
           </address>
         </section>
+
+        {addressModalOpen && <div className="checkout-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAddressModalOpen(false) }}>
+          <section className="checkout-address-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-address-modal-title">
+            <header><div><span>Delivery details</span><h2 id="checkout-address-modal-title">Edit recipient information</h2></div><button type="button" onClick={() => setAddressModalOpen(false)} aria-label="Close address editor"><X /></button></header>
+            <div className="checkout-address-source" role="radiogroup" aria-label="Address source">
+              <button type="button" className={addressSource === 'saved' ? 'is-selected' : ''} role="radio" aria-checked={addressSource === 'saved'} onClick={() => setAddressSource('saved')}><strong>Use saved address</strong><small>Use the address from your Buyer profile.</small></button>
+              <button type="button" className={addressSource === 'alternate' ? 'is-selected' : ''} role="radio" aria-checked={addressSource === 'alternate'} onClick={() => setAddressSource('alternate')}><strong>Use another address</strong><small>Enter a different address for this order only.</small></button>
+            </div>
+            {addressSource === 'saved' ? <div className="checkout-saved-address"><strong>{savedAddress.full_name || 'Buyer'}</strong><span>{[savedAddress.barangay, savedAddress.city_municipality, savedAddress.province, savedAddress.region, savedAddress.country].filter(Boolean).join(', ') || 'No saved address'}</span><span>{savedAddress.mobile_number || 'No mobile number'}</span></div>
+              : <div className="checkout-address-fields">
+                {[
+                  ['full_name', 'Recipient name'], ['mobile_number', 'Mobile number'], ['country', 'Country'], ['region', 'Region'], ['province', 'Province (optional)'], ['city_municipality', 'City / Municipality'], ['barangay', 'Barangay'],
+                ].map(([name, label]) => <label key={name}><span>{label}</span><input name={name} value={alternateAddress[name]} onChange={(event) => setAlternateAddress((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'province'} /></label>)}
+              </div>}
+            <footer><button type="button" className="is-cancel" onClick={() => setAddressModalOpen(false)}>Cancel</button><button type="button" className="is-save" disabled={addressSource === 'alternate' && !addressIsComplete(alternateAddress)} onClick={() => { setError(''); setAddressModalOpen(false) }}>Use this information</button></footer>
+          </section>
+        </div>}
 
         <section className="checkout-card checkout-summary" aria-labelledby="checkout-summary-title">
           <h2 id="checkout-summary-title">Order Summary</h2>
@@ -170,11 +224,11 @@ export default function BuyerCheckout() {
             <h2 id="delivery-method-title">Delivery Method</h2>
             <div className="checkout-choice-list" role="radiogroup" aria-labelledby="delivery-method-title">
               <ChoiceCard checked={deliveryMethod === 'delivery'} onSelect={() => setDeliveryMethod('delivery')}>
-                <Truck aria-hidden="true" />
+                <CheckoutIcon name="delivery" />
                 <span><strong>Standard Delivery</strong><small>Delivery service straight to your registered address.</small></span>
               </ChoiceCard>
               <ChoiceCard checked={deliveryMethod === 'pickup'} onSelect={() => setDeliveryMethod('pickup')}>
-                <PackageCheck aria-hidden="true" />
+                <CheckoutIcon name="pickup" />
                 <span><strong>On-site Pickup</strong><small>Collect your order directly from JToledo Trading.</small></span>
               </ChoiceCard>
             </div>
@@ -187,11 +241,11 @@ export default function BuyerCheckout() {
             <h2 id="payment-method-title">Payment Method</h2>
             <div className="checkout-choice-list" role="radiogroup" aria-labelledby="payment-method-title">
               <ChoiceCard checked={paymentMethod === 'cash'} onSelect={() => setPaymentMethod('cash')}>
-                <Banknote aria-hidden="true" />
+                <CheckoutIcon name="cash" />
                 <span><strong>Cash on Delivery</strong><small>Pay with cash when your pineapples arrive.</small></span>
               </ChoiceCard>
               <ChoiceCard checked={paymentMethod === 'bank'} className="checkout-bank" onSelect={() => setPaymentMethod('bank')}>
-                <CreditCard aria-hidden="true" />
+                <CheckoutIcon name="bank" />
                 <span><strong>Bank Transfer</strong><small>Transfer directly to the JToledo bank account.</small></span>
                 {paymentMethod === 'bank' && <div className="checkout-bank-details">
                   <dl>

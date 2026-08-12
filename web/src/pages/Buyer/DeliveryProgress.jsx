@@ -10,7 +10,7 @@ import {
   Store,
   Truck,
 } from 'lucide-react'
-import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import pineappleDeliveryHistory from '../../assets/buyer/pineapple-delivery-history.png'
 import { buyerCartQuantity, loadBuyerOrders, readBuyerCart } from '../../services/buyerMarketplace.js'
@@ -112,6 +112,7 @@ export default function DeliveryProgress() {
   return (
     <main className="buyer-page delivery-page">
       <BuyerHeader active="orders" cartCount={buyerCartQuantity(readBuyerCart())} />
+      <BuyerJourneyNav current="delivery" />
 
       <div className="delivery-content">
         <header className="delivery-title">

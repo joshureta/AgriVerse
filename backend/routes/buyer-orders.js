@@ -71,12 +71,26 @@ router.post("/", async (req, res, next) => {
     const deliveryMethod = String(req.body.delivery_method || "");
     const paymentMethod = String(req.body.payment_method || "");
     const note = String(req.body.customer_note || "").trim();
+    const requestedAddress = req.body.delivery_address;
     const items = Array.isArray(req.body.items) ? req.body.items : [];
 
     if (!['delivery', 'pickup'].includes(deliveryMethod)) throw httpError(400, "Select a valid delivery method");
     if (!['cash', 'bank', 'gcash'].includes(paymentMethod)) throw httpError(400, "Select a valid payment method");
     if (note.length > 1000) throw httpError(400, "Additional information must not exceed 1000 characters");
     if (items.length < 1 || items.length > 20) throw httpError(400, "The shopping cart is empty or invalid");
+
+    let deliveryAddress = null;
+    if (requestedAddress != null) {
+      if (!requestedAddress || typeof requestedAddress !== "object" || Array.isArray(requestedAddress)) {
+        throw httpError(400, "The delivery address is invalid");
+      }
+      const fields = ['full_name', 'mobile_number', 'country', 'region', 'province', 'city_municipality', 'barangay'];
+      deliveryAddress = Object.fromEntries(fields.map((field) => [field, String(requestedAddress[field] || "").trim()]));
+      if (fields.some((field) => deliveryAddress[field].length > 150)) throw httpError(400, "A delivery address field is too long");
+      if (deliveryMethod === 'delivery' && ['full_name', 'mobile_number', 'country', 'region', 'city_municipality', 'barangay'].some((field) => !deliveryAddress[field])) {
+        throw httpError(400, "Complete the recipient and delivery address");
+      }
+    }
 
     const productIds = new Set();
     const normalizedItems = items.map((item) => {
@@ -96,11 +110,12 @@ router.post("/", async (req, res, next) => {
       p_payment_method: paymentMethod,
       p_customer_note: note || null,
       p_items: normalizedItems,
+      p_delivery_address: deliveryAddress,
     });
 
     if (error) {
       if (/insufficient stock/i.test(error.message || "")) throw httpError(409, error.message);
-      if (/shopping cart|quantity|product|delivery method|payment method/i.test(error.message || "")) {
+      if (/shopping cart|quantity|product|delivery method|payment method|delivery address|recipient/i.test(error.message || "")) {
         throw httpError(400, error.message);
       }
       throw error;

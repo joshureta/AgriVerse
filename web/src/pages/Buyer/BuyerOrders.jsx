@@ -9,7 +9,7 @@ import {
   Star,
   X,
 } from 'lucide-react'
-import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import { loadPineappleProducts, readBuyerCart, writeBuyerCart } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
@@ -116,6 +116,7 @@ export default function BuyerOrders() {
   return (
     <main className="buyer-page marketplace-page">
       <BuyerHeader active="orders" cartCount={selectedQuantity} />
+      <BuyerJourneyNav current="order" />
       <section className="marketplace-order-layout">
         <div className="marketplace-order-main">
           <header className="marketplace-title">

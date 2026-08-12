@@ -82,6 +82,30 @@ export function BuyerHeader({ active = 'home', cartCount }) {
   )
 }
 
+const buyerJourneySteps = [
+  { id: 'order', label: 'Order', href: '/buyer/order' },
+  { id: 'cart', label: 'Shopping Cart', href: '/buyer/cart' },
+  { id: 'checkout', label: 'Checkout', href: '/buyer/checkout' },
+  { id: 'delivery', label: 'Delivery', href: '/buyer/delivery-progress' },
+]
+
+export function BuyerJourneyNav({ current }) {
+  return (
+    <nav className="buyer-journey-nav" aria-label="Order process">
+      <ol>
+        {buyerJourneySteps.map((step, index) => (
+          <li key={step.id}>
+            {index > 0 && <span className="buyer-journey-separator" aria-hidden="true">&gt;</span>}
+            <a className={current === step.id ? 'is-current' : ''} href={step.href} aria-current={current === step.id ? 'step' : undefined}>
+              {step.label}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
 export function BuyerFooter() {
   return (
     <footer className="buyer-site-footer" id="about">
