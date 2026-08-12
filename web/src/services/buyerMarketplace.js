@@ -103,6 +103,13 @@ export function readBuyerCart() {
   }
 }
 
+export function buyerCartQuantity(items = readBuyerCart()) {
+  return items.reduce(
+    (total, item) => total + Math.max(0, Number(item.quantity) || 0),
+    0,
+  )
+}
+
 export function writeBuyerCart(items) {
   window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items))
 }

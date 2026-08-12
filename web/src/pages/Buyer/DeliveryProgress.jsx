@@ -13,7 +13,7 @@ import {
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import pineappleDeliveryHistory from '../../assets/buyer/pineapple-delivery-history.png'
-import { loadBuyerOrders, readBuyerCart } from '../../services/buyerMarketplace.js'
+import { buyerCartQuantity, loadBuyerOrders, readBuyerCart } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/deliveryProgress.css'
 
@@ -111,7 +111,7 @@ export default function DeliveryProgress() {
 
   return (
     <main className="buyer-page delivery-page">
-      <BuyerHeader active="orders" cartCount={readBuyerCart().length} />
+      <BuyerHeader active="orders" cartCount={buyerCartQuantity(readBuyerCart())} />
 
       <div className="delivery-content">
         <header className="delivery-title">

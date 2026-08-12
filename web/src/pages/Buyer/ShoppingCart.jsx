@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Minus, Plus, ShoppingCart as CartIcon } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
-import { loadPineappleProducts, readBuyerCart, writeBuyerCart } from '../../services/buyerMarketplace.js'
+import { buyerCartQuantity, loadPineappleProducts, readBuyerCart, writeBuyerCart } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/shoppingCart.css'
 
@@ -88,7 +88,7 @@ export default function ShoppingCart() {
 
   return (
     <main className="buyer-page marketplace-page">
-      <BuyerHeader active="cart" cartCount={items.length} />
+      <BuyerHeader active="cart" cartCount={buyerCartQuantity(items)} />
       <section className="shopping-cart-page">
         <header className="shopping-cart-title">
           <h1>Order Fresh Pineapple</h1>

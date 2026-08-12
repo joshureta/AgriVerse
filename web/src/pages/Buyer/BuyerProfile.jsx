@@ -166,7 +166,7 @@ export default function BuyerProfile() {
 
   return (
     <main className="buyer-page buyer-profile-page">
-      <BuyerHeader cartCount={1} />
+      <BuyerHeader />
 
       <section className="profile-content" aria-labelledby="profile-title">
         <h1 id="profile-title">My Profile</h1>

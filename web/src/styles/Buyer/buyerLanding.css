@@ -119,6 +119,17 @@ body:has(.buyer-page) #root {
   font-weight: 800;
 }
 
+.buyer-cart-link .buyer-cart-count {
+  top: -5px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  border-color: #286c30;
+  padding: 0 4px;
+  font-size: 9px;
+  line-height: 1;
+}
+
 .buyer-brand {
   position: absolute;
   top: calc(100% + 30px);

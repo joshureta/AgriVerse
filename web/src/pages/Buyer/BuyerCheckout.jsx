@@ -13,6 +13,7 @@ import { useAuth } from '../../hooks/useAuth.js'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import {
   loadPineappleProducts,
+  buyerCartQuantity,
   placeBuyerOrder,
   readBuyerCart,
   writeBuyerCart,
@@ -117,7 +118,7 @@ export default function BuyerCheckout() {
 
   return (
     <main className="buyer-page checkout-page">
-      <BuyerHeader active="orders" cartCount={placedOrder ? 0 : items.length} />
+      <BuyerHeader active="orders" cartCount={placedOrder ? 0 : buyerCartQuantity(items)} />
 
       <div className="checkout-shell">
         <header className="checkout-heading">

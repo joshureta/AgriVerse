@@ -10,10 +10,12 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.js'
 import jtoledoLogo from '../assets/Jtoledologo.png'
+import { buyerCartQuantity, readBuyerCart } from '../services/buyerMarketplace.js'
 
-export function BuyerHeader({ active = 'home', cartCount = 0 }) {
+export function BuyerHeader({ active = 'home', cartCount }) {
   const { profile, signOut } = useAuth()
   const buyerName = profile?.full_name || 'Buyer'
+  const displayedCartCount = cartCount ?? buyerCartQuantity(readBuyerCart())
 
   async function handleSignOut() {
     await signOut()
@@ -41,7 +43,7 @@ export function BuyerHeader({ active = 'home', cartCount = 0 }) {
         <div className="buyer-header-account">
           <a className={`buyer-cart-link ${active === 'cart' ? 'is-active' : ''}`} href="/buyer/cart" aria-label="Shopping cart">
             <ShoppingCart aria-hidden="true" />
-            {cartCount > 0 && <span className="buyer-cart-count">{cartCount}</span>}
+            {displayedCartCount > 0 && <span className="buyer-cart-count">{displayedCartCount > 99 ? '99+' : displayedCartCount}</span>}
           </a>
           <details className="buyer-profile-menu">
             <summary>
