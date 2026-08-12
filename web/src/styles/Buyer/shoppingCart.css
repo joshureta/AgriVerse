@@ -157,21 +157,30 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  margin-bottom: 32px;
+  margin-bottom: 18px;
 }
 
 .shopping-cart-heading-row h2 {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   margin: 0;
   color: #1f7136;
-  font-size: 30px;
+  font-size: 24px;
 }
 
 .shopping-cart-heading-row h2 svg {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
+}
+
+.shopping-cart-heading-row > span {
+  border-radius: 999px;
+  padding: 6px 11px;
+  color: #347441;
+  background: #edf6e9;
+  font-size: 11px;
+  font-weight: 750;
 }
 
 .shopping-cart-heading-row > button,
@@ -465,8 +474,8 @@ button.summary-cart-button:disabled {
 }
 
 .shopping-cart-page {
-  min-height: 850px;
-  padding: 32px 24px 80px;
+  min-height: 720px;
+  padding: 24px 24px 56px;
   color: #17251b;
   background: #fbfcf4;
 }
@@ -476,8 +485,8 @@ button.summary-cart-button:disabled {
 }
 
 .shopping-cart-content {
-  width: min(100%, 1180px);
-  margin: 62px auto 0;
+  width: min(100%, 1040px);
+  margin: 34px auto 0;
 }
 
 .shopping-cart-content > h2 {
@@ -494,22 +503,22 @@ button.summary-cart-button:disabled {
 }
 
 .shopping-cart-item {
-  min-height: 220px;
+  min-height: 168px;
   display: grid;
-  grid-template-columns: 150px minmax(180px, 1fr) auto;
+  grid-template-columns: 138px minmax(180px, 1fr) auto;
   grid-template-rows: auto auto auto;
-  gap: 10px 22px;
+  gap: 8px 18px;
   align-items: center;
   border: 1px solid #edf0e5;
-  border-radius: 22px;
-  padding: 22px 42px;
+  border-radius: 16px;
+  padding: 18px 30px;
   background: #fdfef8;
   box-shadow: 0 10px 22px rgba(68, 83, 57, 0.09);
 }
 
 .shopping-cart-item > img {
-  width: 130px;
-  height: 175px;
+  width: 122px;
+  height: 145px;
   grid-row: 1 / 4;
   object-fit: contain;
 }
@@ -517,12 +526,12 @@ button.summary-cart-button:disabled {
 .shopping-cart-item-name h3 {
   margin: 0 0 6px;
   color: #17241a;
-  font-size: 19px;
+  font-size: 16px;
 }
 
 .shopping-cart-item-name p {
   color: #4f5c51;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .shopping-cart-item-name small {
@@ -541,21 +550,21 @@ button.summary-cart-button:disabled {
 }
 
 .shopping-cart-quantity {
-  height: 52px;
+  height: 42px;
   grid-column: 2 / 4;
-  grid-template-columns: 72px 1fr 72px;
+  grid-template-columns: 54px 1fr 54px;
   margin: 0;
   border-radius: 8px;
   box-shadow: 0 5px 13px rgba(52, 78, 49, 0.08);
 }
 
 .shopping-cart-quantity svg {
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
 }
 
 .shopping-cart-quantity output {
-  font-size: 19px;
+  font-size: 16px;
 }
 
 .shopping-cart-remove {
@@ -581,23 +590,23 @@ button.summary-cart-button:disabled {
 }
 
 .shopping-cart-add-more {
-  min-width: 170px;
-  min-height: 52px;
+  min-width: 145px;
+  min-height: 44px;
   margin: 0;
   padding: 0 24px;
 }
 
 .shopping-cart-summary {
-  margin-top: 28px;
+  margin-top: 18px;
   border: 1px solid #edf0e5;
-  border-radius: 22px;
-  padding: 17px 80px 24px;
+  border-radius: 16px;
+  padding: 12px 48px 18px;
   background: #fdfef8;
   box-shadow: 0 10px 22px rgba(68, 83, 57, 0.09);
 }
 
 .shopping-cart-summary > div {
-  min-height: 62px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -605,7 +614,7 @@ button.summary-cart-button:disabled {
   border-bottom: 1px solid #a9c4a5;
   padding: 0 8px;
   color: #263029;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .shopping-cart-summary > div > strong {
@@ -613,19 +622,19 @@ button.summary-cart-button:disabled {
 }
 
 .shopping-cart-summary .shopping-cart-grand-total {
-  min-height: 142px;
+  min-height: 116px;
   display: grid;
   grid-template-columns: 1fr auto;
   align-content: center;
   border: 0;
-  font-size: 23px;
+  font-size: 19px;
   font-weight: 750;
 }
 
 .shopping-cart-grand-total > strong {
   margin-left: 0;
   color: #eea400 !important;
-  font-size: 31px;
+  font-size: 26px;
 }
 
 .shopping-cart-actions {
@@ -633,19 +642,19 @@ button.summary-cart-button:disabled {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 18px;
-  margin-top: 16px;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .shopping-cart-grand-total button,
 .shopping-cart-checkout {
-  min-height: 52px;
+  min-height: 44px;
   border: 0;
   border-radius: 8px;
-  padding: 0 30px;
+  padding: 0 24px;
   color: #fff;
   background: #f0aa00;
-  font-size: 19px;
+  font-size: 15px;
   font-weight: 750;
   cursor: pointer;
   box-shadow: 0 7px 14px rgba(173, 125, 0, 0.18);

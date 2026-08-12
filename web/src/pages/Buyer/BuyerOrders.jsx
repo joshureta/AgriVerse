@@ -28,7 +28,6 @@ export default function BuyerOrders() {
   const [error, setError] = useState('')
   const [stockNotice, setStockNotice] = useState('')
   const [cartNotice, setCartNotice] = useState('')
-  const [lastUpdated, setLastUpdated] = useState(null)
 
   const fetchProducts = useCallback(async ({ background = false } = {}) => {
     if (!background) {
@@ -49,7 +48,6 @@ export default function BuyerOrders() {
         }
         return updated
       })
-      setLastUpdated(new Date())
     } catch (requestError) {
       if (!background) {
         setProducts([])

@@ -97,8 +97,8 @@ export default function ShoppingCart() {
 
         <div className="shopping-cart-content">
           <div className="shopping-cart-heading-row">
-            <h2><CartIcon aria-hidden="true" /> Shopping Cart</h2>
-            {!loading && items.length > 0 && <button type="button" onClick={refreshCart}>Refresh stock</button>}
+            <h2>Shopping Cart</h2>
+            {!loading && items.length > 0 && <span>{buyerCartQuantity(items)} {buyerCartQuantity(items) === 1 ? 'item' : 'items'}</span>}
           </div>
 
           {notice && <p className="shopping-cart-notice" role="status">{notice}</p>}
