@@ -146,31 +146,59 @@
 }
 
 .route-location {
-  height: 104px;
+  min-height: 112px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 13px;
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: 15px;
+  padding: 14px 16px;
   color: #fff;
   background: #70b42e;
   text-align: center;
 }
 
-.route-destination { background: #207b37; }
+.route-destination {
+  align-items: flex-start;
+  background: linear-gradient(145deg, #2c8b43, #176b32);
+  box-shadow: 0 8px 18px rgba(23, 107, 50, .18);
+  text-align: left;
+}
 
 .route-location h3 {
   display: flex;
   align-items: center;
   gap: 4px;
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.35;
   text-align: center;
 }
 
 .route-location h3 svg { width: 17px; }
 .route-location p { margin: 5px 0 2px; font-size: 10px; }
-.route-location > svg { width: 38px; height: 38px; opacity: 0.52; }
+.route-location > svg,
+.route-location-art { width: 34px; height: 34px; opacity: 0.52; }
+
+.route-location-label {
+  margin-bottom: 6px;
+  color: #d9efcf;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.route-destination h3 {
+  align-items: flex-start;
+  color: #fff;
+}
+
+.route-destination h3 svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
 
 .route-dashes {
   height: 0;
@@ -444,8 +472,8 @@
   .delivery-route { padding-inline: 22px; }
   .route-map { grid-template-columns: 1fr 54px 1fr; gap: 12px; }
   .route-map > .route-dashes { display: none; }
-  .route-location { height: 118px; }
-  .route-location h3 { font-size: 16px; }
+  .route-location { min-height: 118px; }
+  .route-location h3 { font-size: 13px; }
   .delivery-timeline { grid-template-columns: repeat(2, 1fr); gap: 26px 12px; }
   .milestone-line { width: calc(100% - 14px); right: calc(50% + 28px); }
   .delivery-milestone strong { font-size: 12px; }

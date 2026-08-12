@@ -75,6 +75,16 @@ function orderItemsText(order) {
   return order.items.map((item) => `${item.quantity} ${item.product_name}`).join(', ')
 }
 
+function getDeliveryAddress(order) {
+  return [
+    order.delivery_barangay,
+    order.delivery_city_municipality,
+    order.delivery_province,
+    order.delivery_region,
+    order.delivery_country,
+  ].filter(Boolean).join(', ')
+}
+
 export default function DeliveryProgress() {
   const [orders, setOrders] = useState([])
   const [selectedOrderId, setSelectedOrderId] = useState(null)
@@ -106,10 +116,7 @@ export default function DeliveryProgress() {
   )
 
   const milestones = selectedOrder ? createMilestones(selectedOrder) : []
-  const destination = selectedOrder
-    ? [selectedOrder.delivery_barangay, selectedOrder.delivery_city_municipality, selectedOrder.delivery_province]
-      .filter(Boolean).join(', ') || 'Registered delivery address'
-    : ''
+  const destination = selectedOrder ? getDeliveryAddress(selectedOrder) : ''
 
   return (
     <main className="buyer-page delivery-page">
@@ -151,9 +158,16 @@ export default function DeliveryProgress() {
               <IconBadge icon={selectedOrder.delivery_method === 'pickup' ? PackageCheck : Truck} />
               <span className="route-dashes route-arrow" aria-hidden="true" />
               <article className="route-location route-destination">
-                <h3><MapPin aria-hidden="true" /> {selectedOrder.delivery_method === 'pickup' ? 'Farm Pickup' : destination}</h3>
-                <p>{selectedOrder.delivery_method === 'pickup' ? 'On-site collection' : 'Delivery Address'}</p>
-                <Store aria-hidden="true" />
+                {selectedOrder.delivery_method === 'pickup'
+                  ? <>
+                    <h3><PackageCheck aria-hidden="true" /> Farm Pickup</h3>
+                    <p>JToledo Trading Farm, Tagaytay City</p>
+                    <Store className="route-location-art" aria-hidden="true" />
+                  </>
+                  : <>
+                    <span className="route-location-label">Delivery address</span>
+                    <h3><MapPin aria-hidden="true" /> {destination || 'Address not provided'}</h3>
+                  </>}
               </article>
             </div>
 
