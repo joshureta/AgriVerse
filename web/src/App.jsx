@@ -16,9 +16,18 @@ import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 import SellerDashboard from './pages/FarmWorker/SellerDashboard.jsx'
+import SellerOrderManagement from './pages/FarmWorker/SellerOrderManagement.jsx'
 
 function App() {
   const path = window.location.pathname
+
+  if (path === '/farm-worker/orders' || path === '/seller/orders') {
+    return (
+      <ProtectedRoute allowedRoles={['farm_worker']} allowedWorkerCategories={['seller']}>
+        <SellerOrderManagement />
+      </ProtectedRoute>
+    )
+  }
 
   if (
     path === '/farm-worker/dashboard' ||

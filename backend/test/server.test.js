@@ -136,3 +136,11 @@ test("worker completion routes require an access token", async () => {
   assert.equal(response.status, 401);
   assert.equal(body.error, "Authentication required");
 });
+
+test("seller order routes require an access token", async () => {
+  const response = await fetch(`${baseUrl}/api/seller/orders`);
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(body.error, "Authentication required");
+});

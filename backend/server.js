@@ -14,6 +14,7 @@ const adminLookupsRouter = require("./routes/admin-lookups");
 const adminSchedulesRouter = require("./routes/admin-schedules");
 const buyerProductsRouter = require("./routes/buyer-products");
 const buyerOrdersRouter = require("./routes/buyer-orders");
+const sellerOrdersRouter = require("./routes/seller-orders");
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use("/api/admin/lookups", adminLookupsRouter);
 app.use("/api/admin/schedules", adminSchedulesRouter);
 app.use("/api/buyer/products", buyerProductsRouter);
 app.use("/api/buyer/orders", buyerOrdersRouter);
+app.use("/api/seller/orders", sellerOrdersRouter);
 
 const PORT = process.env.PORT || 5000;
 
