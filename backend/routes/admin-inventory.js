@@ -94,15 +94,18 @@ async function ensureActive(table, id, label, select = "id") {
   return data;
 }
 
-async function inventoryPayload(body) {
+async function inventoryPayload(body, { requireQuantity = true } = {}) {
   const category = await ensureActive("inventory_categories", body.inventory_category_id, "Inventory category", "id, code");
   const unit = await ensureActive("measurement_units", body.unit_id, "Unit");
   const common = {
     inventory_category_id: category.id,
     unit_id: unit.id,
     item_name: readText(body.item_name, "Item name", 100),
-    quantity: readQuantity(body.stock_quantity ?? body.quantity),
   };
+  const suppliedQuantity = body.stock_quantity ?? body.quantity;
+  if (requireQuantity || suppliedQuantity !== undefined) {
+    common.quantity = readQuantity(suppliedQuantity);
+  }
 
   let detail = null;
   if (category.code === "pineapple") {
@@ -216,7 +219,7 @@ router.post("/", async (req, res, next) => {
 router.patch("/:id", async (req, res, next) => {
   try {
     const id = readId(req.params.id);
-    const payload = await inventoryPayload(req.body);
+    const payload = await inventoryPayload(req.body, { requireQuantity: false });
     const { error } = await getSupabase().from("inventory_items").update(payload.common)
       .eq("id", id).is("archived_at", null);
     if (error) throwDatabaseError(error);

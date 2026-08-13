@@ -104,17 +104,34 @@ router.post("/", async (req, res, next) => {
       return { product_id: productId, quantity };
     });
 
-    const { data, error } = await getSupabase().rpc("place_buyer_order", {
+    const orderArguments = {
       p_buyer_id: req.user.id,
       p_delivery_method: deliveryMethod,
       p_payment_method: paymentMethod,
       p_customer_note: note || null,
       p_items: normalizedItems,
       p_delivery_address: deliveryAddress,
-    });
+    };
+    let { data, error } = await getSupabase().rpc("place_buyer_order", orderArguments);
+
+    const missingNewOrderFunction = error && (
+      error.code === "PGRST202"
+      || (/place_buyer_order/i.test(error.message || "")
+        && /p_delivery_address|schema cache|could not find/i.test(error.message || ""))
+    );
+    if (missingNewOrderFunction && deliveryAddress == null) {
+      const legacyArguments = { ...orderArguments };
+      delete legacyArguments.p_delivery_address;
+      ({ data, error } = await getSupabase().rpc("place_buyer_order", legacyArguments));
+    } else if (missingNewOrderFunction) {
+      throw httpError(503, "Run Supabase migration 009_buyer_alternate_delivery_address.sql to use another delivery address");
+    }
 
     if (error) {
       if (/insufficient stock/i.test(error.message || "")) throw httpError(409, error.message);
+      if (error.code === "PGRST202" || /place_buyer_order.*schema cache/i.test(error.message || "")) {
+        throw httpError(503, "The Supabase order function is not installed. Run buyer order migrations 006 through 009, then restart the backend");
+      }
       if (/shopping cart|quantity|product|delivery method|payment method|delivery address|recipient/i.test(error.message || "")) {
         throw httpError(400, error.message);
       }

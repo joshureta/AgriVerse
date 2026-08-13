@@ -9,7 +9,7 @@ import '../../styles/inventory-management.css'
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 5
 const emptyItemForm = {
-  inventory_category_id: '', unit_id: '', item_name: '', stock_quantity: '',
+  inventory_category_id: '', unit_id: '', item_name: '', stock_quantity: '', stock_to_add: '',
   size_id: '', harvest_date: '', formulation: '', expiration_date: '', pesticide_type: '',
   equipment_type_id: '', condition: '', availability: '', last_maintenance: '',
 }
@@ -149,6 +149,7 @@ export default function InventoryManagement() {
       unit_id: item.unit_id,
       item_name: item.item_name,
       stock_quantity: item.stock_quantity,
+      stock_to_add: '',
       size_id: item.details?.size_id || '',
       harvest_date: item.details?.harvest_date || '',
       formulation: item.details?.formulation || '',
@@ -174,20 +175,35 @@ export default function InventoryManagement() {
     setError('')
     try {
       const editing = modal.mode === 'edit-item'
+      const stockToAdd = editing && itemForm.stock_to_add !== ''
+        ? Number(itemForm.stock_to_add)
+        : 0
+      if (!Number.isSafeInteger(stockToAdd) || stockToAdd < 0) {
+        throw new Error('Stock to add must be a whole number of zero or greater.')
+      }
+      const payload = {
+        ...itemForm,
+        inventory_category_id: Number(itemForm.inventory_category_id),
+        unit_id: Number(itemForm.unit_id),
+        size_id: itemForm.size_id ? Number(itemForm.size_id) : null,
+        equipment_type_id: itemForm.equipment_type_id ? Number(itemForm.equipment_type_id) : null,
+      }
+      delete payload.stock_to_add
+      if (editing) delete payload.stock_quantity
+      else payload.stock_quantity = Number(itemForm.stock_quantity)
       await apiRequest(
         editing ? `/api/admin/inventory/${modal.item.id}` : '/api/admin/inventory',
         {
           method: editing ? 'PATCH' : 'POST',
-          body: JSON.stringify({
-            ...itemForm,
-            inventory_category_id: Number(itemForm.inventory_category_id),
-            unit_id: Number(itemForm.unit_id),
-            size_id: itemForm.size_id ? Number(itemForm.size_id) : null,
-            equipment_type_id: itemForm.equipment_type_id ? Number(itemForm.equipment_type_id) : null,
-            stock_quantity: Number(itemForm.stock_quantity),
-          }),
+          body: JSON.stringify(payload),
         },
       )
+      if (editing && stockToAdd > 0) {
+        await apiRequest(`/api/admin/inventory/${modal.item.id}/stock`, {
+          method: 'POST',
+          body: JSON.stringify({ quantity: stockToAdd }),
+        })
+      }
       setModal(null)
       setPage(1)
       setRefreshKey((value) => value + 1)
@@ -331,9 +347,15 @@ export default function InventoryManagement() {
           <h2 id="inventory-modal-title">{modal.mode === 'add-item' ? 'Add Item' : `Edit ${modal.item.item_name}`}</h2>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
           <form onSubmit={saveItem}>
-            <label><span>Item type</span><select value={itemForm.inventory_category_id} onChange={(event) => setItemForm({ ...emptyItemForm, inventory_category_id: event.target.value, unit_id: itemForm.unit_id, item_name: itemForm.item_name, stock_quantity: itemForm.stock_quantity, size_id: options.pineappleSizes[0]?.id || '', equipment_type_id: options.equipmentTypes[0]?.id || '' })} required><option value="" disabled>Select item type</option>{options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
+            <label><span>Item type</span><select value={itemForm.inventory_category_id} onChange={(event) => setItemForm({ ...emptyItemForm, inventory_category_id: event.target.value, unit_id: itemForm.unit_id, item_name: itemForm.item_name, stock_quantity: itemForm.stock_quantity, stock_to_add: itemForm.stock_to_add, size_id: options.pineappleSizes[0]?.id || '', equipment_type_id: options.equipmentTypes[0]?.id || '' })} required><option value="" disabled>Select item type</option>{options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
             <label><span>Item name</span><input value={itemForm.item_name} onChange={(event) => setItemForm({ ...itemForm, item_name: event.target.value })} required maxLength="100" /></label>
             <label><span>Unit</span><select value={itemForm.unit_id} onChange={(event) => setItemForm({ ...itemForm, unit_id: event.target.value })} required><option value="" disabled>Select unit</option>{options.units.map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_name} ({unit.abbreviation})</option>)}</select></label>
+            {modal.mode === 'add-item'
+              ? <label><span>Starting stock</span><input type="number" min="0" step="1" value={itemForm.stock_quantity} onChange={(event) => setItemForm({ ...itemForm, stock_quantity: event.target.value })} required /></label>
+              : <>
+                <label><span>Current stock</span><input className="inventory-current-stock" type="number" value={itemForm.stock_quantity} readOnly aria-readonly="true" /></label>
+                <label><span>Quantity to add</span><input type="number" min="0" step="1" value={itemForm.stock_to_add} onChange={(event) => setItemForm({ ...itemForm, stock_to_add: event.target.value })} placeholder="Enter additional stock" /></label>
+              </>}
             {selectedCategory?.code === 'pineapple' && <>
               <label><span>Size</span><select value={itemForm.size_id} onChange={(event) => setItemForm({ ...itemForm, size_id: event.target.value })} required><option value="" disabled>Select size</option>{options.pineappleSizes.map((size) => <option value={size.id} key={size.id}>{size.size_name}</option>)}</select></label>
               <label><span>Harvest date</span><input type="date" value={itemForm.harvest_date} onChange={(event) => setItemForm({ ...itemForm, harvest_date: event.target.value })} /></label>

@@ -129,8 +129,7 @@ export default function BuyerCheckout() {
     event.preventDefault()
     if (items.length === 0 || placedOrder) return
     if (deliveryMethod === 'delivery' && !addressIsComplete(deliveryAddress)) {
-      setError('Complete the recipient and delivery address before placing your order.')
-      setAddressModalOpen(true)
+      setError('Complete the recipient and delivery address using Edit information before placing your order.')
       return
     }
     setPlacing(true)
