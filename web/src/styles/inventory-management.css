@@ -8,6 +8,7 @@
 .inventory-heading > button span { font-size: 19px; font-weight: 400; }
 .inventory-browser { overflow: hidden; border: 1px solid #dce5d8; border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgba(42,76,38,.05); }
 .inventory-panel { overflow: hidden; border-top: 1px solid #e3eae0; background: #fff; }
+.inventory-panel.pineapple-stock-panel { padding-top: 14px; }
 .inventory-toolbar { display: grid; grid-template-columns: minmax(260px,1fr); align-items: center; gap: 12px; padding: 11px 14px; background: #fff; }
 .inventory-toolbar.has-actions { grid-template-columns: minmax(280px, 560px) auto; justify-content: space-between; }
 .inventory-toolbar-actions { display: flex; align-items: center; gap: 8px; }
@@ -103,14 +104,12 @@
 .stock-modal-summary small { color: #718075; font-size: 10px; }
 .stock-after-preview { display: flex; align-items: center; justify-content: space-between; border-radius: 7px; padding: 11px 13px; color: #196c35; background: #e8f4e4; font-size: 11px; }
 .stock-after-preview strong { font-size: 14px; }
-.stock-history-section { margin: 14px; overflow: hidden; border: 1px solid #dfe8dc; border-radius: 9px; background: #fff; }
+.stock-history-section { margin: 28px 14px 14px; overflow: hidden; border: 1px solid #dfe8dc; border-radius: 9px; background: #fff; }
 .stock-history-section > header { padding: 15px 17px; border-bottom: 1px solid #e6ece3; background: #fafcf8; }
-.stock-history-section > header > div { display: flex; align-items: center; gap: 11px; }
-.stock-history-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: #fff; background: #24783a; font-size: 17px; font-weight: 900; }
 .stock-history-section h2 { margin: 0 0 2px; color: #196c35; font-size: 15px; }
 .stock-history-section p { margin: 0; color: #738077; font-size: 10px; }
 .stock-history-table { width: 100%; min-width: 720px; border-collapse: collapse; }
-.stock-history-table th { padding: 11px 13px; color: #58705d; background: #f5f8f3; text-align: left; font-size: 9px; font-weight: 900; letter-spacing: .035em; }
+.stock-history-table th { padding: 11px 13px; color: #fff; background: #146d32; text-align: left; font-size: 9px; font-weight: 900; letter-spacing: .035em; }
 .stock-history-table td { padding: 12px 13px; border-top: 1px solid #edf1ea; color: #344139; font-size: 10px; text-align: left; }
 .stock-history-table tbody tr:hover { background: #fbfdf9; }
 .stock-history-table td[colspan] { height: 70px; color: #718075; text-align: center; }
@@ -122,10 +121,8 @@
 .stock-history-error { padding: 11px 16px; color: #a33b2f; background: #fff2f0; font-size: 10px; }
 .inventory-view-tabs { display: flex; align-items: flex-end; gap: 0; min-height: 40px; margin: 0; padding: 7px 12px 0; border-bottom: 1px solid #e3eae0; background: #fff; }
 .inventory-view-tabs button { position: relative; min-height: 33px; display: inline-flex; align-items: center; border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; padding: 0 13px; color: #819087; background: transparent; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; transition: color .18s ease, background .18s ease, border-color .18s ease; }
-.inventory-view-tabs button::after { position: absolute; right: 11px; bottom: -1px; left: 11px; height: 2px; border-radius: 2px 2px 0 0; background: transparent; content: ''; }
 .inventory-view-tabs button:hover { color: #196c35; background: #f8faf7; }
 .inventory-view-tabs button.is-active { color: #196c35; border-color: #e3eae0; background: #fff; }
-.inventory-view-tabs button.is-active::after { background: #196c35; }
 .inventory-category-tabs { display: flex; flex-wrap: wrap; gap: 7px; padding: 14px 16px; background: #fbfcf9; }
 .inventory-category-tabs button { min-height: 31px; border: 1px solid #79a883; border-radius: 999px; padding: 0 15px; color: #195f2c; background: #fff; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
 .inventory-category-tabs button:hover, .inventory-category-tabs button.is-active { color: #fff; border-color: #236f34; background: #236f34; }

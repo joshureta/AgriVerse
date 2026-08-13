@@ -347,21 +347,21 @@ export default function InventoryManagement() {
               ))}
             </div>}
 
-            <div className="inventory-panel">
-            <div className={`inventory-toolbar${activeView === 'items' ? ' has-actions' : ''}`}>
-              <label className="inventory-search">
+            <div className={`inventory-panel${activeView === 'stock' ? ' pineapple-stock-panel' : ''}`}>
+            {activeView !== 'stock' && <div className={`inventory-toolbar${activeView === 'items' ? ' has-actions' : ''}`}>
+              {activeView !== 'stock' && <label className="inventory-search">
                 <span className="sr-only">Search inventory</span>
                 <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder={activeView === 'stock' ? 'Search pineapple stock' : 'Search inventory items'} />
                 <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
                   <circle cx="11" cy="11" r="6.5" />
                   <path d="m16 16 4 4" />
                 </svg>
-              </label>
+              </label>}
               {activeView === 'items' && <div className="inventory-toolbar-actions">
                 <button className="add-category-button" type="button" onClick={openAddCategory}><span>＋</span>Add Category</button>
                 <button className="add-item-button" type="button" onClick={openAddItem}><span>＋</span>Add Item</button>
               </div>}
-            </div>
+            </div>}
 
             {error && <div className="inventory-error" role="alert">{error}</div>}
             <div className="inventory-table-wrap">
@@ -402,7 +402,7 @@ export default function InventoryManagement() {
               </div>
             </footer>
             {activeView === 'stock' && <section className="stock-history-section">
-              <header><div><span className="stock-history-icon" aria-hidden="true">↕</span><div><h2>Stock Movement History</h2><p>Recent pineapple stock additions and deductions</p></div></div></header>
+              <header><div><h2>Stock Movement History</h2><p>Recent pineapple stock additions and deductions</p></div></header>
               {historyError && <div className="stock-history-error" role="alert">{historyError}</div>}
               <div className="inventory-table-wrap">
                 <table className="stock-history-table">
