@@ -83,12 +83,15 @@ function categoryDetails(item) {
 export default function InventoryManagement() {
   const [activeView, setActiveView] = useState('items')
   const [items, setItems] = useState([])
+  const [stockHistory, setStockHistory] = useState([])
   const [options, setOptions] = useState({ categories: [], units: [], pineappleSizes: [], equipmentTypes: [] })
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 })
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [type, setType] = useState('')
   const [loading, setLoading] = useState(true)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
@@ -107,6 +110,8 @@ export default function InventoryManagement() {
     if (search.trim()) params.set('search', search.trim())
     if (type) params.set('categoryId', type)
     if (activeView === 'archive') params.set('archived', 'true')
+    if (activeView === 'stock') params.set('pineappleOnly', 'true')
+    if (activeView === 'items') params.set('excludePineapple', 'true')
 
     try {
       const data = await apiRequest(`/api/admin/inventory?${params}`)
@@ -126,20 +131,47 @@ export default function InventoryManagement() {
 
   useEffect(() => { loadOptions() }, [loadOptions])
 
+  const loadStockHistory = useCallback(async () => {
+    if (activeView !== 'stock') return
+    setHistoryLoading(true)
+    setHistoryError('')
+    try {
+      const data = await apiRequest('/api/admin/inventory/stock-history?limit=10')
+      setStockHistory(data.movements || [])
+    } catch (requestError) {
+      setStockHistory([])
+      setHistoryError(requestError.message)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [activeView])
+
   useEffect(() => {
     const delay = window.setTimeout(loadItems, search ? 300 : 0)
     return () => window.clearTimeout(delay)
   }, [loadItems, refreshKey, search])
 
+  useEffect(() => { loadStockHistory() }, [loadStockHistory, refreshKey])
+
   function openAddItem() {
+    const firstItemCategory = options.categories.find((category) => category.code !== 'pineapple')
     setItemForm({
       ...emptyItemForm,
-      inventory_category_id: options.categories[0]?.id || '',
+      inventory_category_id: firstItemCategory?.id || '',
       unit_id: options.units[0]?.id || '',
       size_id: options.pineappleSizes[0]?.id || '',
       equipment_type_id: options.equipmentTypes[0]?.id || '',
     })
     setModal({ mode: 'add-item' })
+  }
+
+  function changeView(view) {
+    if (view === activeView) return
+    setActiveView(view)
+    setPage(1)
+    setSearch('')
+    setType('')
+    setError('')
   }
 
   function openEditItem(item) {
@@ -161,6 +193,34 @@ export default function InventoryManagement() {
       last_maintenance: item.details?.last_maintenance || '',
     })
     setModal({ mode: 'edit-item', item })
+  }
+
+  function openAddStock(item) {
+    setItemForm({ ...emptyItemForm, stock_quantity: item.stock_quantity, stock_to_add: '' })
+    setError('')
+    setModal({ mode: 'add-stock', item })
+  }
+
+  async function addStock(event) {
+    event.preventDefault()
+    const quantity = Number(itemForm.stock_to_add)
+    if (!Number.isSafeInteger(quantity) || quantity < 1) {
+      setError('Stock to add must be a whole number greater than zero.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/inventory/${modal.item.id}/stock`, {
+        method: 'POST', body: JSON.stringify({ quantity }),
+      })
+      setModal(null)
+      setRefreshKey((value) => value + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   function openAddCategory() {
@@ -263,40 +323,59 @@ export default function InventoryManagement() {
         <div className="inventory-content">
           <header className="inventory-heading">
             <div className="inventory-title"><img src={inventoryIcon} alt="" /><h1>Inventory Management</h1></div>
-            <div className="inventory-heading-actions">
-              {activeView === 'items'
-                ? <><button className="add-category-button" type="button" onClick={openAddCategory}><span>＋</span>Add Category</button><button className="add-item-button" type="button" onClick={openAddItem}><span>＋</span>Add Item</button></>
-                : null}
-            </div>
           </header>
 
-          <nav className="inventory-view-tabs" aria-label="Inventory views">
-            <button className={activeView === 'items' ? 'is-active' : ''} type="button" onClick={() => { setActiveView('items'); setPage(1); setError('') }}>Inventory Items</button>
-            <button className={activeView === 'archive' ? 'is-active' : ''} type="button" onClick={() => { setActiveView('archive'); setPage(1); setError('') }}>Archived Items</button>
-          </nav>
-
-          <div className="inventory-category-tabs" role="group" aria-label="Filter inventory by category">
-            <button className={!type ? 'is-active' : ''} type="button" onClick={() => { setType(''); setPage(1) }}>All</button>
-            {options.categories.map((category) => (
-              <button className={String(type) === String(category.id) ? 'is-active' : ''} type="button" key={category.id} onClick={() => { setType(String(category.id)); setPage(1) }}>
-                {category.category_name}
+          <section className="inventory-browser">
+            <nav className="inventory-view-tabs" aria-label="Inventory views" role="tablist">
+              <button className={activeView === 'items' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeView === 'items'} onClick={() => changeView('items')}>
+                <span>Inventory Items</span>
               </button>
-            ))}
-          </div>
+              <button className={activeView === 'stock' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeView === 'stock'} onClick={() => changeView('stock')}>
+                <span>Pineapple Stock</span>
+              </button>
+              <button className={activeView === 'archive' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeView === 'archive'} onClick={() => changeView('archive')}>
+                <span>Archived Items</span>
+              </button>
+            </nav>
 
-          <section className="inventory-panel">
-            <div className="inventory-toolbar">
-              <strong className="inventory-view-label">{activeView === 'items' ? 'Active item records' : 'Archived item records'}</strong>
+            {activeView !== 'stock' && <div className="inventory-category-tabs" role="group" aria-label="Filter inventory by category">
+              <button className={!type ? 'is-active' : ''} type="button" onClick={() => { setType(''); setPage(1) }}>All</button>
+              {options.categories.filter((category) => activeView === 'archive' || category.code !== 'pineapple').map((category) => (
+                <button className={String(type) === String(category.id) ? 'is-active' : ''} type="button" key={category.id} onClick={() => { setType(String(category.id)); setPage(1) }}>
+                  {category.category_name}
+                </button>
+              ))}
+            </div>}
+
+            <div className="inventory-panel">
+            <div className={`inventory-toolbar${activeView === 'items' ? ' has-actions' : ''}`}>
               <label className="inventory-search">
                 <span className="sr-only">Search inventory</span>
-                <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search inventory items" />
-                <span aria-hidden="true" />
+                <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder={activeView === 'stock' ? 'Search pineapple stock' : 'Search inventory items'} />
+                <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                  <circle cx="11" cy="11" r="6.5" />
+                  <path d="m16 16 4 4" />
+                </svg>
               </label>
+              {activeView === 'items' && <div className="inventory-toolbar-actions">
+                <button className="add-category-button" type="button" onClick={openAddCategory}><span>＋</span>Add Category</button>
+                <button className="add-item-button" type="button" onClick={openAddItem}><span>＋</span>Add Item</button>
+              </div>}
             </div>
 
             {error && <div className="inventory-error" role="alert">{error}</div>}
             <div className="inventory-table-wrap">
-              <table className="inventory-table inventory-records-table">
+              {activeView === 'stock' ? <table className="inventory-table pineapple-stock-table">
+                <thead><tr><th>ID</th><th>PINEAPPLE SIZE</th><th>AVAILABLE STOCK</th><th>UNIT</th><th>STOCK STATUS</th><th>LAST UPDATED</th><th>ACTIONS</th></tr></thead>
+                <tbody>
+                  {loading ? <tr><td className="inventory-empty" colSpan="7">Loading pineapple stock…</td></tr>
+                    : items.length ? items.map((item) => {
+                      const status = item.stock_quantity <= 0 ? 'out' : item.stock_quantity <= 10 ? 'low' : 'in'
+                      const label = status === 'out' ? 'Out of Stock' : status === 'low' ? 'Low Stock' : 'In Stock'
+                      return <tr key={item.id}><td>{item.id}</td><td><strong>{item.variant}</strong></td><td><strong className="inventory-quantity">{item.stock_quantity}</strong></td><td>{item.unit_label || '—'}</td><td><span className={`stock-status stock-${status}`}>{label}</span></td><td>{formatDate(item.updated_at)}</td><td><div className="inventory-actions"><button className="inventory-add-stock" type="button" onClick={() => openAddStock(item)}><span aria-hidden="true">+</span>Add Stock</button></div></td></tr>
+                    }) : <tr><td className="inventory-empty" colSpan="7">No pineapple stock records found.</td></tr>}
+                </tbody>
+              </table> : <table className="inventory-table inventory-records-table">
                 <thead><tr><th>ID</th><th>CATEGORY</th><th>ITEM NAME</th><th>CATEGORY DETAILS</th><th>QUANTITY</th><th>UNIT</th><th>{activeView === 'archive' ? 'ARCHIVED AT' : 'LAST UPDATED'}</th><th>ACTIONS</th></tr></thead>
                 <tbody>
                   {loading ? <tr><td className="inventory-empty" colSpan="8">Loading inventory…</td></tr>
@@ -312,7 +391,7 @@ export default function InventoryManagement() {
                       </tr>
                     )) : <tr><td className="inventory-empty" colSpan="8">{activeView === 'archive' ? 'No archived items found.' : 'No inventory items found.'}</td></tr>}
                 </tbody>
-              </table>
+              </table>}
             </div>
             <footer className="inventory-pagination">
               <span>{pagination.total} total item{pagination.total === 1 ? '' : 's'}</span>
@@ -322,6 +401,26 @@ export default function InventoryManagement() {
                 <button type="button" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button>
               </div>
             </footer>
+            {activeView === 'stock' && <section className="stock-history-section">
+              <header><div><span className="stock-history-icon" aria-hidden="true">↕</span><div><h2>Stock Movement History</h2><p>Recent pineapple stock additions and deductions</p></div></div></header>
+              {historyError && <div className="stock-history-error" role="alert">{historyError}</div>}
+              <div className="inventory-table-wrap">
+                <table className="stock-history-table">
+                  <thead><tr><th>DATE &amp; TIME</th><th>PINEAPPLE SIZE</th><th>MOVEMENT</th><th>QUANTITY</th><th>BEFORE</th><th>AFTER</th></tr></thead>
+                  <tbody>
+                    {historyLoading ? <tr><td colSpan="6">Loading stock history…</td></tr>
+                      : stockHistory.length ? stockHistory.map((movement) => <tr key={movement.id}>
+                        <td>{new Date(movement.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                        <td><strong>{movement.pineapple_size}</strong></td>
+                        <td><span className={`movement-badge movement-${movement.movement_type === 'stock_in' ? 'in' : 'out'}`}>{movement.movement_type === 'stock_in' ? 'Stock In' : 'Stock Out'}</span></td>
+                        <td><strong className={movement.movement_type === 'stock_in' ? 'movement-positive' : 'movement-negative'}>{movement.movement_type === 'stock_in' ? '+' : '−'}{movement.quantity} {movement.unit}</strong></td>
+                        <td>{movement.quantity_before}</td><td>{movement.quantity_after}</td>
+                      </tr>) : <tr><td colSpan="6">No stock movements recorded yet.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </section>}
+            </div>
           </section>
 
         </div>
@@ -347,7 +446,7 @@ export default function InventoryManagement() {
           <h2 id="inventory-modal-title">{modal.mode === 'add-item' ? 'Add Item' : `Edit ${modal.item.item_name}`}</h2>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
           <form onSubmit={saveItem}>
-            <label><span>Item type</span><select value={itemForm.inventory_category_id} onChange={(event) => setItemForm({ ...emptyItemForm, inventory_category_id: event.target.value, unit_id: itemForm.unit_id, item_name: itemForm.item_name, stock_quantity: itemForm.stock_quantity, stock_to_add: itemForm.stock_to_add, size_id: options.pineappleSizes[0]?.id || '', equipment_type_id: options.equipmentTypes[0]?.id || '' })} required><option value="" disabled>Select item type</option>{options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
+            <label><span>Item type</span><select value={itemForm.inventory_category_id} onChange={(event) => setItemForm({ ...emptyItemForm, inventory_category_id: event.target.value, unit_id: itemForm.unit_id, item_name: itemForm.item_name, stock_quantity: itemForm.stock_quantity, stock_to_add: itemForm.stock_to_add, size_id: options.pineappleSizes[0]?.id || '', equipment_type_id: options.equipmentTypes[0]?.id || '' })} required><option value="" disabled>Select item type</option>{options.categories.filter((category) => category.code !== 'pineapple').map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
             <label><span>Item name</span><input value={itemForm.item_name} onChange={(event) => setItemForm({ ...itemForm, item_name: event.target.value })} required maxLength="100" /></label>
             <label><span>Unit</span><select value={itemForm.unit_id} onChange={(event) => setItemForm({ ...itemForm, unit_id: event.target.value })} required><option value="" disabled>Select unit</option>{options.units.map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_name} ({unit.abbreviation})</option>)}</select></label>
             {modal.mode === 'add-item'
@@ -375,6 +474,21 @@ export default function InventoryManagement() {
               <label><span>Last maintenance</span><input type="date" value={itemForm.last_maintenance} onChange={(event) => setItemForm({ ...itemForm, last_maintenance: event.target.value })} /></label>
             </>}
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Item'}</button></footer>
+          </form>
+        </section>
+      </div>}
+
+      {modal?.mode === 'add-stock' && <div className="inventory-modal-backdrop">
+        <section className="inventory-modal stock-modal" role="dialog" aria-modal="true" aria-labelledby="stock-modal-title">
+          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">×</button>
+          <p>Pineapple inventory</p><h2 id="stock-modal-title">Add Pineapple Stock</h2>
+          {error && <div className="inventory-modal-error" role="alert">{error}</div>}
+          <form onSubmit={addStock}>
+            <div className="stock-modal-summary"><span>{modal.item.variant}</span><strong>{modal.item.stock_quantity} {modal.item.unit_label}</strong><small>Current available stock</small></div>
+            <label><span>Current stock</span><input className="inventory-current-stock" value={`${modal.item.stock_quantity} ${modal.item.unit_label}`} readOnly /></label>
+            <label><span>Quantity to add</span><input type="number" min="1" step="1" value={itemForm.stock_to_add} onChange={(event) => setItemForm({ ...itemForm, stock_to_add: event.target.value })} required autoFocus /></label>
+            {Number(itemForm.stock_to_add) > 0 && <div className="stock-after-preview"><span>Stock after addition</span><strong>{modal.item.stock_quantity + Number(itemForm.stock_to_add)} {modal.item.unit_label}</strong></div>}
+            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Adding…' : 'Confirm Stock In'}</button></footer>
           </form>
         </section>
       </div>}
