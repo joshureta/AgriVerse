@@ -9,7 +9,7 @@ import '../../styles/admin-dashboard.css'
 import '../../styles/user-management.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
-const PAGE_SIZE = 5
+const PAGE_SIZE = 10
 const roleOptions = [
   { value: '', label: 'All roles' },
   { value: 'admin', label: 'Admin' },
