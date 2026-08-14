@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import completedTaskIcon from '../../assets/completed-task-card-icon.png'
-import totalTaskIcon from '../../assets/total-task-card-icon.png'
+import completedTaskIcon from '../../assets/task-completed-icon-white.png'
+import progressTaskIcon from '../../assets/task-progress-icon-white.png'
+import totalTaskIcon from '../../assets/task-total-icon-white.png'
+import workersTaskIcon from '../../assets/task-workers-icon-white.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
@@ -81,14 +83,6 @@ function ChecklistIcon() {
       <g transform="rotate(36 47 43)"><rect x="43" y="29" width="8" height="27" rx="2" fill="currentColor" stroke="#fafcf5" strokeWidth="2" /><path d="m43 56 4 7 4-7" fill="currentColor" stroke="#fafcf5" strokeWidth="2" strokeLinejoin="round" /></g>
     </svg>
   )
-}
-
-function ProgressIcon() {
-  return <svg viewBox="0 0 64 64" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <rect key={index} x="29" y="6" width="6" height="15" rx="3" transform={`rotate(${index * 30} 32 32)`} opacity={(index + 2) / 13} />)}</svg>
-}
-
-function WorkerIcon() {
-  return <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="21" r="13" fill="#fff" /><path d="M11 54c1-15 9-23 21-23s20 8 21 23c-12 4-30 4-42 0Z" fill="#fff" /></svg>
 }
 
 function SummaryCard({ label, value, icon, className = '' }) {
@@ -221,9 +215,9 @@ export default function TaskScheduleManagement() {
 
           <section className="task-summary-grid" aria-label="Task summary">
             <SummaryCard label="Total Task" value={summary.total} icon={<img src={totalTaskIcon} alt="" />} />
-            <SummaryCard label="In Progress" value={summary.inProgress} icon={<ProgressIcon />} className="is-progress" />
-            <SummaryCard label="Completed" value={summary.completed} icon={<img src={completedTaskIcon} alt="" />} className="is-completed" />
-            <SummaryCard label={<>Available<br />Workers</>} value={summary.availableWorkers} icon={<WorkerIcon />} className="is-workers" />
+            <SummaryCard label="In Progress" value={summary.inProgress} icon={<img src={progressTaskIcon} alt="" />} />
+            <SummaryCard label="Completed" value={summary.completed} icon={<img src={completedTaskIcon} alt="" />} />
+            <SummaryCard label={<>Available<br />Workers</>} value={summary.availableWorkers} icon={<img src={workersTaskIcon} alt="" />} />
           </section>
 
           <section className="tasks-panel">

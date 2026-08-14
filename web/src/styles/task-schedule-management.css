@@ -13,11 +13,7 @@
 .task-summary-card span { font-size: 11px; font-weight: 800; line-height: 1.15; }
 .task-summary-card strong { font-size: 30px; line-height: 1; }
 .task-summary-card i { width: 58px; height: 58px; display: grid; place-items: center; flex: 0 0 58px; border-radius: 3px; color: #fff; background: #216c36; font-size: 38px; font-style: normal; line-height: 1; }
-.task-summary-card i svg { width: 48px; height: 48px; display: block; }
-.task-summary-card i img { width: 100%; height: 100%; display: block; border-radius: 3px; object-fit: cover; }
-.task-summary-card.is-progress i svg { width: 43px; height: 43px; fill: #75b968; }
-.task-summary-card.is-completed i svg { width: 50px; height: 50px; }
-.task-summary-card.is-workers i svg { width: 51px; height: 51px; }
+.task-summary-card i img { width: 50px; height: 50px; display: block; object-fit: contain; }
 .tasks-panel { overflow: hidden; border: 1px solid #dce5d8; border-radius: 9px; background: #fff; box-shadow: 0 12px 28px rgba(42,76,38,.05); }
 .tasks-toolbar { display: grid; grid-template-columns: 138px minmax(240px,1fr); gap: 10px; padding: 10px 14px; background: #fff; }
 .task-filter { position: relative; display: block; }
