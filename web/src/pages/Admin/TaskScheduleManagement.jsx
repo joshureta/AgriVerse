@@ -94,7 +94,9 @@ function TaskModalHeader({ title }) {
 }
 
 export default function TaskScheduleManagement() {
+  const [activeTab, setActiveTab] = useState('tasks')
   const [tasks, setTasks] = useState([])
+  const [settingsValues, setSettingsValues] = useState({ categories: [], fields: [] })
   const [options, setOptions] = useState(emptyOptions)
   const [summary, setSummary] = useState({ total: 0, inProgress: 0, completed: 0, availableWorkers: 0 })
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 })
@@ -105,6 +107,7 @@ export default function TaskScheduleManagement() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
+  const [settingsForm, setSettingsForm] = useState({ name: '', description: '' })
   const [form, setForm] = useState(emptyForm)
   const [refreshKey, setRefreshKey] = useState(0)
   const statusLabels = useMemo(
@@ -138,6 +141,22 @@ export default function TaskScheduleManagement() {
       )))
       .catch((requestError) => setError(requestError.message))
   }, [])
+
+  const loadSettings = useCallback(async () => {
+    try {
+      const [categories, fields] = await Promise.all([
+        apiRequest('/api/admin/lookups/task-categories'),
+        apiRequest('/api/admin/lookups/fields'),
+      ])
+      setSettingsValues({ categories: categories.values || [], fields: fields.values || [] })
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab !== 'tasks') loadSettings()
+  }, [activeTab, loadSettings])
 
   useEffect(() => {
     const delay = window.setTimeout(loadTasks, search ? 300 : 0)
@@ -202,6 +221,53 @@ export default function TaskScheduleManagement() {
     }
   }
 
+  function openSettingModal(type, value = null) {
+    setError('')
+    setSettingsForm({ name: value?.[type === 'categories' ? 'category_name' : 'field_name'] || '', description: value?.description || '' })
+    setModal({ mode: 'setting', type, value })
+  }
+
+  async function saveSetting(event) {
+    event.preventDefault()
+    const resource = modal.type === 'categories' ? 'task-categories' : 'fields'
+    const nameKey = modal.type === 'categories' ? 'category_name' : 'field_name'
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/lookups/${resource}${modal.value ? `/${modal.value.id}` : ''}`, {
+        method: modal.value ? 'PATCH' : 'POST',
+        body: JSON.stringify({ [nameKey]: settingsForm.name, description: settingsForm.description }),
+      })
+      setModal(null)
+      await loadSettings()
+      apiRequest('/api/admin/tasks/options').then((data) => setOptions(Object.fromEntries(
+        Object.keys(emptyOptions).map((key) => [key, Array.isArray(data?.[key]) ? data[key] : []]),
+      ))).catch(() => {})
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function archiveSetting(type, value) {
+    const resource = type === 'categories' ? 'task-categories' : 'fields'
+    if (!window.confirm(`Archive ${value[type === 'categories' ? 'category_name' : 'field_name']}? Existing tasks will remain unchanged.`)) return
+    setError('')
+    try {
+      await apiRequest(`/api/admin/lookups/${resource}/${value.id}`, { method: 'PATCH', body: JSON.stringify({ status: false }) })
+      await loadSettings()
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }
+
+  const settingsConfig = activeTab === 'categories'
+    ? { title: 'Task Categories', itemLabel: 'Category', resource: 'categories', nameKey: 'category_name', searchLabel: 'Search task categories', empty: 'No task categories found.' }
+    : { title: 'Fields & Locations', itemLabel: 'Location', resource: 'fields', nameKey: 'field_name', searchLabel: 'Search fields and locations', empty: 'No fields or locations found.' }
+  const settingsSearch = search.trim().toLowerCase()
+  const visibleSettings = activeTab === 'tasks' ? [] : settingsValues[settingsConfig.resource].filter((value) => !settingsSearch || `${value[settingsConfig.nameKey]} ${value.description || ''}`.toLowerCase().includes(settingsSearch))
+
   return (
     <main className="admin-dashboard task-schedule-page">
       <AdminSidebar active="tasks" />
@@ -210,7 +276,6 @@ export default function TaskScheduleManagement() {
         <div className="task-schedule-content">
           <header className="task-page-heading">
             <div><span className="task-heading-icon"><ChecklistIcon /></span><h1>Task Assignment &amp; Scheduling</h1></div>
-            <button type="button" onClick={openNewTask} disabled={!options.workers.length}><span>＋</span>Assign New Task</button>
           </header>
 
           <section className="task-summary-grid" aria-label="Task summary">
@@ -221,9 +286,16 @@ export default function TaskScheduleManagement() {
           </section>
 
           <section className="tasks-panel">
+            <nav className="task-management-tabs" aria-label="Task management sections">
+              <button className={activeTab === 'tasks' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('tasks'); setSearch(''); setPage(1) }}>All Tasks</button>
+              <button className={activeTab === 'fields' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fields'); setSearch('') }}>Fields &amp; Locations</button>
+              <button className={activeTab === 'categories' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('categories'); setSearch('') }}>Task Categories</button>
+            </nav>
+            {activeTab === 'tasks' ? <>
             <div className="tasks-toolbar">
               <label className="task-filter"><span className="sr-only">Filter tasks by status</span><select value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1) }}><option value="">Filter by</option>{options.statuses.map((status) => <option value={status.code} key={status.id}>{status.status_name}</option>)}</select><i aria-hidden="true" /></label>
               <label className="task-search"><span className="sr-only">Search tasks</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search tasks" /><span aria-hidden="true" /></label>
+              <button className="assign-task-toolbar-button" type="button" onClick={openNewTask} disabled={!options.workers.length}><span>＋</span>Assign New Task</button>
             </div>
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
             <div className="tasks-table-wrap">
@@ -233,6 +305,20 @@ export default function TaskScheduleManagement() {
               </table>
             </div>
             <footer className="task-pagination"><span>{pagination.total} total task{pagination.total === 1 ? '' : 's'}</span><div><button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button><strong>{page}</strong><button type="button" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button></div></footer>
+            </> : <>
+              <div className="task-settings-toolbar">
+                <label className="task-search"><span className="sr-only">{settingsConfig.searchLabel}</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={settingsConfig.searchLabel} /><span aria-hidden="true" /></label>
+                <button type="button" onClick={() => openSettingModal(settingsConfig.resource)}><span>＋</span>Add {settingsConfig.itemLabel}</button>
+              </div>
+              {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
+              <div className="tasks-table-wrap">
+                <table className={`tasks-table task-settings-table ${activeTab === 'fields' ? 'field-settings-table' : ''}`}>
+                  <thead><tr><th>{settingsConfig.itemLabel.toUpperCase()}</th>{activeTab === 'categories' && <th>DESCRIPTION</th>}<th>STATUS</th><th>ACTIONS</th></tr></thead>
+                  <tbody>{visibleSettings.length ? visibleSettings.map((value) => <tr key={value.id}><td><strong>{value[settingsConfig.nameKey]}</strong></td>{activeTab === 'categories' && <td>{value.description || 'No description added'}</td>}<td><span className="task-status status-completed">Active</span></td><td><div className="task-actions"><button type="button" onClick={() => openSettingModal(settingsConfig.resource, value)}>Edit</button><button className="task-archive" type="button" onClick={() => archiveSetting(settingsConfig.resource, value)}>Archive</button></div></td></tr>) : <tr><td className="tasks-empty" colSpan={activeTab === 'categories' ? 4 : 3}>{settingsConfig.empty}</td></tr>}</tbody>
+                </table>
+              </div>
+              <footer className="task-pagination"><span>{visibleSettings.length} active {settingsConfig.itemLabel.toLowerCase()}{visibleSettings.length === 1 ? '' : 's'}</span></footer>
+            </>}
           </section>
         </div>
       </section>
@@ -280,6 +366,18 @@ export default function TaskScheduleManagement() {
             </div>
             <label className="task-description"><span>Description</span><textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} maxLength="2000" /></label>
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving}><span>⊕</span>{saving ? 'Saving…' : modal.mode === 'add' ? 'Assign Task' : 'Save Task'}</button></footer>
+          </form>
+        </section>
+      </div>}
+
+      {modal?.mode === 'setting' && <div className="task-modal-backdrop">
+        <section className="task-reference-modal task-setting-modal" role="dialog" aria-modal="true">
+          <TaskModalHeader title={`${modal.value ? 'Edit' : 'Add'} ${modal.type === 'categories' ? 'Task Category' : 'Field / Location'}`} />
+          <form className="task-reference-body" onSubmit={saveSetting}>
+            {error && <div className="task-modal-error" role="alert">{error}</div>}
+            <label><span>{modal.type === 'categories' ? 'Category name' : 'Field or location name'}</span><input autoFocus value={settingsForm.name} onChange={(event) => setSettingsForm({ ...settingsForm, name: event.target.value })} maxLength="120" required /></label>
+            {modal.type === 'categories' && <label className="task-description"><span>Description <em>(optional)</em></span><textarea value={settingsForm.description} onChange={(event) => setSettingsForm({ ...settingsForm, description: event.target.value })} maxLength="500" /></label>}
+            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button></footer>
           </form>
         </section>
       </div>}
