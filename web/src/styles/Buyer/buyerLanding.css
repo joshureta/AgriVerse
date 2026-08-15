@@ -585,31 +585,32 @@ body:has(.buyer-page) #root {
 }
 
 .marketplace-farm-story {
-  width: min(calc(100% - 64px), 1460px);
+  width: min(calc(100% - 64px), 980px);
   min-height: 315px;
   display: grid;
-  grid-template-columns: minmax(360px, 0.95fr) 1.35fr;
+  grid-template-columns: minmax(350px, 395px) minmax(0, 1fr);
   align-items: stretch;
-  gap: clamp(30px, 4vw, 70px);
+  gap: clamp(32px, 4vw, 60px);
   margin: 0 auto clamp(56px, 6vw, 90px);
   overflow: hidden;
-  border-radius: 28px;
-  padding: 24px;
+  border-radius: 24px;
+  padding: 16px 24px;
   background: var(--marketplace-sage);
 }
 
-.marketplace-farm-story > img {
+.marketplace-farm-story > img,
+.marketplace-farm-story > video {
   width: 100%;
   height: 100%;
-  min-height: 265px;
+  min-height: 283px;
   display: block;
-  border-radius: 22px;
+  border-radius: 18px;
   object-fit: cover;
 }
 
 .marketplace-farm-copy {
   align-self: center;
-  padding: 25px clamp(20px, 3vw, 52px) 25px 0;
+  padding: 18px 16px 18px 0;
 }
 
 .marketplace-farm-copy h2,
@@ -624,10 +625,10 @@ body:has(.buyer-page) #root {
 }
 
 .marketplace-farm-copy p {
-  max-width: 720px;
-  margin-top: 20px;
+  max-width: 500px;
+  margin-top: 48px;
   color: #303a31;
-  font-size: clamp(13px, 1vw, 16px);
+  font-size: clamp(15px, 1.25vw, 20px);
   line-height: 1.6;
 }
 
@@ -1064,7 +1065,7 @@ body:has(.buyer-page) #root {
   }
 
   .marketplace-farm-story {
-    grid-template-columns: 0.85fr 1.15fr;
+    grid-template-columns: minmax(350px, 395px) minmax(0, 1fr);
   }
 
   .marketplace-delivery {
@@ -1304,7 +1305,8 @@ body:has(.buyer-page) #root {
     padding: 14px;
   }
 
-  .marketplace-farm-story > img {
+  .marketplace-farm-story > img,
+  .marketplace-farm-story > video {
     min-height: 210px;
     border-radius: 17px;
   }
