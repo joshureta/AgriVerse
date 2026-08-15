@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/context/auth-context';
+import { postAuthenticationRoute } from '@/lib/mobile-routing';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -33,11 +34,7 @@ export default function LoginScreen() {
     setError('');
     try {
       const profile = await signIn(email.trim(), password);
-      router.replace(
-        profile.worker_category === 'driver'
-          ? '/DriverTaskDashboard'
-          : '/WorkerTaskPending',
-      );
+      router.replace(postAuthenticationRoute(profile));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to sign in.');
     } finally {

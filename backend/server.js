@@ -14,6 +14,7 @@ const adminLookupsRouter = require("./routes/admin-lookups");
 const adminSchedulesRouter = require("./routes/admin-schedules");
 const buyerProductsRouter = require("./routes/buyer-products");
 const buyerOrdersRouter = require("./routes/buyer-orders");
+const { router: mobileAuthRouter } = require("./routes/mobile-auth");
 
 const app = express();
 
@@ -67,6 +68,8 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
     profile: req.profile,
   });
 });
+
+app.use("/api/mobile/auth", mobileAuthRouter);
 
 app.use("/api/admin/users", adminUsersRouter);
 app.use("/api/admin/inventory", adminInventoryRouter);

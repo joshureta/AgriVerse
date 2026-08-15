@@ -3,6 +3,7 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, Image, Text, View } from 'react-native';
 
 import { useAuth } from '@/context/auth-context';
+import { postAuthenticationRoute } from '@/lib/mobile-routing';
 
 export default function IndexScreen() {
   const { loading, profile } = useAuth();
@@ -11,13 +12,7 @@ export default function IndexScreen() {
     if (!profile) return <Redirect href="/login" />;
 
     return (
-      <Redirect
-        href={
-          profile.worker_category === 'driver'
-            ? '/DriverTaskDashboard'
-            : '/WorkerTaskPending'
-        }
-      />
+      <Redirect href={postAuthenticationRoute(profile)} />
     );
   }
 

@@ -7,14 +7,33 @@ import { supabase } from '@/lib/supabase';
 export type WorkerProfile = {
   id: string;
   full_name: string;
+  mobile_number: string | null;
+  country: string | null;
+  region: string | null;
+  province: string | null;
+  city_municipality: string | null;
+  barangay: string | null;
   role: 'farm_worker';
   worker_category: string | null;
+  must_change_password: boolean;
+  name_confirmed_at: string | null;
+  onboarding_completed_at: string | null;
+};
+
+type LocationInput = {
+  region: string;
+  province: string;
+  city_municipality: string;
+  barangay: string;
 };
 
 type AuthContextValue = {
   loading: boolean;
   session: Session | null;
   profile: WorkerProfile | null;
+  changeInitialPassword: (password: string) => Promise<WorkerProfile>;
+  confirmName: (fullName: string) => Promise<WorkerProfile>;
+  completeLocation: (location: LocationInput) => Promise<WorkerProfile>;
   signIn: (email: string, password: string) => Promise<WorkerProfile>;
   signOut: () => Promise<void>;
 };
@@ -75,6 +94,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const changeInitialPassword = useCallback(async (password: string) => {
+    const result = await apiRequest<{ profile: WorkerProfile }>(
+      '/api/mobile/auth/change-initial-password',
+      { method: 'POST', body: JSON.stringify({ password }) },
+    );
+    setProfile(result.profile);
+    return result.profile;
+  }, []);
+
+  const confirmName = useCallback(async (fullName: string) => {
+    const result = await apiRequest<{ profile: WorkerProfile }>(
+      '/api/mobile/auth/confirm-name',
+      { method: 'PATCH', body: JSON.stringify({ full_name: fullName }) },
+    );
+    setProfile(result.profile);
+    return result.profile;
+  }, []);
+
+  const completeLocation = useCallback(async (location: LocationInput) => {
+    const result = await apiRequest<{ profile: WorkerProfile }>(
+      '/api/mobile/auth/location',
+      { method: 'PATCH', body: JSON.stringify(location) },
+    );
+    setProfile(result.profile);
+    return result.profile;
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setSession(null);
@@ -82,8 +128,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ loading, session, profile, signIn, signOut }),
-    [loading, profile, session, signIn, signOut],
+    () => ({
+      changeInitialPassword,
+      completeLocation,
+      confirmName,
+      loading,
+      session,
+      profile,
+      signIn,
+      signOut,
+    }),
+    [
+      changeInitialPassword,
+      completeLocation,
+      confirmName,
+      loading,
+      profile,
+      session,
+      signIn,
+      signOut,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
