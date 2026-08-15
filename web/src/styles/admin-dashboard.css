@@ -145,6 +145,28 @@
   opacity: 1;
 }
 
+.monitoring-nav-submenu.is-open {
+  max-height: 112px;
+}
+
+.monitoring-nav-submenu {
+  margin-left: 17px;
+}
+
+.admin-nav-submenu.monitoring-nav-submenu a {
+  gap: 7px;
+  padding: 0 5px;
+  font-size: 10px;
+  letter-spacing: -0.12px;
+}
+
+.admin-nav-submenu img.monitoring-submenu-image {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  object-fit: contain;
+}
+
 .admin-nav-submenu a {
   min-height: 39px;
   display: flex;
@@ -928,7 +950,7 @@
 
 @media (max-width: 1040px) {
   .admin-dashboard {
-    grid-template-columns: 196px minmax(0, 1fr);
+    grid-template-columns: 232px minmax(0, 1fr);
   }
 
   .admin-dashboard-grid {
