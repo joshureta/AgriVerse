@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import dateIcon from '../assets/admin-date-icon.png'
+import cropHealthMonitoringIcon from '../assets/crop-health-monitoring-icon.png'
+import environmentalMonitoringIcon from '../assets/environmental-monitoring-icon.png'
 import inventoryIcon from '../assets/inventory-icon.png'
 import notificationIcon from '../assets/admin-notification-icon.png'
 import taskScheduleIcon from '../assets/task-schedule-icon.png'
@@ -13,7 +15,6 @@ const navItems = [
 
 const secondaryNavItems = [
   { icon: 'records', label: 'Records', key: 'records' },
-  { icon: 'monitoring', label: 'Monitoring', key: 'monitoring' },
 ]
 
 function formatDashboardDate(date) {
@@ -29,6 +30,18 @@ export function AdminSidebar({ active }) {
   const [operationsOpen, setOperationsOpen] = useState(
     active === 'tasks' || active === 'inventory',
   )
+  const [monitoringOpen, setMonitoringOpen] = useState(
+    active === 'crop-monitoring' || active === 'environmental-monitoring',
+  )
+
+  function handleMonitoringToggle() {
+    if (!monitoringOpen && active !== 'crop-monitoring' && active !== 'environmental-monitoring') {
+      window.location.href = '/admin/monitoring/crop-health'
+      return
+    }
+
+    setMonitoringOpen((open) => !open)
+  }
 
   return (
     <aside className="admin-sidebar">
@@ -96,6 +109,50 @@ export function AdminSidebar({ active }) {
             {item.label}
           </a>
         ))}
+
+        <div className="admin-nav-group monitoring-nav-group">
+          <button
+            className={`admin-nav-group-trigger${monitoringOpen ? ' is-open' : ''}`}
+            type="button"
+            onClick={handleMonitoringToggle}
+            aria-expanded={monitoringOpen}
+            aria-controls="monitoring-submenu"
+          >
+            <span className="admin-nav-icon icon-monitoring" aria-hidden="true" />
+            <span>Monitoring</span>
+            <span className="admin-nav-chevron" aria-hidden="true" />
+          </button>
+
+          <div
+            className={`admin-nav-submenu monitoring-nav-submenu${monitoringOpen ? ' is-open' : ''}`}
+            id="monitoring-submenu"
+          >
+            <a
+              className={active === 'crop-monitoring' ? 'is-active' : ''}
+              href="/admin/monitoring/crop-health"
+              aria-current={active === 'crop-monitoring' ? 'page' : undefined}
+            >
+              <img
+                className="monitoring-submenu-image"
+                src={cropHealthMonitoringIcon}
+                alt=""
+              />
+              <span>Crop Health Monitoring</span>
+            </a>
+            <a
+              className={active === 'environmental-monitoring' ? 'is-active' : ''}
+              href="/admin/monitoring/environmental"
+              aria-current={active === 'environmental-monitoring' ? 'page' : undefined}
+            >
+              <img
+                className="monitoring-submenu-image"
+                src={environmentalMonitoringIcon}
+                alt=""
+              />
+              <span>Environmental Monitoring</span>
+            </a>
+          </div>
+        </div>
       </nav>
 
       <div className="admin-sidebar-footer">
