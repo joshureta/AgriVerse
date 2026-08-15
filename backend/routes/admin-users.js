@@ -186,6 +186,11 @@ router.post("/", async (req, res, next) => {
           id: createdUserId,
           email,
           full_name: fullName,
+          must_change_password: role === "farm_worker",
+          ...(role === "farm_worker" ? {
+            name_confirmed_at: null,
+            onboarding_completed_at: null,
+          } : {}),
           ...roleFields(role, workerCategory),
         },
         { onConflict: "id" },

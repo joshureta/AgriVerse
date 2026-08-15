@@ -1,5 +1,10 @@
 const express = require("express");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const {
+  requireAuth,
+  requireInitialPasswordChanged,
+  requireProfileOnboardingComplete,
+  requireRole,
+} = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 
 const router = express.Router();
@@ -13,7 +18,12 @@ const taskSelect = [
   "schedules(id, schedule_date, start_time, end_time, location, notes, status_id, schedule_status:schedule_statuses!schedules_status_id_fkey(id, status_name, code))",
 ].join(",");
 
-router.use(requireAuth, requireRole("farm_worker"));
+router.use(
+  requireAuth,
+  requireRole("farm_worker"),
+  requireInitialPasswordChanged,
+  requireProfileOnboardingComplete,
+);
 
 function httpError(status, message) {
   const error = new Error(message);

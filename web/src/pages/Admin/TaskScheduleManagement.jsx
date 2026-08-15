@@ -97,6 +97,8 @@ export default function TaskScheduleManagement() {
   const [activeTab, setActiveTab] = useState('tasks')
   const [tasks, setTasks] = useState([])
   const [settingsValues, setSettingsValues] = useState({ categories: [], fields: [] })
+  const [archivedSettings, setArchivedSettings] = useState({ categories: [], fields: [] })
+  const [archiveType, setArchiveType] = useState('fields')
   const [options, setOptions] = useState(emptyOptions)
   const [summary, setSummary] = useState({ total: 0, inProgress: 0, completed: 0, availableWorkers: 0 })
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 })
@@ -154,9 +156,25 @@ export default function TaskScheduleManagement() {
     }
   }, [])
 
+  const loadArchivedSettings = useCallback(async () => {
+    try {
+      const [categories, fields] = await Promise.all([
+        apiRequest('/api/admin/lookups/task-categories?includeInactive=true'),
+        apiRequest('/api/admin/lookups/fields?includeInactive=true'),
+      ])
+      setArchivedSettings({
+        categories: (categories.values || []).filter((value) => !value.status),
+        fields: (fields.values || []).filter((value) => !value.status),
+      })
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }, [])
+
   useEffect(() => {
-    if (activeTab !== 'tasks') loadSettings()
-  }, [activeTab, loadSettings])
+    if (activeTab === 'archive') loadArchivedSettings()
+    else if (activeTab !== 'tasks') loadSettings()
+  }, [activeTab, loadArchivedSettings, loadSettings])
 
   useEffect(() => {
     const delay = window.setTimeout(loadTasks, search ? 300 : 0)
@@ -256,17 +274,30 @@ export default function TaskScheduleManagement() {
     setError('')
     try {
       await apiRequest(`/api/admin/lookups/${resource}/${value.id}`, { method: 'PATCH', body: JSON.stringify({ status: false }) })
-      await loadSettings()
+      await Promise.all([loadSettings(), loadArchivedSettings()])
     } catch (requestError) {
       setError(requestError.message)
     }
   }
 
-  const settingsConfig = activeTab === 'categories'
+  async function restoreSetting(type, value) {
+    const resource = type === 'categories' ? 'task-categories' : 'fields'
+    setError('')
+    try {
+      await apiRequest(`/api/admin/lookups/${resource}/${value.id}`, { method: 'PATCH', body: JSON.stringify({ status: true }) })
+      await Promise.all([loadSettings(), loadArchivedSettings()])
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }
+
+  const settingsResource = activeTab === 'archive' ? archiveType : activeTab
+  const settingsConfig = settingsResource === 'categories'
     ? { title: 'Task Categories', itemLabel: 'Category', resource: 'categories', nameKey: 'category_name', searchLabel: 'Search task categories', empty: 'No task categories found.' }
     : { title: 'Fields & Locations', itemLabel: 'Location', resource: 'fields', nameKey: 'field_name', searchLabel: 'Search fields and locations', empty: 'No fields or locations found.' }
   const settingsSearch = search.trim().toLowerCase()
-  const visibleSettings = activeTab === 'tasks' ? [] : settingsValues[settingsConfig.resource].filter((value) => !settingsSearch || `${value[settingsConfig.nameKey]} ${value.description || ''}`.toLowerCase().includes(settingsSearch))
+  const settingsSource = activeTab === 'archive' ? archivedSettings : settingsValues
+  const visibleSettings = activeTab === 'tasks' ? [] : settingsSource[settingsConfig.resource].filter((value) => !settingsSearch || `${value[settingsConfig.nameKey]} ${value.description || ''}`.toLowerCase().includes(settingsSearch))
 
   return (
     <main className="admin-dashboard task-schedule-page">
@@ -290,6 +321,7 @@ export default function TaskScheduleManagement() {
               <button className={activeTab === 'tasks' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('tasks'); setSearch(''); setPage(1) }}>All Tasks</button>
               <button className={activeTab === 'fields' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fields'); setSearch('') }}>Fields &amp; Locations</button>
               <button className={activeTab === 'categories' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('categories'); setSearch('') }}>Task Categories</button>
+              <button className={activeTab === 'archive' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('archive'); setSearch('') }}>Archived Items</button>
             </nav>
             {activeTab === 'tasks' ? <>
             <div className="tasks-toolbar">
@@ -308,16 +340,16 @@ export default function TaskScheduleManagement() {
             </> : <>
               <div className="task-settings-toolbar">
                 <label className="task-search"><span className="sr-only">{settingsConfig.searchLabel}</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={settingsConfig.searchLabel} /><span aria-hidden="true" /></label>
-                <button type="button" onClick={() => openSettingModal(settingsConfig.resource)}><span>＋</span>Add {settingsConfig.itemLabel}</button>
+                {activeTab === 'archive' ? <label className="task-archive-filter"><span>Show</span><select value={archiveType} onChange={(event) => { setArchiveType(event.target.value); setSearch('') }}><option value="fields">Archived Fields &amp; Locations</option><option value="categories">Archived Task Categories</option></select></label> : <button type="button" onClick={() => openSettingModal(settingsConfig.resource)}><span>＋</span>Add {settingsConfig.itemLabel}</button>}
               </div>
               {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
               <div className="tasks-table-wrap">
-                <table className={`tasks-table task-settings-table ${activeTab === 'fields' ? 'field-settings-table' : ''}`}>
-                  <thead><tr><th>{settingsConfig.itemLabel.toUpperCase()}</th>{activeTab === 'categories' && <th>DESCRIPTION</th>}<th>STATUS</th><th>ACTIONS</th></tr></thead>
-                  <tbody>{visibleSettings.length ? visibleSettings.map((value) => <tr key={value.id}><td><strong>{value[settingsConfig.nameKey]}</strong></td>{activeTab === 'categories' && <td>{value.description || 'No description added'}</td>}<td><span className="task-status status-completed">Active</span></td><td><div className="task-actions"><button type="button" onClick={() => openSettingModal(settingsConfig.resource, value)}>Edit</button><button className="task-archive" type="button" onClick={() => archiveSetting(settingsConfig.resource, value)}>Archive</button></div></td></tr>) : <tr><td className="tasks-empty" colSpan={activeTab === 'categories' ? 4 : 3}>{settingsConfig.empty}</td></tr>}</tbody>
+                <table className={`tasks-table task-settings-table ${settingsResource === 'fields' ? 'field-settings-table' : ''}`}>
+                  <thead><tr><th>{settingsConfig.itemLabel.toUpperCase()}</th>{settingsResource === 'categories' && <th>DESCRIPTION</th>}<th>STATUS</th><th>ACTIONS</th></tr></thead>
+                  <tbody>{visibleSettings.length ? visibleSettings.map((value) => <tr key={value.id}><td><strong>{value[settingsConfig.nameKey]}</strong></td>{settingsResource === 'categories' && <td>{value.description || 'No description added'}</td>}<td><span className="task-status status-pending">{activeTab === 'archive' ? 'Archived' : 'Active'}</span></td><td><div className="task-actions">{activeTab === 'archive' ? <button type="button" onClick={() => restoreSetting(settingsConfig.resource, value)}>Restore</button> : <><button type="button" onClick={() => openSettingModal(settingsConfig.resource, value)}>Edit</button><button className="task-archive" type="button" onClick={() => archiveSetting(settingsConfig.resource, value)}>Archive</button></>}</div></td></tr>) : <tr><td className="tasks-empty" colSpan={settingsResource === 'categories' ? 4 : 3}>{activeTab === 'archive' ? `No archived ${settingsConfig.itemLabel.toLowerCase()}s found.` : settingsConfig.empty}</td></tr>}</tbody>
                 </table>
               </div>
-              <footer className="task-pagination"><span>{visibleSettings.length} active {settingsConfig.itemLabel.toLowerCase()}{visibleSettings.length === 1 ? '' : 's'}</span></footer>
+              <footer className="task-pagination"><span>{visibleSettings.length} {activeTab === 'archive' ? 'archived' : 'active'} {settingsConfig.itemLabel.toLowerCase()}{visibleSettings.length === 1 ? '' : 's'}</span></footer>
             </>}
           </section>
         </div>
