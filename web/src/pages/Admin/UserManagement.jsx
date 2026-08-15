@@ -9,7 +9,7 @@ import '../../styles/admin-dashboard.css'
 import '../../styles/user-management.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
-const PAGE_SIZE = 5
+const PAGE_SIZE = 10
 const roleOptions = [
   { value: '', label: 'All roles' },
   { value: 'admin', label: 'Admin' },
@@ -198,7 +198,6 @@ export default function UserManagement() {
               <img className="user-heading-icon" src={userManagementIcon} alt="" />
               <h1>User Management</h1>
             </div>
-            <button type="button" onClick={() => setModal({ mode: 'add', role: 'buyer' })}><span>＋</span>Add User</button>
           </header>
 
           <section className="users-panel">
@@ -238,8 +237,17 @@ export default function UserManagement() {
               </div>
               <label className="user-search">
                 <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search full name" />
-                <span aria-hidden="true">⌕</span>
+                <span aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <circle cx="11" cy="11" r="6.5" />
+                    <path d="m16 16 4 4" />
+                  </svg>
+                </span>
               </label>
+              <button className="toolbar-add-user" type="button" onClick={() => setModal({ mode: 'add', role: 'buyer' })}>
+                <span aria-hidden="true">&#43;</span>
+                Add User
+              </button>
             </div>
 
             {error && <div className="users-error" role="alert">{error}</div>}

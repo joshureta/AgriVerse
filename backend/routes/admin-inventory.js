@@ -94,15 +94,18 @@ async function ensureActive(table, id, label, select = "id") {
   return data;
 }
 
-async function inventoryPayload(body) {
+async function inventoryPayload(body, { requireQuantity = true } = {}) {
   const category = await ensureActive("inventory_categories", body.inventory_category_id, "Inventory category", "id, code");
   const unit = await ensureActive("measurement_units", body.unit_id, "Unit");
   const common = {
     inventory_category_id: category.id,
     unit_id: unit.id,
     item_name: readText(body.item_name, "Item name", 100),
-    quantity: readQuantity(body.stock_quantity ?? body.quantity),
   };
+  const suppliedQuantity = body.stock_quantity ?? body.quantity;
+  if (requireQuantity || suppliedQuantity !== undefined) {
+    common.quantity = readQuantity(suppliedQuantity);
+  }
 
   let detail = null;
   if (category.code === "pineapple") {
@@ -174,6 +177,41 @@ router.post("/categories", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.get("/stock-history", async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 50);
+    const supabase = getSupabase();
+    const { data: category, error: categoryError } = await supabase
+      .from("inventory_categories").select("id").eq("code", "pineapple").maybeSingle();
+    if (categoryError) throw categoryError;
+    if (!category) return res.json({ movements: [] });
+
+    const { data: pineappleItems, error: itemsError } = await supabase
+      .from("inventory_items").select(inventorySelect).eq("inventory_category_id", category.id);
+    if (itemsError) throw itemsError;
+    const serializedItems = (pineappleItems || []).map(serializeItem);
+    const itemMap = new Map(serializedItems.map((item) => [item.id, item]));
+    const itemIds = serializedItems.map((item) => item.id);
+    if (!itemIds.length) return res.json({ movements: [] });
+
+    const { data, error } = await supabase.from("inventory_stock_movements")
+      .select("id, inventory_item_id, movement_type, quantity, quantity_before, quantity_after, created_at")
+      .in("inventory_item_id", itemIds).order("created_at", { ascending: false }).limit(limit);
+    if (error) {
+      if (error.code === "42P01" || error.code === "PGRST205") {
+        throw httpError(503, "Apply migration 010_inventory_stock_movements.sql to enable stock history");
+      }
+      throw error;
+    }
+    return res.json({
+      movements: (data || []).map((movement) => {
+        const item = itemMap.get(movement.inventory_item_id);
+        return { ...movement, pineapple_size: item?.variant || "Unknown", unit: item?.unit_label || "" };
+      }),
+    });
+  } catch (error) { return next(error); }
+});
+
 router.get("/", async (req, res, next) => {
   try {
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
@@ -181,18 +219,54 @@ router.get("/", async (req, res, next) => {
     const search = String(req.query.search || "").trim().replace(/[,%()]/g, "");
     const categoryId = req.query.categoryId ? readId(req.query.categoryId, "Inventory category") : null;
     const archived = String(req.query.archived || "false").toLowerCase() === "true";
+    const pineappleOnly = String(req.query.pineappleOnly || "false").toLowerCase() === "true";
+    const excludePineapple = String(req.query.excludePineapple || "false").toLowerCase() === "true";
     const from = (page - 1) * pageSize;
+    const { data: pineappleCategory, error: pineappleCategoryError } = await getSupabase()
+      .from("inventory_categories").select("id").eq("code", "pineapple").maybeSingle();
+    if (pineappleCategoryError) throw pineappleCategoryError;
+    const pineappleCategoryId = pineappleCategory?.id || null;
     let query = getSupabase().from("inventory_items").select(inventorySelect, { count: "exact" })
       .order(archived ? "archived_at" : "updated_at", { ascending: false }).range(from, from + pageSize - 1);
     query = archived ? query.not("archived_at", "is", null) : query.is("archived_at", null);
     if (search) query = query.ilike("item_name", `%${search}%`);
     if (categoryId) query = query.eq("inventory_category_id", categoryId);
-    const { data, error, count } = await query;
+    if (pineappleOnly) {
+      query = pineappleCategoryId
+        ? query.eq("inventory_category_id", pineappleCategoryId)
+        : query.eq("inventory_category_id", -1);
+    }
+    if (excludePineapple && pineappleCategoryId) query = query.neq("inventory_category_id", pineappleCategoryId);
+    let activeItemsCountQuery = getSupabase()
+      .from("inventory_items")
+      .select("id", { count: "exact", head: true })
+      .is("archived_at", null);
+    if (pineappleCategoryId) {
+      activeItemsCountQuery = activeItemsCountQuery.neq("inventory_category_id", pineappleCategoryId);
+    }
+    const pineappleCountQuery = pineappleCategoryId
+      ? getSupabase().from("inventory_items").select("id", { count: "exact", head: true })
+        .eq("inventory_category_id", pineappleCategoryId).is("archived_at", null)
+      : Promise.resolve({ count: 0, error: null });
+    const [{ data, error, count }, activeCountResult, archivedCountResult, pineappleCountResult] = await Promise.all([
+      query,
+      activeItemsCountQuery,
+      getSupabase().from("inventory_items").select("id", { count: "exact", head: true }).not("archived_at", "is", null),
+      pineappleCountQuery,
+    ]);
     if (error) throw error;
+    if (activeCountResult.error) throw activeCountResult.error;
+    if (archivedCountResult.error) throw archivedCountResult.error;
+    if (pineappleCountResult.error) throw pineappleCountResult.error;
     const total = count || 0;
     return res.json({
       items: (data || []).map(serializeItem),
       pagination: { page, pageSize, total, totalPages: Math.max(Math.ceil(total / pageSize), 1) },
+      viewCounts: {
+        items: activeCountResult.count || 0,
+        stock: pineappleCountResult.count || 0,
+        archive: archivedCountResult.count || 0,
+      },
     });
   } catch (error) { return next(error); }
 });
@@ -216,7 +290,7 @@ router.post("/", async (req, res, next) => {
 router.patch("/:id", async (req, res, next) => {
   try {
     const id = readId(req.params.id);
-    const payload = await inventoryPayload(req.body);
+    const payload = await inventoryPayload(req.body, { requireQuantity: false });
     const { error } = await getSupabase().from("inventory_items").update(payload.common)
       .eq("id", id).is("archived_at", null);
     if (error) throwDatabaseError(error);

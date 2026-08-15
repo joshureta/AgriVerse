@@ -85,7 +85,7 @@ router.get("/", async (req, res, next) => {
   try {
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
     const pageSize = Math.min(
-      Math.max(Number.parseInt(req.query.pageSize, 10) || 5, 1),
+      Math.max(Number.parseInt(req.query.pageSize, 10) || 10, 1),
       50,
     );
     const search = String(req.query.search || "").trim();

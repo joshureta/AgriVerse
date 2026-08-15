@@ -10,10 +10,10 @@ import {
   Store,
   Truck,
 } from 'lucide-react'
-import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import pineappleDeliveryHistory from '../../assets/buyer/pineapple-delivery-history.png'
-import { loadBuyerOrders, readBuyerCart } from '../../services/buyerMarketplace.js'
+import { buyerCartQuantity, loadBuyerOrders, readBuyerCart } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/deliveryProgress.css'
 
@@ -51,26 +51,38 @@ function IconBadge({ icon: Icon }) {
 function createMilestones(order) {
   const rank = statusRank[order.order_status] ?? 0
   return [
-    { label: 'Order Placed', date: order.created_at, icon: ReceiptText, complete: true },
+    { label: 'Order Placed', date: order.created_at, icon: ReceiptText },
     {
       label: 'Confirmed & Packing',
       date: order.preparing_at || order.confirmed_at,
       icon: PackageOpen,
-      complete: rank >= 1,
     },
-    { label: 'In Transit', date: order.out_for_delivery_at, icon: Truck, complete: rank >= 2 },
+    { label: 'In Transit', date: order.out_for_delivery_at, icon: Truck },
     {
       label: 'Delivered',
       date: order.delivered_at || order.estimated_delivery_at,
       icon: Check,
-      complete: rank >= 3,
       estimated: !order.delivered_at,
     },
-  ]
+  ].map((milestone, index) => ({
+    ...milestone,
+    complete: index < rank,
+    current: index === rank,
+  }))
 }
 
 function orderItemsText(order) {
   return order.items.map((item) => `${item.quantity} ${item.product_name}`).join(', ')
+}
+
+function getDeliveryAddress(order) {
+  return [
+    order.delivery_barangay,
+    order.delivery_city_municipality,
+    order.delivery_province,
+    order.delivery_region,
+    order.delivery_country,
+  ].filter(Boolean).join(', ')
 }
 
 export default function DeliveryProgress() {
@@ -104,14 +116,12 @@ export default function DeliveryProgress() {
   )
 
   const milestones = selectedOrder ? createMilestones(selectedOrder) : []
-  const destination = selectedOrder
-    ? [selectedOrder.delivery_barangay, selectedOrder.delivery_city_municipality, selectedOrder.delivery_province]
-      .filter(Boolean).join(', ') || 'Registered delivery address'
-    : ''
+  const destination = selectedOrder ? getDeliveryAddress(selectedOrder) : ''
 
   return (
     <main className="buyer-page delivery-page">
-      <BuyerHeader active="orders" cartCount={readBuyerCart().length} />
+      <BuyerHeader active="orders" cartCount={buyerCartQuantity(readBuyerCart())} />
+      <BuyerJourneyNav current="delivery" />
 
       <div className="delivery-content">
         <header className="delivery-title">
@@ -119,7 +129,6 @@ export default function DeliveryProgress() {
             <h1>Orders &amp; Delivery Progress</h1>
             <p>Track your real orders from confirmation to delivery.</p>
           </div>
-          {!loading && <button type="button" onClick={fetchOrders}>Refresh orders</button>}
         </header>
 
         {error && <div className="delivery-message is-error" role="alert"><span>{error}</span><button type="button" onClick={fetchOrders}>Try again</button></div>}
@@ -149,21 +158,28 @@ export default function DeliveryProgress() {
               <IconBadge icon={selectedOrder.delivery_method === 'pickup' ? PackageCheck : Truck} />
               <span className="route-dashes route-arrow" aria-hidden="true" />
               <article className="route-location route-destination">
-                <h3><MapPin aria-hidden="true" /> {selectedOrder.delivery_method === 'pickup' ? 'Farm Pickup' : destination}</h3>
-                <p>{selectedOrder.delivery_method === 'pickup' ? 'On-site collection' : 'Delivery Address'}</p>
-                <Store aria-hidden="true" />
+                {selectedOrder.delivery_method === 'pickup'
+                  ? <>
+                    <h3><PackageCheck aria-hidden="true" /> Farm Pickup</h3>
+                    <p>JToledo Trading Farm, Tagaytay City</p>
+                    <Store className="route-location-art" aria-hidden="true" />
+                  </>
+                  : <>
+                    <span className="route-location-label">Delivery address</span>
+                    <h3><MapPin aria-hidden="true" /> {destination || 'Address not provided'}</h3>
+                  </>}
               </article>
             </div>
 
             {selectedOrder.order_status === 'cancelled'
               ? <div className="delivery-cancelled">This order was cancelled on {formatDate(selectedOrder.cancelled_at)}.</div>
               : <div className="delivery-timeline">
-                {milestones.map(({ label, date, icon, complete, estimated }, index) => (
-                  <div className={`delivery-milestone ${complete ? 'is-complete' : ''}`} key={label}>
+                {milestones.map(({ label, date, icon, complete, current, estimated }, index) => (
+                  <div className={`delivery-milestone ${complete ? 'is-complete' : ''} ${current ? 'is-current' : ''}`} key={label}>
                     {index > 0 && <span className="milestone-line" aria-hidden="true" />}
                     <IconBadge icon={icon} />
                     <strong>{label}</strong>
-                    <time>{estimated && !complete ? 'Estimated: ' : ''}{formatDate(date)}</time>
+                    <time>{estimated && !complete && !current ? 'Estimated: ' : ''}{formatDate(date)}</time>
                   </div>
                 ))}
               </div>}

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth.js'
 import '../styles/auth.css'
 
-export default function ProtectedRoute({ children, allowedRoles }) {
+export default function ProtectedRoute({ children, allowedRoles, allowedWorkerCategories }) {
   const { loading, profile, profileError, user } = useAuth()
 
   useEffect(() => {
@@ -44,6 +44,20 @@ export default function ProtectedRoute({ children, allowedRoles }) {
         <div className="auth-status-card auth-status-error">
           <h1>Access denied</h1>
           <p>This account does not have permission to open this page.</p>
+        </div>
+      </main>
+    )
+  }
+
+  if (
+    allowedWorkerCategories &&
+    !allowedWorkerCategories.includes(profile.worker_category)
+  ) {
+    return (
+      <main className="auth-status-page">
+        <div className="auth-status-card auth-status-error">
+          <h1>Access denied</h1>
+          <p>This farm worker category does not have permission to open this page.</p>
         </div>
       </main>
     )

@@ -71,12 +71,26 @@ router.post("/", async (req, res, next) => {
     const deliveryMethod = String(req.body.delivery_method || "");
     const paymentMethod = String(req.body.payment_method || "");
     const note = String(req.body.customer_note || "").trim();
+    const requestedAddress = req.body.delivery_address;
     const items = Array.isArray(req.body.items) ? req.body.items : [];
 
     if (!['delivery', 'pickup'].includes(deliveryMethod)) throw httpError(400, "Select a valid delivery method");
     if (!['cash', 'bank', 'gcash'].includes(paymentMethod)) throw httpError(400, "Select a valid payment method");
     if (note.length > 1000) throw httpError(400, "Additional information must not exceed 1000 characters");
     if (items.length < 1 || items.length > 20) throw httpError(400, "The shopping cart is empty or invalid");
+
+    let deliveryAddress = null;
+    if (requestedAddress != null) {
+      if (!requestedAddress || typeof requestedAddress !== "object" || Array.isArray(requestedAddress)) {
+        throw httpError(400, "The delivery address is invalid");
+      }
+      const fields = ['full_name', 'mobile_number', 'country', 'region', 'province', 'city_municipality', 'barangay'];
+      deliveryAddress = Object.fromEntries(fields.map((field) => [field, String(requestedAddress[field] || "").trim()]));
+      if (fields.some((field) => deliveryAddress[field].length > 150)) throw httpError(400, "A delivery address field is too long");
+      if (deliveryMethod === 'delivery' && ['full_name', 'mobile_number', 'country', 'region', 'city_municipality', 'barangay'].some((field) => !deliveryAddress[field])) {
+        throw httpError(400, "Complete the recipient and delivery address");
+      }
+    }
 
     const productIds = new Set();
     const normalizedItems = items.map((item) => {
@@ -90,17 +104,35 @@ router.post("/", async (req, res, next) => {
       return { product_id: productId, quantity };
     });
 
-    const { data, error } = await getSupabase().rpc("place_buyer_order", {
+    const orderArguments = {
       p_buyer_id: req.user.id,
       p_delivery_method: deliveryMethod,
       p_payment_method: paymentMethod,
       p_customer_note: note || null,
       p_items: normalizedItems,
-    });
+      p_delivery_address: deliveryAddress,
+    };
+    let { data, error } = await getSupabase().rpc("place_buyer_order", orderArguments);
+
+    const missingNewOrderFunction = error && (
+      error.code === "PGRST202"
+      || (/place_buyer_order/i.test(error.message || "")
+        && /p_delivery_address|schema cache|could not find/i.test(error.message || ""))
+    );
+    if (missingNewOrderFunction && deliveryAddress == null) {
+      const legacyArguments = { ...orderArguments };
+      delete legacyArguments.p_delivery_address;
+      ({ data, error } = await getSupabase().rpc("place_buyer_order", legacyArguments));
+    } else if (missingNewOrderFunction) {
+      throw httpError(503, "Run Supabase migration 009_buyer_alternate_delivery_address.sql to use another delivery address");
+    }
 
     if (error) {
       if (/insufficient stock/i.test(error.message || "")) throw httpError(409, error.message);
-      if (/shopping cart|quantity|product|delivery method|payment method/i.test(error.message || "")) {
+      if (error.code === "PGRST202" || /place_buyer_order.*schema cache/i.test(error.message || "")) {
+        throw httpError(503, "The Supabase order function is not installed. Run buyer order migrations 006 through 009, then restart the backend");
+      }
+      if (/shopping cart|quantity|product|delivery method|payment method|delivery address|recipient/i.test(error.message || "")) {
         throw httpError(400, error.message);
       }
       throw error;

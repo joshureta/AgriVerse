@@ -1,9 +1,15 @@
-import { BadgeCheck, Leaf, Sprout } from 'lucide-react'
+import { ArrowRight, CheckCircle2, MapPin } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import marketplaceHero from '../../assets/buyer/buyer-marketplace-hero.png'
 import trustIcons from '../../assets/buyer/buyer-trust-icons.png'
 import pineappleProduct from '../../assets/buyer/pineapple-product-clean.png'
 import pineappleFarm from '../../assets/buyer/pineapple-farm-story.png'
+import deliveryCoverageMap from '../../assets/buyer/delivery-coverage-map-white-v2.png'
+import restaurantIcon from '../../assets/buyer/business-restaurant-green.png'
+import groceryIcon from '../../assets/buyer/business-grocery-green.png'
+import retailerIcon from '../../assets/buyer/business-retailer-green.png'
+import exportPartnerIcon from '../../assets/buyer/business-export-partner-green.png'
+import testimonialFarm from '../../assets/buyer/pineapple-testimonial-farm.png'
 import '../../styles/Buyer/buyerLanding.css'
 
 const trustHighlights = [
@@ -46,11 +52,27 @@ const pineappleSizes = [
   },
 ]
 
-const farmPromises = [
-  { icon: Sprout, label: 'Sustainable Farming' },
-  { icon: Leaf, label: 'Carefully Harvested' },
-  { icon: BadgeCheck, label: 'Top Quality Guaranteed' },
-  { icon: Sprout, label: '100% Pineapple' },
+const deliveryLocations = [
+  { name: 'Tagaytay City', note: 'Main Farm & Distribution Hub' },
+  { name: 'Metro Manila', note: 'Daily Deliveries' },
+  { name: 'Batangas', note: 'Serving All Towns' },
+  { name: 'Cavite', note: 'Regular Delivery Schedule' },
+  { name: 'Laguna', note: 'Delivering Freshness' },
+  { name: 'Other Provinces', note: 'Via Cargo & Logistics Partners' },
+]
+
+const deliveryPromises = [
+  'On-time Delivery',
+  'Safe Handling',
+  'Bulk Orders Welcome',
+  'Direct from Farm',
+]
+
+const businessPartners = [
+  { label: 'Restaurants', icon: restaurantIcon },
+  { label: 'Grocery Stores', icon: groceryIcon },
+  { label: 'Retailers', icon: retailerIcon },
+  { label: 'Export Partners', icon: exportPartnerIcon },
 ]
 
 export default function BuyerLanding() {
@@ -120,14 +142,77 @@ export default function BuyerLanding() {
             Grown with care through sustainable farming practices. We harvest every
             pineapple at peak ripeness to deliver the best taste and quality.
           </p>
-          <div className="marketplace-farm-promises">
-            {farmPromises.map(({ icon: Icon, label }) => (
-              <div key={label}>
-                <Icon aria-hidden="true" />
-                <span>{label}</span>
+        </div>
+      </section>
+
+      <section
+        className="marketplace-delivery"
+        aria-labelledby="delivery-coverage-title"
+        style={{ backgroundImage: `url(${deliveryCoverageMap})` }}
+      >
+        <div className="marketplace-delivery-copy">
+          <p className="marketplace-delivery-eyebrow">One farm. Fresh pineapples.</p>
+          <h2 id="delivery-coverage-title">Multiple Destinations</h2>
+          <p>We deliver fresh pineapples to various locations to serve you better.</p>
+          <ul className="marketplace-delivery-locations">
+            {deliveryLocations.map((location) => (
+              <li key={location.name}>
+                <MapPin aria-hidden="true" />
+                <span><strong>{location.name}</strong><small>{location.note}</small></span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <aside className="marketplace-delivery-aside" aria-label="Delivery information">
+          <article>
+            <h3>Reliable Delivery<br />Every Time</h3>
+            <p>We ensure timely and safe delivery of our pineapples to your location.</p>
+            <ul>
+              {deliveryPromises.map((promise) => (
+                <li key={promise}><CheckCircle2 aria-hidden="true" /> {promise}</li>
+              ))}
+            </ul>
+          </article>
+          <article className="marketplace-bulk-order">
+            <h3>Need Bulk Order?</h3>
+            <p>Contact us for special pricing and customized bulk orders.</p>
+            <a href="#contact">Contact Us <ArrowRight aria-hidden="true" /></a>
+          </article>
+        </aside>
+      </section>
+
+      <section
+        className="marketplace-social-proof"
+        aria-labelledby="business-trust-title"
+        style={{ backgroundImage: `url(${testimonialFarm})` }}
+      >
+        <div className="marketplace-business-trust">
+          <h2 id="business-trust-title">Trusted by Businesses<br />Across Different Locations</h2>
+          <p>We are proud to supply quality pineapples to resellers, retailers, and businesses nationwide.</p>
+          <div className="marketplace-business-types">
+            {businessPartners.map((partner) => (
+              <div key={partner.label}>
+                <span><img src={partner.icon} alt="" /></span>
+                <strong>{partner.label}</strong>
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="marketplace-testimonial">
+          <h2>What Our Customers Say</h2>
+          <article>
+            <span className="marketplace-review-mark" aria-hidden="true">“</span>
+            <blockquote>
+              The pineapples from JToledo are consistently sweet and fresh. Our customers love the quality!
+            </blockquote>
+            <footer>
+              <strong>Mark D.</strong>
+              <span>Grocery Store Owner, Metro Manila</span>
+            </footer>
+          </article>
+          <div className="marketplace-review-dots" aria-label="Review 1 of 3"><span className="is-active" /><span /><span /></div>
         </div>
       </section>
 

@@ -10,10 +10,12 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.js'
 import jtoledoLogo from '../assets/Jtoledologo.png'
+import { buyerCartQuantity, readBuyerCart } from '../services/buyerMarketplace.js'
 
-export function BuyerHeader({ active = 'home', cartCount = 0 }) {
+export function BuyerHeader({ active = 'home', cartCount }) {
   const { profile, signOut } = useAuth()
   const buyerName = profile?.full_name || 'Buyer'
+  const displayedCartCount = cartCount ?? buyerCartQuantity(readBuyerCart())
 
   async function handleSignOut() {
     await signOut()
@@ -41,7 +43,7 @@ export function BuyerHeader({ active = 'home', cartCount = 0 }) {
         <div className="buyer-header-account">
           <a className={`buyer-cart-link ${active === 'cart' ? 'is-active' : ''}`} href="/buyer/cart" aria-label="Shopping cart">
             <ShoppingCart aria-hidden="true" />
-            {cartCount > 0 && <span className="buyer-cart-count">{cartCount}</span>}
+            {displayedCartCount > 0 && <span className="buyer-cart-count">{displayedCartCount > 99 ? '99+' : displayedCartCount}</span>}
           </a>
           <details className="buyer-profile-menu">
             <summary>
@@ -77,6 +79,30 @@ export function BuyerHeader({ active = 'home', cartCount = 0 }) {
         </nav>
       </details>
     </header>
+  )
+}
+
+const buyerJourneySteps = [
+  { id: 'order', label: 'Order', href: '/buyer/order' },
+  { id: 'cart', label: 'Shopping Cart', href: '/buyer/cart' },
+  { id: 'checkout', label: 'Checkout', href: '/buyer/checkout' },
+  { id: 'delivery', label: 'Delivery', href: '/buyer/delivery-progress' },
+]
+
+export function BuyerJourneyNav({ current }) {
+  return (
+    <nav className="buyer-journey-nav" aria-label="Order process">
+      <ol>
+        {buyerJourneySteps.map((step, index) => (
+          <li key={step.id}>
+            {index > 0 && <span className="buyer-journey-separator" aria-hidden="true">&gt;</span>}
+            <a className={current === step.id ? 'is-current' : ''} href={step.href} aria-current={current === step.id ? 'step' : undefined}>
+              {step.label}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
   )
 }
 
