@@ -5,6 +5,8 @@ import EditUser from './pages/Admin/EditUser.jsx'
 import InventoryManagement from './pages/Admin/InventoryManagement.jsx'
 import TaskScheduleManagement from './pages/Admin/TaskScheduleManagement.jsx'
 import UserManagement from './pages/Admin/UserManagement.jsx'
+import CropHealthMonitoring from './pages/Admin/CropHealthMonitoring.jsx'
+import EnvironmentalMonitoring from './pages/Admin/EnvironmentalMonitoring.jsx'
 import BuyerLanding from './pages/Buyer/BuyerLanding.jsx'
 import ShoppingCart from './pages/Buyer/ShoppingCart.jsx'
 import BuyerOrders from './pages/Buyer/BuyerOrders.jsx'
@@ -72,6 +74,22 @@ function App() {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
         <TaskScheduleManagement />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/admin/monitoring/crop-health') {
+    return (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <CropHealthMonitoring />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/admin/monitoring/environmental') {
+    return (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <EnvironmentalMonitoring />
       </ProtectedRoute>
     )
   }
