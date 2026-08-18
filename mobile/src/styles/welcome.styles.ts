@@ -1,0 +1,76 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#f4c691',
+  },
+  background: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  tint: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(255, 224, 181, 0.25)',
+  },
+  brandLogo: {
+    position: 'absolute',
+    top: '9%',
+    width: 174,
+    height: 108,
+  },
+  brandLogoCompact: {
+    top: '5.5%',
+    width: 154,
+    height: 96,
+  },
+  headline: {
+    position: 'absolute',
+    top: '23%',
+    width: '94%',
+    color: '#155026',
+    fontFamily: 'cursive',
+    fontSize: 82,
+    fontWeight: '900',
+    lineHeight: 76,
+    letterSpacing: -2,
+    textAlign: 'center',
+    textShadowColor: 'rgba(255, 245, 206, 0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  headlineCompact: {
+    top: '20%',
+    fontSize: 95,
+    lineHeight: 50,
+  },
+  startButton: {
+    position: 'absolute',
+    right: '11%',
+    bottom: '5.5%',
+    left: '11%',
+    height: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 28,
+    backgroundColor: '#187c36',
+    shadowColor: '#173d20',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  startButtonPressed: {
+    opacity: 0.86,
+    transform: [{ scale: 0.99 }],
+  },
+  startButtonText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '500',
+  },
+});

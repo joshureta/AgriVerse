@@ -34,6 +34,7 @@ export default function LoginScreen() {
     setError('');
     try {
       const profile = await signIn(email.trim(), password);
+      router.dismissAll();
       router.replace(postAuthenticationRoute(profile));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to sign in.');
