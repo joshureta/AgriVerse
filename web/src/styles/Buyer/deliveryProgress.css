@@ -103,6 +103,27 @@
   line-height: 1.15;
 }
 
+.delivery-back-button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  border: 1px solid #b9d3b5;
+  border-radius: 9px;
+  padding: 0 15px;
+  color: #237538;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.delivery-back-button svg { width: 17px; height: 17px; }
+.delivery-back-button:hover,
+.delivery-back-button:focus-visible { outline: 3px solid rgba(45, 126, 47, .14); background: #eef7eb; }
+
 .delivery-route {
   padding: 20px 28px 28px;
 }
@@ -373,6 +394,8 @@
   margin-top: 24px;
   padding: 26px 38px 22px;
 }
+
+.order-history.is-history-view { margin-top: 0; }
 
 .order-history > h2 {
   display: flex;
