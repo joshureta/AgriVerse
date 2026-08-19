@@ -554,10 +554,14 @@
 .checkout-address-slot-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .checkout-address-slot-head > span { display: inline-flex; align-items: center; gap: 7px; color: #26763a; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .checkout-address-slot-head > span svg { width: 16px; height: 16px; border-radius: 50%; padding: 3px; color: #fff; background: #2f873f; stroke-width: 3; }
-.checkout-address-slot-head > button { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #b8d5b4; border-radius: 50%; padding: 0; color: #287a3a; background: #fff; cursor: pointer; }
-.checkout-address-slot-head > button:hover,
-.checkout-address-slot-head > button:focus-visible { outline: 3px solid rgba(47, 135, 63, .14); background: #eaf5e7; }
-.checkout-address-slot-head > button svg { width: 16px; height: 16px; }
+.checkout-address-slot-tools { display: flex; align-items: center; gap: 8px; }
+.checkout-address-slot-tools > button { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #b8d5b4; border-radius: 50%; padding: 0; color: #287a3a; background: #fff; cursor: pointer; }
+.checkout-address-slot-tools > button:hover,
+.checkout-address-slot-tools > button:focus-visible { outline: 3px solid rgba(47, 135, 63, .14); background: #eaf5e7; }
+.checkout-address-slot-tools > button svg { width: 16px; height: 16px; }
+.checkout-address-slot-tools > button.is-delete { border-color: #e2baba; color: #b03a3a; }
+.checkout-address-slot-tools > button.is-delete:hover,
+.checkout-address-slot-tools > button.is-delete:focus-visible { outline-color: rgba(176, 58, 58, .13); background: #fff0f0; }
 .checkout-address-confirmation h3 { margin: 15px 0 4px; color: #1e7137; font-size: 18px; }
 .checkout-address-confirmation p,
 .checkout-address-confirmation address { margin: 0; color: #566359; font-size: 12px; font-style: normal; line-height: 1.55; }
