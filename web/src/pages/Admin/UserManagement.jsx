@@ -172,7 +172,10 @@ export default function UserManagement() {
   }
 
   async function handleDelete(user) {
-    if (!window.confirm(`Delete ${user.full_name}? This also removes their sign-in account.`)) return
+    const buyerNotice = user.role === 'buyer'
+      ? ' Their saved addresses and personal information will be removed, while anonymized order history will be retained.'
+      : ''
+    if (!window.confirm(`Delete ${user.full_name}? This also removes their sign-in account.${buyerNotice}`)) return
     setError('')
     try {
       await apiRequest(`/api/admin/users/${user.id}`, { method: 'DELETE' })
