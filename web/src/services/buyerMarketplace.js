@@ -69,6 +69,28 @@ export async function placeBuyerOrder(order, retry = true) {
   }
 }
 
+export async function loadBuyerDeliveryAddresses() {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/buyer/orders/addresses`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load delivery addresses')
+  return body.addresses || []
+}
+
+export async function createBuyerDeliveryAddress(address) {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/buyer/orders/addresses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(address),
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to save the delivery address')
+  return body.address
+}
+
 export async function loadBuyerOrders(retry = true) {
   const token = await readAccessToken()
   const controller = new AbortController()
