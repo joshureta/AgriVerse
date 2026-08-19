@@ -35,11 +35,6 @@ export function AdminSidebar({ active }) {
   )
 
   function handleMonitoringToggle() {
-    if (!monitoringOpen && active !== 'crop-monitoring' && active !== 'environmental-monitoring') {
-      window.location.href = '/admin/monitoring/crop-health'
-      return
-    }
-
     setMonitoringOpen((open) => !open)
   }
 
