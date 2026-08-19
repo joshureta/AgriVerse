@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  ArrowLeft,
   CalendarDays,
   Check,
   ClipboardList,
@@ -86,6 +87,10 @@ function getDeliveryAddress(order) {
 }
 
 export default function DeliveryProgress() {
+  const trackedOrderId = useMemo(() => {
+    const value = Number(new URLSearchParams(window.location.search).get('track'))
+    return Number.isSafeInteger(value) && value > 0 ? value : null
+  }, [])
   const [orders, setOrders] = useState([])
   const [selectedOrderId, setSelectedOrderId] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -97,21 +102,24 @@ export default function DeliveryProgress() {
     try {
       const loadedOrders = await loadBuyerOrders()
       setOrders(loadedOrders)
-      setSelectedOrderId((current) => loadedOrders.some((order) => order.id === current)
-        ? current
-        : loadedOrders[0]?.id || null)
+      setSelectedOrderId((current) => {
+        if (loadedOrders.some((order) => order.id === current)) return current
+        return trackedOrderId && loadedOrders.some((order) => order.id === trackedOrderId)
+          ? trackedOrderId
+          : null
+      })
     } catch (requestError) {
       setOrders([])
       setError(requestError.message)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [trackedOrderId])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
   const selectedOrder = useMemo(
-    () => orders.find((order) => order.id === selectedOrderId) || orders[0] || null,
+    () => orders.find((order) => order.id === selectedOrderId) || null,
     [orders, selectedOrderId],
   )
 
@@ -126,8 +134,8 @@ export default function DeliveryProgress() {
       <div className="delivery-content">
         <header className="delivery-title">
           <div>
-            <h1>Orders &amp; Delivery Progress</h1>
-            <p>Track your real orders from confirmation to delivery.</p>
+            <h1>{selectedOrder ? `Order ${selectedOrder.order_number}` : 'My Orders'}</h1>
+            <p>{selectedOrder ? 'View this order’s route, details, and delivery progress.' : 'Select an order to view its delivery progress and complete details.'}</p>
           </div>
         </header>
 
@@ -140,7 +148,28 @@ export default function DeliveryProgress() {
           <a href="/buyer/order">Place Your First Order</a>
         </section>}
 
+        {!loading && !error && orders.length > 0 && !selectedOrder && (
+          <section className="delivery-card order-history is-history-view" aria-labelledby="order-history-title">
+            <h2 id="order-history-title"><ClipboardList aria-hidden="true" /> Order History</h2>
+            <div className="history-list">
+              {orders.map((order) => (
+                <button className="history-order" type="button" key={order.id} onClick={() => { setSelectedOrderId(order.id); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+                  <div className="history-product-art"><img src={pineappleDeliveryHistory} alt="" /></div>
+                  <div className="history-copy">
+                    <small>Order {order.order_number}</small>
+                    <time>{formatDate(order.created_at)}</time>
+                    <p><strong>Items:</strong> {orderItemsText(order)}</p>
+                  </div>
+                  <span className={`history-status is-${order.order_status}`}>{statusLabels[order.order_status] || order.order_status}</span>
+                </button>
+              ))}
+            </div>
+            <a className="new-order-button" href="/buyer/order">Place New Order</a>
+          </section>
+        )}
+
         {selectedOrder && <>
+          {!trackedOrderId && <button className="delivery-back-button" type="button" onClick={() => { setSelectedOrderId(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }}><ArrowLeft aria-hidden="true" /> Back to My Orders</button>}
           <section className="delivery-card delivery-route" aria-labelledby="delivery-route-title">
             <div className="delivery-route-heading">
               <h2 id="delivery-route-title">Delivery Route</h2>
@@ -210,23 +239,6 @@ export default function DeliveryProgress() {
             </section>
           </div>
 
-          <section className="delivery-card order-history" aria-labelledby="order-history-title">
-            <h2 id="order-history-title"><ClipboardList aria-hidden="true" /> Order History</h2>
-            <div className="history-list">
-              {orders.map((order) => (
-                <button className={`history-order ${order.id === selectedOrder.id ? 'is-selected' : ''}`} type="button" key={order.id} onClick={() => setSelectedOrderId(order.id)}>
-                  <div className="history-product-art"><img src={pineappleDeliveryHistory} alt="" /></div>
-                  <div className="history-copy">
-                    <small>Order {order.order_number}</small>
-                    <time>{formatDate(order.created_at)}</time>
-                    <p><strong>Items:</strong> {orderItemsText(order)}</p>
-                  </div>
-                  <span className={`history-status is-${order.order_status}`}>{statusLabels[order.order_status] || order.order_status}</span>
-                </button>
-              ))}
-            </div>
-            <a className="new-order-button" href="/buyer/order">Place New Order</a>
-          </section>
         </>}
       </div>
 
