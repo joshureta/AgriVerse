@@ -642,6 +642,44 @@
   transform: translateY(-1px);
 }
 
+.checkout-order-toast {
+  position: fixed;
+  z-index: 1200;
+  top: 24px;
+  left: 50%;
+  width: min(620px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto 34px;
+  align-items: center;
+  gap: 15px;
+  border: 0;
+  border-radius: 15px;
+  padding: 18px;
+  color: #26402d;
+  background: #fff;
+  box-shadow: 0 20px 55px rgba(26, 67, 35, .24);
+  animation: checkout-order-toast-in 220ms ease-out;
+  transform: translateX(-50%);
+}
+
+.checkout-order-toast-icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #2f833f; }
+.checkout-order-toast-icon svg { width: 27px; height: 27px; stroke-width: 3; }
+.checkout-order-toast > div strong { color: #1d6632; font-size: 17px; }
+.checkout-order-toast > div p { margin: 4px 0 0; color: #647167; font-size: 12px; }
+.checkout-order-toast > div b { color: #237538; }
+.checkout-order-toast > a { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; padding: 0 15px; color: #fff; background: #70b42e; font-size: 11px; font-weight: 850; white-space: nowrap; }
+.checkout-order-toast > a:hover,
+.checkout-order-toast > a:focus-visible { outline: 3px solid rgba(112, 180, 46, .18); background: #61a127; }
+.checkout-order-toast > button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 50%; padding: 0; color: #7b867d; background: transparent; cursor: pointer; }
+.checkout-order-toast > button:hover,
+.checkout-order-toast > button:focus-visible { outline: none; color: #284b31; background: #eef3eb; }
+.checkout-order-toast > button svg { width: 15px; height: 15px; }
+
+@keyframes checkout-order-toast-in {
+  from { opacity: 0; transform: translate(-50%, -14px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 .checkout-terms {
   margin: 62px 0 0;
   color: #101510;
@@ -670,6 +708,11 @@
 }
 
 @media (max-width: 600px) {
+  .checkout-order-toast { top: 12px; grid-template-columns: 44px minmax(0, 1fr) 32px; gap: 11px; padding: 14px; }
+  .checkout-order-toast-icon { width: 44px; height: 44px; }
+  .checkout-order-toast > a { grid-column: 2; width: 100%; }
+  .checkout-order-toast > button { grid-column: 3; grid-row: 1; }
+
   .checkout-shell {
     padding-top: 34px;
   }
