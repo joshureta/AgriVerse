@@ -33,6 +33,48 @@ function serializeOrder(order) {
   };
 }
 
+const addressFields = ['full_name', 'mobile_number', 'country', 'region', 'province', 'city_municipality', 'barangay'];
+
+function readDeliveryAddress(body) {
+  const address = Object.fromEntries(addressFields.map((field) => [field, String(body?.[field] || "").trim()]));
+  if (addressFields.some((field) => address[field].length > 150)) throw httpError(400, "A delivery address field is too long");
+  if (['full_name', 'mobile_number', 'country', 'region', 'city_municipality', 'barangay'].some((field) => !address[field])) {
+    throw httpError(400, "Complete the recipient and delivery address");
+  }
+  return address;
+}
+
+router.get("/addresses", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase()
+      .from("buyer_delivery_addresses")
+      .select("id, label, full_name, mobile_number, country, region, province, city_municipality, barangay, created_at")
+      .eq("buyer_id", req.user.id)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return res.json({ addresses: data || [] });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/addresses", async (req, res, next) => {
+  try {
+    const address = readDeliveryAddress(req.body);
+    const label = String(req.body?.label || "New address").trim().slice(0, 50) || "New address";
+    const { data, error } = await getSupabase()
+      .from("buyer_delivery_addresses")
+      .insert({ buyer_id: req.user.id, label, ...address })
+      .select("id, label, full_name, mobile_number, country, region, province, city_municipality, barangay, created_at")
+      .single();
+    if (error?.code === "23505") throw httpError(409, "This delivery address is already saved");
+    if (error) throw error;
+    return res.status(201).json({ address: data });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get("/", async (req, res, next) => {
   try {
     const { data, error } = await getSupabase()
@@ -84,7 +126,7 @@ router.post("/", async (req, res, next) => {
       if (!requestedAddress || typeof requestedAddress !== "object" || Array.isArray(requestedAddress)) {
         throw httpError(400, "The delivery address is invalid");
       }
-      const fields = ['full_name', 'mobile_number', 'country', 'region', 'province', 'city_municipality', 'barangay'];
+      const fields = addressFields;
       deliveryAddress = Object.fromEntries(fields.map((field) => [field, String(requestedAddress[field] || "").trim()]));
       if (fields.some((field) => deliveryAddress[field].length > 150)) throw httpError(400, "A delivery address field is too long");
       if (deliveryMethod === 'delivery' && ['full_name', 'mobile_number', 'country', 'region', 'city_municipality', 'barangay'].some((field) => !deliveryAddress[field])) {
