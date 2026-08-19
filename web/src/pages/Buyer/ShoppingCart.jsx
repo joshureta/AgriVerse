@@ -137,7 +137,7 @@ export default function ShoppingCart() {
               <div className="shopping-cart-actions">
                 <a className="shopping-cart-add-more" href="/buyer/order"><CartIcon aria-hidden="true" /> Add More</a>
                 {items.length > 0
-                  ? <a className="shopping-cart-checkout" href="/buyer/checkout">Check Out</a>
+                  ? <a className="shopping-cart-checkout" href="/buyer/checkout?confirmDelivery=1">Check Out</a>
                   : <span className="shopping-cart-checkout is-disabled" aria-disabled="true">Check Out</span>}
               </div>
             </div>
