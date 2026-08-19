@@ -52,7 +52,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
               <ChevronDown className="buyer-profile-chevron" aria-hidden="true" />
             </summary>
             <div className="buyer-profile-dropdown">
-              <a href="/buyer/delivery-progress">Track Delivery</a>
+              <a href="/buyer/delivery-progress">My Orders</a>
               <a href="/buyer/profile">My Profile</a>
               <button type="button" onClick={handleSignOut}>Sign Out</button>
             </div>
@@ -73,7 +73,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
           <a href="/buyer">Home</a>
           <a href="/buyer/order">Order</a>
           <a href="/buyer/cart">Shopping Cart</a>
-          <a href="/buyer/delivery-progress">Track Delivery</a>
+          <a href="/buyer/delivery-progress">My Orders</a>
           <a href="/buyer/profile">My Profile</a>
           <button type="button" onClick={handleSignOut}>Sign Out</button>
         </nav>
