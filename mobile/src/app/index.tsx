@@ -9,7 +9,7 @@ export default function IndexScreen() {
   const { loading, profile } = useAuth();
 
   if (!loading) {
-    if (!profile) return <Redirect href="/login" />;
+    if (!profile) return <Redirect href="/welcome" />;
 
     return (
       <Redirect href={postAuthenticationRoute(profile)} />
