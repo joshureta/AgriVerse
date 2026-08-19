@@ -9,6 +9,7 @@ import {
   Plus,
   ShoppingCart,
   Star,
+  ThumbsUp,
   X,
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
@@ -17,6 +18,9 @@ import { useAuth } from '../../hooks/useAuth.js'
 import { loadPineappleProducts, readBuyerCart, writeBuyerCart } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/shoppingCart.css'
+
+const reviewTitles = ['Fresh and naturally sweet', 'Carefully packed', 'Good value for the size', 'Perfect for sharing', 'Easy farm pickup', 'Fresh with a small caveat']
+const reviewSizes = ['Medium Pineapple', 'Large Pineapple', 'Large Pineapple', 'Medium Pineapple', 'Small Pineapple', 'Small Pineapple']
 
 const reviews = [
   { id: 1, name: 'Juan D.', date: 'May 12, 2026', text: 'Ordered two medium pineapples. Both were ripe, juicy, and sweeter than the ones I usually get at the grocery.', rating: 5 },
@@ -37,7 +41,13 @@ const reviews = [
   { id: 16, name: 'Bea H.', date: 'March 30, 2026', text: 'Fresh and tasty, but I would prefer an option to request a riper fruit for same-day serving.', rating: 4 },
   { id: 17, name: 'Daniel K.', date: 'March 27, 2026', text: 'The small pineapple was perfect for smoothies. It had a strong natural flavor and was not watery.', rating: 5 },
   { id: 18, name: 'Sofia J.', date: 'March 24, 2026', text: 'First time ordering directly from the farm. The fruit arrived fresh, and I liked knowing where it came from.', rating: 5 },
-]
+].map((review, index) => ({
+  ...review,
+  title: reviewTitles[index % reviewTitles.length],
+  productSize: reviewSizes[index % reviewSizes.length],
+  helpful: [12, 8, 6, 9, 4, 5][index % 6],
+  verified: true,
+}))
 
 export default function BuyerOrders() {
   const { profile } = useAuth()
@@ -52,13 +62,46 @@ export default function BuyerOrders() {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewRating, setReviewRating] = useState(0)
   const [reviewHover, setReviewHover] = useState(0)
+  const [reviewTitle, setReviewTitle] = useState('')
+  const [reviewSize, setReviewSize] = useState('Medium Pineapple')
   const [reviewText, setReviewText] = useState('')
   const [reviewError, setReviewError] = useState('')
+  const [reviewSort, setReviewSort] = useState('recent')
+  const [reviewFilter, setReviewFilter] = useState('all')
+  const [showAllReviews, setShowAllReviews] = useState(false)
+  const [helpfulReviews, setHelpfulReviews] = useState([])
+  const filteredReviews = useMemo(() => {
+    const matching = reviewFilter === 'all'
+      ? [...customerReviews]
+      : customerReviews.filter((review) => review.rating === Number(reviewFilter))
+
+    const reviewTime = (review) => {
+      const parsedDate = Date.parse(review.date)
+      return Number.isNaN(parsedDate) ? 0 : parsedDate
+    }
+    const helpfulCount = (review) => review.helpful + (helpfulReviews.includes(review.id) ? 1 : 0)
+
+    return matching.sort((a, b) => {
+      if (reviewSort === 'oldest') return reviewTime(a) - reviewTime(b) || a.id - b.id
+      if (reviewSort === 'highest') return b.rating - a.rating || reviewTime(b) - reviewTime(a)
+      if (reviewSort === 'lowest') return a.rating - b.rating || reviewTime(b) - reviewTime(a)
+      if (reviewSort === 'helpful') return helpfulCount(b) - helpfulCount(a) || reviewTime(b) - reviewTime(a)
+      return reviewTime(b) - reviewTime(a) || b.id - a.id
+    })
+  }, [customerReviews, helpfulReviews, reviewFilter, reviewSort])
   const reviewPages = useMemo(
     () => Array.from(
-      { length: Math.ceil(customerReviews.length / 3) },
-      (_, index) => customerReviews.slice(index * 3, index * 3 + 3),
+      { length: Math.ceil(filteredReviews.length / 3) },
+      (_, index) => filteredReviews.slice(index * 3, index * 3 + 3),
     ),
+    [filteredReviews],
+  )
+  const reviewAverage = useMemo(
+    () => customerReviews.reduce((total, review) => total + review.rating, 0) / customerReviews.length,
+    [customerReviews],
+  )
+  const ratingCounts = useMemo(
+    () => Object.fromEntries([5, 4, 3, 2, 1].map((rating) => [rating, customerReviews.filter((review) => review.rating === rating).length])),
     [customerReviews],
   )
 
@@ -172,6 +215,10 @@ export default function BuyerOrders() {
       setReviewError('Please tell us about your experience.')
       return
     }
+    if (!reviewTitle.trim()) {
+      setReviewError('Please add a short title for your review.')
+      return
+    }
 
     const fullName = profile?.full_name?.trim() || 'You'
     const shortName = fullName === 'You' ? fullName : `${fullName.split(' ')[0]} ${fullName.split(' ').slice(-1)[0]?.charAt(0) || ''}.`
@@ -180,14 +227,20 @@ export default function BuyerOrders() {
         id: Date.now(),
         name: shortName,
         date: new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date()),
+        title: reviewTitle.trim(),
+        productSize: reviewSize,
         text: reviewText.trim(),
         rating: reviewRating,
+        helpful: 0,
+        verified: true,
         isOwn: true,
       },
       ...current,
     ])
     setReviewIndex(0)
     setReviewRating(0)
+    setReviewTitle('')
+    setReviewSize('Medium Pineapple')
     setReviewText('')
     closeReviewModal()
   }
@@ -198,6 +251,40 @@ export default function BuyerOrders() {
 
   function showNextReview() {
     setReviewIndex((current) => (current + 1) % reviewPages.length)
+  }
+
+  function changeReviewFilter(value) {
+    setReviewFilter(value)
+    setReviewIndex(0)
+  }
+
+  function changeReviewSort(value) {
+    setReviewSort(value)
+    setReviewIndex(0)
+  }
+
+  function toggleHelpful(reviewId) {
+    setHelpfulReviews((current) => current.includes(reviewId)
+      ? current.filter((id) => id !== reviewId)
+      : [...current, reviewId])
+  }
+
+  function renderReviewCard(review) {
+    const markedHelpful = helpfulReviews.includes(review.id)
+    return (
+      <article className={`marketplace-review-card${review.isOwn ? ' is-own-review' : ''}`} key={review.id}>
+        <div className="review-card-topline">
+          <div className="review-stars" aria-label={`${review.rating} out of 5 stars`}>{Array.from({ length: 5 }, (_, index) => <Star key={index} fill={index < review.rating ? 'currentColor' : 'none'} />)}</div>
+          <span>{review.productSize}</span>
+        </div>
+        <h3>{review.title}</h3>
+        <p>“{review.text}”</p>
+        <div className="review-card-footer">
+          <div className="review-author"><CircleUserRound aria-hidden="true" /><span><strong>{review.name}</strong><small>{review.date}</small></span><em>{review.isOwn ? 'Your Review' : 'Verified Buyer'}</em></div>
+          <button className={markedHelpful ? 'is-helpful' : ''} type="button" onClick={() => toggleHelpful(review.id)} aria-pressed={markedHelpful}><ThumbsUp aria-hidden="true" /> Helpful ({review.helpful + (markedHelpful ? 1 : 0)})</button>
+        </div>
+      </article>
+    )
   }
 
   return (
@@ -258,40 +345,67 @@ export default function BuyerOrders() {
 
           <section className="marketplace-reviews" aria-labelledby="marketplace-reviews-title">
             <div className="marketplace-reviews-heading">
-              <h2 id="marketplace-reviews-title">Customer Reviews</h2>
+              <div>
+                <span>FROM VERIFIED ORDERS</span>
+                <h2 id="marketplace-reviews-title">Customer Reviews</h2>
+                <p>See what customers say about our farm-fresh pineapples.</p>
+              </div>
               <button type="button" onClick={() => setReviewOpen(true)}><Star aria-hidden="true" /> Write a Review</button>
             </div>
-            <div className="marketplace-review-carousel">
-              <button className="marketplace-review-arrow is-previous" type="button" onClick={showPreviousReview} aria-label="Previous customer review"><ChevronLeft /></button>
-              <div
-                className="marketplace-review-viewport"
-                tabIndex="0"
-                onKeyDown={(event) => {
-                  if (event.key === 'ArrowLeft') showPreviousReview()
-                  if (event.key === 'ArrowRight') showNextReview()
-                }}
-              >
-                <div className="marketplace-review-track" style={{ transform: `translateX(-${reviewIndex * 100}%)` }}>
-                  {reviewPages.map((pageReviews, pageIndex) => (
-                    <div className="marketplace-review-slide" key={pageReviews[0].id} aria-hidden={pageIndex !== reviewIndex}>
-                      {pageReviews.map((review) => (
-                        <article className={`marketplace-review-card${review.isOwn ? ' is-own-review' : ''}`} key={review.id}>
-                          <div className="review-stars" aria-label={`${review.rating} out of 5 stars`}>{Array.from({ length: 5 }, (_, index) => <Star key={index} fill={index < review.rating ? 'currentColor' : 'none'} />)}</div>
-                          <p>“{review.text}”</p>
-                          <div className="review-author"><CircleUserRound aria-hidden="true" /><span><strong>{review.name}</strong><small>{review.date}</small></span><em>{review.isOwn ? 'Your Review' : 'Verified Buyer'}</em></div>
-                        </article>
+
+            <div className="marketplace-review-overview">
+              <div className="review-average">
+                <strong>{reviewAverage.toFixed(1)}</strong>
+                <div className="review-stars" aria-label={`${reviewAverage.toFixed(1)} out of 5 stars`}>{Array.from({ length: 5 }, (_, index) => <Star key={index} fill={index < Math.round(reviewAverage) ? 'currentColor' : 'none'} />)}</div>
+                <span>Based on {customerReviews.length} customer reviews</span>
+              </div>
+              <div className="review-distribution" aria-label="Rating distribution">
+                {[5, 4, 3, 2, 1].map((rating) => (
+                  <button type="button" className={reviewFilter === String(rating) ? 'is-active' : ''} key={rating} onClick={() => changeReviewFilter(reviewFilter === String(rating) ? 'all' : String(rating))}>
+                    <span>{rating} star</span>
+                    <i><b style={{ width: `${(ratingCounts[rating] / customerReviews.length) * 100}%` }} /></i>
+                    <em>{ratingCounts[rating]}</em>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="marketplace-review-toolbar">
+              <strong>{reviewFilter === 'all' ? 'All reviews' : `${reviewFilter}-star reviews`} <span>({filteredReviews.length})</span></strong>
+              <label>Sort by
+                <select value={reviewSort} onChange={(event) => changeReviewSort(event.target.value)}>
+                  <option value="recent">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="highest">Highest rated</option>
+                  <option value="lowest">Lowest rated</option>
+                  <option value="helpful">Most helpful</option>
+                </select>
+              </label>
+            </div>
+
+            {filteredReviews.length === 0 ? (
+              <div className="marketplace-review-empty">No reviews match this rating yet.</div>
+            ) : showAllReviews ? (
+              <div className="marketplace-review-all-grid">{filteredReviews.map(renderReviewCard)}</div>
+            ) : (
+              <>
+                <div className="marketplace-review-carousel">
+                  <button className="marketplace-review-arrow is-previous" type="button" onClick={showPreviousReview} aria-label="Previous customer reviews"><ChevronLeft /></button>
+                  <div className="marketplace-review-viewport" tabIndex="0" onKeyDown={(event) => { if (event.key === 'ArrowLeft') showPreviousReview(); if (event.key === 'ArrowRight') showNextReview() }}>
+                    <div className="marketplace-review-track" style={{ transform: `translateX(-${reviewIndex * 100}%)` }}>
+                      {reviewPages.map((pageReviews, pageIndex) => (
+                        <div className="marketplace-review-slide" key={pageReviews[0].id} aria-hidden={pageIndex !== reviewIndex}>{pageReviews.map(renderReviewCard)}</div>
                       ))}
                     </div>
-                  ))}
+                  </div>
+                  <button className="marketplace-review-arrow is-next" type="button" onClick={showNextReview} aria-label="Next customer reviews"><ChevronRight /></button>
                 </div>
-              </div>
-              <button className="marketplace-review-arrow is-next" type="button" onClick={showNextReview} aria-label="Next customer review"><ChevronRight /></button>
-            </div>
-            <div className="marketplace-review-dots" aria-label={`Review group ${reviewIndex + 1} of ${reviewPages.length}`}>
-              {reviewPages.map((pageReviews, index) => (
-                <button className={index === reviewIndex ? 'is-active' : ''} type="button" key={pageReviews[0].id} onClick={() => setReviewIndex(index)} aria-label={`Show review group ${index + 1}`} aria-current={index === reviewIndex ? 'true' : undefined} />
-              ))}
-            </div>
+                <div className="marketplace-review-dots" aria-label={`Review group ${reviewIndex + 1} of ${reviewPages.length}`}>
+                  {reviewPages.map((pageReviews, index) => <button className={index === reviewIndex ? 'is-active' : ''} type="button" key={pageReviews[0].id} onClick={() => setReviewIndex(index)} aria-label={`Show review group ${index + 1}`} aria-current={index === reviewIndex ? 'true' : undefined} />)}
+                </div>
+              </>
+            )}
+            <button className="marketplace-review-view-all" type="button" onClick={() => setShowAllReviews((current) => !current)}>{showAllReviews ? 'Show review gallery' : `View all ${filteredReviews.length} reviews`}</button>
           </section>
         </div>
 
@@ -331,9 +445,22 @@ export default function BuyerOrders() {
                 <output>{reviewRating ? `${reviewRating} out of 5 stars` : 'Select 1 to 5 stars'}</output>
               </fieldset>
 
+              <div className="buyer-review-fields">
+                <label htmlFor="buyer-review-size">What did you order?
+                  <select id="buyer-review-size" value={reviewSize} onChange={(event) => setReviewSize(event.target.value)}>
+                    <option>Small Pineapple</option>
+                    <option>Medium Pineapple</option>
+                    <option>Large Pineapple</option>
+                  </select>
+                </label>
+                <label htmlFor="buyer-review-title">Review title
+                  <input id="buyer-review-title" value={reviewTitle} onChange={(event) => { setReviewTitle(event.target.value); setReviewError('') }} placeholder="Summarize your experience" maxLength="60" />
+                </label>
+              </div>
+
               <label htmlFor="buyer-review-text">Tell us about your experience</label>
-              <textarea id="buyer-review-text" value={reviewText} onChange={(event) => { setReviewText(event.target.value); setReviewError('') }} placeholder="What did you like about your order?" maxLength="300" rows="4" autoFocus />
-              <small>{reviewText.length}/300</small>
+              <textarea id="buyer-review-text" value={reviewText} onChange={(event) => { setReviewText(event.target.value); setReviewError('') }} placeholder="Tell other customers about freshness, taste, packaging, or delivery." maxLength="500" rows="4" />
+              <small>{reviewText.length}/500</small>
               {reviewError && <p className="buyer-review-error" role="alert">{reviewError}</p>}
 
               <div className="buyer-review-modal-actions">
