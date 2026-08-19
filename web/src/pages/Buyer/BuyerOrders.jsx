@@ -126,11 +126,6 @@ export default function BuyerOrders() {
     }))
   }
 
-  function removeSelection(productId) {
-    setQuantities((current) => ({ ...current, [productId]: 0 }))
-    setCartNotice('')
-  }
-
   const selectedProducts = useMemo(
     () => products.filter((product) => (quantities[product.id] || 0) > 0),
     [products, quantities],
@@ -203,7 +198,7 @@ export default function BuyerOrders() {
     <main className="buyer-page marketplace-page">
       <BuyerHeader active="orders" cartCount={selectedQuantity} />
       <BuyerJourneyNav current="order" />
-      <section className="marketplace-order-layout">
+      <section className="marketplace-order-layout is-summary-free">
         <div className="marketplace-order-main">
           <header className="marketplace-title">
             <h1>Order Fresh Pineapples</h1>
@@ -245,6 +240,15 @@ export default function BuyerOrders() {
                 )
               })}
             </div>}
+
+            <div className="marketplace-inline-cart">
+              <div className="marketplace-inline-total">
+                <span>{selectedQuantity > 0 ? `${selectedQuantity} ${selectedQuantity === 1 ? 'item' : 'items'} selected` : 'Choose a pineapple and quantity'}</span>
+                <strong>Total: PHP {orderTotal.toLocaleString()}</strong>
+              </div>
+              <button className="summary-cart-button" type="button" disabled={selectedProducts.length === 0} onClick={addToCart}><ShoppingCart aria-hidden="true" /> Add to Cart</button>
+              {cartNotice && <div className="summary-cart-success" role="status"><CheckCircle2 /><span>{cartNotice}</span><a href="/buyer/cart">View Cart</a></div>}
+            </div>
           </section>
 
           <section className="marketplace-reviews" aria-labelledby="marketplace-reviews-title">
@@ -286,21 +290,6 @@ export default function BuyerOrders() {
           </section>
         </div>
 
-        <aside className="order-summary" aria-labelledby="order-summary-title">
-          <h2 id="order-summary-title">Order Summary</h2>
-          {selectedProducts.length > 0 ? selectedProducts.map((product) => (
-            <div className="summary-product" key={product.id}>
-              <img src={pineappleImage} alt="" />
-              <span><strong>{product.size_name} Pineapple</strong><small>{quantities[product.id]} x PHP {product.price.toFixed(2)}<br />{product.weight}</small></span>
-              <b>PHP {(product.price * quantities[product.id]).toLocaleString()}</b>
-              <button type="button" onClick={() => removeSelection(product.id)} aria-label={`Remove ${product.name}`}><X /></button>
-            </div>
-          )) : <p className="order-summary-empty">Select a pineapple size and quantity to begin your order.</p>}
-          {selectedProducts.length > 0 && <div className="summary-subtotal"><span>Subtotal</span><strong>PHP {orderTotal.toLocaleString()}</strong></div>}
-          <div className="summary-total"><span>Total</span><strong>PHP {orderTotal.toLocaleString()}</strong></div>
-          <button className="summary-cart-button" type="button" disabled={selectedProducts.length === 0} onClick={addToCart}><ShoppingCart aria-hidden="true" /> Add to Cart</button>
-          {cartNotice && <div className="summary-cart-success" role="status"><CheckCircle2 /><span>{cartNotice}</span><a href="/buyer/cart">View Cart</a></div>}
-        </aside>
       </section>
       <BuyerFooter />
 
