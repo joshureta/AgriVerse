@@ -11,6 +11,60 @@
   background: #fbfcf4;
 }
 
+/* Enhanced customer review experience. */
+.marketplace-reviews { border-top: 1px solid #dfe8da; padding-top: 34px; }
+.marketplace-reviews-heading > div > span { display: block; margin-bottom: 5px; color: #6d8c72; font-size: 8px; font-weight: 850; letter-spacing: .12em; }
+.marketplace-reviews-heading h2 { font-size: 24px; }
+.marketplace-reviews-heading p { margin: 5px 0 0; color: #718077; font-size: 10px; }
+.marketplace-review-overview { display: grid; grid-template-columns: minmax(190px,.75fr) minmax(280px,1.25fr); gap: 34px; align-items: center; margin-top: 24px; border: 1px solid #e1e8dc; border-radius: 14px; padding: 23px 28px; background: #fff; }
+.review-average { display: grid; justify-items: center; border-right: 1px solid #e3e9df; padding-right: 34px; text-align: center; }
+.review-average > strong { color: #176c33; font-size: 40px; line-height: 1; }
+.review-average .review-stars { margin-top: 8px; }
+.review-average > span { margin-top: 7px; color: #718077; font-size: 9px; }
+.review-distribution { display: grid; gap: 7px; }
+.review-distribution button { display: grid; grid-template-columns: 42px minmax(100px,1fr) 20px; align-items: center; gap: 9px; border: 0; border-radius: 5px; padding: 3px 5px; color: #5e6b62; background: transparent; font: inherit; font-size: 9px; cursor: pointer; }
+.review-distribution button:hover,.review-distribution button.is-active { color: #176c33; background: #f1f7ed; }
+.review-distribution button > span { text-align: right; }
+.review-distribution i { height: 6px; overflow: hidden; border-radius: 99px; background: #e5eae2; }
+.review-distribution b { display: block; height: 100%; border-radius: inherit; background: #efb100; }
+.review-distribution em { font-style: normal; }
+.marketplace-review-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 28px; border-bottom: 1px solid #e1e8dc; padding-bottom: 11px; }
+.marketplace-review-toolbar > strong { color: #214c2c; font-size: 12px; }
+.marketplace-review-toolbar > strong span { color: #7b897f; font-weight: 500; }
+.marketplace-review-toolbar label { display: flex; align-items: center; gap: 8px; color: #718077; font-size: 9px; }
+.marketplace-review-toolbar select { min-height: 33px; border: 1px solid #d6dfd1; border-radius: 7px; padding: 0 29px 0 10px; color: #33483a; background: #fff; font: inherit; font-size: 9px; }
+.marketplace-review-track .marketplace-review-card { min-height: 245px; }
+.marketplace-review-track .marketplace-review-card > p,.marketplace-review-all-grid .marketplace-review-card > p { margin: 12px 0 20px; }
+.review-card-topline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.review-card-topline > span { border-radius: 999px; padding: 4px 7px; color: #477b50; background: #eff6eb; font-size: 8px; white-space: nowrap; }
+.marketplace-review-card > h3 { margin: 13px 0 0; color: #24492e; font-size: 12px; }
+.review-card-footer { display: grid; gap: 12px; margin-top: auto; }
+.review-card-footer > button { width: max-content; display: inline-flex; align-items: center; gap: 5px; border: 0; padding: 0; color: #758079; background: transparent; font: inherit; font-size: 8px; cursor: pointer; }
+.review-card-footer > button svg { width: 12px; height: 12px; }
+.review-card-footer > button:hover,.review-card-footer > button.is-helpful { color: #20733a; }
+.marketplace-review-all-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin-top: 20px; }
+.marketplace-review-all-grid .marketplace-review-card { min-height: 245px; display: flex; flex-direction: column; padding: 22px; box-shadow: none; }
+.marketplace-review-empty { margin-top: 20px; border: 1px dashed #cfdacb; border-radius: 10px; padding: 34px; color: #718077; background: #fafcf8; font-size: 11px; text-align: center; }
+.marketplace-review-view-all { display: block; min-height: 38px; margin: 20px auto 0; border: 1px solid #26783b; border-radius: 7px; padding: 0 16px; color: #26783b; background: transparent; font: inherit; font-size: 9px; font-weight: 800; cursor: pointer; }
+.marketplace-review-view-all:hover,.marketplace-review-view-all:focus-visible { color: #fff; background: #26783b; outline: none; }
+.buyer-review-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.buyer-review-fields label { display: grid; gap: 6px; }
+.buyer-review-modal input,.buyer-review-modal select { width: 100%; box-sizing: border-box; border: 1px solid #cdd8ca; border-radius: 8px; padding: 11px; color: #233529; background: #fbfcf8; font: inherit; font-size: 11px; line-height: 1.5; }
+.buyer-review-modal input:focus,.buyer-review-modal select:focus { border-color: #3c8b4b; outline: 3px solid rgba(60,139,75,.13); }
+
+@media (max-width: 720px) {
+  .marketplace-review-overview { grid-template-columns: 1fr; gap: 20px; padding: 20px; }
+  .review-average { border-right: 0; border-bottom: 1px solid #e3e9df; padding: 0 0 20px; }
+  .marketplace-review-toolbar { align-items: flex-start; flex-direction: column; }
+  .marketplace-review-all-grid { grid-template-columns: 1fr; }
+  .buyer-review-fields { grid-template-columns: 1fr; }
+}
+
+/* Keep the review refinements above the legacy carousel defaults in the cascade. */
+.marketplace-reviews-heading h2 { font-size: 24px; }
+.marketplace-review-track .marketplace-review-card { min-height: 245px; }
+.marketplace-review-track .marketplace-review-card > p { margin: 12px 0 20px; }
+
 .marketplace-order-layout.is-summary-free {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -1178,4 +1232,17 @@ button.summary-cart-button:disabled {
     min-width: 0;
     flex: 1;
   }
+}
+
+/* Final review cascade overrides. */
+.marketplace-reviews-heading h2 { font-size: 24px; }
+.marketplace-review-track .marketplace-review-card { min-height: 245px; }
+.marketplace-review-track .marketplace-review-card > p { margin: 12px 0 20px; }
+
+@media (max-width: 720px) {
+  .marketplace-review-overview { grid-template-columns: 1fr; gap: 20px; padding: 20px; }
+  .review-average { border-right: 0; border-bottom: 1px solid #e3e9df; padding: 0 0 20px; }
+  .marketplace-review-toolbar { align-items: flex-start; flex-direction: column; }
+  .marketplace-review-all-grid { grid-template-columns: 1fr; }
+  .buyer-review-fields { grid-template-columns: 1fr; }
 }
