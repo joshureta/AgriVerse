@@ -46,13 +46,25 @@ function readDeliveryAddress(body) {
 
 router.get("/addresses", async (req, res, next) => {
   try {
-    const { data, error } = await getSupabase()
+    const [{ data, error }, { data: preference, error: preferenceError }] = await Promise.all([
+      getSupabase()
       .from("buyer_delivery_addresses")
       .select("id, label, full_name, mobile_number, country, region, province, city_municipality, barangay, created_at")
       .eq("buyer_id", req.user.id)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: true }),
+      getSupabase()
+        .from("profiles")
+        .select("default_delivery_address_id, delivery_address_confirmed_at")
+        .eq("id", req.user.id)
+        .single(),
+    ]);
     if (error) throw error;
-    return res.json({ addresses: data || [] });
+    if (preferenceError) throw preferenceError;
+    return res.json({
+      addresses: data || [],
+      default_address_id: preference.default_delivery_address_id,
+      address_confirmed_at: preference.delivery_address_confirmed_at,
+    });
   } catch (error) {
     return next(error);
   }
@@ -70,6 +82,61 @@ router.post("/addresses", async (req, res, next) => {
     if (error?.code === "23505") throw httpError(409, "This delivery address is already saved");
     if (error) throw error;
     return res.status(201).json({ address: data });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/addresses/default", async (req, res, next) => {
+  try {
+    const requestedId = req.body?.address_id;
+    let defaultAddressId = null;
+    if (requestedId !== "saved") {
+      const { data: address, error: addressError } = await getSupabase()
+        .from("buyer_delivery_addresses")
+        .select("id")
+        .eq("id", String(requestedId || ""))
+        .eq("buyer_id", req.user.id)
+        .single();
+      if (addressError?.code === "PGRST116") throw httpError(404, "Delivery address not found");
+      if (addressError) throw addressError;
+      defaultAddressId = address.id;
+    }
+    const confirmedAt = new Date().toISOString();
+    const { error } = await getSupabase()
+      .from("profiles")
+      .update({ default_delivery_address_id: defaultAddressId, delivery_address_confirmed_at: confirmedAt })
+      .eq("id", req.user.id);
+    if (error) throw error;
+    return res.json({ default_address_id: defaultAddressId, address_confirmed_at: confirmedAt });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.delete("/addresses/:addressId", async (req, res, next) => {
+  try {
+    const addressId = String(req.params.addressId || "");
+    const { data: profile, error: profileError } = await getSupabase()
+      .from("profiles")
+      .select("default_delivery_address_id")
+      .eq("id", req.user.id)
+      .single();
+    if (profileError) throw profileError;
+    const { error } = await getSupabase()
+      .from("buyer_delivery_addresses")
+      .delete()
+      .eq("id", addressId)
+      .eq("buyer_id", req.user.id);
+    if (error) throw error;
+    if (profile.default_delivery_address_id === addressId) {
+      const { error: resetError } = await getSupabase()
+        .from("profiles")
+        .update({ default_delivery_address_id: null, delivery_address_confirmed_at: null })
+        .eq("id", req.user.id);
+      if (resetError) throw resetError;
+    }
+    return res.status(204).end();
   } catch (error) {
     return next(error);
   }
