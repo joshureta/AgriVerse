@@ -76,7 +76,11 @@ export async function loadBuyerDeliveryAddresses() {
   })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(body.error || 'Unable to load delivery addresses')
-  return body.addresses || []
+  return {
+    addresses: body.addresses || [],
+    defaultAddressId: body.default_address_id || null,
+    addressConfirmedAt: body.address_confirmed_at || null,
+  }
 }
 
 export async function createBuyerDeliveryAddress(address) {
@@ -89,6 +93,30 @@ export async function createBuyerDeliveryAddress(address) {
   const body = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(body.error || 'Unable to save the delivery address')
   return body.address
+}
+
+export async function saveDefaultBuyerDeliveryAddress(addressId) {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/buyer/orders/addresses/default`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ address_id: addressId }),
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to save the default delivery address')
+  return body
+}
+
+export async function deleteBuyerDeliveryAddress(addressId) {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/buyer/orders/addresses/${encodeURIComponent(addressId)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}))
+    throw new Error(body.error || 'Unable to delete the delivery address')
+  }
 }
 
 export async function loadBuyerOrders(retry = true) {
