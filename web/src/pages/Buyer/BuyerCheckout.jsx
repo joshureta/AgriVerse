@@ -4,6 +4,7 @@ import {
   Pencil,
   Plus,
   QrCode,
+  Trash2,
   WalletCards,
   X,
 } from 'lucide-react'
@@ -16,11 +17,13 @@ import deliveryIcon from '../../assets/buyer/checkout/delivery.png'
 import pickupIcon from '../../assets/buyer/checkout/pickup.png'
 import {
   createBuyerDeliveryAddress,
+  deleteBuyerDeliveryAddress,
   loadPineappleProducts,
   loadBuyerDeliveryAddresses,
   buyerCartQuantity,
   placeBuyerOrder,
   readBuyerCart,
+  saveDefaultBuyerDeliveryAddress,
   writeBuyerCart,
 } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
@@ -132,8 +135,17 @@ export default function BuyerCheckout() {
     if (!profile) return undefined
     let active = true
     loadBuyerDeliveryAddresses()
-      .then((addresses) => {
-        if (active) setCustomAddresses(addresses.map(deliveryAddressToSlot))
+      .then(({ addresses, defaultAddressId, addressConfirmedAt }) => {
+        if (!active) return
+        const slots = addresses.map(deliveryAddressToSlot)
+        const customDefaultExists = defaultAddressId && slots.some((slot) => slot.id === defaultAddressId)
+        const resolvedDefaultId = customDefaultExists
+          ? defaultAddressId
+          : addressConfirmedAt && addressIsComplete(savedAddress) ? 'saved' : null
+        setCustomAddresses(slots)
+        setConfirmedAddressId(resolvedDefaultId)
+        setPendingAddressId(resolvedDefaultId || (addressIsComplete(savedAddress) ? 'saved' : slots[0]?.id || 'saved'))
+        setAddressConfirmed(Boolean(resolvedDefaultId))
       })
       .catch((requestError) => {
         if (active) setError(requestError.message)
@@ -142,20 +154,24 @@ export default function BuyerCheckout() {
         if (active) setAddressesLoaded(true)
       })
     return () => { active = false }
-  }, [profile])
+  }, [profile, savedAddress])
 
   useEffect(() => {
     if (loading || !addressesLoaded || items.length === 0 || !profile) return
     const url = new URL(window.location.href)
     if (url.searchParams.get('confirmDelivery') !== '1') return
 
-    setPendingAddressId('saved')
-    setAlternateAddress({ ...emptyAddress, ...savedAddress })
-    setAddressModalView(addressIsComplete(savedAddress) ? 'confirm' : 'edit')
-    setAddressModalOpen(true)
     url.searchParams.delete('confirmDelivery')
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
-  }, [addressesLoaded, items.length, loading, profile, savedAddress])
+    if (addressConfirmed) return
+
+    const savedProfileIsComplete = addressIsComplete(savedAddress)
+    const firstCustomAddress = customAddresses[0]
+    setPendingAddressId(savedProfileIsComplete ? 'saved' : firstCustomAddress?.id || 'saved')
+    setAlternateAddress({ ...emptyAddress, ...savedAddress })
+    setAddressModalView(savedProfileIsComplete || firstCustomAddress ? 'confirm' : 'edit')
+    setAddressModalOpen(true)
+  }, [addressConfirmed, addressesLoaded, customAddresses, items.length, loading, profile, savedAddress])
 
   const addressSlots = useMemo(() => {
     const slots = addressIsComplete(savedAddress) ? [{ id: 'saved', label: 'Saved address', address: savedAddress }] : []
@@ -248,11 +264,36 @@ export default function BuyerCheckout() {
     }
   }
 
-  function confirmDeliveryAddress() {
-    if (!pendingSlot || !addressIsComplete(pendingSlot.address)) return
-    setConfirmedAddressId(pendingSlot.id)
-    setAddressConfirmed(true)
-    setAddressModalOpen(false)
+  async function confirmDeliveryAddress() {
+    if (!pendingSlot || !addressIsComplete(pendingSlot.address) || savingAddress) return
+    setSavingAddress(true)
+    setError('')
+    try {
+      await saveDefaultBuyerDeliveryAddress(pendingSlot.id)
+      setConfirmedAddressId(pendingSlot.id)
+      setAddressConfirmed(true)
+      setAddressModalOpen(false)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSavingAddress(false)
+    }
+  }
+
+  async function deleteAddressSlot(slot) {
+    if (slot.id === 'saved' || !window.confirm(`Delete ${slot.label}?`)) return
+    setError('')
+    try {
+      await deleteBuyerDeliveryAddress(slot.id)
+      setCustomAddresses((current) => current.filter((addressSlot) => addressSlot.id !== slot.id))
+      if (confirmedAddressId === slot.id) {
+        setConfirmedAddressId(null)
+        setAddressConfirmed(false)
+      }
+      if (pendingAddressId === slot.id) setPendingAddressId(addressIsComplete(savedAddress) ? 'saved' : null)
+    } catch (requestError) {
+      setError(requestError.message)
+    }
   }
 
   return (
@@ -289,7 +330,7 @@ export default function BuyerCheckout() {
             {addressModalView === 'confirm' ? <>
               <div className="checkout-address-slots" role="radiogroup" aria-label="Delivery addresses">
                 {addressSlots.map((slot) => <div key={slot.id} className={`checkout-address-confirmation ${pendingAddressId === slot.id ? 'is-pending' : ''} ${confirmedAddressId === slot.id ? 'is-confirmed' : ''}`} role="radio" aria-checked={pendingAddressId === slot.id} tabIndex={0} onClick={() => setPendingAddressId(slot.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setPendingAddressId(slot.id) } }}>
-                  <div className="checkout-address-slot-head"><span>{confirmedAddressId === slot.id && <Check aria-hidden="true" />} {slot.label}</span><button type="button" onClick={(event) => { event.stopPropagation(); editSelectedAddress(slot) }} aria-label={`Edit ${slot.label}`} title="Edit information"><Pencil aria-hidden="true" /></button></div>
+                  <div className="checkout-address-slot-head"><span>{confirmedAddressId === slot.id && <Check aria-hidden="true" />} {slot.label}</span><div className="checkout-address-slot-tools"><button type="button" onClick={(event) => { event.stopPropagation(); editSelectedAddress(slot) }} aria-label={`Edit ${slot.label}`} title="Edit information"><Pencil aria-hidden="true" /></button>{slot.id !== 'saved' && <button type="button" className="is-delete" onClick={(event) => { event.stopPropagation(); deleteAddressSlot(slot) }} aria-label={`Delete ${slot.label}`} title="Delete address"><Trash2 aria-hidden="true" /></button>}</div></div>
                   <h3>{slot.address.full_name}</h3>
                   <p>{slot.address.mobile_number}</p>
                   <address>{[slot.address.barangay, slot.address.city_municipality, slot.address.province, slot.address.region, slot.address.country].filter(Boolean).join(', ')}</address>
@@ -311,7 +352,7 @@ export default function BuyerCheckout() {
               </div>
               {addressSlots.length > 0 && <button type="button" className="checkout-use-saved" onClick={() => setAddressModalView('confirm')}>Back to address slots</button>}
             </>}
-            <footer><button type="button" className="is-cancel" onClick={() => addressModalView === 'edit' && addressSlots.length > 0 ? setAddressModalView('confirm') : setAddressModalOpen(false)}>{addressModalView === 'edit' && addressSlots.length > 0 ? 'Back' : 'Cancel'}</button>{addressModalView === 'confirm' ? <button type="button" className="is-save" disabled={!pendingSlot} onClick={confirmDeliveryAddress}>Confirm Address</button> : <button type="button" className="is-save" disabled={!addressIsComplete(alternateAddress) || savingAddress} onClick={reviewDeliveryAddress}>{savingAddress ? 'Saving address…' : 'Add Address'}</button>}</footer>
+            <footer><button type="button" className="is-cancel" onClick={() => addressModalView === 'edit' && addressSlots.length > 0 ? setAddressModalView('confirm') : setAddressModalOpen(false)}>{addressModalView === 'edit' && addressSlots.length > 0 ? 'Back' : 'Cancel'}</button>{addressModalView === 'confirm' ? <button type="button" className="is-save" disabled={!pendingSlot || savingAddress} onClick={confirmDeliveryAddress}>{savingAddress ? 'Saving default…' : 'Confirm Address'}</button> : <button type="button" className="is-save" disabled={!addressIsComplete(alternateAddress) || savingAddress} onClick={reviewDeliveryAddress}>{savingAddress ? 'Saving address…' : 'Add Address'}</button>}</footer>
           </section>
         </div>}
 
