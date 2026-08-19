@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Check,
+  Pencil,
+  Plus,
   QrCode,
   WalletCards,
   X,
@@ -13,7 +15,9 @@ import cashIcon from '../../assets/buyer/checkout/cash.png'
 import deliveryIcon from '../../assets/buyer/checkout/delivery.png'
 import pickupIcon from '../../assets/buyer/checkout/pickup.png'
 import {
+  createBuyerDeliveryAddress,
   loadPineappleProducts,
+  loadBuyerDeliveryAddresses,
   buyerCartQuantity,
   placeBuyerOrder,
   readBuyerCart,
@@ -51,6 +55,14 @@ function addressIsComplete(address) {
     .every((field) => String(address[field] || '').trim())
 }
 
+function deliveryAddressToSlot(row) {
+  return {
+    id: row.id,
+    label: row.label || 'New address',
+    address: Object.fromEntries(Object.keys(emptyAddress).map((field) => [field, row[field] || ''])),
+  }
+}
+
 export default function BuyerCheckout() {
   const { profile } = useAuth()
   const [items, setItems] = useState([])
@@ -58,13 +70,18 @@ export default function BuyerCheckout() {
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(true)
+  const [addressesLoaded, setAddressesLoaded] = useState(false)
+  const [savingAddress, setSavingAddress] = useState(false)
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [placedOrder, setPlacedOrder] = useState(null)
   const [addressModalOpen, setAddressModalOpen] = useState(false)
   const [addressModalView, setAddressModalView] = useState('confirm')
-  const [addressSource, setAddressSource] = useState('saved')
+  const [customAddresses, setCustomAddresses] = useState([])
+  const [pendingAddressId, setPendingAddressId] = useState('saved')
+  const [confirmedAddressId, setConfirmedAddressId] = useState(null)
+  const [addressConfirmed, setAddressConfirmed] = useState(false)
   const [alternateAddress, setAlternateAddress] = useState(emptyAddress)
 
   useEffect(() => {
@@ -112,19 +129,41 @@ export default function BuyerCheckout() {
   }), [profile])
 
   useEffect(() => {
-    if (loading || items.length === 0 || !profile) return
+    if (!profile) return undefined
+    let active = true
+    loadBuyerDeliveryAddresses()
+      .then((addresses) => {
+        if (active) setCustomAddresses(addresses.map(deliveryAddressToSlot))
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message)
+      })
+      .finally(() => {
+        if (active) setAddressesLoaded(true)
+      })
+    return () => { active = false }
+  }, [profile])
+
+  useEffect(() => {
+    if (loading || !addressesLoaded || items.length === 0 || !profile) return
     const url = new URL(window.location.href)
     if (url.searchParams.get('confirmDelivery') !== '1') return
 
+    setPendingAddressId('saved')
     setAlternateAddress({ ...emptyAddress, ...savedAddress })
-    setAddressSource('saved')
     setAddressModalView(addressIsComplete(savedAddress) ? 'confirm' : 'edit')
     setAddressModalOpen(true)
     url.searchParams.delete('confirmDelivery')
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
-  }, [items.length, loading, profile, savedAddress])
+  }, [addressesLoaded, items.length, loading, profile, savedAddress])
 
-  const deliveryAddress = addressSource === 'saved' ? savedAddress : alternateAddress
+  const addressSlots = useMemo(() => {
+    const slots = addressIsComplete(savedAddress) ? [{ id: 'saved', label: 'Saved address', address: savedAddress }] : []
+    return [...slots, ...customAddresses]
+  }, [customAddresses, savedAddress])
+  const pendingSlot = addressSlots.find((slot) => slot.id === pendingAddressId) || null
+  const confirmedSlot = addressSlots.find((slot) => slot.id === confirmedAddressId) || null
+  const deliveryAddress = confirmedSlot?.address || emptyAddress
   const address = useMemo(() => {
     const locality = [deliveryAddress.barangay, deliveryAddress.city_municipality].filter(Boolean).join(', ')
     const region = [deliveryAddress.province, deliveryAddress.region, deliveryAddress.country].filter(Boolean).join(', ')
@@ -136,24 +175,25 @@ export default function BuyerCheckout() {
   const total = subtotal + shippingFee
 
   function openAddressConfirmation() {
-    const hasAlternateAddress = addressSource === 'alternate'
-      && Object.values(alternateAddress).some((value) => String(value || '').trim())
-    if (!hasAlternateAddress) setAlternateAddress({ ...emptyAddress, ...savedAddress })
-    setAddressSource(hasAlternateAddress ? 'alternate' : 'saved')
-    setAddressModalView(addressIsComplete(hasAlternateAddress ? alternateAddress : savedAddress) ? 'confirm' : 'edit')
+    const firstAvailableId = confirmedAddressId || addressSlots[0]?.id
+    if (firstAvailableId) {
+      setPendingAddressId(firstAvailableId)
+      setAddressModalView('confirm')
+    } else {
+      setAlternateAddress({ ...emptyAddress, ...savedAddress })
+      setAddressModalView('edit')
+    }
     setAddressModalOpen(true)
     setError('')
   }
 
-  function editSelectedAddress() {
-    setAlternateAddress({ ...emptyAddress, ...deliveryAddress })
-    setAddressSource('alternate')
+  function editSelectedAddress(slot) {
+    setAlternateAddress({ ...emptyAddress, ...slot.address })
     setAddressModalView('edit')
   }
 
   function addNewAddress() {
     setAlternateAddress({ ...emptyAddress })
-    setAddressSource('alternate')
     setAddressModalView('edit')
   }
 
@@ -181,23 +221,38 @@ export default function BuyerCheckout() {
   async function submitOrder(event) {
     event.preventDefault()
     if (items.length === 0 || placedOrder) return
-    if (deliveryMethod === 'delivery') {
+    if (deliveryMethod === 'delivery' && !addressConfirmed) {
       openAddressConfirmation()
       return
     }
-    await completeOrder()
+    await completeOrder(deliveryMethod === 'delivery' ? deliveryAddress : null)
   }
 
-  function reviewDeliveryAddress() {
-    if (!addressIsComplete(alternateAddress)) return
-    setAddressSource('alternate')
-    setAddressModalView('confirm')
+  async function reviewDeliveryAddress() {
+    if (!addressIsComplete(alternateAddress) || savingAddress) return
+    setSavingAddress(true)
+    setError('')
+    try {
+      const saved = await createBuyerDeliveryAddress({
+        ...alternateAddress,
+        label: `New address ${customAddresses.length + 1}`,
+      })
+      const slot = deliveryAddressToSlot(saved)
+      setCustomAddresses((current) => [...current, slot])
+      setPendingAddressId(slot.id)
+      setAddressModalView('confirm')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSavingAddress(false)
+    }
   }
 
-  async function confirmDeliveryAddress() {
-    if (!addressIsComplete(deliveryAddress)) return
+  function confirmDeliveryAddress() {
+    if (!pendingSlot || !addressIsComplete(pendingSlot.address)) return
+    setConfirmedAddressId(pendingSlot.id)
+    setAddressConfirmed(true)
     setAddressModalOpen(false)
-    await completeOrder(deliveryAddress)
   }
 
   return (
@@ -230,16 +285,18 @@ export default function BuyerCheckout() {
 
         {addressModalOpen && <div className="checkout-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAddressModalOpen(false) }}>
           <section className="checkout-address-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-address-modal-title">
-            <header><div><span>Delivery information</span><h2 id="checkout-address-modal-title">{addressModalView === 'confirm' ? 'Confirm Delivery Address' : addressIsComplete(savedAddress) ? 'Address Information' : 'Add Delivery Address'}</h2><p>{addressModalView === 'confirm' ? 'Please check that all delivery information is correct.' : 'Complete the fields below before continuing.'}</p></div><button type="button" onClick={() => setAddressModalOpen(false)} aria-label="Close address form"><X /></button></header>
+            <header><div><span>Delivery information</span><h2 id="checkout-address-modal-title">{addressModalView === 'confirm' ? 'Choose Delivery Address' : 'Add Delivery Address'}</h2><p>{addressModalView === 'confirm' ? 'Choose an address slot, then confirm your selection.' : 'Complete the fields below to create an address slot.'}</p></div><button type="button" onClick={() => setAddressModalOpen(false)} aria-label="Close address form"><X /></button></header>
             {addressModalView === 'confirm' ? <>
-              <div className="checkout-address-confirmation">
-                <div className="checkout-address-slot-head"><span>{addressSource === 'saved' ? 'Saved address' : 'New address'}</span><strong>Selected</strong></div>
-                <h3>{deliveryAddress.full_name}</h3>
-                <p>{deliveryAddress.mobile_number}</p>
-                <address>{[deliveryAddress.barangay, deliveryAddress.city_municipality, deliveryAddress.province, deliveryAddress.region, deliveryAddress.country].filter(Boolean).join(', ')}</address>
-                <div className="checkout-address-slot-actions"><button type="button" onClick={editSelectedAddress}>Edit information</button><button type="button" onClick={addNewAddress}>+ Add new address</button></div>
+              <div className="checkout-address-slots" role="radiogroup" aria-label="Delivery addresses">
+                {addressSlots.map((slot) => <div key={slot.id} className={`checkout-address-confirmation ${pendingAddressId === slot.id ? 'is-pending' : ''} ${confirmedAddressId === slot.id ? 'is-confirmed' : ''}`} role="radio" aria-checked={pendingAddressId === slot.id} tabIndex={0} onClick={() => setPendingAddressId(slot.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setPendingAddressId(slot.id) } }}>
+                  <div className="checkout-address-slot-head"><span>{confirmedAddressId === slot.id && <Check aria-hidden="true" />} {slot.label}</span><button type="button" onClick={(event) => { event.stopPropagation(); editSelectedAddress(slot) }} aria-label={`Edit ${slot.label}`} title="Edit information"><Pencil aria-hidden="true" /></button></div>
+                  <h3>{slot.address.full_name}</h3>
+                  <p>{slot.address.mobile_number}</p>
+                  <address>{[slot.address.barangay, slot.address.city_municipality, slot.address.province, slot.address.region, slot.address.country].filter(Boolean).join(', ')}</address>
+                </div>)}
               </div>
-              <p className="checkout-address-question">Is everything correct with this delivery information?</p>
+              <button type="button" className="checkout-add-address" onClick={addNewAddress}><Plus aria-hidden="true" /> Add New Address</button>
+              <p className="checkout-address-question">Confirm the address you want to use for this order.</p>
             </> : <>
               <div className="checkout-address-fields checkout-new-address-fields">
                 {[
@@ -252,9 +309,9 @@ export default function BuyerCheckout() {
                   ['barangay', 'Barangay', 'Enter barangay'],
                 ].map(([name, label, placeholder]) => <label key={name}><span>{label}{name !== 'province' && <em>*</em>}</span><input name={name} value={alternateAddress[name]} placeholder={placeholder} onChange={(event) => setAlternateAddress((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'province'} /></label>)}
               </div>
-              {addressIsComplete(savedAddress) && <button type="button" className="checkout-use-saved" onClick={() => { setAddressSource('saved'); setAddressModalView('confirm') }}>Use saved database address instead</button>}
+              {addressSlots.length > 0 && <button type="button" className="checkout-use-saved" onClick={() => setAddressModalView('confirm')}>Back to address slots</button>}
             </>}
-            <footer><button type="button" className="is-cancel" onClick={() => addressModalView === 'edit' && addressIsComplete(deliveryAddress) ? setAddressModalView('confirm') : setAddressModalOpen(false)}>{addressModalView === 'edit' && addressIsComplete(deliveryAddress) ? 'Back' : 'Cancel'}</button>{addressModalView === 'confirm' ? <button type="button" className="is-save" disabled={placing} onClick={confirmDeliveryAddress}>{placing ? 'Placing order…' : 'Yes, Confirm & Place Order'}</button> : <button type="button" className="is-save" disabled={!addressIsComplete(alternateAddress)} onClick={reviewDeliveryAddress}>Review Address</button>}</footer>
+            <footer><button type="button" className="is-cancel" onClick={() => addressModalView === 'edit' && addressSlots.length > 0 ? setAddressModalView('confirm') : setAddressModalOpen(false)}>{addressModalView === 'edit' && addressSlots.length > 0 ? 'Back' : 'Cancel'}</button>{addressModalView === 'confirm' ? <button type="button" className="is-save" disabled={!pendingSlot} onClick={confirmDeliveryAddress}>Confirm Address</button> : <button type="button" className="is-save" disabled={!addressIsComplete(alternateAddress) || savingAddress} onClick={reviewDeliveryAddress}>{savingAddress ? 'Saving address…' : 'Add Address'}</button>}</footer>
           </section>
         </div>}
 
