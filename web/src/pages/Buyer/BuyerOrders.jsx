@@ -109,6 +109,12 @@ export default function BuyerOrders() {
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [reviewOpen])
 
+  useEffect(() => {
+    if (!cartNotice) return undefined
+    const timer = window.setTimeout(() => setCartNotice(''), 5000)
+    return () => window.clearTimeout(timer)
+  }, [cartNotice])
+
   function updateQuantity(product, amount) {
     setCartNotice('')
     setQuantities((current) => ({
@@ -147,7 +153,7 @@ export default function BuyerOrders() {
       inventory_item_ids: product.inventory_item_ids,
     }))
     writeBuyerCart(cartItems)
-    setCartNotice(`${selectedQuantity} ${selectedQuantity === 1 ? 'item' : 'items'} added to your cart.`)
+    setCartNotice(`${selectedQuantity} ${selectedQuantity === 1 ? 'item is' : 'items are'} ready in your cart.`)
   }
 
   function closeReviewModal() {
@@ -247,7 +253,6 @@ export default function BuyerOrders() {
                 <strong>Total: PHP {orderTotal.toLocaleString()}</strong>
               </div>
               <button className="summary-cart-button" type="button" disabled={selectedProducts.length === 0} onClick={addToCart}><ShoppingCart aria-hidden="true" /> Add to Cart</button>
-              {cartNotice && <div className="summary-cart-success" role="status"><CheckCircle2 /><span>{cartNotice}</span><a href="/buyer/cart">View Cart</a></div>}
             </div>
           </section>
 
@@ -292,6 +297,18 @@ export default function BuyerOrders() {
 
       </section>
       <BuyerFooter />
+
+      {cartNotice && (
+        <aside className="buyer-cart-toast" role="status" aria-live="polite">
+          <span className="buyer-cart-toast-icon"><CheckCircle2 aria-hidden="true" /></span>
+          <div>
+            <strong>Added to cart</strong>
+            <p>{cartNotice}</p>
+          </div>
+          <a href="/buyer/cart">Check it now</a>
+          <button type="button" onClick={() => setCartNotice('')} aria-label="Dismiss cart notification"><X /></button>
+        </aside>
+      )}
 
       {reviewOpen && (
         <div className="buyer-review-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeReviewModal() }}>
