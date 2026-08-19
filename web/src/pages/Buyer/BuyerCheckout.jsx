@@ -79,6 +79,7 @@ export default function BuyerCheckout() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [placedOrder, setPlacedOrder] = useState(null)
+  const [orderToastVisible, setOrderToastVisible] = useState(false)
   const [addressModalOpen, setAddressModalOpen] = useState(false)
   const [addressModalView, setAddressModalView] = useState('confirm')
   const [customAddresses, setCustomAddresses] = useState([])
@@ -227,6 +228,7 @@ export default function BuyerCheckout() {
       })
       writeBuyerCart([])
       setPlacedOrder(order)
+      setOrderToastVisible(true)
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -426,11 +428,13 @@ export default function BuyerCheckout() {
           <button className="checkout-submit" type="submit" disabled={loading || placing || items.length === 0 || Boolean(placedOrder)}>
             {placing ? 'Placing order…' : placedOrder ? 'Order placed' : 'Place Order'}
           </button>
-          {placedOrder && (
-            <div className="checkout-success" role="status">
-              <span><Check aria-hidden="true" /> Order <strong>{placedOrder.order_number}</strong> was placed successfully.</span>
-              <a href="/buyer/delivery-progress">Track Delivery</a>
-            </div>
+          {placedOrder && orderToastVisible && (
+            <aside className="checkout-order-toast" role="status" aria-live="polite">
+              <span className="checkout-order-toast-icon"><Check aria-hidden="true" /></span>
+              <div><strong>Order placed</strong><p>Order <b>{placedOrder.order_number}</b> was placed successfully.</p></div>
+              <a href={`/buyer/delivery-progress?track=${encodeURIComponent(placedOrder.id)}`}>Track Delivery</a>
+              <button type="button" onClick={() => setOrderToastVisible(false)} aria-label="Dismiss order notification"><X aria-hidden="true" /></button>
+            </aside>
           )}
         </form>
 
