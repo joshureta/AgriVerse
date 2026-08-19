@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Minus, Plus, ShoppingCart as CartIcon } from 'lucide-react'
+import { Minus, Plus } from 'lucide-react'
 import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import { buyerCartQuantity, loadPineappleProducts, readBuyerCart, writeBuyerCart } from '../../services/buyerMarketplace.js'
@@ -135,7 +135,7 @@ export default function ShoppingCart() {
               <span>Total</span>
               <strong>PHP {total.toLocaleString()}</strong>
               <div className="shopping-cart-actions">
-                <a className="shopping-cart-add-more" href="/buyer/order"><CartIcon aria-hidden="true" /> Add More</a>
+                <a className="shopping-cart-add-more" href="/buyer/order"><Plus aria-hidden="true" /> Add More</a>
                 {items.length > 0
                   ? <a className="shopping-cart-checkout" href="/buyer/checkout?confirmDelivery=1">Check Out</a>
                   : <span className="shopping-cart-checkout is-disabled" aria-disabled="true">Check Out</span>}
