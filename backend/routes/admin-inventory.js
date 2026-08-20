@@ -1,5 +1,5 @@
 const express = require("express");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const { requireAuth } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 
 const router = express.Router();
@@ -13,7 +13,29 @@ const inventorySelect = [
   "equipment_inventory(inventory_id, equipment_type_id, condition, availability, last_maintenance, equipment_type:equipment_types!equipment_inventory_equipment_type_id_fkey(id, type_name, status))",
 ].join(",");
 
-router.use(requireAuth, requireRole("admin"));
+function requireInventoryAccess(req, res, next) {
+  const isAdminEndpoint = req.baseUrl.startsWith("/api/admin/");
+  const allowed = isAdminEndpoint
+    ? req.profile?.role === "admin"
+    : req.profile?.role === "farm_worker" && req.profile?.worker_category === "seller";
+  if (!allowed) return res.status(403).json({ error: "You do not have access to this resource" });
+  return next();
+}
+
+function limitSellerInventory(req, res, next) {
+  if (req.baseUrl.startsWith("/api/admin/")) return next();
+
+  const readsPineappleStock = req.method === "GET" && req.path === "/";
+  const readsStockHistory = req.method === "GET" && req.path === "/stock-history";
+  const addsStock = req.method === "POST" && /^\/\d+\/stock$/.test(req.path);
+  if (!readsPineappleStock && !readsStockHistory && !addsStock) {
+    return res.status(403).json({ error: "Sellers can only manage pineapple stock" });
+  }
+
+  return next();
+}
+
+router.use(requireAuth, requireInventoryAccess, limitSellerInventory);
 
 function httpError(status, message) {
   const error = new Error(message);
@@ -214,13 +236,14 @@ router.get("/stock-history", async (req, res, next) => {
 
 router.get("/", async (req, res, next) => {
   try {
+    const sellerEndpoint = req.baseUrl.startsWith("/api/seller/");
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 5, 1), 50);
     const search = String(req.query.search || "").trim().replace(/[,%()]/g, "");
-    const categoryId = req.query.categoryId ? readId(req.query.categoryId, "Inventory category") : null;
-    const archived = String(req.query.archived || "false").toLowerCase() === "true";
-    const pineappleOnly = String(req.query.pineappleOnly || "false").toLowerCase() === "true";
-    const excludePineapple = String(req.query.excludePineapple || "false").toLowerCase() === "true";
+    const categoryId = !sellerEndpoint && req.query.categoryId ? readId(req.query.categoryId, "Inventory category") : null;
+    const archived = !sellerEndpoint && String(req.query.archived || "false").toLowerCase() === "true";
+    const pineappleOnly = sellerEndpoint || String(req.query.pineappleOnly || "false").toLowerCase() === "true";
+    const excludePineapple = !sellerEndpoint && String(req.query.excludePineapple || "false").toLowerCase() === "true";
     const from = (page - 1) * pageSize;
     const { data: pineappleCategory, error: pineappleCategoryError } = await getSupabase()
       .from("inventory_categories").select("id").eq("code", "pineapple").maybeSingle();
@@ -302,6 +325,12 @@ router.patch("/:id", async (req, res, next) => {
 router.post("/:id/stock", async (req, res, next) => {
   try {
     const id = readId(req.params.id);
+    if (req.baseUrl.startsWith("/api/seller/")) {
+      const item = await fetchItem(id);
+      if (item.category_code !== "pineapple" || item.archived_at) {
+        throw httpError(403, "Sellers can only add pineapple stock");
+      }
+    }
     const { error } = await getSupabase().rpc("add_inventory_stock", {
       p_item_id: id, p_quantity: readQuantity(req.body.quantity, { allowZero: false }),
     });
