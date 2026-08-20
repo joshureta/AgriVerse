@@ -76,6 +76,7 @@ app.use("/api/mobile/auth", mobileAuthRouter);
 
 app.use("/api/admin/users", adminUsersRouter);
 app.use("/api/admin/inventory", adminInventoryRouter);
+app.use("/api/seller/inventory", adminInventoryRouter);
 app.use("/api/admin/tasks", adminTasksRouter);
 app.use("/api/worker/tasks", workerTasksRouter);
 app.use("/api/admin/lookups", adminLookupsRouter);
