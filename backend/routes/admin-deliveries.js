@@ -34,6 +34,16 @@ router.get("/ready-orders", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.get("/assigned-orders", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase().from("buyer_orders")
+      .select("id, order_number, total_amount, payment_method, order_status, assigned_driver_id, assigned_vehicle_id, delivery_assignment_status, delivery_full_name, delivery_mobile_number, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay, delivery_scheduled_at, delivery_window_end_at, assigned_driver:profiles!buyer_orders_assigned_driver_id_fkey(id, full_name), assigned_vehicle:delivery_vehicles(id, vehicle_name, plate_number)")
+      .not("assigned_driver_id", "is", null).order("delivery_scheduled_at", { ascending: true });
+    if (error) throw error;
+    return res.json({ orders: data || [] });
+  } catch (error) { return next(error); }
+});
+
 router.post("/:id/assign", async (req, res, next) => {
   try {
     const assignedDriverId = driverId(req.body.driver_id);
@@ -42,12 +52,29 @@ router.post("/:id/assign", async (req, res, next) => {
       .eq("id", assignedDriverId).eq("role", "farm_worker").eq("worker_category", "driver").single();
     if (driverError || !driver) throw httpError(400, "The selected worker is not a driver");
     const { data, error } = await getSupabase().from("buyer_orders")
-      .update({ assigned_driver_id: assignedDriverId, delivery_scheduled_at: schedule.start, delivery_window_end_at: schedule.end, driver_assigned_at: new Date().toISOString() })
+      .update({ assigned_driver_id: assignedDriverId, assigned_vehicle_id: null, delivery_assignment_status: 'assigned', delivery_accepted_at: null, delivery_picked_up_at: null, delivery_scheduled_at: schedule.start, delivery_window_end_at: schedule.end, driver_assigned_at: new Date().toISOString() })
       .eq("id", orderId(req.params.id)).eq("delivery_method", "delivery").eq("order_status", "preparing").is("assigned_driver_id", null)
       .select("id, order_number, assigned_driver_id, delivery_scheduled_at, delivery_window_end_at").maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "This order is no longer ready for driver assignment");
     return res.status(201).json({ order: data });
+  } catch (error) { return next(error); }
+});
+
+router.patch("/:id/assignment", async (req, res, next) => {
+  try {
+    const assignedDriverId = driverId(req.body.driver_id);
+    const schedule = readSchedule(req.body);
+    const { data: driver, error: driverError } = await getSupabase().from("profiles").select("id")
+      .eq("id", assignedDriverId).eq("role", "farm_worker").eq("worker_category", "driver").single();
+    if (driverError || !driver) throw httpError(400, "The selected worker is not a driver");
+    const { data, error } = await getSupabase().from("buyer_orders")
+      .update({ assigned_driver_id: assignedDriverId, delivery_scheduled_at: schedule.start, delivery_window_end_at: schedule.end })
+      .eq("id", orderId(req.params.id)).eq("delivery_method", "delivery").eq("order_status", "preparing").eq("delivery_assignment_status", "assigned")
+      .select("id, order_number, assigned_driver_id, delivery_scheduled_at, delivery_window_end_at").maybeSingle();
+    if (error) throw error;
+    if (!data) throw httpError(409, "Only unaccepted preparing delivery orders can be edited");
+    return res.json({ order: data });
   } catch (error) { return next(error); }
 });
 
