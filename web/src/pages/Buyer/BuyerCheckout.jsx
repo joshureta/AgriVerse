@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  CircleAlert,
   Check,
   Pencil,
   Plus,
@@ -87,6 +88,12 @@ export default function BuyerCheckout() {
   const [confirmedAddressId, setConfirmedAddressId] = useState(null)
   const [addressConfirmed, setAddressConfirmed] = useState(false)
   const [alternateAddress, setAlternateAddress] = useState(emptyAddress)
+
+  useEffect(() => {
+    if (!error) return undefined
+    const dismissTimer = window.setTimeout(() => setError(''), 4000)
+    return () => window.clearTimeout(dismissTimer)
+  }, [error])
 
   useEffect(() => {
     let active = true
@@ -191,6 +198,11 @@ export default function BuyerCheckout() {
   const shippingFee = deliveryMethod === 'delivery' && items.length > 0 ? 100 : 0
   const total = subtotal + shippingFee
 
+  function closeAddressModal() {
+    setAddressModalOpen(false)
+    setError('')
+  }
+
   function openAddressConfirmation() {
     const firstAvailableId = confirmedAddressId || addressSlots[0]?.id
     if (firstAvailableId) {
@@ -274,7 +286,7 @@ export default function BuyerCheckout() {
       await saveDefaultBuyerDeliveryAddress(pendingSlot.id)
       setConfirmedAddressId(pendingSlot.id)
       setAddressConfirmed(true)
-      setAddressModalOpen(false)
+      closeAddressModal()
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -310,7 +322,12 @@ export default function BuyerCheckout() {
         </header>
 
         {notice && <p className="checkout-notice" role="status">{notice}</p>}
-        {error && <div className="checkout-error" role="alert">{error}</div>}
+        {error && (
+          <aside className="checkout-error-toast" role="alert" aria-live="assertive">
+            <span className="checkout-error-toast-icon"><CircleAlert aria-hidden="true" /></span>
+            <div><strong>Unable to continue</strong><p>{error}</p></div>
+          </aside>
+        )}
 
         <section className="checkout-card checkout-address" aria-labelledby="delivery-address-title">
           <div className="checkout-address-head">
@@ -326,9 +343,9 @@ export default function BuyerCheckout() {
           </address> : <p className="checkout-address-empty">No delivery information has been added.</p>}
         </section>
 
-        {addressModalOpen && <div className="checkout-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAddressModalOpen(false) }}>
+        {addressModalOpen && <div className="checkout-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeAddressModal() }}>
           <section className="checkout-address-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-address-modal-title">
-            <header><div><span>Delivery information</span><h2 id="checkout-address-modal-title">{addressModalView === 'confirm' ? 'Choose Delivery Address' : 'Add Delivery Address'}</h2><p>{addressModalView === 'confirm' ? 'Choose an address slot, then confirm your selection.' : 'Complete the fields below to create an address slot.'}</p></div><button type="button" onClick={() => setAddressModalOpen(false)} aria-label="Close address form"><X /></button></header>
+            <header><div><span>Delivery information</span><h2 id="checkout-address-modal-title">{addressModalView === 'confirm' ? 'Choose Delivery Address' : 'Add Delivery Address'}</h2><p>{addressModalView === 'confirm' ? 'Choose an address slot, then confirm your selection.' : 'Complete the fields below to create an address slot.'}</p></div><button type="button" onClick={closeAddressModal} aria-label="Close address form"><X /></button></header>
             {addressModalView === 'confirm' ? <>
               <div className="checkout-address-slots" role="radiogroup" aria-label="Delivery addresses">
                 {addressSlots.map((slot) => <div key={slot.id} className={`checkout-address-confirmation ${pendingAddressId === slot.id ? 'is-pending' : ''} ${confirmedAddressId === slot.id ? 'is-confirmed' : ''}`} role="radio" aria-checked={pendingAddressId === slot.id} tabIndex={0} onClick={() => setPendingAddressId(slot.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setPendingAddressId(slot.id) } }}>
@@ -354,7 +371,7 @@ export default function BuyerCheckout() {
               </div>
               {addressSlots.length > 0 && <button type="button" className="checkout-use-saved" onClick={() => setAddressModalView('confirm')}>Back to address slots</button>}
             </>}
-            <footer><button type="button" className="is-cancel" onClick={() => addressModalView === 'edit' && addressSlots.length > 0 ? setAddressModalView('confirm') : setAddressModalOpen(false)}>{addressModalView === 'edit' && addressSlots.length > 0 ? 'Back' : 'Cancel'}</button>{addressModalView === 'confirm' ? <button type="button" className="is-save" disabled={!pendingSlot || savingAddress} onClick={confirmDeliveryAddress}>{savingAddress ? 'Saving default…' : 'Confirm Address'}</button> : <button type="button" className="is-save" disabled={!addressIsComplete(alternateAddress) || savingAddress} onClick={reviewDeliveryAddress}>{savingAddress ? 'Saving address…' : 'Add Address'}</button>}</footer>
+            <footer><button type="button" className="is-cancel" onClick={() => addressModalView === 'edit' && addressSlots.length > 0 ? setAddressModalView('confirm') : closeAddressModal()}>{addressModalView === 'edit' && addressSlots.length > 0 ? 'Back' : 'Cancel'}</button>{addressModalView === 'confirm' ? <button type="button" className="is-save" disabled={!pendingSlot || savingAddress} onClick={confirmDeliveryAddress}>{savingAddress ? 'Saving default…' : 'Confirm Address'}</button> : <button type="button" className="is-save" disabled={!addressIsComplete(alternateAddress) || savingAddress} onClick={reviewDeliveryAddress}>{savingAddress ? 'Saving address…' : 'Add Address'}</button>}</footer>
           </section>
         </div>}
 
