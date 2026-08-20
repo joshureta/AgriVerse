@@ -213,11 +213,12 @@ export default function UserManagement() {
                   aria-haspopup="listbox"
                   aria-expanded={filterOpen}
                 >
-                  <span>{roleOptions.find((option) => option.value === roleFilter)?.label}</span>
+                  <span>Filter by</span>
                   <i aria-hidden="true" />
                 </button>
                 {filterOpen && (
                   <div className="role-filter-menu" role="listbox" aria-label="Filter users by role">
+                    <p>Filter users by role</p>
                     {roleOptions.map((option) => (
                       <button
                         className={roleFilter === option.value ? 'is-selected' : ''}
@@ -239,7 +240,7 @@ export default function UserManagement() {
                 )}
               </div>
               <label className="user-search">
-                <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search full name" />
+                <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search users" />
                 <span aria-hidden="true">
                   <svg viewBox="0 0 24 24" focusable="false">
                     <circle cx="11" cy="11" r="6.5" />

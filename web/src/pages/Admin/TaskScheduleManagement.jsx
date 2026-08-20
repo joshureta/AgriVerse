@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardPlus, Send } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
@@ -10,7 +10,7 @@ import '../../styles/admin-dashboard.css'
 import '../../styles/task-schedule-management.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
-const PAGE_SIZE = 4
+const PAGE_SIZE = 10
 const emptyForm = {
   assigned_worker_id: '', worker_category: '', category_id: '', field_id: '', priority_id: '', status_id: '',
   start_date: '', start_time: '07:00', end_time: '08:00', estimated_duration_minutes: '60', description: '',
@@ -23,6 +23,13 @@ const workerCategoryLabels = {
   crop_management_worker: 'Crop Management Worker',
   driver: 'Driver',
 }
+const driverDeliveryStatuses = [
+  { code: 'delivery:assigned', status_name: 'Assigned' },
+  { code: 'delivery:accepted', status_name: 'Accepted' },
+  { code: 'delivery:picked_up', status_name: 'Picked Up' },
+  { code: 'delivery:out_for_delivery', status_name: 'Out for Delivery' },
+  { code: 'delivery:delivered', status_name: 'Delivered' },
+]
 
 async function readAccessToken(refresh = false) {
   const result = refresh ? await supabase.auth.refreshSession() : await supabase.auth.getSession()
@@ -90,6 +97,10 @@ function deliveryLocation(order) {
   return [order.delivery_full_name, order.delivery_barangay, order.delivery_city_municipality].filter(Boolean).join(' · ')
 }
 
+function deliveryAddressSummary(order) {
+  return [order.delivery_barangay, order.delivery_city_municipality, order.delivery_province].filter(Boolean).join(' · ') || 'Delivery address'
+}
+
 function minutesInWindow(startTime, endTime) {
   const [startHour, startMinute] = String(startTime || '').split(':').map(Number)
   const [endHour, endMinute] = String(endTime || '').split(':').map(Number)
@@ -124,6 +135,7 @@ export default function TaskScheduleManagement() {
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 })
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('')
+  const [filterOpen, setFilterOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -135,6 +147,7 @@ export default function TaskScheduleManagement() {
   const [deliveryEditForm, setDeliveryEditForm] = useState({ driver_id: '', delivery_date: '', start_time: '07:00', end_time: '08:00' })
   const [readyOrders, setReadyOrders] = useState([])
   const [refreshKey, setRefreshKey] = useState(0)
+  const filterRef = useRef(null)
   const statusLabels = useMemo(
     () => Object.fromEntries((options.statuses || []).map((status) => [status.code, status.status_name])),
     [options.statuses],
@@ -152,13 +165,14 @@ export default function TaskScheduleManagement() {
     [form.worker_category, options.workers],
   )
   const assigningDriver = modal?.mode === 'add' && selectedWorker?.worker_category === 'driver'
+  const isDriverStatusFilter = filter.startsWith('delivery:')
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
     setError('')
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
     if (search.trim()) params.set('search', search.trim())
-    if (filter) params.set('status', filter)
+    if (filter && !filter.startsWith('delivery:')) params.set('status', filter)
     try {
       const data = await apiRequest(`/api/admin/tasks?${params}`)
       setTasks(Array.isArray(data.tasks) ? data.tasks : [])
@@ -179,6 +193,16 @@ export default function TaskScheduleManagement() {
       )))
       .catch((requestError) => setError(requestError.message))
   }, [])
+
+  useEffect(() => {
+    if (!filterOpen) return undefined
+    function closeFilter(event) {
+      if (event.key === 'Escape' || !filterRef.current?.contains(event.target)) setFilterOpen(false)
+    }
+    document.addEventListener('mousedown', closeFilter)
+    document.addEventListener('keydown', closeFilter)
+    return () => { document.removeEventListener('mousedown', closeFilter); document.removeEventListener('keydown', closeFilter) }
+  }, [filterOpen])
 
   const loadAssignedDeliveryOrders = useCallback(async () => {
     try {
@@ -396,8 +420,9 @@ export default function TaskScheduleManagement() {
   const visibleSettings = activeTab === 'tasks' ? [] : settingsSource[settingsConfig.resource].filter((value) => !settingsSearch || `${value[settingsConfig.nameKey]} ${value.description || ''}`.toLowerCase().includes(settingsSearch))
   const visibleDeliveryOrders = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return deliveryOrders.filter((order) => !query || `${order.order_number} ${order.assigned_driver?.full_name || ''} ${deliveryLocation(order)}`.toLowerCase().includes(query))
-  }, [deliveryOrders, search])
+    const requestedStatus = filter.startsWith('delivery:') ? filter.slice('delivery:'.length) : ''
+    return deliveryOrders.filter((order) => (!filter || requestedStatus) && (!requestedStatus || order.delivery_assignment_status === requestedStatus) && (!query || `${order.order_number} ${order.assigned_driver?.full_name || ''} ${deliveryLocation(order)}`.toLowerCase().includes(query)))
+  }, [deliveryOrders, filter, search])
 
   return (
     <main className="admin-dashboard task-schedule-page">
@@ -430,7 +455,7 @@ export default function TaskScheduleManagement() {
               <button className={workView === 'deliveries' ? 'is-active' : ''} type="button" onClick={() => setWorkView('deliveries')}>Driver Deliveries</button>
             </nav>
             <div className="tasks-toolbar">
-              <label className="task-filter"><span className="sr-only">Filter tasks by status</span><select value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1) }}><option value="">Filter by</option>{options.statuses.map((status) => <option value={status.code} key={status.id}>{status.status_name}</option>)}</select><i aria-hidden="true" /></label>
+              <div className="task-filter" ref={filterRef}><button type="button" onClick={() => setFilterOpen((open) => !open)} aria-haspopup="listbox" aria-expanded={filterOpen}><span>Filter by</span><i aria-hidden="true" /></button>{filterOpen && <div className="task-filter-menu" role="listbox" aria-label="Filter work by status"><p>Filter crop tasks</p>{[{ id: 'all', code: '', status_name: 'All statuses' }, ...options.statuses].map((status) => <button type="button" role="option" aria-selected={filter === status.code} className={filter === status.code ? 'is-selected' : ''} key={status.id} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>)}<p className="task-filter-group">Filter delivery status</p>{driverDeliveryStatuses.map((status) => <button type="button" role="option" aria-selected={filter === status.code} className={filter === status.code ? 'is-selected' : ''} key={status.code} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>)}</div>}</div>
               <label className="task-search"><span className="sr-only">Search tasks</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search tasks" /><span aria-hidden="true" /></label>
               <button className="assign-task-toolbar-button" type="button" onClick={openNewTask} disabled={!options.workers.length}><span>＋</span>Assign New Task</button>
             </div>
@@ -444,12 +469,12 @@ export default function TaskScheduleManagement() {
                     : <tr><th>TYPE</th><th>ASSIGNED TO</th><th>ASSIGNMENT</th><th>LOCATION</th><th>SCHEDULE</th><th>STATUS</th><th>ACTIONS</th></tr>
                 }</thead>
                 <tbody>{loading && workView !== 'deliveries' ? <tr><td className="tasks-empty" colSpan="7">Loading work assignments…</td></tr> : <>
-                  {workView !== 'deliveries' && tasks.map((task) => workView === 'crop'
+                  {workView !== 'deliveries' && !isDriverStatusFilter && tasks.map((task) => workView === 'crop'
                     ? <tr key={`task-${task.id}`}><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-priority priority-${task.priority}`}>{task.priority_label}</span></td><td><span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></div></td></tr>
                     : <tr key={`task-${task.id}`}><td><span className="task-work-type is-crop">Crop Task</span></td><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></div></td></tr>)}
                   {workView !== 'crop' && visibleDeliveryOrders.map((order) => workView === 'deliveries'
                     ? <tr key={`delivery-${order.id}`}><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{[order.delivery_barangay, order.delivery_city_municipality, order.delivery_province, order.delivery_region].filter(Boolean).join(', ')}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td><span className={`task-status status-${order.delivery_assignment_status || 'assigned'}`}>{(order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}>View</button>{order.order_status === 'preparing' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>
-                    : <tr key={`delivery-${order.id}`}><td><span className="task-work-type is-delivery">Delivery</span></td><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong><small>₱{Number(order.total_amount).toLocaleString()} · {order.payment_method}</small></td><td>{deliveryLocation(order)}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td><span className={`task-status status-${order.delivery_assignment_status || 'assigned'}`}>{(order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}>View</button>{order.order_status === 'preparing' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>)}
+                    : <tr key={`delivery-${order.id}`}><td><span className="task-work-type is-delivery">Delivery</span></td><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong></td><td>{deliveryAddressSummary(order)}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td><span className={`task-status status-${order.delivery_assignment_status || 'assigned'}`}>{(order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}>View</button>{order.order_status === 'preparing' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>)}
                   {((workView === 'crop' && !tasks.length) || (workView === 'deliveries' && !visibleDeliveryOrders.length) || (workView === 'all' && !tasks.length && !visibleDeliveryOrders.length)) && <tr><td className="tasks-empty" colSpan="7">No work assignments found.</td></tr>}
                 </>}</tbody>
               </table>
@@ -476,21 +501,21 @@ export default function TaskScheduleManagement() {
       {modal?.mode === 'view' && <div className="task-modal-backdrop">
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-task-title">
           <TaskModalHeader title="View Task" />
-          <div className="task-reference-body">
+          <div className="task-reference-body task-view-body">
             <div className="task-dialog-grid">
-              <div className="task-dialog-main">
-                <label><span>Category</span><input value={modal.task.category} readOnly /></label>
-                <label><span>Worker</span><input value={modal.task.assigned_worker?.full_name || ''} readOnly /></label>
-                <label><span>Field</span><input value={modal.task.field} readOnly /></label>
+              <div className="task-dialog-main task-view-section">
+                <div className="task-view-item"><span>Category</span><strong>{modal.task.category}</strong></div>
+                <div className="task-view-item"><span>Assigned Worker</span><strong>{modal.task.assigned_worker?.full_name || 'Not assigned'}</strong></div>
+                <div className="task-view-item"><span>Field</span><strong>{modal.task.field}</strong></div>
               </div>
-              <div className="task-dialog-side">
-                <label><span>Priority Level</span><input value={modal.task.priority_label} readOnly /></label>
-                <label><span>Status Level</span><input value={modal.task.status_label || statusLabels[modal.task.status]} readOnly /></label>
-                <label><span>Start Date &amp; Time</span><div className="date-time-pair"><input value={localDateParts(modal.task.schedule_start).start_date} readOnly /><input value={localDateParts(modal.task.schedule_start).start_time} readOnly /></div></label>
-                <label><span>Estimated Duration</span><input value={durationLabel(modal.task.estimated_duration_minutes)} readOnly /></label>
+              <div className="task-dialog-side task-view-section">
+                <div className="task-view-item"><span>Priority</span><strong className={`task-view-priority priority-${modal.task.priority}`}>{modal.task.priority_label}</strong></div>
+                <div className="task-view-item"><span>Status</span><strong className={`task-view-status status-${modal.task.status}`}>{modal.task.status_label || statusLabels[modal.task.status]}</strong></div>
+                <div className="task-view-item"><span>Schedule</span><strong>{formatSchedule(modal.task.schedule_start)}</strong></div>
+                <div className="task-view-item"><span>Estimated Duration</span><strong>{durationLabel(modal.task.estimated_duration_minutes)}</strong></div>
               </div>
             </div>
-            <label className="task-description"><span>Description</span><textarea value={modal.task.description || ''} readOnly /></label>
+            <section className="task-view-description"><span>Description</span><p>{modal.task.description || 'No description added.'}</p></section>
             <footer><button type="button" onClick={() => setModal(null)}>Close</button></footer>
           </div>
         </section>
@@ -499,21 +524,21 @@ export default function TaskScheduleManagement() {
       {modal?.mode === 'view-delivery' && <div className="task-modal-backdrop">
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-delivery-title">
           <TaskModalHeader title="View Delivery Order" />
-          <div className="task-reference-body">
+          <div className="task-reference-body task-view-body">
             <div className="task-dialog-grid">
-              <div className="task-dialog-main">
-                <label><span>Order Number</span><input value={modal.order.order_number} readOnly /></label>
-                <label><span>Driver</span><input value={modal.order.assigned_driver?.full_name || 'Unassigned driver'} readOnly /></label>
-                <label><span>Customer</span><input value={modal.order.delivery_full_name || ''} readOnly /></label>
-                <label><span>Vehicle</span><input value={modal.order.assigned_vehicle ? `${modal.order.assigned_vehicle.vehicle_name} · ${modal.order.assigned_vehicle.plate_number}` : 'Not selected yet'} readOnly /></label>
+              <div className="task-dialog-main task-view-section">
+                <div className="task-view-item"><span>Order Number</span><strong>{modal.order.order_number}</strong></div>
+                <div className="task-view-item"><span>Driver</span><strong>{modal.order.assigned_driver?.full_name || 'Unassigned driver'}</strong></div>
+                <div className="task-view-item"><span>Customer</span><strong>{modal.order.delivery_full_name || 'Not provided'}</strong></div>
+                <div className="task-view-item"><span>Vehicle</span><strong>{modal.order.assigned_vehicle ? `${modal.order.assigned_vehicle.vehicle_name} · ${modal.order.assigned_vehicle.plate_number}` : 'Not selected yet'}</strong></div>
               </div>
-              <div className="task-dialog-side">
-                <label><span>Delivery Window</span><input value={formatDeliveryWindow(modal.order.delivery_scheduled_at, modal.order.delivery_window_end_at)} readOnly /></label>
-                <label><span>Payment</span><input value={modal.order.payment_method} readOnly /></label>
-                <label><span>Delivery Status</span><input value={(modal.order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')} readOnly /></label>
+              <div className="task-dialog-side task-view-section">
+                <div className="task-view-item"><span>Delivery Window</span><strong>{formatDeliveryWindow(modal.order.delivery_scheduled_at, modal.order.delivery_window_end_at)}</strong></div>
+                <div className="task-view-item"><span>Payment</span><strong>{modal.order.payment_method}</strong></div>
+                <div className="task-view-item"><span>Delivery Status</span><strong className={`task-view-status status-${modal.order.delivery_assignment_status || 'assigned'}`}>{(modal.order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</strong></div>
               </div>
             </div>
-            <label className="task-description"><span>Delivery Address</span><textarea value={[modal.order.delivery_barangay, modal.order.delivery_city_municipality, modal.order.delivery_province, modal.order.delivery_region].filter(Boolean).join(', ')} readOnly /></label>
+            <section className="task-view-description"><span>Delivery Address</span><p>{[modal.order.delivery_barangay, modal.order.delivery_city_municipality, modal.order.delivery_province, modal.order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'}</p></section>
             <footer><button type="button" onClick={() => setModal(null)}>Close</button></footer>
           </div>
         </section>
