@@ -13,6 +13,7 @@ import BuyerOrders from './pages/Buyer/BuyerOrders.jsx'
 import BuyerCheckout from './pages/Buyer/BuyerCheckout.jsx'
 import DeliveryProgress from './pages/Buyer/DeliveryProgress.jsx'
 import BuyerProfile from './pages/Buyer/BuyerProfile.jsx'
+import BuyerMessages from './pages/Buyer/BuyerMessages.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -50,6 +51,14 @@ function App() {
     return (
       <ProtectedRoute allowedRoles={['buyer']}>
         <BuyerProfile />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/buyer/messages') {
+    return (
+      <ProtectedRoute allowedRoles={['buyer']}>
+        <BuyerMessages />
       </ProtectedRoute>
     )
   }
