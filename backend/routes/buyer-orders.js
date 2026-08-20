@@ -9,7 +9,7 @@ const orderSelect = [
   "id, order_number, delivery_method, payment_method, payment_status, order_status",
   "subtotal, shipping_fee, total_amount, customer_note",
   "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
-  "estimated_delivery_at, confirmed_at, preparing_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
+  "estimated_delivery_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
   "items:buyer_order_items(id, pineapple_size_id, product_name, weight_label, quantity, unit_price, line_total)",
 ].join(",");
 

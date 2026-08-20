@@ -22,6 +22,7 @@ const statusRank = {
   pending: 0,
   confirmed: 1,
   preparing: 1,
+  ready_for_delivery: 1,
   out_for_delivery: 2,
   delivered: 3,
 }
@@ -30,6 +31,7 @@ const statusLabels = {
   pending: 'Pending',
   confirmed: 'Confirmed',
   preparing: 'Preparing',
+  ready_for_delivery: 'Ready for Delivery',
   out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',

@@ -3,12 +3,12 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 
 const router = express.Router();
-const allowedStatuses = new Set(["pending", "confirmed", "preparing", "out_for_delivery", "delivered", "cancelled"]);
+const allowedStatuses = new Set(["pending", "confirmed", "preparing", "ready_for_delivery", "out_for_delivery", "delivered", "cancelled"]);
 const orderSelect = [
   "id, order_number, buyer_id, delivery_method, payment_method, payment_status, order_status",
   "subtotal, shipping_fee, total_amount, customer_note",
   "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
-  "estimated_delivery_at, confirmed_at, preparing_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
+  "estimated_delivery_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
   "items:buyer_order_items(id, product_name, weight_label, quantity, unit_price, line_total)",
   "history:buyer_order_status_history(id, previous_status, new_status, note, created_at, changed_by)",
 ].join(",");

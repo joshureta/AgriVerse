@@ -18,20 +18,21 @@ import '../../styles/seller-order-management.css'
 
 const tabs = [
   { key: 'awaiting', label: 'Awaiting Confirmation', statuses: ['pending'] },
-  { key: 'fulfillment', label: 'In Fulfillment', statuses: ['confirmed', 'preparing', 'out_for_delivery'] },
+  { key: 'fulfillment', label: 'In Fulfillment', statuses: ['confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery'] },
   { key: 'completed', label: 'Completed', statuses: ['delivered', 'cancelled'] },
 ]
 
 const statusLabels = {
-  pending: 'Pending', confirmed: 'Confirmed', preparing: 'Packaging',
+  pending: 'Pending', confirmed: 'Confirmed', preparing: 'Packaging', ready_for_delivery: 'Ready for Delivery',
   out_for_delivery: 'In Transit', delivered: 'Delivered', cancelled: 'Cancelled',
 }
 
 const nextActions = {
   pending: [{ status: 'confirmed', label: 'Confirm' }, { status: 'cancelled', label: 'Cancel', danger: true }],
   confirmed: [{ status: 'preparing', label: 'Start Preparing' }, { status: 'cancelled', label: 'Cancel', danger: true }],
-  preparing: [{ status: 'out_for_delivery', label: 'Out for Delivery' }],
-  out_for_delivery: [{ status: 'delivered', label: 'Mark Delivered' }],
+  preparing: [{ status: 'ready_for_delivery', label: 'Ready for Delivery' }],
+  ready_for_delivery: [],
+  out_for_delivery: [],
 }
 
 function money(value) {
@@ -89,7 +90,7 @@ export default function SellerOrderManagement() {
   const counts = useMemo(() => ({
     total: orders.length,
     pending: orders.filter((order) => order.order_status === 'pending').length,
-    fulfillment: orders.filter((order) => ['confirmed', 'preparing', 'out_for_delivery'].includes(order.order_status)).length,
+    fulfillment: orders.filter((order) => ['confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery'].includes(order.order_status)).length,
     delivered: orders.filter((order) => order.order_status === 'delivered').length,
   }), [orders])
 

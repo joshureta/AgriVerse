@@ -43,7 +43,7 @@ router.post("/:id/accept", async (req, res, next) => {
     const id = orderId(req.params.id);
     const selectedVehicleId = vehicleId(req.body.vehicle_id);
     const order = await fetchDriverOrder(id, req.user.id);
-    if (order.delivery_assignment_status !== "assigned" || order.order_status !== "preparing") throw httpError(409, "This delivery is no longer waiting for acceptance");
+    if (order.delivery_assignment_status !== "assigned" || order.order_status !== "ready_for_delivery") throw httpError(409, "This delivery is no longer waiting for acceptance");
     const { data: vehicle, error: vehicleError } = await getSupabase().from("delivery_vehicles")
       .update({ status: "in_use" }).eq("id", selectedVehicleId).eq("status", "available").select("id").maybeSingle();
     if (vehicleError) throw vehicleError;

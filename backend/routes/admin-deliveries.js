@@ -27,7 +27,7 @@ router.get("/ready-orders", async (req, res, next) => {
   try {
     const { data, error } = await getSupabase().from("buyer_orders")
       .select("id, order_number, total_amount, payment_method, delivery_full_name, delivery_mobile_number, delivery_city_municipality, delivery_barangay, order_status")
-      .eq("delivery_method", "delivery").eq("order_status", "preparing").is("assigned_driver_id", null)
+      .eq("delivery_method", "delivery").eq("order_status", "ready_for_delivery").is("assigned_driver_id", null)
       .order("created_at", { ascending: true });
     if (error) throw error;
     return res.json({ orders: data || [] });
@@ -53,7 +53,7 @@ router.post("/:id/assign", async (req, res, next) => {
     if (driverError || !driver) throw httpError(400, "The selected worker is not a driver");
     const { data, error } = await getSupabase().from("buyer_orders")
       .update({ assigned_driver_id: assignedDriverId, assigned_vehicle_id: null, delivery_assignment_status: 'assigned', delivery_accepted_at: null, delivery_picked_up_at: null, delivery_scheduled_at: schedule.start, delivery_window_end_at: schedule.end, driver_assigned_at: new Date().toISOString() })
-      .eq("id", orderId(req.params.id)).eq("delivery_method", "delivery").eq("order_status", "preparing").is("assigned_driver_id", null)
+      .eq("id", orderId(req.params.id)).eq("delivery_method", "delivery").eq("order_status", "ready_for_delivery").is("assigned_driver_id", null)
       .select("id, order_number, assigned_driver_id, delivery_scheduled_at, delivery_window_end_at").maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "This order is no longer ready for driver assignment");
@@ -70,10 +70,10 @@ router.patch("/:id/assignment", async (req, res, next) => {
     if (driverError || !driver) throw httpError(400, "The selected worker is not a driver");
     const { data, error } = await getSupabase().from("buyer_orders")
       .update({ assigned_driver_id: assignedDriverId, delivery_scheduled_at: schedule.start, delivery_window_end_at: schedule.end })
-      .eq("id", orderId(req.params.id)).eq("delivery_method", "delivery").eq("order_status", "preparing").eq("delivery_assignment_status", "assigned")
+      .eq("id", orderId(req.params.id)).eq("delivery_method", "delivery").eq("order_status", "ready_for_delivery").eq("delivery_assignment_status", "assigned")
       .select("id, order_number, assigned_driver_id, delivery_scheduled_at, delivery_window_end_at").maybeSingle();
     if (error) throw error;
-    if (!data) throw httpError(409, "Only unaccepted preparing delivery orders can be edited");
+    if (!data) throw httpError(409, "Only unaccepted ready-for-delivery orders can be edited");
     return res.json({ order: data });
   } catch (error) { return next(error); }
 });
