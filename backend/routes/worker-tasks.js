@@ -24,6 +24,10 @@ router.use(
   requireInitialPasswordChanged,
   requireProfileOnboardingComplete,
 );
+router.use((req, res, next) => {
+  if (req.profile.worker_category === "driver") return res.status(403).json({ error: "Drivers receive delivery orders, not farm tasks" });
+  return next();
+});
 
 function httpError(status, message) {
   const error = new Error(message);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ClipboardPlus, Send } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
@@ -11,11 +12,16 @@ import '../../styles/task-schedule-management.css'
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 4
 const emptyForm = {
-  assigned_worker_id: '', category_id: '', field_id: '', priority_id: '', status_id: '',
-  start_date: '', start_time: '', estimated_duration_minutes: '60', description: '',
+  assigned_worker_id: '', worker_category: '', category_id: '', field_id: '', priority_id: '', status_id: '',
+  start_date: '', start_time: '07:00', end_time: '08:00', estimated_duration_minutes: '60', description: '',
 }
 const emptyOptions = {
   workers: [], categories: [], fields: [], priorities: [], statuses: [], scheduleStatuses: [],
+}
+const emptyDeliveryForm = { order_id: '', delivery_date: '', start_time: '07:00', end_time: '08:00' }
+const workerCategoryLabels = {
+  crop_management_worker: 'Crop Management Worker',
+  driver: 'Driver',
 }
 
 async function readAccessToken(refresh = false) {
@@ -73,24 +79,25 @@ function durationLabel(minutes) {
   return `${minutes} Minutes`
 }
 
-function ChecklistIcon() {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <circle cx="17" cy="12" r="9" fill="currentColor" />
-      <path d="m12.5 12 3 3 6-7" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M25 10h18a4 4 0 0 1 4 4v32a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V23" fill="currentColor" />
-      <path d="M23 24h16M23 32h16M23 40h10" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" opacity=".88" />
-      <g transform="rotate(36 47 43)"><rect x="43" y="29" width="8" height="27" rx="2" fill="currentColor" stroke="#fafcf5" strokeWidth="2" /><path d="m43 56 4 7 4-7" fill="currentColor" stroke="#fafcf5" strokeWidth="2" strokeLinejoin="round" /></g>
-    </svg>
-  )
+function minutesInWindow(startTime, endTime) {
+  const [startHour, startMinute] = String(startTime || '').split(':').map(Number)
+  const [endHour, endMinute] = String(endTime || '').split(':').map(Number)
+  const start = startHour * 60 + startMinute
+  const end = endHour * 60 + endMinute
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 420 || end > 1080 || end <= start) {
+    throw new Error('Select a schedule between 7:00 AM and 6:00 PM, with an end time after the start time.')
+  }
+  return end - start
 }
+
+function ChecklistIcon() { return <ClipboardPlus aria-hidden="true" /> }
 
 function SummaryCard({ label, value, icon, className = '' }) {
   return <article className={`task-summary-card ${className}`}><div><span>{label}</span><strong>{value}</strong></div><i aria-hidden="true">{icon}</i></article>
 }
 
 function TaskModalHeader({ title }) {
-  return <header className="task-dialog-header"><span><ChecklistIcon /></span><h2>{title}</h2></header>
+  return <header className="task-dialog-header"><div><p>Task scheduling</p><h2>{title}</h2></div></header>
 }
 
 export default function TaskScheduleManagement() {
@@ -111,11 +118,26 @@ export default function TaskScheduleManagement() {
   const [modal, setModal] = useState(null)
   const [settingsForm, setSettingsForm] = useState({ name: '', description: '' })
   const [form, setForm] = useState(emptyForm)
+  const [deliveryForm, setDeliveryForm] = useState(emptyDeliveryForm)
+  const [readyOrders, setReadyOrders] = useState([])
   const [refreshKey, setRefreshKey] = useState(0)
   const statusLabels = useMemo(
     () => Object.fromEntries((options.statuses || []).map((status) => [status.code, status.status_name])),
     [options.statuses],
   )
+  const selectedWorker = useMemo(
+    () => options.workers.find((worker) => worker.id === form.assigned_worker_id),
+    [form.assigned_worker_id, options.workers],
+  )
+  const availableWorkerCategories = useMemo(
+    () => [...new Set(options.workers.map((worker) => worker.worker_category).filter((category) => category && category !== 'seller'))],
+    [options.workers],
+  )
+  const visibleWorkers = useMemo(
+    () => options.workers.filter((worker) => !form.worker_category || worker.worker_category === form.worker_category),
+    [form.worker_category, options.workers],
+  )
+  const assigningDriver = modal?.mode === 'add' && selectedWorker?.worker_category === 'driver'
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
@@ -183,14 +205,20 @@ export default function TaskScheduleManagement() {
 
   function openNewTask() {
     setError('')
+    const initialWorker = options.workers.find((worker) => worker.worker_category !== 'driver') || options.workers[0]
     setForm({
       ...emptyForm,
-      assigned_worker_id: options.workers[0]?.id || '',
+      assigned_worker_id: initialWorker?.id || '',
+      worker_category: initialWorker?.worker_category || '',
       category_id: options.categories[0]?.id || '',
       field_id: options.fields[0]?.id || '',
       priority_id: options.priorities[0]?.id || '',
       status_id: options.statuses.find((status) => status.code === 'pending')?.id || options.statuses[0]?.id || '',
     })
+    setDeliveryForm(emptyDeliveryForm)
+    apiRequest('/api/admin/deliveries/ready-orders')
+      .then((data) => setReadyOrders(data.orders || []))
+      .catch((requestError) => setError(requestError.message))
     setModal({ mode: 'add' })
   }
 
@@ -198,11 +226,13 @@ export default function TaskScheduleManagement() {
     setError('')
     setForm({
       assigned_worker_id: task.assigned_worker_id,
+      worker_category: task.assigned_worker?.worker_category || '',
       category_id: task.category_id,
       field_id: task.field_id,
       priority_id: task.priority_id,
       status_id: task.status_id,
       ...localDateParts(task.schedule_start),
+      end_time: String(task.schedule?.end_time || '').slice(0, 5) || '08:00',
       estimated_duration_minutes: String(task.estimated_duration_minutes),
       description: task.description || '',
     })
@@ -215,6 +245,15 @@ export default function TaskScheduleManagement() {
     setError('')
     const editing = modal.mode === 'edit'
     try {
+      if (assigningDriver) {
+        await apiRequest(`/api/admin/deliveries/${encodeURIComponent(deliveryForm.order_id)}/assign`, {
+          method: 'POST',
+          body: JSON.stringify({ driver_id: form.assigned_worker_id, ...deliveryForm }),
+        })
+        setModal(null)
+        return
+      }
+      const estimatedDuration = minutesInWindow(form.start_time, form.end_time)
       await apiRequest(editing ? `/api/admin/tasks/${modal.task.id}` : '/api/admin/tasks', {
         method: editing ? 'PATCH' : 'POST',
         body: JSON.stringify({
@@ -225,7 +264,8 @@ export default function TaskScheduleManagement() {
           status_id: Number(form.status_id),
           schedule_date: form.start_date,
           start_time: form.start_time,
-          estimated_duration_minutes: Number(form.estimated_duration_minutes),
+          end_time: form.end_time,
+          estimated_duration_minutes: estimatedDuration,
           description: form.description,
         }),
       })
@@ -380,24 +420,25 @@ export default function TaskScheduleManagement() {
 
       {(modal?.mode === 'add' || modal?.mode === 'edit') && <div className="task-modal-backdrop">
         <section className="task-reference-modal assign-task-modal" role="dialog" aria-modal="true" aria-labelledby="assign-task-title">
-          <TaskModalHeader title={modal.mode === 'add' ? 'Assign New Task' : 'Edit Task'} />
+          <TaskModalHeader title={assigningDriver ? 'Assign Delivery Order' : modal.mode === 'add' ? 'Assign New Task' : 'Edit Task'} />
           <form className="task-reference-body" onSubmit={saveTask}>
             {error && <div className="task-modal-error" role="alert">{error}</div>}
             <div className="task-dialog-grid">
               <div className="task-dialog-main">
-                <label><span>Select Category</span><select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="" disabled>Select Category</option>{options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
-                <label><span>Select Worker</span><select value={form.assigned_worker_id} onChange={(event) => setForm({ ...form, assigned_worker_id: event.target.value })} required><option value="" disabled>Select Worker</option>{options.workers.map((worker) => <option value={worker.id} key={worker.id}>{worker.full_name}</option>)}</select></label>
-                <label><span>Select Field</span><select value={form.field_id} onChange={(event) => setForm({ ...form, field_id: event.target.value })} required><option value="" disabled>Select Field</option>{options.fields.map((field) => <option value={field.id} key={field.id}>{field.field_name}</option>)}</select></label>
+                <label><span>Farm Worker Category</span><select value={form.worker_category} onChange={(event) => { const workerCategory = event.target.value; const firstWorker = options.workers.find((worker) => worker.worker_category === workerCategory); setForm({ ...form, worker_category: workerCategory, assigned_worker_id: firstWorker?.id || '' }) }} required><option value="" disabled>Select Worker Category</option>{availableWorkerCategories.map((category) => <option value={category} key={category}>{workerCategoryLabels[category] || category}</option>)}</select></label>
+                <label><span>{assigningDriver ? 'Select Driver' : 'Select Worker'}</span><select value={form.assigned_worker_id} onChange={(event) => setForm({ ...form, assigned_worker_id: event.target.value })} required><option value="" disabled>{assigningDriver ? 'Select Driver' : 'Select Worker'}</option>{visibleWorkers.map((worker) => <option value={worker.id} key={worker.id}>{worker.full_name}</option>)}</select></label>
+                {!assigningDriver && <label><span>Select Task Category</span><select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="" disabled>Select Task Category</option>{options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>}
+                {assigningDriver ? <label><span>Select Ready Order</span><select value={deliveryForm.order_id} onChange={(event) => setDeliveryForm({ ...deliveryForm, order_id: event.target.value })} required><option value="" disabled>Select Order</option>{readyOrders.map((order) => <option value={order.id} key={order.id}>{order.order_number} — {order.delivery_full_name}</option>)}</select><small>{readyOrders.length ? 'Only preparing delivery orders without a driver are shown.' : 'No ready delivery orders are available.'}</small></label> : <label><span>Select Field</span><select value={form.field_id} onChange={(event) => setForm({ ...form, field_id: event.target.value })} required><option value="" disabled>Select Field</option>{options.fields.map((field) => <option value={field.id} key={field.id}>{field.field_name}</option>)}</select></label>}
               </div>
               <div className="task-dialog-side">
-                <label><span>Priority Level</span><select value={form.priority_id} onChange={(event) => setForm({ ...form, priority_id: event.target.value })} required><option value="" disabled>Select Level</option>{options.priorities.map((priority) => <option value={priority.id} key={priority.id}>{priority.priority_name}</option>)}</select></label>
+                {assigningDriver ? <><label><span>Delivery Date</span><input type="date" value={deliveryForm.delivery_date} onChange={(event) => setDeliveryForm({ ...deliveryForm, delivery_date: event.target.value })} required /></label><label><span>Delivery Window</span><div className="date-time-pair"><input type="time" min="07:00" max="17:59" value={deliveryForm.start_time} onChange={(event) => setDeliveryForm({ ...deliveryForm, start_time: event.target.value })} required /><input type="time" min="07:01" max="18:00" value={deliveryForm.end_time} onChange={(event) => setDeliveryForm({ ...deliveryForm, end_time: event.target.value })} required /></div><small>Schedule deliveries only from 7:00 AM to 6:00 PM.</small></label></> : <><label><span>Priority Level</span><select value={form.priority_id} onChange={(event) => setForm({ ...form, priority_id: event.target.value })} required><option value="" disabled>Select Level</option>{options.priorities.map((priority) => <option value={priority.id} key={priority.id}>{priority.priority_name}</option>)}</select></label>
                 {modal.mode === 'edit' && <label><span>Status Level</span><select value={form.status_id} onChange={(event) => setForm({ ...form, status_id: event.target.value })}>{options.statuses.map((status) => <option value={status.id} key={status.id}>{status.status_name}</option>)}</select></label>}
-                <label><span>Start Date &amp; Time</span><div className="date-time-pair"><input type="date" value={form.start_date} onChange={(event) => setForm({ ...form, start_date: event.target.value })} required /><input type="time" value={form.start_time} onChange={(event) => setForm({ ...form, start_time: event.target.value })} required /></div></label>
-                <label><span>Estimated Duration</span><select value={form.estimated_duration_minutes} onChange={(event) => setForm({ ...form, estimated_duration_minutes: event.target.value })}><option value="30">30 Minutes</option><option value="60">1 Hour</option><option value="120">2 Hours</option><option value="240">4 Hours</option><option value="480">8 Hours</option></select></label>
+                <label><span>Task Date</span><input type="date" value={form.start_date} onChange={(event) => setForm({ ...form, start_date: event.target.value })} required /></label>
+                <label><span>Task Window</span><div className="date-time-pair"><input type="time" min="07:00" max="17:59" value={form.start_time} onChange={(event) => setForm({ ...form, start_time: event.target.value })} required /><input type="time" min="07:01" max="18:00" value={form.end_time} onChange={(event) => setForm({ ...form, end_time: event.target.value })} required /></div></label></>}
               </div>
             </div>
-            <label className="task-description"><span>Description</span><textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} maxLength="2000" /></label>
-            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving}><span>⊕</span>{saving ? 'Saving…' : modal.mode === 'add' ? 'Assign Task' : 'Save Task'}</button></footer>
+            {!assigningDriver && <label className="task-description"><span>Description</span><textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} maxLength="2000" /></label>}
+            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving || (assigningDriver && (!deliveryForm.order_id || !deliveryForm.delivery_date))}><Send aria-hidden="true" />{saving ? 'Saving…' : assigningDriver ? 'Assign Order' : modal.mode === 'add' ? 'Assign Task' : 'Save Task'}</button></footer>
           </form>
         </section>
       </div>}

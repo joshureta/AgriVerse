@@ -16,6 +16,8 @@ const buyerProductsRouter = require("./routes/buyer-products");
 const buyerOrdersRouter = require("./routes/buyer-orders");
 const { router: mobileAuthRouter } = require("./routes/mobile-auth");
 const sellerOrdersRouter = require("./routes/seller-orders");
+const adminDeliveriesRouter = require("./routes/admin-deliveries");
+const driverOrdersRouter = require("./routes/driver-orders");
 
 const app = express();
 
@@ -78,9 +80,11 @@ app.use("/api/admin/tasks", adminTasksRouter);
 app.use("/api/worker/tasks", workerTasksRouter);
 app.use("/api/admin/lookups", adminLookupsRouter);
 app.use("/api/admin/schedules", adminSchedulesRouter);
+app.use("/api/admin/deliveries", adminDeliveriesRouter);
 app.use("/api/buyer/products", buyerProductsRouter);
 app.use("/api/buyer/orders", buyerOrdersRouter);
 app.use("/api/seller/orders", sellerOrdersRouter);
+app.use("/api/driver/orders", driverOrdersRouter);
 
 const PORT = process.env.PORT || 5000;
 

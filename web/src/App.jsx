@@ -20,6 +20,7 @@ import Register from './pages/Register.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 import SellerDashboard from './pages/FarmWorker/SellerDashboard.jsx'
 import SellerOrderManagement from './pages/FarmWorker/SellerOrderManagement.jsx'
+import DriverOrders from './pages/FarmWorker/DriverOrders.jsx'
 
 function App() {
   const path = window.location.pathname
@@ -51,6 +52,14 @@ function App() {
     return (
       <ProtectedRoute allowedRoles={['buyer']}>
         <BuyerProfile />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/driver' || path === '/driver/orders' || path === '/farm-worker/deliveries') {
+    return (
+      <ProtectedRoute allowedRoles={['farm_worker']} allowedWorkerCategories={['driver']}>
+        <DriverOrders />
       </ProtectedRoute>
     )
   }
