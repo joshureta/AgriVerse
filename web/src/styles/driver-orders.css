@@ -1,0 +1,10 @@
+.driver-delivery-card { display: grid; gap: 10px; }
+.driver-delivery-card > header, .driver-delivery-card > p, .driver-delivery-card > footer { margin: 0; }
+.driver-delivery-status { display: inline-flex; width: fit-content; margin-top: 4px; border-radius: 999px; padding: 4px 8px; color: #246c36; background: #e4f2df; font-size: 8px; font-weight: 850; text-transform: capitalize; }
+.driver-delivery-status.is-picked_up { color: #756017; background: #fff2c5; }.driver-delivery-status.is-out_for_delivery { color: #465e91; background: #e4edff; }.driver-delivery-status.is-delivered { color: #176b34; background: #dff2dc; }
+.driver-delivery-actions { display: grid; gap: 8px; border-top: 1px solid #e7ece4; padding-top: 12px; }
+.driver-delivery-actions label { display: grid; gap: 5px; color: #4f5e51; font-size: 9px; font-weight: 800; }
+.driver-delivery-actions select { min-height: 37px; border: 1px solid #a7c6aa; border-radius: 7px; padding: 0 9px; color: #263229; background: #fff; font: inherit; font-size: 10px; }
+.driver-delivery-actions button { min-height: 37px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 7px; color: #fff; background: #24743a; font: inherit; font-size: 10px; font-weight: 850; cursor: pointer; }.driver-delivery-actions button:disabled { opacity: .55; cursor: wait; }.driver-delivery-actions button svg { width: 15px; }
+.driver-delivery-actions p, .driver-delivery-actions small { margin: 0; color: #637165; font-size: 9px; }
+.driver-delivery-complete { display: inline-flex; align-items: center; gap: 6px; width: fit-content; color: #1a7037; font-size: 10px; font-weight: 850; }.driver-delivery-complete svg { width: 16px; }

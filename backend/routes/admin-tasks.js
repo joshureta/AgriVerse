@@ -80,9 +80,10 @@ function addMinutes(time, minutes) {
 }
 
 async function ensureFarmWorker(workerId) {
-  const { data, error } = await getSupabase().from("profiles").select("id")
+  const { data, error } = await getSupabase().from("profiles").select("id, worker_category")
     .eq("id", workerId).eq("role", "farm_worker").single();
   if (error || !data) throw httpError(400, "The selected user is not an available farm worker");
+  if (["driver", "seller"].includes(data.worker_category)) throw httpError(400, "Drivers and sellers cannot be assigned farm tasks");
 }
 
 async function ensureActive(table, id, label, select = "id") {
@@ -124,6 +125,7 @@ async function readTaskBody(body) {
   const startTime = readTime(body.start_time, "Start time");
   const endTime = body.end_time ? readTime(body.end_time, "End time") : addMinutes(startTime, duration);
   if (endTime <= startTime) throw httpError(400, "Schedule end time must be after start time");
+  if (startTime < "07:00:00" || endTime > "18:00:00") throw httpError(400, "Tasks must be scheduled between 7:00 AM and 6:00 PM");
 
   const scheduleCode = taskStatus.code === "pending" ? "scheduled" : taskStatus.code;
   const scheduleStatus = await ensureActive("schedule_statuses", body.schedule_status_id || body.schedule_status?.id || await lookupIdByCode("schedule_statuses", scheduleCode), "Schedule status", "id, code");
@@ -177,7 +179,7 @@ router.get("/options", async (req, res, next) => {
   try {
     const supabase = getSupabase();
     const [workers, categories, fields, priorities, statuses, scheduleStatuses] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, worker_category").eq("role", "farm_worker").order("full_name"),
+      supabase.from("profiles").select("id, full_name, worker_category").eq("role", "farm_worker").neq("worker_category", "seller").order("full_name"),
       supabase.from("task_categories").select("id, category_name").eq("status", true).order("category_name"),
       supabase.from("farm_fields").select("id, field_name").eq("status", true).order("field_name"),
       supabase.from("task_priorities").select("id, priority_name, code").eq("status", true).order("sort_order"),

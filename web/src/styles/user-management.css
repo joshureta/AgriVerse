@@ -7,15 +7,16 @@
 .users-panel { overflow: hidden; border: 1px solid #dce5d8; border-radius: 9px; background: #fff; box-shadow: 0 12px 28px rgba(42,76,38,.05); }
 .users-toolbar { display: grid; grid-template-columns: 138px minmax(280px,560px) 1fr; align-items: center; gap: 12px; padding: 10px 14px; background: #fff; }
 .role-filter { position: relative; min-width: 0; }
-.role-filter-trigger { width: 100%; height: 36px; min-height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 8px; box-sizing: border-box; border: 1px solid #b8cfba; border-radius: 7px; padding: 0 11px; color: #16291b; background: #f9fbf8; font: inherit; text-align: left; cursor: pointer; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+.role-filter-trigger { width: 100%; height: 36px; min-height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 8px; box-sizing: border: 0; border-radius: 7px; padding: 0 14px; color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); box-shadow: 0 8px 16px rgba(25,108,53,.14); font: inherit; text-align: left; cursor: pointer; transition: filter 160ms ease, box-shadow 160ms ease; }
 .role-filter-trigger > span { min-width: 0; overflow: hidden; font-size: 11px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-.role-filter-trigger > i { width: 7px; height: 7px; box-sizing: border-box; flex: 0 0 7px; margin-right: 2px; border-right: 1.5px solid #1c6b35; border-bottom: 1.5px solid #1c6b35; transform: rotate(45deg) translateY(-2px); transition: transform 160ms ease; }
-.role-filter-trigger[aria-expanded='true'] { border-color: #267a40; border-radius: 7px 7px 5px 5px; background: #fff; box-shadow: 0 0 0 3px rgba(38,122,64,.12); }
+.role-filter-trigger > i { width: 8px; height: 8px; box-sizing: border-box; flex: 0 0 8px; margin-right: 2px; border-right: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(45deg) translateY(-2px); transition: transform 160ms ease; }
+.role-filter-trigger:hover, .role-filter-trigger:focus-visible { filter: brightness(1.05); outline: 3px solid rgba(38,122,64,.14); }.role-filter-trigger[aria-expanded='true'] { border-radius: 7px; filter: brightness(.96); }
 .role-filter-trigger[aria-expanded='true'] > i { transform: rotate(-135deg) translate(-1px,-1px); }
-.role-filter-menu { position: absolute; z-index: 20; top: calc(100% + 5px); left: 0; width: max(100%,158px); box-sizing: border-box; overflow: hidden; border: 1px solid #cad9c9; border-radius: 7px; padding: 4px; background: #fff; box-shadow: 0 12px 24px rgba(20,70,32,.16); }
-.role-filter-menu button { width: 100%; min-height: 31px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 0; border-radius: 5px; padding: 0 9px; color: #26352a; background: transparent; font: inherit; font-size: 10px; font-weight: 700; text-align: left; cursor: pointer; }
+.role-filter-menu { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: max(100%,190px); box-sizing: border-box; overflow: hidden; border: 1px solid #c8d9c8; border-radius: 8px; padding: 6px; background: #fff; box-shadow: 0 12px 24px rgba(20,70,32,.16); }
+.role-filter-menu p { margin: 3px 7px 6px; color: #738176; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.role-filter-menu button { width: 100%; min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 0; border-radius: 5px; padding: 0 9px; color: #26352a; background: #fff; font: inherit; font-size: 10px; font-weight: 750; text-align: left; cursor: pointer; }
 .role-filter-menu button:hover, .role-filter-menu button:focus-visible { color: #165e2d; background: #edf6eb; outline: none; }
-.role-filter-menu button.is-selected { color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); }
+.role-filter-menu button.is-selected { color: #fff; background: #24743a; }
 .role-filter-menu button i { font-style: normal; font-size: 12px; }
 .user-search { height: 36px; min-height: 36px; box-sizing: border-box; border: 1px solid #b8cfba; border-radius: 7px; background: #f9fbf8; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
 .user-search:focus-within { border-color: #267a40; background: #fff; box-shadow: 0 0 0 3px rgba(38,122,64,.12); }
