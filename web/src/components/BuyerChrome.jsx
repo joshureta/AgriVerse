@@ -26,7 +26,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
     <header className="buyer-site-header">
       <div className="buyer-header-main">
         <div className="buyer-header-alerts" aria-label="Messages and notifications">
-          <a className="buyer-icon-link" href="/buyer#messages" aria-label="Messages">
+          <a className="buyer-icon-link" href="/buyer/messages" aria-label="Messages">
             <MessageCircle aria-hidden="true" />
             <span className="buyer-status-dot">1</span>
           </a>
@@ -73,6 +73,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
           <a href="/buyer">Home</a>
           <a href="/buyer/order">Order</a>
           <a href="/buyer/cart">Shopping Cart</a>
+          <a href="/buyer/messages">Messages</a>
           <a href="/buyer/delivery-progress">My Orders</a>
           <a href="/buyer/profile">My Profile</a>
           <button type="button" onClick={handleSignOut}>Sign Out</button>
