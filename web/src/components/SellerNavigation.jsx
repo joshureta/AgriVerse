@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth.js'
 
 const sellerLinks = [
   { href: '/farm-worker/dashboard', icon: 'dashboard', label: 'Dashboard', key: 'dashboard' },
-  { href: '/farm-worker/dashboard#inventory', icon: 'operations', label: 'Inventory Management', key: 'inventory' },
+  { href: '/farm-worker/inventory', icon: 'operations', label: 'Inventory Management', key: 'inventory' },
   { href: '/farm-worker/orders', icon: 'records', label: 'Order Management', key: 'orders' },
 ]
 
