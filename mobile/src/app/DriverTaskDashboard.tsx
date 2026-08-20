@@ -17,14 +17,8 @@ import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { DriverOrder, DriverOrdersResponse, formatDeliveryAddress, isActiveDelivery } from '@/lib/driver-deliveries';
 
-type TaskStatus = 'pending' | 'in_progress' | 'completed';
-type WorkerTask = {
-  id: number;
-  category: string;
-  status: TaskStatus;
-  description: string | null;
-};
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
 const COLORS = {
@@ -102,26 +96,29 @@ function ClipboardIcon() {
   );
 }
 
-function TaskRow({ task }: { task: WorkerTask }) {
-  const isLoading = task.status === 'in_progress';
+function TaskRow({ order }: { order: DriverOrder }) {
+  const isActive = isActiveDelivery(order);
+
   return (
     <View style={styles.taskCard}>
       <View style={styles.taskThumbnail}>
         <Image source={equipmentImage} style={styles.taskVehicle} />
       </View>
       <View style={styles.taskCopy}>
-        <Text style={styles.taskCategory}>{task.category || 'Delivery'}</Text>
-        <Text numberOfLines={1} style={styles.taskDescription}>{task.description || `${task.category} task`}</Text>
+        <Text style={styles.taskCategory}>{order.order_number}</Text>
+        <Text numberOfLines={1} style={styles.taskDescription}>
+          {formatDeliveryAddress(order)}
+        </Text>
       </View>
-      {isLoading ? <ActivityIndicator color="#70736f" size="small" /> : <View style={styles.statusDot} />}
+      {isActive ? <ActivityIndicator color="#70736f" size="small" /> : <View style={styles.statusDot} />}
     </View>
   );
 }
 
-export default function WorkerTaskDashboardScreen() {
+export default function DriverTaskDashboardScreen() {
   const { width } = useWindowDimensions();
   const { loading: authLoading, profile } = useAuth();
-  const [tasks, setTasks] = useState<WorkerTask[]>([]);
+  const [orders, setOrders] = useState<DriverOrder[]>([]);
   const [summary, setSummary] = useState<TaskSummary>({ pending: 0, active: 0, completed: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -131,13 +128,18 @@ export default function WorkerTaskDashboardScreen() {
     refresh ? setRefreshing(true) : setLoading(true);
     setError('');
     try {
-      const response = await apiRequest<{ tasks: WorkerTask[]; summary: TaskSummary }>('/api/worker/tasks');
-      setTasks(response.tasks);
-      setSummary(response.summary);
+      const response = await apiRequest<DriverOrdersResponse>('/api/driver/orders');
+      const assignedOrders = response.orders ?? [];
+      const pending = assignedOrders.filter((order) => order.delivery_assignment_status === 'assigned').length;
+      const active = assignedOrders.filter(isActiveDelivery).length;
+      const completed = assignedOrders.filter((order) => order.delivery_assignment_status === 'delivered').length;
+
+      setOrders(assignedOrders);
+      setSummary({ pending, active, completed, total: pending + active + completed });
     } catch (caught) {
-      setTasks([]);
+      setOrders([]);
       setSummary({ pending: 0, active: 0, completed: 0, total: 0 });
-      setError(caught instanceof Error ? caught.message : 'Could not load assigned tasks.');
+      setError(caught instanceof Error ? caught.message : 'Could not load assigned deliveries.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -168,10 +170,10 @@ export default function WorkerTaskDashboardScreen() {
           <WeatherCard />
 
           <View style={styles.metricsRow}>
-            <MetricCard color="#afd28b" label="Total Tasks" value={summary.total} />
-            <MetricCard color="#a6b28f" label="Pending Tasks" value={summary.pending} />
-            <MetricCard color="#70a77f" label="Active Tasks" value={summary.active} />
-            <MetricCard color="#8da879" label="Completed Tasks" value={summary.completed} />
+            <MetricCard color="#afd28b" label="Total Deliveries" value={summary.total} />
+            <MetricCard color="#a6b28f" label="Pending Deliveries" value={summary.pending} />
+            <MetricCard color="#70a77f" label="Active Deliveries" value={summary.active} />
+            <MetricCard color="#8da879" label="Completed Deliveries" value={summary.completed} />
           </View>
 
           <Text style={styles.equipmentTitle}>Equipment Status</Text>
@@ -181,9 +183,9 @@ export default function WorkerTaskDashboardScreen() {
             <EquipmentCard label="Available" tint="#1e7639" />
           </View>
 
-          <View style={styles.sectionHeading}><ClipboardIcon /><Text style={styles.sectionTitle}>Today’s Tasks</Text></View>
+          <View style={styles.sectionHeading}><ClipboardIcon /><Text style={styles.sectionTitle}>Today’s Deliveries</Text></View>
           {error ? <Text style={styles.loadError}>{error}</Text> : null}
-          {loading ? <ActivityIndicator style={styles.loader} color={COLORS.deepGreen} /> : tasks.slice(0, 3).map((task) => <TaskRow key={task.id} task={task} />)}
+          {loading ? <ActivityIndicator style={styles.loader} color={COLORS.deepGreen} /> : orders.slice(0, 3).map((order) => <TaskRow key={order.id} order={order} />)}
         </ScrollView>
         <WorkerBottomNavigation activeTab="home" />
       </View>

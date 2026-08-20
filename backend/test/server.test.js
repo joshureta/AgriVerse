@@ -262,3 +262,25 @@ test("seller order routes require an access token", async () => {
   assert.equal(response.status, 401);
   assert.equal(body.error, "Authentication required");
 });
+
+test("driver order routes require an access token", async () => {
+  for (const [path, options] of [
+    ["/api/driver/orders", undefined],
+    ["/api/driver/orders/vehicles", undefined],
+    ["/api/driver/orders/1/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vehicle_id: 1 }),
+    }],
+    ["/api/driver/orders/1/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "picked_up" }),
+    }],
+  ]) {
+    const response = await fetch(`${baseUrl}${path}`, options);
+    const body = await response.json();
+    assert.equal(response.status, 401);
+    assert.equal(body.error, "Authentication required");
+  }
+});
