@@ -33,6 +33,14 @@ function App() {
     )
   }
 
+  if (path === '/farm-worker/inventory' || path === '/seller/inventory') {
+    return (
+      <ProtectedRoute allowedRoles={['farm_worker']} allowedWorkerCategories={['seller']}>
+        <InventoryManagement workspace="seller" initialView="stock" />
+      </ProtectedRoute>
+    )
+  }
+
   if (
     path === '/farm-worker/dashboard' ||
     path === '/seller' ||
