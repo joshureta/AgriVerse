@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import archiveIcon from '../../assets/archive-inventory-icon.png'
 import inventoryIcon from '../../assets/inventory-management-icon-green.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import { SellerSidebar, SellerTopbar } from '../../components/SellerNavigation.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/inventory-management.css'
@@ -80,8 +81,8 @@ function categoryDetails(item) {
   return item.variant === '—' ? 'General inventory item' : item.variant
 }
 
-export default function InventoryManagement() {
-  const [activeView, setActiveView] = useState('items')
+export default function InventoryManagement({ workspace = 'admin', initialView = 'items' }) {
+  const [activeView, setActiveView] = useState(initialView)
   const [items, setItems] = useState([])
   const [stockHistory, setStockHistory] = useState([])
   const [options, setOptions] = useState({ categories: [], units: [], pineappleSizes: [], equipmentTypes: [] })
@@ -98,6 +99,9 @@ export default function InventoryManagement() {
   const [itemForm, setItemForm] = useState(emptyItemForm)
   const [categoryForm, setCategoryForm] = useState({ category_name: '', description: '' })
   const [refreshKey, setRefreshKey] = useState(0)
+  const inventoryApi = workspace === 'seller' ? '/api/seller/inventory' : '/api/admin/inventory'
+  const Sidebar = workspace === 'seller' ? SellerSidebar : AdminSidebar
+  const Topbar = workspace === 'seller' ? SellerTopbar : AdminTopbar
 
   const selectedCategory = options.categories.find(
     (category) => String(category.id) === String(itemForm.inventory_category_id),
@@ -114,7 +118,7 @@ export default function InventoryManagement() {
     if (activeView === 'items') params.set('excludePineapple', 'true')
 
     try {
-      const data = await apiRequest(`/api/admin/inventory?${params}`)
+      const data = await apiRequest(`${inventoryApi}?${params}`)
       setItems(data.items || [])
       setPagination(data.pagination || { page, total: 0, totalPages: 1 })
     } catch (requestError) {
@@ -123,20 +127,22 @@ export default function InventoryManagement() {
     } finally {
       setLoading(false)
     }
-  }, [activeView, page, search, type])
+  }, [activeView, inventoryApi, page, search, type])
 
-  const loadOptions = useCallback(() => apiRequest('/api/admin/inventory/options')
+  const loadOptions = useCallback(() => apiRequest(`${inventoryApi}/options`)
     .then((data) => setOptions(data))
-    .catch((requestError) => setError(requestError.message)), [])
+    .catch((requestError) => setError(requestError.message)), [inventoryApi])
 
-  useEffect(() => { loadOptions() }, [loadOptions])
+  useEffect(() => {
+    if (workspace === 'admin') loadOptions()
+  }, [loadOptions, workspace])
 
   const loadStockHistory = useCallback(async () => {
     if (activeView !== 'stock') return
     setHistoryLoading(true)
     setHistoryError('')
     try {
-      const data = await apiRequest('/api/admin/inventory/stock-history?limit=10')
+      const data = await apiRequest(`${inventoryApi}/stock-history?limit=10`)
       setStockHistory(data.movements || [])
     } catch (requestError) {
       setStockHistory([])
@@ -144,7 +150,7 @@ export default function InventoryManagement() {
     } finally {
       setHistoryLoading(false)
     }
-  }, [activeView])
+  }, [activeView, inventoryApi])
 
   useEffect(() => {
     const delay = window.setTimeout(loadItems, search ? 300 : 0)
@@ -211,7 +217,7 @@ export default function InventoryManagement() {
     setSaving(true)
     setError('')
     try {
-      await apiRequest(`/api/admin/inventory/${modal.item.id}/stock`, {
+      await apiRequest(`${inventoryApi}/${modal.item.id}/stock`, {
         method: 'POST', body: JSON.stringify({ quantity }),
       })
       setModal(null)
@@ -252,14 +258,14 @@ export default function InventoryManagement() {
       if (editing) delete payload.stock_quantity
       else payload.stock_quantity = Number(itemForm.stock_quantity)
       await apiRequest(
-        editing ? `/api/admin/inventory/${modal.item.id}` : '/api/admin/inventory',
+        editing ? `${inventoryApi}/${modal.item.id}` : inventoryApi,
         {
           method: editing ? 'PATCH' : 'POST',
           body: JSON.stringify(payload),
         },
       )
       if (editing && stockToAdd > 0) {
-        await apiRequest(`/api/admin/inventory/${modal.item.id}/stock`, {
+        await apiRequest(`${inventoryApi}/${modal.item.id}/stock`, {
           method: 'POST',
           body: JSON.stringify({ quantity: stockToAdd }),
         })
@@ -279,7 +285,7 @@ export default function InventoryManagement() {
     setSaving(true)
     setError('')
     try {
-      await apiRequest('/api/admin/inventory/categories', {
+      await apiRequest(`${inventoryApi}/categories`, {
         method: 'POST',
         body: JSON.stringify(categoryForm),
       })
@@ -296,7 +302,7 @@ export default function InventoryManagement() {
     if (!window.confirm(`Archive ${item.item_name} (${item.variant})?`)) return
     setError('')
     try {
-      await apiRequest(`/api/admin/inventory/${item.id}/archive`, { method: 'POST' })
+      await apiRequest(`${inventoryApi}/${item.id}/archive`, { method: 'POST' })
       if (items.length === 1 && page > 1) setPage((value) => value - 1)
       else setRefreshKey((value) => value + 1)
     } catch (requestError) {
@@ -307,7 +313,7 @@ export default function InventoryManagement() {
   async function restoreItem(item) {
     setError('')
     try {
-      await apiRequest(`/api/admin/inventory/${item.id}/restore`, { method: 'POST' })
+      await apiRequest(`${inventoryApi}/${item.id}/restore`, { method: 'POST' })
       if (items.length === 1 && page > 1) setPage((value) => value - 1)
       else setRefreshKey((value) => value + 1)
     } catch (requestError) {
@@ -316,17 +322,22 @@ export default function InventoryManagement() {
   }
 
   return (
-    <main className="admin-dashboard inventory-page">
-      <AdminSidebar active="inventory" />
+    <main className={`admin-dashboard inventory-page${workspace === 'seller' ? ' seller-inventory-page' : ''}`}>
+      <Sidebar active="inventory" />
       <section className="admin-workspace">
-        <AdminTopbar />
+        <Topbar />
         <div className="inventory-content">
           <header className="inventory-heading">
             <div className="inventory-title"><img src={inventoryIcon} alt="" /><h1>Inventory Management</h1></div>
           </header>
 
           <section className="inventory-browser">
-            <nav className="inventory-view-tabs" aria-label="Inventory views" role="tablist">
+            {workspace === 'seller' ? <header className="seller-stock-banner">
+              <div className="seller-stock-banner-title">
+                <div><h2>Pineapple Stock</h2><p>Monitor available pineapple sizes and record new stock arrivals.</p></div>
+              </div>
+              <span className="seller-stock-live"><i aria-hidden="true" />Live stock tracking</span>
+            </header> : <nav className="inventory-view-tabs" aria-label="Inventory views" role="tablist">
               <button className={activeView === 'items' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeView === 'items'} onClick={() => changeView('items')}>
                 <span>Inventory Items</span>
               </button>
@@ -336,7 +347,7 @@ export default function InventoryManagement() {
               <button className={activeView === 'archive' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeView === 'archive'} onClick={() => changeView('archive')}>
                 <span>Archived Items</span>
               </button>
-            </nav>
+            </nav>}
 
             {activeView !== 'stock' && <div className="inventory-category-tabs" role="group" aria-label="Filter inventory by category">
               <button className={!type ? 'is-active' : ''} type="button" onClick={() => { setType(''); setPage(1) }}>All</button>
