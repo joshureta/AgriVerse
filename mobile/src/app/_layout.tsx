@@ -39,6 +39,14 @@ export default function RootLayout() {
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
           <Stack.Screen
+            name="login"
+            options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
+          />
+          <Stack.Screen
+            name="signup"
+            options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
+          />
+          <Stack.Screen
             name="WorkerTaskCompletion"
             options={{ contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
           />

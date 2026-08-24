@@ -4,8 +4,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
-  ImageBackground,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -63,7 +61,7 @@ function ChoiceModal({ title, items, visible, onClose, onSelect }: { title: stri
   </Modal>;
 }
 
-export default function SignUpScreen() {
+export default function SignUpScreen({ embedded = false, onSignIn }: { embedded?: boolean; onSignIn?: () => void }) {
   const { signIn } = useAuth();
   const [step, setStep] = useState(0);
   const [fullName, setFullName] = useState('');
@@ -164,13 +162,11 @@ export default function SignUpScreen() {
 
   function next() { if (validateStep()) setStep((current) => Math.min(2, current + 1)); }
 
-  return <SafeAreaView style={styles.safeArea}>
+  return <SafeAreaView style={[styles.safeArea, embedded && styles.embeddedSafeArea]}>
     <StatusBar style="dark" />
-    <ImageBackground source={require('@/assets/images/authentication-farm.png')} resizeMode="cover" style={styles.background}><View style={styles.backgroundTint} /></ImageBackground>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
-          <Image source={require('@/assets/images/toledo-trading-logo.png')} resizeMode="contain" style={styles.logo} />
+        <View style={[styles.card, embedded && styles.embeddedCard]}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Complete three quick steps to get started.</Text>
           <View accessibilityLabel={`Step ${step + 1} of 3: ${steps[step]}`} style={styles.stepper}>{steps.map((label, index) => <View key={label} style={styles.stepItem}><View style={[styles.stepCircle, index <= step && styles.stepCircleActive]}><Text style={[styles.stepNumber, index <= step && styles.stepNumberActive]}>{index < step ? '✓' : index + 1}</Text></View><Text style={[styles.stepLabel, index === step && styles.stepLabelActive]}>{label}</Text>{index < 2 ? <View style={[styles.stepLine, index < step && styles.stepLineActive]} /> : null}</View>)}</View>
@@ -203,7 +199,7 @@ export default function SignUpScreen() {
           </View> : null}
 
           <View style={styles.actions}>{step > 0 ? <Pressable disabled={submitting} onPress={() => { setError(''); setStep((current) => current - 1); }} style={styles.backButton}><Text style={styles.backButtonText}>Back</Text></Pressable> : null}<Pressable disabled={submitting} onPress={step === 2 ? submit : next} style={[styles.continueButton, submitting && styles.buttonDisabled]}>{submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.continueButtonText}>{step === 2 ? 'Create Account' : 'Continue'}</Text>}</Pressable></View>
-          <View style={styles.signInRow}><Text style={styles.signInPrompt}>Already have an account? </Text><Pressable onPress={() => router.replace('/login')}><Text style={styles.signInLink}>Sign in</Text></Pressable></View>
+          <View style={styles.signInRow}><Text style={styles.signInPrompt}>Already have an account? </Text><Pressable onPress={onSignIn ?? (() => router.replace('/login'))}><Text style={styles.signInLink}>Sign in</Text></Pressable></View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

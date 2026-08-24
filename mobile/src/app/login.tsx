@@ -1,13 +1,14 @@
 import { styles } from '@/styles/login.styles';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -16,7 +17,7 @@ import {
 import { useAuth } from '@/context/auth-context';
 import { postAuthenticationRoute } from '@/lib/mobile-routing';
 
-export default function LoginScreen() {
+export default function LoginScreen({ embedded = false, onSignUp }: { embedded?: boolean; onSignUp?: () => void }) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,58 +45,62 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, embedded && styles.embeddedSafeArea]}>
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.container}>
-        <View style={styles.brand}>
-          <Image source={require('@/assets/images/agriverse-loading.png')} style={styles.logo} />
-          <Text style={styles.brandName}>AgriVerse</Text>
-          <Text style={styles.tagline}>Farm Worker Portal</Text>
-        </View>
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <View style={[styles.card, embedded && styles.embeddedCard]}>
+            <View style={styles.headingGroup}>
+              <Text style={styles.kicker}>Welcome back</Text>
+              <Text style={styles.title}>Sign in to your{`\n`}account</Text>
+              <Text style={styles.subtitle}>Enter your account details.</Text>
+            </View>
 
-        <View style={styles.card}>
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to view your assigned farm tasks.</Text>
+            {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
 
-          <Text style={styles.label}>Email address</Text>
-          <TextInput
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            onChangeText={setEmail}
-            placeholder="worker@example.com"
-            placeholderTextColor="#8c968b"
-            style={styles.input}
-            value={email}
-          />
-
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.passwordRow}>
+            <Text style={styles.label}>Email address</Text>
             <TextInput
               autoCapitalize="none"
-              onChangeText={setPassword}
-              placeholder="Enter your password"
-              placeholderTextColor="#8c968b"
-              secureTextEntry={!showPassword}
-              style={styles.passwordInput}
-              value={password}
+              autoComplete="email"
+              keyboardType="email-address"
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              placeholderTextColor="#7f8982"
+              style={styles.input}
+              value={email}
             />
-            <Pressable onPress={() => setShowPassword((value) => !value)} style={styles.eyeButton}>
-              <Text style={styles.eyeText}>{showPassword ? 'Hide' : 'Show'}</Text>
+
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.passwordRow}>
+              <TextInput
+                autoCapitalize="none"
+                autoComplete="current-password"
+                onChangeText={setPassword}
+                placeholder="Enter your password"
+                placeholderTextColor="#7f8982"
+                secureTextEntry={!showPassword}
+                style={styles.passwordInput}
+                value={password}
+              />
+              <Pressable accessibilityLabel={showPassword ? 'Hide password' : 'Show password'} accessibilityRole="button" hitSlop={8} onPress={() => setShowPassword((value) => !value)} style={styles.eyeButton}>
+                <Text style={styles.eyeText}>{showPassword ? 'Hide' : 'Show'}</Text>
+              </Pressable>
+            </View>
+
+            <Pressable disabled={submitting} onPress={submit} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, submitting && styles.buttonDisabled]}>
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign in</Text>}
             </Pressable>
+
+            <View style={styles.registerRow}>
+              <Text style={styles.registerPrompt}>Don't have an account? </Text>
+              <Pressable accessibilityRole="link" hitSlop={8} onPress={onSignUp ?? (() => router.replace('/signup'))}>
+                <Text style={styles.registerLink}>Sign up</Text>
+              </Pressable>
+            </View>
           </View>
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <Pressable disabled={submitting} onPress={submit} style={styles.button}>
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
-            )}
-          </Pressable>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

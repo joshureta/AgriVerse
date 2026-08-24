@@ -4,13 +4,14 @@ const GREEN = '#176d34';
 const PALE = '#fbffd6';
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: PALE },
+  safeArea: { flex: 1, backgroundColor: 'transparent' },
+  embeddedSafeArea: { backgroundColor: 'transparent' },
   flex: { flex: 1 },
   background: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   backgroundTint: { flex: 1, backgroundColor: 'rgba(255, 223, 74, 0.42)' },
-  scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 22 },
-  card: { width: '100%', maxWidth: 520, alignSelf: 'center', borderRadius: 24, paddingHorizontal: 22, paddingTop: 18, paddingBottom: 24, backgroundColor: 'rgba(251, 255, 214, 0.97)', shadowColor: '#31551e', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 22, elevation: 8 },
-  logo: { width: 112, height: 68, alignSelf: 'center' },
+  scrollContent: { flexGrow: 1, justifyContent: 'flex-end', paddingVertical: 22 },
+  card: { width: '100%', borderRadius: 0, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 20, backgroundColor: 'rgba(251, 255, 214, 0.97)', shadowColor: '#31551e', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 22, elevation: 8 },
+  embeddedCard: { borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   title: { color: '#09211c', fontSize: 30, lineHeight: 36, fontWeight: '900', letterSpacing: -0.7, textAlign: 'center', marginTop: 2 },
   subtitle: { color: '#4d604c', fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 3 },
   stepper: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, marginBottom: 22, paddingHorizontal: 4 },
