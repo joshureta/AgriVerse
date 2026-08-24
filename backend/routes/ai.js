@@ -250,9 +250,9 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
     const candidateModels = [
       process.env.GEMINI_MODEL,
       "gemini-3.6-flash",
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
+      "gemini-3.5-flash",
+      "gemini-flash-lite-latest",
+      "gemini-3.7-flash",
     ].filter(Boolean);
 
     let response = null;
@@ -349,8 +349,15 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
     });
   } catch (error) {
     console.error("AI crop diagnosis error:", error);
+    let msg = error.message || "Failed to process crop health diagnosis.";
+    try {
+      const parsed = JSON.parse(msg);
+      if (parsed?.error?.message) {
+        msg = parsed.error.message;
+      }
+    } catch {}
     res.status(500).json({
-      error: error.message || "Failed to process crop health diagnosis.",
+      error: msg,
     });
   }
 });

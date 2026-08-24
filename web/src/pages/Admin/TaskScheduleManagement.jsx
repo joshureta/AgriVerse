@@ -431,7 +431,7 @@ export default function TaskScheduleManagement() {
         <AdminTopbar />
         <div className="task-schedule-content">
           <header className="task-page-heading">
-            <div><span className="task-heading-icon"><ChecklistIcon /></span><h1>Task Assignment &amp; Scheduling</h1></div>
+            <div><h1>Task Assignment &amp; Scheduling</h1></div>
           </header>
 
           <section className="task-summary-grid" aria-label="Task summary">

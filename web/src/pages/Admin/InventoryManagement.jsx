@@ -328,7 +328,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
         <Topbar />
         <div className="inventory-content">
           <header className="inventory-heading">
-            <div className="inventory-title"><img src={inventoryIcon} alt="" /><h1>Inventory Management</h1></div>
+            <div className="inventory-title"><h1>Inventory Management</h1></div>
           </header>
 
           <section className="inventory-browser">

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import deleteIcon from '../../assets/delete-icon.png'
-import userManagementIcon from '../../assets/user-management-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { workerCategories } from '../../constants/user-options.js'
 import { useAuth } from '../../hooks/useAuth.js'
@@ -198,7 +197,6 @@ export default function UserManagement() {
         <div className="user-management-content">
           <header className="user-page-heading">
             <div>
-              <img className="user-heading-icon" src={userManagementIcon} alt="" />
               <h1>User Management</h1>
             </div>
           </header>

@@ -43,7 +43,6 @@ export default function EnvironmentalMonitoring() {
 
         <div className="admin-content environment-monitor-content">
           <header className="environment-page-title">
-            <span aria-hidden="true"><CloudRain /></span>
             <div>
               <h1>Real-Time Environmental Monitoring</h1>
               <p>Last Update 10:32 PM</p>

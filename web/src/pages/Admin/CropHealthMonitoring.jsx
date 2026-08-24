@@ -9,14 +9,9 @@ import {
   ClipboardList,
   Eye,
   FileClock,
-  HeartPulse,
-  ImagePlus,
   ImageUp,
   RefreshCw,
   Save,
-  ScanSearch,
-  ShieldAlert,
-  ShieldCheck,
   Sparkles,
   Sprout,
   Trash2,
@@ -117,7 +112,7 @@ export default function CropHealthMonitoring() {
     }
   })
 
-  // Load actual inspections from Supabase DB
+  // Load actual inspections from Supabase DB and sync latest field states
   useEffect(() => {
     async function loadInspectionsFromDB() {
       setLoadingDB(true)
@@ -153,6 +148,34 @@ export default function CropHealthMonitoring() {
             }
           })
           setActivities(mapped)
+
+          // Sync the latest scan for each field into the main inspection view
+          setReports((prev) => {
+            const updated = { ...prev }
+            const fieldNames = ['Field A', 'Field B', 'Field C', 'Field D']
+            fieldNames.forEach((f) => {
+              const latest = body.data.find((row) => row.field_name === f)
+              if (latest) {
+                const dateObj = new Date(latest.created_at || Date.now())
+                const timeStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(dateObj)
+                const dateStr = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(dateObj)
+                updated[f] = {
+                  score: latest.health_score,
+                  hasDiagnosis: true,
+                  issues: Array.isArray(latest.identified_symptoms) ? latest.identified_symptoms : [],
+                  recommendations: Array.isArray(latest.action_recommendations) ? latest.action_recommendations : [],
+                  diseaseOrIssueName: latest.disease_or_issue_name || 'Diagnosed Crop Stand',
+                  healthStatus: latest.health_status || (latest.health_score >= 80 ? 'Healthy' : 'Attention Needed'),
+                  visualSummary: latest.visual_summary || '',
+                  image: latest.image_url || prev[f]?.image || null,
+                  imageName: latest.image_name || `${f} inspection photo`,
+                  imageMime: latest.image_mime_type || 'image/png',
+                  lastUpdated: `${dateStr} at ${timeStr}`,
+                }
+              }
+            })
+            return updated
+          })
         }
       } catch (err) {
         console.warn('Could not load inspections from Supabase:', err)
@@ -444,64 +467,17 @@ export default function CropHealthMonitoring() {
 
         <div className="admin-content crop-health-content" style={{ width: 'min(1180px, calc(100% - 44px))', margin: '0 auto', padding: '22px 0 46px' }}>
           
-          {/* Header Title with Live Status */}
-          <header className="task-page-heading" style={{ marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <span className="task-heading-icon" style={{ width: '48px', height: '48px', color: '#196c35' }}>
-                <Sprout size={44} />
-              </span>
-              <div>
-                <h1 style={{ margin: 0, color: '#196c35', fontSize: 'clamp(26px, 2.5vw, 34px)', fontWeight: 800, letterSpacing: '-0.025em' }}>
-                  Crop Health Monitoring
-                </h1>
-                <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
-                  Pineapple disease &amp; pest diagnosis powered by Gemini Vision AI and Supabase database
-                </p>
-              </div>
-            </div>
-
-            <div className="monitoring-live" style={{ padding: '8px 16px', background: '#eaf5e6', borderRadius: '999px', border: '1px solid #cce8c5' }}>
-              <i />
-              <span style={{ color: '#1b6e35', fontWeight: 800, fontSize: '11px', letterSpacing: '0.04em' }}>
-                Gemini Vision AI Online
-              </span>
+          {/* Header Title */}
+          <header className="task-page-heading" style={{ marginBottom: '22px' }}>
+            <div>
+              <h1 style={{ margin: 0, color: '#196c35', fontSize: 'clamp(26px, 2.5vw, 34px)', fontWeight: 800, letterSpacing: '-0.025em' }}>
+                Crop Health Monitoring
+              </h1>
+              <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
+                Pineapple disease &amp; pest diagnosis powered by Gemini Vision AI and Supabase database
+              </p>
             </div>
           </header>
-
-          {/* Top Summary Stat Grid */}
-          <section className="task-summary-grid" style={{ margin: '0 0 22px' }}>
-            <article className="task-summary-card">
-              <div>
-                <span>Average Health Score</span>
-                <strong>{stats.diagnosedCount > 0 ? `${stats.avgScore}%` : '—'}</strong>
-              </div>
-              <i aria-hidden="true" style={{ background: '#216c36' }}><HeartPulse color="#fff" size={32} /></i>
-            </article>
-
-            <article className="task-summary-card">
-              <div>
-                <span>Optimal Condition</span>
-                <strong>{stats.healthyCount} Fields</strong>
-              </div>
-              <i aria-hidden="true" style={{ background: '#36803b' }}><ShieldCheck color="#fff" size={32} /></i>
-            </article>
-
-            <article className="task-summary-card">
-              <div>
-                <span>Action Required</span>
-                <strong>{stats.alertCount} Fields</strong>
-              </div>
-              <i aria-hidden="true" style={{ background: '#b77a0d' }}><ShieldAlert color="#fff" size={32} /></i>
-            </article>
-
-            <article className="task-summary-card">
-              <div>
-                <span>Total Scans Logged</span>
-                <strong>{stats.totalScans} Scans</strong>
-              </div>
-              <i aria-hidden="true" style={{ background: '#196c35' }}><ScanSearch color="#fff" size={32} /></i>
-            </article>
-          </section>
 
           {/* Error & Success Feedback Alerts */}
           {error && (
@@ -569,137 +545,55 @@ export default function CropHealthMonitoring() {
 
             {/* 2. Action Toolbar & Image Preview Zone */}
             <div style={{ padding: '18px 22px 20px', background: '#fff', borderBottom: '1px solid #edf1eb' }}>
-              {/* Action Buttons Toolbar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  <button
-                    className="assign-task-toolbar-button"
-                    type="button"
-                    onClick={() => uploadInput.current?.click()}
-                    disabled={analyzing}
-                    style={{
-                      height: '38px',
-                      padding: '0 16px',
-                      borderRadius: '6px',
-                      fontSize: '11px',
-                      fontWeight: 800,
-                    }}
-                  >
-                    <ImageUp aria-hidden="true" size={15} style={{ marginRight: '6px' }} />
-                    <span>{currentFieldReport.image ? `Change ${activeField} Photo` : `Upload Photo for ${activeField}`}</span>
-                  </button>
-                  <input ref={uploadInput} type="file" accept="image/*" onChange={handleUpload} hidden />
+              {/* Action Buttons Toolbar (One on Left, One on Right) */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                <button
+                  className="assign-task-toolbar-button"
+                  type="button"
+                  onClick={() => uploadInput.current?.click()}
+                  disabled={analyzing}
+                  style={{
+                    height: '38px',
+                    padding: '0 16px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                  }}
+                >
+                  <ImageUp aria-hidden="true" size={15} style={{ marginRight: '6px' }} />
+                  <span>{currentFieldReport.image ? `Change ${activeField} Photo` : `Upload Photo for ${activeField}`}</span>
+                </button>
+                <input ref={uploadInput} type="file" accept="image/*" onChange={handleUpload} hidden />
 
-                  <button
-                    className="assign-task-toolbar-button"
-                    type="button"
-                    onClick={handleAnalyze}
-                    disabled={analyzing || !currentFieldReport.image}
-                    style={{
-                      height: '38px',
-                      padding: '0 18px',
-                      borderRadius: '6px',
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      opacity: !currentFieldReport.image ? 0.6 : 1,
-                      background: analyzing ? '#97b79e' : 'radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%)',
-                      boxShadow: '0 8px 16px rgba(25,108,53,0.16)',
-                      cursor: !currentFieldReport.image ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {analyzing ? (
-                      <>
-                        <RefreshCw className="spin" size={14} style={{ marginRight: '6px', animation: 'spin 1s linear infinite' }} />
-                        <span>Diagnosing {activeField} with Gemini…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={14} style={{ marginRight: '6px' }} />
-                        <span>Analyze {activeField} Image</span>
-                      </>
-                    )}
-                  </button>
-
-                  {currentFieldReport.image && (
-                    <button
-                      type="button"
-                      onClick={handleRemovePhoto}
-                      style={{
-                        height: '38px',
-                        padding: '0 12px',
-                        borderRadius: '6px',
-                        backgroundColor: '#fef2f2',
-                        color: '#b91c1c',
-                        border: '1px solid #fecaca',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <Trash2 size={13} />
-                      <span>Remove</span>
-                    </button>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  {currentFieldReport.score !== null ? (
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 800,
-                        padding: '5px 12px',
-                        borderRadius: '999px',
-                        backgroundColor: currentFieldReport.score >= 80 ? '#e8f5e9' : currentFieldReport.score >= 60 ? '#fff3d4' : '#feeae6',
-                        color: currentFieldReport.score >= 80 ? '#2e7d32' : currentFieldReport.score >= 60 ? '#e65100' : '#c62828',
-                        border: `1px solid ${currentFieldReport.score >= 80 ? '#c8e6c9' : currentFieldReport.score >= 60 ? '#ffe0b2' : '#ffcdd2'}`,
-                      }}
-                    >
-                      {currentFieldReport.diseaseOrIssueName} ({currentFieldReport.score}%)
-                    </span>
+                <button
+                  className="assign-task-toolbar-button"
+                  type="button"
+                  onClick={handleAnalyze}
+                  disabled={analyzing || !currentFieldReport.image}
+                  style={{
+                    height: '38px',
+                    padding: '0 18px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    opacity: !currentFieldReport.image ? 0.6 : 1,
+                    background: analyzing ? '#97b79e' : 'radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%)',
+                    boxShadow: '0 8px 16px rgba(25,108,53,0.16)',
+                    cursor: !currentFieldReport.image ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {analyzing ? (
+                    <>
+                      <RefreshCw className="spin" size={14} style={{ marginRight: '6px', animation: 'spin 1s linear infinite' }} />
+                      <span>Diagnosing {activeField} with Gemini…</span>
+                    </>
                   ) : (
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        padding: '5px 12px',
-                        borderRadius: '999px',
-                        backgroundColor: '#f3f4f2',
-                        color: '#657568',
-                        border: '1px solid #dce0d9',
-                      }}
-                    >
-                      Ready for Photo Upload
-                    </span>
+                    <>
+                      <Sparkles size={14} style={{ marginRight: '6px' }} />
+                      <span>Analyze {activeField} Image</span>
+                    </>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={handleManualSave}
-                    disabled={!currentFieldReport.hasDiagnosis && currentFieldReport.score === null}
-                    style={{
-                      height: '38px',
-                      padding: '0 14px',
-                      borderRadius: '6px',
-                      border: '1px solid #b8cfba',
-                      backgroundColor: saved ? '#1c6d33' : '#f9fbf8',
-                      color: saved ? '#fff' : '#1c6834',
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: (!currentFieldReport.hasDiagnosis && currentFieldReport.score === null) ? 'not-allowed' : 'pointer',
-                      opacity: (!currentFieldReport.hasDiagnosis && currentFieldReport.score === null) ? 0.5 : 1,
-                    }}
-                  >
-                    <Save size={14} />
-                    <span>{saved ? 'Saved to DB' : `Save Result`}</span>
-                  </button>
-                </div>
+                </button>
               </div>
 
               {/* Photo Inspection Area: Shows Image OR Modern Empty Upload Dropzone */}
@@ -714,12 +608,12 @@ export default function CropHealthMonitoring() {
                     </div>
                   </div>
 
-                  <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #d4ded2', maxHeight: '380px', display: 'flex', justifyContent: 'center', background: '#0e1711' }}>
+                  <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #d4ded2', width: '100%', background: 'transparent' }}>
                     <img
                       key={activeField}
                       src={currentFieldReport.image}
                       alt={`${activeField} crop photo`}
-                      style={{ width: '100%', maxHeight: '380px', objectFit: 'contain' }}
+                      style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px' }}
                     />
                   </div>
                 </div>
@@ -834,32 +728,37 @@ export default function CropHealthMonitoring() {
                         key={idx}
                         style={{
                           display: 'flex',
-                          gap: '12px',
+                          gap: '14px',
                           alignItems: 'flex-start',
-                          padding: '12px 14px',
+                          padding: '13px 16px',
                           backgroundColor: '#fff',
-                          borderRadius: '8px',
-                          border: '1px solid #e2e8df',
+                          borderRadius: '10px',
+                          border: '1px solid #e0e7dc',
                           boxShadow: '0 2px 6px rgba(35,73,39,0.03)',
                         }}
                       >
                         <span
                           style={{
-                            width: '22px',
-                            height: '22px',
+                            width: '24px',
+                            height: '24px',
+                            minWidth: '24px',
                             borderRadius: '50%',
-                            backgroundColor: 'var(--admin-green)',
+                            backgroundColor: '#196c35',
                             color: '#fff',
-                            display: 'grid',
-                            placeItems: 'center',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             fontSize: '11px',
                             fontWeight: 800,
+                            lineHeight: 1,
                             flexShrink: 0,
+                            marginTop: '1px',
+                            textAlign: 'center',
                           }}
                         >
                           {idx + 1}
                         </span>
-                        <span style={{ fontSize: '12px', color: '#213325', lineHeight: 1.5, fontWeight: 500 }}>
+                        <span style={{ fontSize: '12px', color: '#203323', lineHeight: 1.6, fontWeight: 500, flex: 1 }}>
                           {rec}
                         </span>
                       </div>
@@ -1074,11 +973,11 @@ export default function CropHealthMonitoring() {
 
             <div className="task-reference-body task-view-body" style={{ padding: '24px 28px' }}>
               {selectedActivity.image && (
-                <div style={{ borderRadius: '8px', overflow: 'hidden', marginBottom: '18px', maxHeight: '240px', background: '#0e1711', display: 'flex', justifyContent: 'center' }}>
+                <div style={{ borderRadius: '8px', overflow: 'hidden', marginBottom: '18px', border: '1px solid #d4ded2', width: '100%', background: 'transparent' }}>
                   <img
                     src={selectedActivity.image}
                     alt={`${selectedActivity.field || 'Crop'} inspection photo`}
-                    style={{ width: '100%', maxHeight: '240px', objectFit: 'contain' }}
+                    style={{ width: '100%', height: 'auto', maxHeight: '340px', objectFit: 'cover', display: 'block', borderRadius: '8px' }}
                   />
                 </div>
               )}
@@ -1134,19 +1033,59 @@ export default function CropHealthMonitoring() {
                 </ul>
               </section>
 
-              <footer style={{ display: 'flex', justifyContent: 'center' }}>
+              <footer style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
                 <button
                   type="button"
-                  onClick={() => setSelectedActivity(null)}
+                  onClick={() => {
+                    const fieldName = selectedActivity.field || activeField
+                    setActiveField(fieldName)
+                    setReports((prev) => ({
+                      ...prev,
+                      [fieldName]: {
+                        score: selectedActivity.score,
+                        hasDiagnosis: true,
+                        issues: selectedActivity.issues || [],
+                        recommendations: selectedActivity.recommendations || [],
+                        diseaseOrIssueName: selectedActivity.disease || 'Historical Inspection',
+                        healthStatus: selectedActivity.score >= 80 ? 'Healthy' : selectedActivity.score >= 60 ? 'Attention Needed' : 'Critical',
+                        visualSummary: selectedActivity.summary || '',
+                        image: selectedActivity.image || null,
+                        imageName: `${fieldName} inspection photo`,
+                        imageMime: 'image/png',
+                        lastUpdated: `${selectedActivity.date} at ${selectedActivity.time}`,
+                      },
+                    }))
+                    setSelectedActivity(null)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
                   style={{
-                    minWidth: '100px',
                     minHeight: '36px',
+                    padding: '0 16px',
                     borderRadius: '6px',
                     backgroundColor: '#196c35',
                     color: '#fff',
                     fontWeight: 800,
                     border: 'none',
                     cursor: 'pointer',
+                    fontSize: '11px',
+                  }}
+                >
+                  Load into Main Inspector
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedActivity(null)}
+                  style={{
+                    minWidth: '80px',
+                    minHeight: '36px',
+                    padding: '0 16px',
+                    borderRadius: '6px',
+                    backgroundColor: '#f3f4f2',
+                    color: '#344537',
+                    fontWeight: 700,
+                    border: '1px solid #d0d7cf',
+                    cursor: 'pointer',
+                    fontSize: '11px',
                   }}
                 >
                   Close
