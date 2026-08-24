@@ -18,6 +18,7 @@ const { router: mobileAuthRouter } = require("./routes/mobile-auth");
 const sellerOrdersRouter = require("./routes/seller-orders");
 const adminDeliveriesRouter = require("./routes/admin-deliveries");
 const driverOrdersRouter = require("./routes/driver-orders");
+const aiRouter = require("./routes/ai");
 
 const app = express();
 
@@ -40,7 +41,8 @@ app.use(
     },
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 app.get("/", (req, res) => {
   res.json({
@@ -86,6 +88,7 @@ app.use("/api/buyer/products", buyerProductsRouter);
 app.use("/api/buyer/orders", buyerOrdersRouter);
 app.use("/api/seller/orders", sellerOrdersRouter);
 app.use("/api/driver/orders", driverOrdersRouter);
+app.use("/api/ai", aiRouter);
 
 const PORT = process.env.PORT || 5000;
 
