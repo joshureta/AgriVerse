@@ -93,7 +93,7 @@ export default function CropHealthMonitoring() {
   const [selectedActivity, setSelectedActivity] = useState(null)
   const [activities, setActivities] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 5
+  const pageSize = 10
 
   // Persistent field state
   const [reports, setReports] = useState(() => {
@@ -501,95 +501,61 @@ export default function CropHealthMonitoring() {
           )}
 
           {/* ========================================================================= */}
-          {/* COMBINED UNIFIED CARD: FIELD PILLS + PHOTO PREVIEW + ASSESSMENT & PLAN    */}
+          {/* COMBINED UNIFIED CARD: TOP FIELD TABS + PHOTO PREVIEW + ASSESSMENT & PLAN */}
           {/* ========================================================================= */}
-          <section className="tasks-panel" style={{ marginBottom: '28px', border: '1px solid #dce5d8', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 24px rgba(35,73,39,0.06)' }}>
+          <section className="tasks-panel" style={{ marginBottom: '28px', border: '1px solid #dce5d8', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 12px 28px rgba(42,76,38,.05)', background: '#fff' }}>
             
-            {/* 1. Field Selection Clean Pill Buttons */}
-            <div style={{ padding: '16px 20px 14px', background: '#fff', borderBottom: '1px solid #edf1eb' }}>
-              <div className="task-work-type-tabs" style={{ padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-                {Object.keys(reports).map((field) => {
-                  const isCurrent = field === activeField
-                  return (
-                    <button
-                      key={field}
-                      type="button"
-                      className={isCurrent ? 'is-active' : ''}
-                      onClick={() => {
-                        setActiveField(field)
-                        setSaved(false)
-                        setError('')
-                        setSuccessMessage('')
-                      }}
-                      style={{
-                        minHeight: '38px',
-                        borderRadius: '999px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '11px',
-                        fontWeight: 800,
-                        border: isCurrent ? '1px solid #1c6d33' : '1px solid #8eb594',
-                        backgroundColor: isCurrent ? '#1c6d33' : '#fff',
-                        color: isCurrent ? '#fff' : '#176b32',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <span>{field}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+            {/* 1. Field Selection Top Tabs */}
+            <nav className="task-management-tabs" aria-label="Field selection tabs">
+              {Object.keys(reports).map((field) => {
+                const isCurrent = field === activeField
+                return (
+                  <button
+                    key={field}
+                    type="button"
+                    className={isCurrent ? 'is-active' : ''}
+                    onClick={() => {
+                      setActiveField(field)
+                      setSaved(false)
+                      setError('')
+                      setSuccessMessage('')
+                    }}
+                  >
+                    <span>{field}</span>
+                  </button>
+                )
+              })}
+            </nav>
 
             {/* 2. Action Toolbar & Image Preview Zone */}
             <div style={{ padding: '18px 22px 20px', background: '#fff', borderBottom: '1px solid #edf1eb' }}>
-              {/* Action Buttons Toolbar (One on Left, One on Right) */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              {/* Action Buttons Toolbar (Both Aligned to Right) */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
                 <button
-                  className="assign-task-toolbar-button"
+                  className="admin-btn-secondary"
                   type="button"
                   onClick={() => uploadInput.current?.click()}
                   disabled={analyzing}
-                  style={{
-                    height: '38px',
-                    padding: '0 16px',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                  }}
                 >
-                  <ImageUp aria-hidden="true" size={15} style={{ marginRight: '6px' }} />
+                  <ImageUp aria-hidden="true" size={15} />
                   <span>{currentFieldReport.image ? 'Change Photo' : 'Upload Image'}</span>
                 </button>
                 <input ref={uploadInput} type="file" accept="image/*" onChange={handleUpload} hidden />
 
                 <button
-                  className="assign-task-toolbar-button"
+                  className="admin-btn-primary"
                   type="button"
                   onClick={handleAnalyze}
                   disabled={analyzing || !currentFieldReport.image}
-                  style={{
-                    height: '38px',
-                    padding: '0 18px',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    opacity: !currentFieldReport.image ? 0.6 : 1,
-                    background: analyzing ? '#97b79e' : 'radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%)',
-                    boxShadow: '0 8px 16px rgba(25,108,53,0.16)',
-                    cursor: !currentFieldReport.image ? 'not-allowed' : 'pointer',
-                  }}
                 >
                   {analyzing ? (
                     <>
-                      <RefreshCw className="spin" size={14} style={{ marginRight: '6px', animation: 'spin 1s linear infinite' }} />
+                      <RefreshCw className="spin" size={14} style={{ animation: 'spin 1s linear infinite' }} />
                       <span>Analyzing Image…</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles size={14} style={{ marginRight: '6px' }} />
+                      <Sparkles size={14} />
                       <span>Analyze Image</span>
                     </>
                   )}

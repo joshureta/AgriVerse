@@ -4,7 +4,8 @@
 .inventory-heading > div { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .inventory-heading img { width: 47px; height: 47px; display: block; flex: 0 0 47px; object-fit: contain; }
 .inventory-heading h1 { margin: 0; color: #196c35; font-size: clamp(28px, 2.55vw, 36px); font-weight: 800; letter-spacing: -.025em; }
-.inventory-heading > button { min-height: 40px; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 6px; padding: 0 17px; color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); box-shadow: 0 8px 16px rgba(25,108,53,.16); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.inventory-heading > button { min-height: 40px; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 6px; padding: 0 17px; color: #fff; background: #196c35; box-shadow: 0 2px 6px rgba(25,108,53,.18); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: background-color .15s ease; }
+.inventory-heading > button:hover { background: #14572a; }
 .inventory-heading > button span { font-size: 19px; font-weight: 400; }
 .inventory-browser { overflow: hidden; border: 1px solid #dce5d8; border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgba(42,76,38,.05); }
 .inventory-panel { overflow: hidden; border-top: 1px solid #e3eae0; background: #fff; }
@@ -12,11 +13,12 @@
 .inventory-toolbar { display: grid; grid-template-columns: minmax(260px,1fr); align-items: center; gap: 12px; padding: 11px 14px; background: #fff; }
 .inventory-toolbar.has-actions { grid-template-columns: minmax(280px, 560px) auto; justify-content: space-between; }
 .inventory-toolbar-actions { display: flex; align-items: center; gap: 8px; }
-.inventory-toolbar-actions button { height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #196c35; border-radius: 7px; padding: 0 13px; font: inherit; font-size: 11px; font-weight: 800; white-space: nowrap; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
+.inventory-toolbar-actions button { height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #196c35; border-radius: 6px; padding: 0 14px; font: inherit; font-size: 11px; font-weight: 800; white-space: nowrap; cursor: pointer; transition: background-color .15s ease, border-color .15s ease; }
 .inventory-toolbar-actions button span { font-size: 17px; font-weight: 400; line-height: 1; }
-.inventory-toolbar-actions .add-category-button { color: #196c35; background: #fff; }
-.inventory-toolbar-actions .add-item-button { color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); box-shadow: 0 6px 14px rgba(25,108,53,.16); }
-.inventory-toolbar-actions button:hover { transform: translateY(-1px); box-shadow: 0 7px 14px rgba(25,108,53,.14); }
+.inventory-toolbar-actions .add-category-button { color: #196c35; background: #fff; border: 1px solid #196c35; }
+.inventory-toolbar-actions .add-category-button:hover { background: #f0f7ef; }
+.inventory-toolbar-actions .add-item-button { color: #fff; background: #196c35; border: none; box-shadow: 0 2px 6px rgba(25,108,53,.18); }
+.inventory-toolbar-actions .add-item-button:hover { background: #14572a; }
 .inventory-filter { position: relative; min-width: 0; }
 .inventory-filter select { width: 100%; height: 36px; min-height: 36px; box-sizing: border-box; border: 1px solid #b8cfba; border-radius: 7px; padding: 0 31px 0 11px; color: #16291b; background: #f9fbf8; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
 .inventory-filter select:focus { border-color: #267a40; background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(38,122,64,.12); }

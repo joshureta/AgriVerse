@@ -201,7 +201,7 @@ router.get("/options", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
-    const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 4, 1), 50);
+    const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 10, 1), 50);
     const statusCode = String(req.query.status || "").trim();
     const search = String(req.query.search || "").trim().replace(/[,%()]/g, "");
     const from = (page - 1) * pageSize;
