@@ -6,7 +6,7 @@ const {
   requireInitialPasswordChanged,
   requireProfileOnboardingComplete,
 } = require("../middleware/auth");
-const { readOptional, readRequired, validatePassword } = require("../routes/mobile-auth");
+const { readEmail, readOptional, readRequired, readWorkerCategory, validatePassword } = require("../routes/mobile-auth");
 
 let server;
 let baseUrl;
@@ -102,6 +102,25 @@ test("initial password validation matches the mobile password requirements", () 
   assert.equal(validatePassword("lowercase1!"), false);
   assert.equal(validatePassword("NoNumber!"), false);
   assert.equal(validatePassword("NoSpecial1"), false);
+});
+
+test("mobile registration fields validate email and worker category", () => {
+  assert.equal(readEmail("  WORKER@example.com "), "worker@example.com");
+  assert.equal(readWorkerCategory("driver"), "driver");
+  assert.equal(readWorkerCategory("crop_management_worker"), "crop_management_worker");
+  assert.throws(() => readEmail("invalid"), /valid email/i);
+  assert.throws(() => readWorkerCategory("buyer"), /valid farm worker category/i);
+});
+
+test("mobile registration validates input before creating an account", async () => {
+  const response = await fetch(`${baseUrl}/api/mobile/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  const body = await response.json();
+  assert.equal(response.status, 400);
+  assert.equal(body.error, "Full name is required");
 });
 
 test("worker API gate blocks only profiles that still require a password change", () => {

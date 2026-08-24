@@ -3,6 +3,7 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 
 const router = express.Router();
+const workerCategories = new Set(["driver", "crop_management_worker", "seller"]);
 
 function httpError(status, message) {
   const error = new Error(message);
@@ -32,6 +33,76 @@ function readOptional(value, maximum, label) {
   if (result.length > maximum) throw httpError(400, `${label} is too long`);
   return result || null;
 }
+
+function readEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw httpError(400, "A valid email address is required");
+  }
+  return email;
+}
+
+function readWorkerCategory(value) {
+  const category = String(value || "").trim().toLowerCase();
+  if (!workerCategories.has(category)) {
+    throw httpError(400, "Select a valid farm worker category");
+  }
+  return category;
+}
+
+router.post("/register", async (req, res, next) => {
+  const supabase = getSupabase();
+  let createdUserId = null;
+
+  try {
+    const fullName = readRequired(req.body.full_name, 100, "Full name");
+    if (fullName.length < 2) throw httpError(400, "Full name must contain at least 2 characters");
+    const email = readEmail(req.body.email);
+    const password = String(req.body.password || "");
+    if (!validatePassword(password)) {
+      throw httpError(400, "Password must contain at least 8 characters, an uppercase letter, a number, and a special character");
+    }
+    const mobileNumber = readOptional(req.body.mobile_number, 30, "Mobile number");
+    const workerCategory = readWorkerCategory(req.body.worker_category);
+    const region = readRequired(req.body.region, 120, "Region");
+    const province = readOptional(req.body.province, 120, "Province");
+    const cityMunicipality = readRequired(req.body.city_municipality, 120, "City or municipality");
+    const barangay = readRequired(req.body.barangay, 120, "Barangay");
+    const completedAt = new Date().toISOString();
+
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: fullName, mobile_number: mobileNumber },
+    });
+    if (authError) throw httpError(400, authError.message);
+    createdUserId = authData.user.id;
+
+    const { data: profile, error: profileError } = await supabase.from("profiles").upsert({
+      id: createdUserId,
+      email,
+      full_name: fullName,
+      mobile_number: mobileNumber,
+      country: "Philippines",
+      region,
+      province,
+      city_municipality: cityMunicipality,
+      barangay,
+      role: "farm_worker",
+      worker_category: workerCategory,
+      must_change_password: false,
+      name_confirmed_at: completedAt,
+      onboarding_completed_at: completedAt,
+    }, { onConflict: "id" }).select(profileSelect).single();
+    if (profileError) throw profileError;
+
+    return res.status(201).json({ profile });
+  } catch (error) {
+    if (createdUserId) await supabase.auth.admin.deleteUser(createdUserId);
+    return next(error);
+  }
+});
 
 router.post(
   "/change-initial-password",
@@ -161,4 +232,4 @@ router.patch(
   },
 );
 
-module.exports = { readOptional, readRequired, router, validatePassword };
+module.exports = { readEmail, readOptional, readRequired, readWorkerCategory, router, validatePassword };

@@ -30,9 +30,13 @@ export default function AuthenticationScreen() {
 
         <Text style={styles.title}>Set up your account</Text>
 
-        <View style={styles.outlineButton}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create a farm worker account"
+          onPress={() => router.push('/signup')}
+          style={({ pressed }) => [styles.outlineButton, pressed && styles.buttonPressed]}>
           <Text style={styles.outlineButtonText}>Create Account</Text>
-        </View>
+        </Pressable>
 
         <Text style={styles.orText}>or</Text>
 

@@ -12,7 +12,7 @@ export default function WelcomeScreen() {
       <StatusBar style="dark" />
 
       <ImageBackground
-        source={require('@/assets/images/welcome-pineapple-farm.png')}
+        source={require('../../assets/images/welcome-pineapple-farm.png')}
         resizeMode="cover"
         style={styles.background}>
         <View pointerEvents="none" style={styles.tint} />
