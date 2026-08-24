@@ -143,11 +143,11 @@
 
 /* Real-time environmental monitoring workspace */
 .environment-monitor-content { width: min(100% - 44px,1180px); padding: 18px 0 36px; }
-.environment-page-title { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; }
+.environment-page-title { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 16px; }
 .environment-page-title > span { width: 42px; height: 42px; display: grid; flex: 0 0 42px; place-items: center; color: #2a7d37; }
 .environment-page-title > span svg { width: 35px; height: 35px; }
 .environment-page-title h1 { margin: 0; color: #17662f; font-family: var(--display); font-size: clamp(22px,2.5vw,31px); letter-spacing: -.035em; }
-.environment-page-title p { margin: 4px 0 0; color: #223a29; font-size: 9px; }
+.environment-page-title p { margin: 3px 0 0; color: #667568; font-size: 13px; font-family: var(--sans); }
 .environment-network-status { min-height: 62px; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; margin-bottom: 16px; border: 1px solid #63a968; border-radius: 8px; padding: 9px 18px; background: #dff4e0; }
 .environment-network-status > div { display: flex; align-items: center; gap: 10px; }
 .environment-network-status > div > i { width: 14px; height: 14px; border-radius: 50%; background: #268338; }

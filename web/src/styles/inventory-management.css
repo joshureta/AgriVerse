@@ -1,7 +1,7 @@
 .inventory-page { --inventory-green: #196c35; --inventory-lime: #78b83d; background: #fafcf5; }
 .inventory-content { width: min(1180px, calc(100% - 44px)); margin: 0 auto; padding: 22px 0 46px; }
 .inventory-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
-.inventory-heading > div { display: flex; align-items: center; gap: 13px; }
+.inventory-heading > div { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .inventory-heading img { width: 47px; height: 47px; display: block; flex: 0 0 47px; object-fit: contain; }
 .inventory-heading h1 { margin: 0; color: #196c35; font-size: clamp(28px, 2.55vw, 36px); font-weight: 800; letter-spacing: -.025em; }
 .inventory-heading > button { min-height: 40px; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 6px; padding: 0 17px; color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); box-shadow: 0 8px 16px rgba(25,108,53,.16); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }

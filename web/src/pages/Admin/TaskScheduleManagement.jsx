@@ -431,7 +431,12 @@ export default function TaskScheduleManagement() {
         <AdminTopbar />
         <div className="task-schedule-content">
           <header className="task-page-heading">
-            <div><h1>Task Assignment &amp; Scheduling</h1></div>
+            <div>
+              <h1>Task Assignment &amp; Scheduling</h1>
+              <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
+                Organize crop maintenance, assign workers to field sectors, and track farm operations
+              </p>
+            </div>
           </header>
 
           <section className="task-summary-grid" aria-label="Task summary">

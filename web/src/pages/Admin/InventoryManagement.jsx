@@ -328,7 +328,12 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
         <Topbar />
         <div className="inventory-content">
           <header className="inventory-heading">
-            <div className="inventory-title"><h1>Inventory Management</h1></div>
+            <div className="inventory-title">
+              <h1>Inventory Management</h1>
+              <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
+                Track farm supplies, harvested stock levels, and storage distribution across sectors
+              </p>
+            </div>
           </header>
 
           <section className="inventory-browser">

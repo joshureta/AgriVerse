@@ -474,7 +474,7 @@ export default function CropHealthMonitoring() {
                 Crop Health Monitoring
               </h1>
               <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
-                Pineapple disease &amp; pest diagnosis powered by Gemini Vision AI and Supabase database
+                AI-assisted pineapple pathology, visual disease detection, and field treatment plans
               </p>
             </div>
           </header>
@@ -561,7 +561,7 @@ export default function CropHealthMonitoring() {
                   }}
                 >
                   <ImageUp aria-hidden="true" size={15} style={{ marginRight: '6px' }} />
-                  <span>{currentFieldReport.image ? `Change ${activeField} Photo` : `Upload Photo for ${activeField}`}</span>
+                  <span>{currentFieldReport.image ? 'Change Photo' : 'Upload Image'}</span>
                 </button>
                 <input ref={uploadInput} type="file" accept="image/*" onChange={handleUpload} hidden />
 
@@ -585,12 +585,12 @@ export default function CropHealthMonitoring() {
                   {analyzing ? (
                     <>
                       <RefreshCw className="spin" size={14} style={{ marginRight: '6px', animation: 'spin 1s linear infinite' }} />
-                      <span>Diagnosing {activeField} with Gemini…</span>
+                      <span>Analyzing Image…</span>
                     </>
                   ) : (
                     <>
                       <Sparkles size={14} style={{ marginRight: '6px' }} />
-                      <span>Analyze {activeField} Image</span>
+                      <span>Analyze Image</span>
                     </>
                   )}
                 </button>

@@ -45,7 +45,7 @@ export default function EnvironmentalMonitoring() {
           <header className="environment-page-title">
             <div>
               <h1>Real-Time Environmental Monitoring</h1>
-              <p>Last Update 10:32 PM</p>
+              <p>Live IoT sensor telemetry for microclimate conditions, soil moisture, and weather tracking</p>
             </div>
           </header>
 

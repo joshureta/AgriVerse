@@ -198,6 +198,9 @@ export default function UserManagement() {
           <header className="user-page-heading">
             <div>
               <h1>User Management</h1>
+              <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
+                Manage system accounts, assign farm worker roles, and configure access permissions
+              </p>
             </div>
           </header>
 
