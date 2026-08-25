@@ -397,16 +397,6 @@ export default function TaskScheduleManagement() {
       await Promise.all([loadSettings(), loadArchivedSettings()])
     } catch (requestError) {
       setError(requestError.message)
-          description: form.description,
-        }),
-      })
-      setModal(null)
-      setPage(1)
-      setRefreshKey((value) => value + 1)
-    } catch (requestError) {
-      setError(requestError.message)
-    } finally {
-      setSaving(false)
     }
   }
 
