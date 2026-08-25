@@ -1,22 +1,18 @@
 import { styles } from '@/styles/components/worker-bottom-navigation.styles';
 import { router } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { useAuth } from '@/context/auth-context';
 
-type WorkerTab = 'home' | 'tasks' | 'profile';
+type WorkerTab = 'home' | 'tasks' | 'schedule' | 'profile';
 
 function HomeIcon() {
   return (
-    <View style={styles.homeIcon}>
-      <View style={styles.homeRoofLeft} />
-      <View style={styles.homeRoofRight} />
-      <View style={styles.homeWallLeft} />
-      <View style={styles.homeWallRight} />
-      <View style={styles.homeBase} />
-      <View style={styles.homeDoorLeft} />
-      <View style={styles.homeDoorRight} />
-      <View style={styles.homeDoorTop} />
+    <View style={styles.homeIconWrapper}>
+      <View style={styles.homeRoofTriangle} />
+      <View style={styles.homeHouseBody}>
+        <View style={styles.homeDoorCutout} />
+      </View>
     </View>
   );
 }
@@ -25,8 +21,28 @@ function TasksIcon() {
   return (
     <View style={styles.clipboard}>
       <View style={styles.clipClip} />
-      <View style={styles.checkStem} />
-      <View style={styles.checkArm} />
+      <Text style={styles.clipCheckText}>✓</Text>
+    </View>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <View style={styles.calendarWrapper}>
+      <View style={styles.calendarRingLeft} />
+      <View style={styles.calendarRingRight} />
+      <View style={styles.calendarBox}>
+        <View style={styles.calendarGridRow}>
+          <View style={styles.calendarGridDot} />
+          <View style={styles.calendarGridDot} />
+          <View style={styles.calendarGridDot} />
+        </View>
+        <View style={styles.calendarGridRow}>
+          <View style={styles.calendarGridDot} />
+          <View style={styles.calendarGridDot} />
+          <View style={styles.calendarGridDot} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -35,7 +51,7 @@ function ProfileIcon() {
   return (
     <View style={styles.profileIcon}>
       <View style={styles.profileHead} />
-      <View style={styles.profileBody}><View style={styles.profileBodyOval} /></View>
+      <View style={styles.profileBody} />
     </View>
   );
 }
@@ -48,6 +64,7 @@ export function WorkerBottomNavigation({ activeTab }: { activeTab: WorkerTab }) 
   const items: { key: WorkerTab; label: string; onPress: () => void; icon: React.ReactNode }[] = [
     { key: 'home', label: 'Home', onPress: () => router.push(homeRoute), icon: <HomeIcon /> },
     { key: 'tasks', label: 'Tasks', onPress: () => router.push(tasksRoute), icon: <TasksIcon /> },
+    { key: 'schedule', label: 'Schedule', onPress: () => router.push(tasksRoute), icon: <CalendarIcon /> },
     { key: 'profile', label: 'Profile', onPress: () => router.push('/explore'), icon: <ProfileIcon /> },
   ];
 
@@ -71,5 +88,3 @@ export function WorkerBottomNavigation({ activeTab }: { activeTab: WorkerTab }) 
     </View>
   );
 }
-
-const ICON_COLOR = '#237e40';

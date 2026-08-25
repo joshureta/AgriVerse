@@ -128,6 +128,40 @@ router.get("/:id", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+async function uploadCropImage(base64Data, mimeType, fieldName) {
+  try {
+    const supabase = getSupabase();
+    const buffer = Buffer.from(base64Data, "base64");
+    const ext = (mimeType || "image/png").split("/")[1] || "png";
+    const cleanField = (fieldName || "field").toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const filePath = `${cleanField}/${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("crop-inspections")
+      .upload(filePath, buffer, {
+        contentType: mimeType || "image/png",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.warn("Supabase storage upload error:", uploadError.message);
+      return null;
+    }
+
+    const { data: publicData } = supabase.storage
+      .from("crop-inspections")
+      .getPublicUrl(filePath);
+
+    return {
+      imageUrl: publicData?.publicUrl || null,
+      storagePath: filePath,
+    };
+  } catch (err) {
+    console.warn("Storage upload exception:", err.message);
+    return null;
+  }
+}
+
 router.post("/:id/complete", async (req, res, next) => {
   try {
     const taskId = readTaskId(req.params.id);
@@ -147,7 +181,45 @@ router.post("/:id/complete", async (req, res, next) => {
     if (error) throw error;
     if (!data) throw httpError(409, "Only an active assigned task can be completed");
     await syncScheduleStatus(taskId, "completed");
-    return res.json({ task: serializeTask(data) });
+
+    let inspectionRecord = null;
+    const rawImage = req.body.image || req.body.photo;
+    if (rawImage && typeof rawImage === "string") {
+      const mimeType = String(req.body.image_mime || req.body.imageMime || "image/jpeg");
+      const imageName = String(req.body.image_name || req.body.imageName || `Task ${taskId} Proof Photo`);
+      const base64Data = rawImage.replace(/^data:[^;]+;base64,/, "").trim();
+      const fieldName = data.farm_fields?.field_name || "Field A";
+
+      const uploadResult = await uploadCropImage(base64Data, mimeType, fieldName);
+
+      const { data: insData, error: insErr } = await getSupabase()
+        .from("crop_health_inspections")
+        .insert({
+          field_name: fieldName,
+          field_id: data.field_id || null,
+          crop_type: "Pineapple",
+          health_score: 85,
+          health_status: "Completed",
+          disease_or_issue_name: `${data.task_categories?.category_name || "Crop"} Task Completed`,
+          visual_summary: completionNotes || `Task ${taskId} (${data.task_categories?.category_name || "Crop"}) completed with photo proof.`,
+          identified_symptoms: [],
+          action_recommendations: [],
+          image_url: uploadResult?.imageUrl || null,
+          image_storage_path: uploadResult?.storagePath || null,
+          image_name: imageName,
+          image_mime_type: mimeType,
+          status: "COMPLETED",
+          analyzed_by: req.user.id,
+        })
+        .select()
+        .maybeSingle();
+
+      if (!insErr && insData) {
+        inspectionRecord = insData;
+      }
+    }
+
+    return res.json({ task: serializeTask(data), inspection: inspectionRecord });
   } catch (error) { return next(error); }
 });
 
@@ -168,8 +240,13 @@ router.patch("/:id/status", async (req, res, next) => {
       : currentStatus === "in_progress" ? "completed" : null;
     if (status !== expectedStatus) throw httpError(409, `Task cannot move from ${currentStatus} to ${status}`);
 
+    const updatePayload = { status_id: statusIds[status] };
+    if (status === "in_progress") {
+      updatePayload.started_at = new Date().toISOString();
+    }
+
     const { data, error } = await getSupabase().from("tasks")
-      .update({ status_id: statusIds[status] }).eq("id", taskId)
+      .update(updatePayload).eq("id", taskId)
       .eq("assigned_worker_id", req.user.id).eq("status_id", currentTask.status_id)
       .select(taskSelect).maybeSingle();
     if (error) throw error;

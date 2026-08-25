@@ -70,32 +70,12 @@ export default function AuthenticationScreen() {
               inputRange: [0, 1],
               outputRange: [panelHeight, finalPanelHeight],
             }),
-            borderTopLeftRadius: transition.interpolate({ inputRange: [0, 1], outputRange: [118, 26] }),
-            borderTopRightRadius: transition.interpolate({ inputRange: [0, 1], outputRange: [118, 26] }),
           },
         ]}>
         {choice ? (
           choice === 'login' ? <LoginScreen embedded onSignUp={() => openAuth('signup')} /> : <SignUpScreen embedded onSignIn={() => openAuth('login')} />
         ) : (
           <>
-            <View pointerEvents="none" style={styles.curvedTop} />
-
-            <View style={styles.pageIndicator}>
-              {[0, 1, 2].map((page) => (
-                <View
-                  key={page}
-                  style={[
-                    styles.indicatorDot,
-                    page === activePage
-                      ? styles.indicatorDotActive
-                      : page === 0
-                        ? styles.indicatorDotFirst
-                        : styles.indicatorDotSecond,
-                  ]}
-                />
-              ))}
-            </View>
-
             <Text style={styles.title}>Set up your account</Text>
 
             <Pressable

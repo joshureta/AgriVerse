@@ -8,7 +8,8 @@ export const styles = StyleSheet.create({
   card: {
     width: '100%',
     backgroundColor: 'rgba(251, 255, 214, 0.96)',
-    borderRadius: 0,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     paddingHorizontal: 22,
     paddingTop: 14,
     paddingBottom: 24,

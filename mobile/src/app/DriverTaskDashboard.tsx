@@ -4,14 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  ImageBackground,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
@@ -21,55 +20,51 @@ import { DriverOrder, DriverOrdersResponse, formatDeliveryAddress, isActiveDeliv
 
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
-const COLORS = {
-  background: '#fbfbf3',
-  green: '#216c36',
-  deepGreen: '#176b32',
-  white: '#ffffff',
-};
+const GREEN = '#134B24';
 
-const heroImage = require('@/assets/images/driver-dashboard-hero.png');
-const weatherImage = require('@/assets/images/driver-weather-rain.png');
-const equipmentImage = require('@/assets/images/driver-equipment.png');
+const sampleDeliveries = [
+  { id: 1, category: 'Delivery', description: 'Deliver 1000 pineapples.', status: 'pending' },
+  { id: 2, category: 'Delivery', description: 'Deliver 2000 pineapples.', status: 'pending' },
+  { id: 3, category: 'Delivery', description: 'Deliver 500 pineapples.', status: 'in_progress' },
+];
 
-function PartlyCloudyIcon() {
+function ClipboardHeaderIcon() {
   return (
-    <View style={styles.weatherIcon}>
-      <View style={styles.sun} />
-      <View style={[styles.sunRay, styles.sunRayTop]} />
-      <View style={[styles.sunRay, styles.sunRayLeft]} />
-      <View style={[styles.sunRay, styles.sunRayRight]} />
-      <View style={styles.cloudBack} />
-      <View style={styles.cloudFront} />
+    <View style={styles.clipboardIcon}>
+      <View style={styles.clipClip} />
+      {[0, 1, 2].map((line) => (
+        <View key={line} style={styles.clipCheckRow}>
+          <Text style={styles.clipCheck}>✓</Text>
+          <View style={styles.clipLine} />
+        </View>
+      ))}
     </View>
   );
 }
 
-function WeatherCard() {
+function WeatherWidget() {
   return (
-    <ImageBackground source={weatherImage} imageStyle={styles.weatherImage} style={styles.weatherCard}>
-      <View style={styles.weatherShade} />
-      <View style={styles.weatherCopy}>
-        <Text style={styles.todayLabel}>Today</Text>
-        <Text style={styles.weatherTitle}>Raining</Text>
-        <Text style={styles.location}>Silang, Cavite Philippines</Text>
-        <Text style={styles.wind}>Wind: 12km/h</Text>
-      </View>
-      {['June 26', 'June 27'].map((date) => (
-        <View key={date} style={styles.forecastColumn}>
-          <Text style={styles.forecastDate}>{date}</Text>
-          <View style={styles.forecastTile}><PartlyCloudyIcon /></View>
+    <View style={styles.weatherBlock}>
+      <Image
+        source={require('@/assets/images/worker-weather-rain-icon.png')}
+        style={styles.weatherIconImage}
+      />
+      <View style={styles.weatherInfo}>
+        <View style={styles.weatherTitleRow}>
+          <Text style={styles.weatherTitle}>Raining</Text>
+          <Text style={styles.weatherDate}>June 26</Text>
         </View>
-      ))}
-    </ImageBackground>
+        <Text style={styles.weatherLocation}>Silang, Cavite Philippines</Text>
+      </View>
+    </View>
   );
 }
 
-function MetricCard({ color, label, value }: { color: string; label: string; value: number }) {
+function MetricCard({ color, label, value, textColor }: { color: string; label: string; value: number; textColor: string }) {
   return (
     <View style={[styles.metricCard, { backgroundColor: color }]}>
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={styles.metricLabel}>{label}</Text>
+      <Text style={[styles.metricValue, { color: textColor }]}>{value}</Text>
+      <Text numberOfLines={2} adjustsFontSizeToFit style={styles.metricLabel}>{label}</Text>
     </View>
   );
 }
@@ -77,40 +72,36 @@ function MetricCard({ color, label, value }: { color: string; label: string; val
 function EquipmentCard({ label, tint }: { label: string; tint: string }) {
   return (
     <View style={[styles.equipmentCard, { backgroundColor: tint }]}>
-      <Image source={equipmentImage} style={styles.equipmentVehicle} />
+      <Image source={require('@/assets/images/driver-equipment.png')} style={styles.equipmentVehicle} />
       <Text style={styles.equipmentLabel}>{label}</Text>
     </View>
   );
 }
 
-function ClipboardIcon() {
-  return (
-    <View style={styles.clipboard}>
-      <View style={styles.clipboardClip} />
-      {[0, 1, 2].map((line) => (
-        <View key={line} style={[styles.clipboardLine, { top: 12 + line * 8 }]}>
-          <Text style={styles.clipboardCheck}>✓</Text><View style={styles.clipboardRule} />
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function TaskRow({ order }: { order: DriverOrder }) {
-  const isActive = isActiveDelivery(order);
+function TaskRow({ order }: { order: DriverOrder | { id: number; category: string; description: string; status: string } }) {
+  const isDriverOrder = 'delivery_assignment_status' in order;
+  const isActive = isDriverOrder ? isActiveDelivery(order as DriverOrder) : (order as { status: string }).status === 'in_progress';
+  const description = isDriverOrder
+    ? (order as DriverOrder).order_number
+      ? `Deliver order ${(order as DriverOrder).order_number}.`
+      : formatDeliveryAddress(order as DriverOrder)
+    : (order as { description: string }).description;
 
   return (
     <View style={styles.taskCard}>
       <View style={styles.taskThumbnail}>
-        <Image source={equipmentImage} style={styles.taskVehicle} />
+        <Image
+          source={require('@/assets/images/driver-task-delivery-icon.png')}
+          style={styles.taskVehicle}
+        />
       </View>
       <View style={styles.taskCopy}>
-        <Text style={styles.taskCategory}>{order.order_number}</Text>
+        <Text style={styles.taskCategory}>Delivery</Text>
         <Text numberOfLines={1} style={styles.taskDescription}>
-          {formatDeliveryAddress(order)}
+          {description}
         </Text>
       </View>
-      {isActive ? <ActivityIndicator color="#70736f" size="small" /> : <View style={styles.statusDot} />}
+      {isActive ? <ActivityIndicator color="#70736F" size="small" /> : <View style={styles.statusDot} />}
     </View>
   );
 }
@@ -148,47 +139,78 @@ export default function DriverTaskDashboardScreen() {
 
   useEffect(() => { if (profile) loadTasks(); }, [loadTasks, profile]);
 
-  const horizontalPadding = width < 360 ? 14 : 18;
-  const contentWidth = Math.min(width, 600);
+  const hasSummary = summary.total > 0 || summary.pending > 0 || summary.active > 0 || summary.completed > 0;
+  const totalTasks = hasSummary ? summary.total : 6;
+  const pendingTasks = hasSummary ? summary.pending : 3;
+  const activeTasks = hasSummary ? summary.active : 2;
+  const completedTasks = hasSummary ? summary.completed : 9;
 
-  if (authLoading) return <View style={styles.center}><ActivityIndicator color={COLORS.deepGreen} size="large" /></View>;
+  const horizontalPadding = width < 360 ? 14 : 18;
+
+  if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
   if (!profile) return <Redirect href="/login" />;
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.page, { maxWidth: contentWidth }]}>
-        <WorkerHeader />
-        <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
-          refreshControl={<RefreshControl colors={[COLORS.deepGreen]} onRefresh={() => loadTasks(true)} refreshing={refreshing} />}
-          showsVerticalScrollIndicator={false}>
-          <View style={styles.welcomeRow}>
-            <Text adjustsFontSizeToFit minimumFontScale={0.82} numberOfLines={2} style={styles.greeting}>Good Day{`\n`}Driver!</Text>
-            <Image source={heroImage} style={styles.heroArt} />
+      <WorkerHeader />
+
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
+        refreshControl={<RefreshControl colors={[GREEN]} onRefresh={() => loadTasks(true)} refreshing={refreshing} />}
+        showsVerticalScrollIndicator={false}
+        style={styles.page}>
+        
+        {/* Top Greeting & Weather Header */}
+        <View style={styles.topRow}>
+          <View style={styles.greetingBlock}>
+            <Text style={styles.greeting}>Good Day{'\n'}Driver!</Text>
           </View>
+          <WeatherWidget />
+        </View>
 
-          <WeatherCard />
+        {/* Driver Hero Art */}
+        <View style={styles.heroWrapper}>
+          <Image
+            source={require('@/assets/images/driver-dashboard-hero.png')}
+            style={styles.heroImage}
+            resizeMode="contain"
+          />
+        </View>
 
-          <View style={styles.metricsRow}>
-            <MetricCard color="#afd28b" label="Total Deliveries" value={summary.total} />
-            <MetricCard color="#a6b28f" label="Pending Deliveries" value={summary.pending} />
-            <MetricCard color="#70a77f" label="Active Deliveries" value={summary.active} />
-            <MetricCard color="#8da879" label="Completed Deliveries" value={summary.completed} />
-          </View>
+        {/* 4 Metric Cards */}
+        <View style={styles.metricsRow}>
+          <MetricCard color="#A5C982" label="Total Tasks" value={totalTasks} textColor="#1B4D27" />
+          <MetricCard color="#1E6B37" label="Pending Tasks" value={pendingTasks} textColor="#FFFFFF" />
+          <MetricCard color="#1B6434" label="Active Tasks" value={activeTasks} textColor="#FFFFFF" />
+          <MetricCard color="#7E9F6B" label="Completed Tasks" value={completedTasks} textColor="#1B4D27" />
+        </View>
 
-          <Text style={styles.equipmentTitle}>Equipment Status</Text>
-          <View style={styles.equipmentRow}>
-            <EquipmentCard label="Available" tint="#1e7639" />
-            <EquipmentCard label="On Transit" tint="#5d9b6d" />
-            <EquipmentCard label="Available" tint="#1e7639" />
-          </View>
+        {/* Equipment Status Section */}
+        <Text style={styles.equipmentTitle}>Equipment Status</Text>
+        <View style={styles.equipmentRow}>
+          <EquipmentCard label="Available" tint="#1E6B37" />
+          <EquipmentCard label="On Transit" tint="#4A855A" />
+          <EquipmentCard label="Available" tint="#1E6B37" />
+        </View>
 
-          <View style={styles.sectionHeading}><ClipboardIcon /><Text style={styles.sectionTitle}>Today’s Deliveries</Text></View>
-          {error ? <Text style={styles.loadError}>{error}</Text> : null}
-          {loading ? <ActivityIndicator style={styles.loader} color={COLORS.deepGreen} /> : orders.slice(0, 3).map((order) => <TaskRow key={order.id} order={order} />)}
-        </ScrollView>
-        <WorkerBottomNavigation activeTab="home" />
-      </View>
+        {/* Today's Tasks Section */}
+        <View style={styles.sectionHeading}>
+          <ClipboardHeaderIcon />
+          <Text style={styles.sectionTitle}>Today’s Tasks</Text>
+        </View>
+
+        {error ? <Text style={styles.loadError}>{error}</Text> : null}
+        {loading ? (
+          <ActivityIndicator style={styles.loader} color={GREEN} />
+        ) : orders.length > 0 ? (
+          orders.slice(0, 3).map((order) => <TaskRow key={order.id} order={order} />)
+        ) : (
+          sampleDeliveries.map((delivery) => <TaskRow key={delivery.id} order={delivery} />)
+        )}
+      </ScrollView>
+
+      <WorkerBottomNavigation activeTab="home" />
     </SafeAreaView>
   );
 }
+

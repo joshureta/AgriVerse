@@ -8,12 +8,12 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth-context';
 import { publicApiRequest } from '@/lib/api';
@@ -154,7 +154,9 @@ export default function SignUpScreen({ embedded = false, onSignIn }: { embedded?
         body: JSON.stringify({ full_name: fullName.trim(), email: email.trim(), mobile_number: mobileNumber.trim(), password, worker_category: workerCategory, region: region.name, province: province?.name ?? null, city_municipality: city.name, barangay: barangay.name }),
       });
       const profile = await signIn(email.trim(), password);
-      router.dismissAll();
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
       router.replace(postAuthenticationRoute(profile));
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to create your account.'); }
     finally { setSubmitting(false); }
@@ -199,7 +201,7 @@ export default function SignUpScreen({ embedded = false, onSignIn }: { embedded?
           </View> : null}
 
           <View style={styles.actions}>{step > 0 ? <Pressable disabled={submitting} onPress={() => { setError(''); setStep((current) => current - 1); }} style={styles.backButton}><Text style={styles.backButtonText}>Back</Text></Pressable> : null}<Pressable disabled={submitting} onPress={step === 2 ? submit : next} style={[styles.continueButton, submitting && styles.buttonDisabled]}>{submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.continueButtonText}>{step === 2 ? 'Create Account' : 'Continue'}</Text>}</Pressable></View>
-          <View style={styles.signInRow}><Text style={styles.signInPrompt}>Already have an account? </Text><Pressable onPress={onSignIn ?? (() => router.replace('/login'))}><Text style={styles.signInLink}>Sign in</Text></Pressable></View>
+          <View style={styles.signInRow}><Text style={styles.signInPrompt}>Already have an account? </Text><Pressable hitSlop={10} onPress={onSignIn ?? (() => router.replace('/login'))}><Text style={styles.signInLink}>Sign in</Text></Pressable></View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -1,9 +1,9 @@
 import { styles } from '@/styles/worker-task-dashboard.styles';
 import { Redirect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
+  Image,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -23,60 +23,51 @@ type WorkerTask = {
   category: string;
   status: TaskStatus;
   description: string | null;
+  task_name?: string;
 };
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
-const GREEN = '#176b32';
-function ClipboardIcon({ checked = false }: { checked?: boolean }) {
+const GREEN = '#134B24';
+
+function ClipboardHeaderIcon() {
   return (
-    <View style={styles.clipboard}>
+    <View style={styles.clipboardIcon}>
       <View style={styles.clipClip} />
       {[0, 1, 2].map((line) => (
-        <View key={line} style={[styles.clipLine, { top: 12 + line * 8 }]}>
-          <Text style={styles.clipCheck}>{checked || line !== 1 ? '✓' : '•'}</Text>
-          <View style={styles.clipRule} />
+        <View key={line} style={styles.clipCheckRow}>
+          <Text style={styles.clipCheck}>✓</Text>
+          <View style={styles.clipLine} />
         </View>
       ))}
     </View>
   );
 }
 
-function HeroArt() {
+function WeatherWidget() {
   return (
-    <View style={styles.heroArt}>
-      <View style={[styles.hill, styles.hillBack]} />
-      <View style={[styles.hill, styles.hillFront]} />
-      <Text style={styles.farmer}>👨‍🌾</Text>
-      <View style={styles.soil} />
-      <View style={styles.seedlings}>
-        {Array.from({ length: 7 }).map((_, index) => <Text key={index} style={styles.seedling}>🌱</Text>)}
-      </View>
-    </View>
-  );
-}
-
-function WeatherCard() {
-  return (
-    <View style={styles.weatherCard}>
-      <View style={styles.rainLines} />
-      <View style={styles.weatherMain}>
-        <Text style={styles.todayLabel}>Today</Text>
-        <Text style={styles.weatherTitle}>Raining</Text>
-        <Text style={styles.location}>Silang, Cavite Philippines</Text>
-        <Text style={styles.wind}>Wind: 12km/h</Text>
-      </View>
-      {['June 26', 'June 27'].map((date) => (
-        <View key={date} style={styles.forecastColumn}>
-          <Text style={styles.forecastDate}>{date}</Text>
-          <View style={styles.forecastTile}><Text style={styles.weatherEmoji}>🌤️</Text></View>
+    <View style={styles.weatherBlock}>
+      <Image
+        source={require('@/assets/images/worker-weather-rain-icon.png')}
+        style={styles.weatherIconImage}
+      />
+      <View style={styles.weatherInfo}>
+        <View style={styles.weatherTitleRow}>
+          <Text style={styles.weatherTitle}>Raining</Text>
+          <Text style={styles.weatherDate}>June 26</Text>
         </View>
-      ))}
+        <Text style={styles.weatherLocation}>Silang, Cavite Philippines</Text>
+      </View>
     </View>
   );
 }
 
-function MetricCard({ color, label, value }: { color: string; label: string; value: number }) {
-  return <View style={[styles.metricCard, { backgroundColor: color }]}><Text style={styles.metricValue}>{value}</Text><Text numberOfLines={1} adjustsFontSizeToFit style={styles.metricLabel}>{label}</Text></View>;
+function MetricCard({ color, label, value, textColor }: { color: string; label: string; value: number; textColor: string }) {
+  return (
+    <View style={[styles.metricCard, { backgroundColor: color }]}>
+      <Text style={[styles.metricValue, { color: textColor }]}>{value}</Text>
+      <Text numberOfLines={2} adjustsFontSizeToFit style={styles.metricLabel}>{label}</Text>
+    </View>
+  );
 }
 
 function TaskRow({ task }: { task: WorkerTask }) {
@@ -84,9 +75,9 @@ function TaskRow({ task }: { task: WorkerTask }) {
     <View style={styles.taskCard}>
       <View style={styles.taskCopy}>
         <Text style={styles.taskCategory}>{task.category}</Text>
-        <Text numberOfLines={1} style={styles.taskDescription}>{task.description || `${task.category} task`}</Text>
+        <Text numberOfLines={1} style={styles.taskDescription}>{task.description || task.task_name || `${task.category} task`}</Text>
       </View>
-      {task.status === 'in_progress' ? <ActivityIndicator color="#6f746f" size="small" /> : <View style={styles.statusDot} />}
+      {task.status === 'in_progress' ? <ActivityIndicator color="#666" size="small" /> : <View style={styles.statusDot} />}
     </View>
   );
 }
@@ -133,22 +124,46 @@ export default function WorkerTaskDashboardScreen() {
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadTasks(true)} colors={[GREEN]} />}>
-        <View style={styles.welcomeRow}>
-          <Text style={styles.greeting}>Good Day{`\n`}Worker!</Text>
-          <HeroArt />
+        
+        {/* Top Greeting & Weather Header */}
+        <View style={styles.topRow}>
+          <View style={styles.greetingBlock}>
+            <Text style={styles.greeting}>Good Day{'\n'}Worker!</Text>
+          </View>
+          <WeatherWidget />
         </View>
-        <WeatherCard />
 
+        {/* Farmer Hero Art */}
+        <View style={styles.heroWrapper}>
+          <Image
+            source={require('@/assets/images/worker-crop-farmer-hero.png')}
+            style={styles.heroImage}
+            resizeMode="contain"
+          />
+        </View>
+
+        {/* 4 Metric Cards */}
         <View style={styles.metricsRow}>
-          <MetricCard color="#b0d48c" label="Total Tasks" value={dashboard.total} />
-          <MetricCard color="#a9b693" label="Pending Tasks" value={dashboard.pending} />
-          <MetricCard color="#79ab86" label="Active Tasks" value={dashboard.active} />
-          <MetricCard color="#91aa7c" label="Completed Tasks" value={dashboard.completed} />
+          <MetricCard color="#A5C982" label="Total Tasks" value={dashboard.total} textColor="#1B4D27" />
+          <MetricCard color="#1E6B37" label="Pending Tasks" value={dashboard.pending} textColor="#FFFFFF" />
+          <MetricCard color="#1E6B37" label="Active Tasks" value={dashboard.active} textColor="#FFFFFF" />
+          <MetricCard color="#7E9F6B" label="Completed Tasks" value={dashboard.completed} textColor="#1B4D27" />
         </View>
 
-        <View style={styles.sectionHeading}><ClipboardIcon /><Text style={styles.sectionTitle}>Today’s Tasks</Text></View>
+        {/* Today's Tasks Section */}
+        <View style={styles.sectionHeading}>
+          <ClipboardHeaderIcon />
+          <Text style={styles.sectionTitle}>Today’s Tasks</Text>
+        </View>
+
         {error ? <Text style={styles.loadError}>{error}</Text> : null}
-        {loading ? <ActivityIndicator style={styles.loader} color={GREEN} /> : todayTasks.map((task) => <TaskRow key={task.id} task={task} />)}
+        {loading ? (
+          <ActivityIndicator style={styles.loader} color={GREEN} />
+        ) : todayTasks.length > 0 ? (
+          todayTasks.map((task) => <TaskRow key={task.id} task={task} />)
+        ) : (
+          <TaskRow task={{ id: 0, category: 'Planting', status: 'pending', description: 'Prepare planting holes' }} />
+        )}
       </ScrollView>
 
       <WorkerBottomNavigation activeTab="home" />
