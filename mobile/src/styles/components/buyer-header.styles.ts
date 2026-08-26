@@ -1,0 +1,52 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+  header: {
+    height: 66,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E5E2B',
+  },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logo: { width: 30, height: 30, resizeMode: 'contain' },
+  brandName: { color: '#ffffff', fontSize: 15, fontWeight: '800', letterSpacing: 0.3 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  chat: { width: 24, height: 20, alignItems: 'center', justifyContent: 'center' },
+  chatBubble: {
+    width: 22,
+    height: 16,
+    borderRadius: 7,
+    borderBottomLeftRadius: 2,
+    backgroundColor: '#ffffff',
+  },
+  bell: { width: 24, height: 26, alignItems: 'center', justifyContent: 'center' },
+  bellBody: {
+    width: 16,
+    height: 17,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
+    backgroundColor: '#ffffff',
+  },
+  bellClapper: {
+    width: 5,
+    height: 4,
+    marginTop: 2,
+    borderRadius: 3,
+    backgroundColor: '#ffffff',
+  },
+  bellDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E4572E',
+    borderWidth: 1.5,
+    borderColor: '#1E5E2B',
+  },
+});
