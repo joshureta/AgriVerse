@@ -13,7 +13,7 @@ export type WorkerProfile = {
   province: string | null;
   city_municipality: string | null;
   barangay: string | null;
-  role: 'farm_worker';
+  role: 'farm_worker' | 'buyer';
   worker_category: string | null;
   must_change_password: boolean;
   name_confirmed_at: string | null;
@@ -42,8 +42,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function getWorkerProfile(): Promise<WorkerProfile> {
   const result = await apiRequest<{ profile: WorkerProfile }>('/api/auth/me');
-  if (result.profile.role !== 'farm_worker') {
-    throw new Error('This mobile application is only available to farm workers.');
+  if (result.profile.role !== 'farm_worker' && result.profile.role !== 'buyer') {
+    throw new Error('This mobile application is only available to farm workers and buyers.');
   }
   return result.profile;
 }

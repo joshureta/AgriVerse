@@ -5,9 +5,11 @@ type RoutingProfile = {
   name_confirmed_at: string | null;
   onboarding_completed_at: string | null;
   worker_category: string | null;
+  role: 'farm_worker' | 'buyer';
 };
 
 export function dashboardRoute(profile: RoutingProfile): Href {
+  if (profile.role === 'buyer') return '/BuyerHome' as Href;
   return profile.worker_category === 'driver'
     ? '/DriverTaskDashboard'
     : '/WorkerTaskPending';
