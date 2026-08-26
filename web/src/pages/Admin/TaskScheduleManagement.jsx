@@ -531,7 +531,7 @@ export default function TaskScheduleManagement() {
                   {workView !== 'deliveries' && !isDriverStatusFilter && tasks.map((task) => workView === 'crop'
                     ? <tr key={`task-${task.id}`}><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-priority priority-${task.priority}`}>{task.priority_label}</span></td><td><span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></div></td></tr>
                     : <tr key={`task-${task.id}`}><td><span className="task-work-type is-crop">Crop Task</span></td><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></div></td></tr>)}
-                  {workView !== 'crop' && (workView === 'deliveries' ? paginatedDeliveryOrders : visibleDeliveryOrders).map((order) => workView === 'deliveries'
+                  {workView !== 'crop' && paginatedDeliveryOrders.map((order) => workView === 'deliveries'
                     ? <tr key={`delivery-${order.id}`}><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{[order.delivery_barangay, order.delivery_city_municipality, order.delivery_province, order.delivery_region].filter(Boolean).join(', ')}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td><span className={`task-status status-${order.delivery_assignment_status || 'assigned'}`}>{(order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}>View</button>{order.order_status === 'ready_for_delivery' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>
                     : <tr key={`delivery-${order.id}`}><td><span className="task-work-type is-delivery">Delivery</span></td><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong></td><td>{deliveryAddressSummary(order)}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td><span className={`task-status status-${order.delivery_assignment_status || 'assigned'}`}>{(order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}>View</button>{order.order_status === 'ready_for_delivery' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>)}
                   {((workView === 'crop' && !tasks.length) || (workView === 'deliveries' && !visibleDeliveryOrders.length) || (workView === 'all' && !tasks.length && !visibleDeliveryOrders.length)) && <tr><td className="tasks-empty" colSpan="7">No work assignments found.</td></tr>}
@@ -540,19 +540,11 @@ export default function TaskScheduleManagement() {
             </div>
             <footer className="task-pagination">
               <span>{workView === 'deliveries' ? `${visibleDeliveryOrders.length} assigned delivery order${visibleDeliveryOrders.length === 1 ? '' : 's'}` : `${pagination.total} crop task${pagination.total === 1 ? '' : 's'}${workView === 'all' ? ` · ${visibleDeliveryOrders.length} delivery order${visibleDeliveryOrders.length === 1 ? '' : 's'}` : ''}`}</span>
-              {workView === 'deliveries' ? (
-                <div>
-                  <button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>← Previous</button>
-                  <strong>{page} / {deliveryTotalPages}</strong>
-                  <button type="button" disabled={page >= deliveryTotalPages} onClick={() => setPage((value) => value + 1)}>Next →</button>
-                </div>
-              ) : (
-                <div>
-                  <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button>
-                  <strong>{page} / {pagination.totalPages}</strong>
-                  <button type="button" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button>
-                </div>
-              )}
+              <div>
+                <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((v) => v - 1)}>← Previous</button>
+                <strong>{page} / {workView === 'deliveries' ? deliveryTotalPages : pagination.totalPages || 1}</strong>
+                <button type="button" disabled={(workView === 'deliveries' ? page >= deliveryTotalPages : page >= (pagination.totalPages || 1)) || loading} onClick={() => setPage((v) => v + 1)}>Next →</button>
+              </div>
             </footer>
             </> : <>
               <div className="task-settings-toolbar">
