@@ -36,6 +36,15 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Fixed-size stack so the roof triangle (and, when inactive, the inset
+  // white triangle drawn on top of it to form a green outline) render at
+  // the same on-screen position/size as the original solid triangle did.
+  homeRoofStack: {
+    width: 34,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
   homeRoofTriangle: {
     width: 0,
     height: 0,
@@ -45,6 +54,21 @@ export const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderBottomColor: ICON_COLOR,
+  },
+  // Inset white triangle shown only in the inactive state, leaving a thin
+  // green rim around it so the roof reads as an outline instead of a fill.
+  homeRoofInner: {
+    position: 'absolute',
+    top: 4,
+    left: 3,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 14,
+    borderRightWidth: 14,
+    borderBottomWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#ffffff',
   },
   homeHouseBody: {
     width: 26,
