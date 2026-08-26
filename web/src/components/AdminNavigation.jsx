@@ -14,7 +14,7 @@ const navItems = [
 ]
 
 const secondaryNavItems = [
-  { icon: 'records', label: 'Records', key: 'records' },
+  { href: '/admin/records', icon: 'records', label: 'Records', key: 'records' },
 ]
 
 function formatDashboardDate(date) {
@@ -96,7 +96,7 @@ export function AdminSidebar({ active }) {
         {secondaryNavItems.map((item) => (
           <a
             className={item.key === active ? 'is-active' : ''}
-            href="#"
+            href={item.href || '#'}
             key={item.key}
             aria-current={item.key === active ? 'page' : undefined}
           >

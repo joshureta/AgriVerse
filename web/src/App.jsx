@@ -4,6 +4,7 @@ import AdminDashboard from './pages/Admin/Dashboard.jsx'
 import EditUser from './pages/Admin/EditUser.jsx'
 import InventoryManagement from './pages/Admin/InventoryManagement.jsx'
 import TaskScheduleManagement from './pages/Admin/TaskScheduleManagement.jsx'
+import RecordsManagement from './pages/Admin/RecordsManagement.jsx'
 import UserManagement from './pages/Admin/UserManagement.jsx'
 import CropHealthMonitoring from './pages/Admin/CropHealthMonitoring.jsx'
 import EnvironmentalMonitoring from './pages/Admin/EnvironmentalMonitoring.jsx'
@@ -100,6 +101,14 @@ function App() {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
         <TaskScheduleManagement />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/admin/records') {
+    return (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <RecordsManagement />
       </ProtectedRoute>
     )
   }
