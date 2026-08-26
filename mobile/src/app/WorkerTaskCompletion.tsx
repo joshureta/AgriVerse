@@ -1,9 +1,12 @@
 import { styles } from '@/styles/worker-task-completion.styles';
 import { BlurView } from 'expo-blur';
+import * as ImagePicker from 'expo-image-picker';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -54,6 +57,13 @@ export default function WorkerTaskCompletionScreen() {
   const [task, setTask] = useState<WorkerTask | null>(null);
   const [timeFinished, setTimeFinished] = useState(formatCurrentTime);
   const [insights, setInsights] = useState('');
+  
+  // Photo states (Gallery selection only)
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [photoMime, setPhotoMime] = useState<string>('image/jpeg');
+  const [photoName, setPhotoName] = useState<string>('');
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -79,11 +89,51 @@ export default function WorkerTaskCompletionScreen() {
 
   useEffect(() => { if (profile) loadTask(); }, [loadTask, profile]);
 
+  async function handlePickImage() {
+    setError('');
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        setError('Photo gallery permission is required to select photos.');
+        Alert.alert('Permission Denied', 'Please enable gallery access in your device settings.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setPhotoUri(asset.uri);
+        setPhotoBase64(asset.base64 || null);
+        setPhotoMime(asset.mimeType || 'image/jpeg');
+        setPhotoName(asset.fileName || `task-${task?.id || 'work'}-completion.jpg`);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not select photo from gallery.');
+    }
+  }
+
+  function handleRemovePhoto() {
+    setPhotoUri(null);
+    setPhotoBase64(null);
+    setPhotoName('');
+  }
+
   async function submitCompletion() {
     if (!task) return;
     const completedAt = parseFinishTime(timeFinished);
     if (!completedAt) {
       setError('Enter the finish time in the format 9:30 AM.');
+      return;
+    }
+    if (!photoUri) {
+      setError('A photo of the completed work is required as proof of completion.');
       return;
     }
     if (insights.trim().length > 2000) {
@@ -99,6 +149,9 @@ export default function WorkerTaskCompletionScreen() {
         body: JSON.stringify({
           completed_at: completedAt.toISOString(),
           completion_notes: insights.trim() || null,
+          image: photoBase64 ? `data:${photoMime};base64,${photoBase64}` : null,
+          image_mime: photoMime,
+          image_name: photoName || `${task.category} Proof Photo`,
         }),
       });
       router.replace('/WorkerTaskCompleted');
@@ -166,6 +219,44 @@ export default function WorkerTaskCompletionScreen() {
                   <Text style={styles.description}>{task.description || 'No description provided.'}</Text>
                 </View>
 
+                {/* Proof of Work / Photo Inspection Group (Below Description) */}
+                <View style={[styles.fieldGroup, styles.photoGroup]}>
+                  <Text style={styles.label}>
+                    Proof of Work <Text style={styles.photoRequiredBadge}>* (Photo Required)</Text>
+                  </Text>
+
+                  {!photoUri ? (
+                    <View style={styles.photoUploadBox}>
+                      <Text style={styles.photoUploadIcon}>📸</Text>
+                      <Text style={styles.photoUploadPrompt}>
+                        Select a photo of the completed crop work from your device
+                      </Text>
+                      <Pressable onPress={handlePickImage} style={styles.choosePhotoButton}>
+                        <Text style={styles.choosePhotoButtonText}>🖼️ Choose Photo from Gallery</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <View>
+                      <View style={styles.photoPreviewContainer}>
+                        <Image source={{ uri: photoUri }} style={styles.photoPreviewImage} />
+                      </View>
+                      <View style={styles.photoBadgeRow}>
+                        <View style={styles.photoBadge}>
+                          <Text style={styles.photoBadgeText}>✓ Photo attached</Text>
+                        </View>
+                        <View style={styles.photoActionsRow}>
+                          <Pressable onPress={handlePickImage} style={styles.changePhotoButton}>
+                            <Text style={styles.changePhotoText}>🖼️ Change Photo</Text>
+                          </Pressable>
+                          <Pressable onPress={handleRemovePhoto} style={styles.removePhotoButton}>
+                            <Text style={styles.removePhotoText}>✕ Remove</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </View>
+
                 <View style={[styles.fieldGroup, styles.insightsGroup]}>
                   <Text style={styles.label}>Insights (Optional)</Text>
                   <TextInput
@@ -173,6 +264,8 @@ export default function WorkerTaskCompletionScreen() {
                     maxLength={2000}
                     multiline
                     onChangeText={setInsights}
+                    placeholder="Optional agronomic notes or observations..."
+                    placeholderTextColor="#9ca3af"
                     style={styles.insightsInput}
                     textAlignVertical="top"
                     value={insights}
@@ -184,14 +277,20 @@ export default function WorkerTaskCompletionScreen() {
                   disabled={submitting}
                   onPress={submitCompletion}
                   style={({ pressed }) => [styles.submitButton, (pressed || submitting) && styles.submitButtonPressed]}>
-                  {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Complete Task</Text>}
+                  {submitting ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.submitText}>Complete Task</Text>
+                  )}
                 </Pressable>
               </View>
             </View>
           ) : (
             <View style={styles.errorCard}>
               <Text style={styles.errorText}>{error}</Text>
-              <Pressable onPress={() => router.replace('/WorkerTaskActive')}><Text style={styles.backText}>Return to active tasks</Text></Pressable>
+              <Pressable onPress={() => router.replace('/WorkerTaskActive')}>
+                <Text style={styles.backText}>Return to active tasks</Text>
+              </Pressable>
             </View>
           )}
         </ScrollView>
@@ -199,3 +298,5 @@ export default function WorkerTaskCompletionScreen() {
     </SafeAreaView>
   );
 }
+
+

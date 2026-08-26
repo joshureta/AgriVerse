@@ -7,12 +7,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth-context';
 import { postAuthenticationRoute } from '@/lib/mobile-routing';
@@ -35,7 +35,9 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
     setError('');
     try {
       const profile = await signIn(email.trim(), password);
-      router.dismissAll();
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
       router.replace(postAuthenticationRoute(profile));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to sign in.');

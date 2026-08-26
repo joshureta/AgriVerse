@@ -1,49 +1,235 @@
 import { StyleSheet } from 'react-native';
 
-const GREEN = '#176b32';
+const DARK_GREEN = '#134B24';
+const ACCENT_GREEN = '#1E6B37';
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fbfbf3' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fbfbf3' },
-  scrollContent: { paddingTop: 28, paddingBottom: 112 },
-  welcomeRow: { height: 144, flexDirection: 'row', alignItems: 'flex-start' },
-  greeting: { width: '40%', color: '#196a32', fontSize: 35, lineHeight: 49, fontWeight: '800', letterSpacing: .2, zIndex: 2 },
-  heroArt: { flex: 1, height: 145, overflow: 'hidden', position: 'relative' },
-  hill: { position: 'absolute', bottom: 24, width: 130, height: 55, borderRadius: 70, transform: [{ rotate: '-8deg' }] },
-  hillBack: { left: 16, backgroundColor: '#e2edd7' },
-  hillFront: { right: -5, backgroundColor: '#d7e8ca' },
-  farmer: { position: 'absolute', right: 43, bottom: 16, fontSize: 86, zIndex: 3 },
-  soil: { position: 'absolute', height: 10, left: 0, right: 0, bottom: 1, backgroundColor: '#b47d35', borderRadius: 8 },
-  seedlings: { position: 'absolute', bottom: 1, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', zIndex: 4 },
-  seedling: { fontSize: 29 },
-  weatherCard: { height: 185, borderRadius: 8, backgroundColor: '#61746b', overflow: 'hidden', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, marginBottom: 54 },
-  rainLines: { position: 'absolute', inset: 0, backgroundColor: 'rgba(35,55,50,.24)', borderTopWidth: 28, borderBottomWidth: 36, borderColor: 'rgba(255,255,255,.04)' },
-  weatherMain: { flex: 1, alignSelf: 'stretch', paddingTop: 21 },
-  todayLabel: { color: '#fff', fontWeight: '800', fontSize: 20 },
-  weatherTitle: { color: '#fff', fontWeight: '800', fontSize: 41, lineHeight: 47 },
-  location: { color: '#fff', fontSize: 14, marginTop: 1 },
-  wind: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 13 },
-  forecastColumn: { width: 87, alignItems: 'center' },
-  forecastDate: { color: '#fff', fontSize: 13, fontWeight: '800', marginBottom: 12 },
-  forecastTile: { width: 72, height: 77, borderRadius: 8, backgroundColor: 'rgba(240,240,236,.58)', alignItems: 'center', justifyContent: 'center' },
-  weatherEmoji: { fontSize: 44 },
-  metricsRow: { flexDirection: 'row', gap: 12, marginHorizontal: 3, marginBottom: 40 },
-  metricCard: { flex: 1, height: 98, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, elevation: 4, shadowColor: '#65705e', shadowOffset: { width: 0, height: 5 }, shadowOpacity: .18, shadowRadius: 7 },
-  metricValue: { color: GREEN, fontSize: 27, lineHeight: 34, fontWeight: '700', marginBottom: 7 },
-  metricLabel: { color: '#fff', fontSize: 11, textAlign: 'center' },
-  sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 15, marginLeft: 14, marginBottom: 27 },
-  sectionTitle: { color: '#08642b', fontSize: 28, fontWeight: '800' },
-  clipboard: { width: 37, height: 46, borderColor: '#237840', borderWidth: 3, borderRadius: 3, position: 'relative' },
-  clipClip: { position: 'absolute', top: -7, left: 9, width: 15, height: 9, borderRadius: 2, borderWidth: 3, borderColor: '#237840', backgroundColor: '#fff' },
-  clipLine: { position: 'absolute', left: 4, right: 4, height: 8, flexDirection: 'row', alignItems: 'center' },
-  clipCheck: { color: '#237840', fontSize: 11, fontWeight: '900', width: 12 },
-  clipRule: { height: 3, borderRadius: 2, backgroundColor: '#237840', flex: 1 },
-  loader: { marginTop: 25 },
-  loadError: { color: '#a33d35', fontSize: 12, textAlign: 'center', marginVertical: 18 },
-  taskCard: { height: 62, borderRadius: 8, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 19, marginHorizontal: 10, marginBottom: 14, borderWidth: 1, borderColor: '#d8dadd', elevation: 4, shadowColor: '#777', shadowOffset: { width: 0, height: 5 }, shadowOpacity: .16, shadowRadius: 7 },
-  taskCopy: { flex: 1 },
-  taskCategory: { color: '#176638', fontSize: 10, fontWeight: '700', marginBottom: 7 },
-  taskDescription: { color: '#252525', fontSize: 16 },
-  statusDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#18743a' },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F9F9F4',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F9F9F4',
+  },
+  scrollContent: {
+    paddingTop: 16,
+    paddingBottom: 90,
+  },
+
+  // Top Section: Greeting on left, Compact Weather on right
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  greetingBlock: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  greeting: {
+    color: DARK_GREEN,
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  weatherBlock: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
+    paddingTop: 2,
+  },
+  weatherIconImage: {
+    width: 36,
+    height: 34,
+    resizeMode: 'contain',
+    marginRight: 6,
+    marginTop: 2,
+  },
+  weatherInfo: {
+    marginRight: 8,
+  },
+  weatherTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  weatherTitle: {
+    color: DARK_GREEN,
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 26,
+  },
+  weatherDate: {
+    color: DARK_GREEN,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  weatherLocation: {
+    color: '#3D6346',
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+
+  // Farmer Hero Illustration
+  heroWrapper: {
+    width: '100%',
+    height: 155,
+    marginVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroImage: {
+    width: '100%',
+    height: 155,
+    resizeMode: 'contain',
+  },
+
+  // 4 Metrics Cards in a Row
+  metricsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 28,
+  },
+  metricCard: {
+    flex: 1,
+    height: 142,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+  },
+  metricValue: {
+    fontSize: 42,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  metricLabel: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+
+  // Today's Tasks Section Header
+  sectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    color: DARK_GREEN,
+    fontSize: 26,
+    fontWeight: '800',
+  },
+  clipboardIcon: {
+    width: 32,
+    height: 42,
+    borderColor: DARK_GREEN,
+    borderWidth: 2.5,
+    borderRadius: 4,
+    position: 'relative',
+    paddingTop: 8,
+    paddingHorizontal: 4,
+    justifyContent: 'space-around',
+    paddingBottom: 3,
+  },
+  clipClip: {
+    position: 'absolute',
+    top: -6,
+    left: 8,
+    width: 14,
+    height: 8,
+    borderRadius: 2,
+    borderWidth: 2.5,
+    borderColor: DARK_GREEN,
+    backgroundColor: '#F9F9F4',
+  },
+  clipCheckRow: {
+    height: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  clipCheck: {
+    color: DARK_GREEN,
+    fontSize: 9,
+    fontWeight: '900',
+    width: 9,
+  },
+  clipLine: {
+    height: 2.5,
+    borderRadius: 1.5,
+    backgroundColor: DARK_GREEN,
+    flex: 1,
+  },
+
+  loader: {
+    marginTop: 25,
+  },
+  loadError: {
+    color: '#a33d35',
+    fontSize: 12,
+    textAlign: 'center',
+    marginVertical: 18,
+  },
+
+  // Task Cards List
+  taskCard: {
+    minHeight: 64,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E8EBE4',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+  },
+  taskCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  taskCategory: {
+    color: ACCENT_GREEN,
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 3,
+    textTransform: 'capitalize',
+  },
+  taskDescription: {
+    color: '#1F2937',
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  statusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: ACCENT_GREEN,
+  },
 });
+
+
 
