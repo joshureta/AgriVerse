@@ -13,6 +13,28 @@ export const styles = StyleSheet.create({
   logo: { width: 30, height: 30, resizeMode: 'contain' },
   brandName: { color: '#ffffff', fontSize: 15, fontWeight: '800', letterSpacing: 0.3 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+
+  // 3-zone layout used only when a back button is shown (logo centers on its own).
+  zone: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  zoneCenter: { justifyContent: 'center' },
+  zoneEnd: { justifyContent: 'flex-end' },
+  backButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+  backChevron: {
+    width: 8,
+    height: 8,
+    marginLeft: 3,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: '#1E5E2B',
+    transform: [{ rotate: '45deg' }],
+  },
   chat: { width: 24, height: 20, alignItems: 'center', justifyContent: 'center' },
   chatBubble: {
     width: 22,

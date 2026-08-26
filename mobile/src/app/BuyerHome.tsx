@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Image, ImageBackground, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
@@ -80,7 +81,11 @@ function CalendarBadge() {
 
 function ProductCard({ size, name, weight, price }: { size: string; name: string; weight: string; price: string }) {
   return (
-    <View style={styles.productCard}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`View ${name} pineapple`}
+      onPress={() => router.push('/BuyerProductDetail' as never)}
+      style={styles.productCard}>
       <View style={styles.productBadge}>
         <Text style={styles.productBadgeText}>{size}</Text>
       </View>
@@ -88,7 +93,7 @@ function ProductCard({ size, name, weight, price }: { size: string; name: string
       <Text style={styles.productName}>{name}</Text>
       <Text style={styles.productWeight}>{weight}</Text>
       <Text style={styles.productPrice}>{price}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -148,6 +153,7 @@ export default function BuyerHomeScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Shop now"
+              onPress={() => router.push('/BuyerProductDetail' as never)}
               style={({ pressed }) => [styles.shopNowButton, pressed && styles.shopNowPressed]}>
               <Text style={styles.shopNowText}>SHOP NOW</Text>
               <Text style={styles.shopNowArrow}>→</Text>
