@@ -69,6 +69,34 @@ export async function placeBuyerOrder(order, retry = true) {
   }
 }
 
+export async function createGcashCheckout(orderId, retry = true) {
+  const token = await readAccessToken()
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 15000)
+
+  try {
+    const response = await fetch(`${API_URL}/api/buyer/payments/${orderId}/gcash-checkout`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (response.status === 401 && retry) {
+      await readAccessToken(true)
+      return createGcashCheckout(orderId, false)
+    }
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body.error || `Unable to start GCash payment (${response.status})`)
+    return body.checkout_url
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('PayMongo did not respond. Please try again.')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
 export async function loadBuyerDeliveryAddresses() {
   const token = await readAccessToken()
   const response = await fetch(`${API_URL}/api/buyer/orders/addresses`, {
@@ -136,6 +164,31 @@ export async function loadBuyerOrders(retry = true) {
     const body = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(body.error || `Unable to load orders (${response.status})`)
     return body.orders || []
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('The order server did not respond. Please try again.')
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
+export async function loadBuyerOrder(orderId, retry = true) {
+  const token = await readAccessToken()
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 12000)
+
+  try {
+    const response = await fetch(`${API_URL}/api/buyer/orders/${orderId}`, {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (response.status === 401 && retry) {
+      await readAccessToken(true)
+      return loadBuyerOrder(orderId, false)
+    }
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body.error || `Unable to load order (${response.status})`)
+    return body.order
   } catch (error) {
     if (error.name === 'AbortError') throw new Error('The order server did not respond. Please try again.')
     throw error

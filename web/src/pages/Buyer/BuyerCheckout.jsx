@@ -18,9 +18,11 @@ import deliveryIcon from '../../assets/buyer/checkout/delivery.png'
 import pickupIcon from '../../assets/buyer/checkout/pickup.png'
 import {
   createBuyerDeliveryAddress,
+  createGcashCheckout,
   deleteBuyerDeliveryAddress,
   loadPineappleProducts,
   loadBuyerDeliveryAddresses,
+  loadBuyerOrder,
   buyerCartQuantity,
   placeBuyerOrder,
   readBuyerCart,
@@ -88,6 +90,49 @@ export default function BuyerCheckout() {
   const [confirmedAddressId, setConfirmedAddressId] = useState(null)
   const [addressConfirmed, setAddressConfirmed] = useState(false)
   const [alternateAddress, setAlternateAddress] = useState(emptyAddress)
+  const [retryingPayment, setRetryingPayment] = useState(false)
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('payment') !== 'return') return undefined
+    const returnedOrderId = url.searchParams.get('order')
+    url.searchParams.delete('payment')
+    url.searchParams.delete('order')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    if (!returnedOrderId) return undefined
+
+    let active = true
+    let attempts = 0
+    async function pollOrderStatus() {
+      try {
+        const order = await loadBuyerOrder(returnedOrderId)
+        if (!active) return
+        setPlacedOrder(order)
+        setOrderToastVisible(true)
+        attempts += 1
+        if (order.payment_status === 'pending' && attempts < 5) {
+          window.setTimeout(pollOrderStatus, 3000)
+        }
+      } catch (requestError) {
+        if (active) setError(requestError.message)
+      }
+    }
+    pollOrderStatus()
+    return () => { active = false }
+  }, [])
+
+  async function retryGcashPayment() {
+    if (!placedOrder || retryingPayment) return
+    setRetryingPayment(true)
+    setError('')
+    try {
+      const checkoutUrl = await createGcashCheckout(placedOrder.id)
+      window.location.href = checkoutUrl
+    } catch (requestError) {
+      setError(requestError.message)
+      setRetryingPayment(false)
+    }
+  }
 
   useEffect(() => {
     if (!error) return undefined
@@ -239,6 +284,20 @@ export default function BuyerCheckout() {
         items: items.map((item) => ({ product_id: item.id, quantity: item.quantity })),
       })
       writeBuyerCart([])
+
+      if (paymentMethod === 'gcash') {
+        try {
+          const checkoutUrl = await createGcashCheckout(order.id)
+          window.location.href = checkoutUrl
+          return
+        } catch (paymentError) {
+          setPlacedOrder(order)
+          setOrderToastVisible(true)
+          setError(`Order placed, but GCash checkout could not be started: ${paymentError.message}. You can retry payment below.`)
+          return
+        }
+      }
+
       setPlacedOrder(order)
       setOrderToastVisible(true)
     } catch (requestError) {
@@ -448,7 +507,34 @@ export default function BuyerCheckout() {
           {placedOrder && orderToastVisible && (
             <aside className="checkout-order-toast" role="status" aria-live="polite">
               <span className="checkout-order-toast-icon"><Check aria-hidden="true" /></span>
-              <div><strong>Order placed</strong><p>Order <b>{placedOrder.order_number}</b> was placed successfully.</p></div>
+              <div>
+                {placedOrder.payment_method === 'gcash' ? (
+                  placedOrder.payment_status === 'paid' ? (
+                    <>
+                      <strong>Payment confirmed</strong>
+                      <p>Your GCash payment for order <b>{placedOrder.order_number}</b> was confirmed. It&apos;s now being prepared.</p>
+                    </>
+                  ) : placedOrder.payment_status === 'failed' ? (
+                    <>
+                      <strong>Payment failed</strong>
+                      <p>Your GCash payment for order <b>{placedOrder.order_number}</b> did not go through.</p>
+                      <button type="button" className="checkout-retry-payment" onClick={retryGcashPayment} disabled={retryingPayment}>
+                        {retryingPayment ? 'Redirecting…' : 'Retry Payment'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <strong>Confirming payment…</strong>
+                      <p>We&apos;re confirming your GCash payment for order <b>{placedOrder.order_number}</b>. This can take a few seconds.</p>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <strong>Order placed</strong>
+                    <p>Order <b>{placedOrder.order_number}</b> was placed successfully.</p>
+                  </>
+                )}
+              </div>
               <a href={`/buyer/delivery-progress?track=${encodeURIComponent(placedOrder.id)}`}>Track Delivery</a>
               <button type="button" onClick={() => setOrderToastVisible(false)} aria-label="Dismiss order notification"><X aria-hidden="true" /></button>
             </aside>

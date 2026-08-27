@@ -685,6 +685,10 @@
 .checkout-order-toast > div strong { color: #1d6632; font-size: 17px; }
 .checkout-order-toast > div p { margin: 4px 0 0; color: #647167; font-size: 12px; }
 .checkout-order-toast > div b { color: #237538; }
+.checkout-retry-payment { margin-top: 8px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; padding: 0 14px; color: #fff; background: #c94343; font-size: 11px; font-weight: 850; cursor: pointer; }
+.checkout-retry-payment:hover:not(:disabled),
+.checkout-retry-payment:focus-visible { background: #a83636; outline: none; }
+.checkout-retry-payment:disabled { opacity: .6; cursor: wait; }
 .checkout-order-toast > a { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; padding: 0 15px; color: #fff; background: #70b42e; font-size: 11px; font-weight: 850; white-space: nowrap; }
 .checkout-order-toast > a:hover,
 .checkout-order-toast > a:focus-visible { outline: 3px solid rgba(112, 180, 46, .18); background: #61a127; }

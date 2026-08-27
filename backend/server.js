@@ -19,6 +19,8 @@ const sellerOrdersRouter = require("./routes/seller-orders");
 const adminDeliveriesRouter = require("./routes/admin-deliveries");
 const driverOrdersRouter = require("./routes/driver-orders");
 const aiRouter = require("./routes/ai");
+const buyerPaymentsRouter = require("./routes/buyer-payments");
+const paymongoWebhookRouter = require("./routes/paymongo-webhook");
 
 const app = express();
 
@@ -41,6 +43,10 @@ app.use(
     },
   }),
 );
+// Mounted before the global JSON parser: PayMongo signature verification needs the
+// untouched raw request body, which express.json() would otherwise consume.
+app.use("/api/webhooks/paymongo", express.raw({ type: "application/json" }), paymongoWebhookRouter);
+
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
@@ -86,6 +92,7 @@ app.use("/api/admin/schedules", adminSchedulesRouter);
 app.use("/api/admin/deliveries", adminDeliveriesRouter);
 app.use("/api/buyer/products", buyerProductsRouter);
 app.use("/api/buyer/orders", buyerOrdersRouter);
+app.use("/api/buyer/payments", buyerPaymentsRouter);
 app.use("/api/seller/orders", sellerOrdersRouter);
 app.use("/api/driver/orders", driverOrdersRouter);
 app.use("/api/ai", aiRouter);
