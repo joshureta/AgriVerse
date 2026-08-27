@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "agriverse-mobile-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "web", "--prefix", "mobile"],
+      "port": 8081,
+      "autoPort": true
+    }
+  ]
+}

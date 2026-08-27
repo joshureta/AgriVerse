@@ -53,7 +53,7 @@ export function BuyerBottomNavigation({ activeTab }: { activeTab: BuyerTab }) {
   const items: { key: BuyerTab; label: string; onPress: () => void; icon: (active: boolean) => React.ReactNode }[] = [
     { key: 'home', label: 'Home', onPress: () => router.push('/BuyerHome' as never), icon: (active) => <HomeIcon active={active} /> },
     { key: 'orders', label: 'Orders', onPress: () => {}, icon: (active) => <OrdersIcon active={active} /> },
-    { key: 'cart', label: 'Cart', onPress: () => {}, icon: (active) => <CartIcon active={active} /> },
+    { key: 'cart', label: 'Cart', onPress: () => router.push('/BuyerCart' as never), icon: (active) => <CartIcon active={active} /> },
     { key: 'account', label: 'Account', onPress: () => {}, icon: (active) => <AccountIcon active={active} /> },
   ];
 
