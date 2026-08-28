@@ -107,10 +107,23 @@ export const styles = StyleSheet.create({
     marginBottom: 6,
   },
   productBadgeText: { color: '#ffffff', fontSize: 10, fontWeight: '900' },
-  productEmoji: { fontSize: 40, marginVertical: 4 },
+  productImage: { width: 56, height: 56, marginVertical: 4, resizeMode: 'contain' },
   productName: { fontSize: 12, fontWeight: '800', color: DARK_GREEN, marginTop: 4 },
   productWeight: { fontSize: 9.5, color: '#7C897E', marginTop: 1 },
   productPrice: { fontSize: 12, fontWeight: '800', color: GREEN, marginTop: 5 },
+
+  loader: { marginTop: 18 },
+  loadError: {
+    color: '#a33d35',
+    fontSize: 12,
+    textAlign: 'center',
+    marginVertical: 12,
+  },
+  emptyText: {
+    fontSize: 11.5,
+    color: '#7C897E',
+    marginTop: 10,
+  },
 
   // From our farm to you
   farmCard: { flexDirection: 'row', gap: 12 },

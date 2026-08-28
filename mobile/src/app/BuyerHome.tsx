@@ -1,24 +1,30 @@
 import { router } from 'expo-router';
-import { Image, ImageBackground, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ImageBackground, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
 import { useAuth } from '@/context/auth-context';
+import { BuyerOrder, PineappleProduct, loadBuyerOrders, loadPineappleProducts } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-home.styles';
 
-// Preview-only mock data — no backend wiring yet. Every value here (order
-// status, dates, products, farm copy) is a static placeholder.
-const MOCK_ORDER = {
-  stage: 1, // 0 = Order Confirmed & Packing, 1 = In Transit, 2 = Delivered
-  confirmedDate: 'April 6, 2025',
-  estimatedDelivery: '9 April',
-};
+const ACTIVE_ORDER_STATUSES = ['pending', 'confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery'];
 
-const MOCK_PRODUCTS = [
-  { size: 'S', name: 'Small', weight: '400g - 600g', price: 'PHP 50.00' },
-  { size: 'M', name: 'Medium', weight: '700g - 900g', price: 'PHP 80.00' },
-  { size: 'L', name: 'Large', weight: '1kg - 1.3kg', price: 'PHP 120.00' },
-];
+function formatDate(value: string | null) {
+  if (!value) return 'Pending';
+  return new Intl.DateTimeFormat('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(value));
+}
+
+// 0 = Order Confirmed & Packing, 1 = In Transit, 2 = Delivered
+function orderStage(status: BuyerOrder['order_status']) {
+  if (status === 'delivered') return 2;
+  if (status === 'out_for_delivery') return 1;
+  return 0;
+}
+
+function sizeBadge(sizeName: string) {
+  return sizeName.trim().charAt(0).toUpperCase() || '?';
+}
 
 function CheckIcon() {
   return <Text style={styles.stepCheck}>✓</Text>;
@@ -39,9 +45,9 @@ function StepCircle({ state }: { state: 'done' | 'current' | 'pending' }) {
   );
 }
 
-function OrderStatusStepper({ stage }: { stage: number }) {
+function OrderStatusStepper({ stage, confirmedDate }: { stage: number; confirmedDate: string }) {
   const steps: { key: string; label: string; date?: string }[] = [
-    { key: 'confirmed', label: 'Order Confirmed & Packing', date: MOCK_ORDER.confirmedDate },
+    { key: 'confirmed', label: 'Order Confirmed & Packing', date: confirmedDate },
     { key: 'transit', label: 'In Transit' },
     { key: 'delivered', label: 'Delivered' },
   ];
@@ -79,20 +85,20 @@ function CalendarBadge() {
   );
 }
 
-function ProductCard({ size, name, weight, price }: { size: string; name: string; weight: string; price: string }) {
+function ProductCard({ product }: { product: PineappleProduct }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`View ${name} pineapple`}
-      onPress={() => router.push('/BuyerProductDetail' as never)}
+      accessibilityLabel={`View ${product.name}`}
+      onPress={() => router.push({ pathname: '/BuyerProductDetail', params: { id: String(product.id) } })}
       style={styles.productCard}>
       <View style={styles.productBadge}>
-        <Text style={styles.productBadgeText}>{size}</Text>
+        <Text style={styles.productBadgeText}>{sizeBadge(product.size_name)}</Text>
       </View>
-      <Text style={styles.productEmoji}>🍍</Text>
-      <Text style={styles.productName}>{name}</Text>
-      <Text style={styles.productWeight}>{weight}</Text>
-      <Text style={styles.productPrice}>{price}</Text>
+      <Image accessibilityIgnoresInvertColors source={require('@/assets/images/pineapple-product.png')} style={styles.productImage} />
+      <Text style={styles.productName}>{product.size_name}</Text>
+      <Text style={styles.productWeight}>{product.weight}</Text>
+      <Text style={styles.productPrice}>PHP {product.price.toFixed(2)}</Text>
     </Pressable>
   );
 }
@@ -135,6 +141,44 @@ export default function BuyerHomeScreen() {
   const firstHour = new Date().getHours();
   const greeting = firstHour < 12 ? 'Good morning' : firstHour < 18 ? 'Good afternoon' : 'Good evening';
 
+  const [products, setProducts] = useState<PineappleProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState('');
+
+  const [activeOrder, setActiveOrder] = useState<BuyerOrder | null>(null);
+  const [orderLoading, setOrderLoading] = useState(true);
+
+  const loadProducts = useCallback(async () => {
+    setProductsLoading(true);
+    setProductsError('');
+    try {
+      setProducts(await loadPineappleProducts());
+    } catch (caught) {
+      setProducts([]);
+      setProductsError(caught instanceof Error ? caught.message : 'Could not load pineapples.');
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
+
+  const loadCurrentOrder = useCallback(async () => {
+    setOrderLoading(true);
+    try {
+      const orders = await loadBuyerOrders();
+      setActiveOrder(orders.find((order) => ACTIVE_ORDER_STATUSES.includes(order.order_status)) || null);
+    } catch {
+      setActiveOrder(null);
+    } finally {
+      setOrderLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!profile) return;
+    loadProducts();
+    loadCurrentOrder();
+  }, [profile, loadProducts, loadCurrentOrder]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <BuyerHeader />
@@ -162,24 +206,33 @@ export default function BuyerHomeScreen() {
         </ImageBackground>
 
         {/* Current Order Status */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Current Order Status</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="View order details">
-              <Text style={styles.sectionLink}>View Details →</Text>
-            </Pressable>
+        {orderLoading ? (
+          <View style={styles.sectionCard}>
+            <ActivityIndicator style={styles.loader} color={GREEN} />
           </View>
+        ) : activeOrder ? (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Current Order Status</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="View order details"
+                onPress={() => router.push({ pathname: '/BuyerOrderTracking', params: { id: String(activeOrder.id) } })}>
+                <Text style={styles.sectionLink}>View Details →</Text>
+              </Pressable>
+            </View>
 
-          <OrderStatusStepper stage={MOCK_ORDER.stage} />
+            <OrderStatusStepper stage={orderStage(activeOrder.order_status)} confirmedDate={formatDate(activeOrder.confirmed_at)} />
 
-          <View style={styles.estimateStrip}>
-            <CalendarBadge />
-            <View>
-              <Text style={styles.estimateLabel}>Estimated delivery on</Text>
-              <Text style={styles.estimateDate}>{MOCK_ORDER.estimatedDelivery}</Text>
+            <View style={styles.estimateStrip}>
+              <CalendarBadge />
+              <View>
+                <Text style={styles.estimateLabel}>Estimated delivery on</Text>
+                <Text style={styles.estimateDate}>{formatDate(activeOrder.estimated_delivery_at)}</Text>
+              </View>
             </View>
           </View>
-        </View>
+        ) : null}
 
         {/* Shop Pineapples */}
         <View style={styles.sectionCard}>
@@ -190,11 +243,19 @@ export default function BuyerHomeScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.productsRow}>
-            {MOCK_PRODUCTS.map((product) => (
-              <ProductCard key={product.size} {...product} />
-            ))}
-          </View>
+          {productsLoading ? (
+            <ActivityIndicator style={styles.loader} color={GREEN} />
+          ) : productsError ? (
+            <Text style={styles.loadError}>{productsError}</Text>
+          ) : products.length === 0 ? (
+            <Text style={styles.emptyText}>No pineapples available right now.</Text>
+          ) : (
+            <View style={styles.productsRow}>
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </View>
+          )}
         </View>
 
         {/* From our farm to you */}
