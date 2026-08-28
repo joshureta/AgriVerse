@@ -1,4 +1,5 @@
-import { SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
@@ -39,7 +40,12 @@ export default function BuyerPurchaseHistoryScreen() {
           </View>
         ) : (
           ORDERS.map((order) => (
-            <View key={order.id} style={styles.orderCard}>
+            <Pressable
+              key={order.id}
+              accessibilityRole="button"
+              accessibilityLabel={`View order ${order.id}`}
+              onPress={() => router.push('/BuyerOrderTracking' as never)}
+              style={({ pressed }) => [styles.orderCard, pressed && styles.orderCardPressed]}>
               <View style={styles.orderIconBox}>
                 <Text style={styles.orderEmoji}>🍍</Text>
               </View>
@@ -51,7 +57,7 @@ export default function BuyerPurchaseHistoryScreen() {
                 <Text style={styles.orderTotal}>PHP {order.total.toFixed(2)}</Text>
               </View>
               <StatusBadge status={order.status} />
-            </View>
+            </Pressable>
           ))
         )}
       </ScrollView>

@@ -22,6 +22,7 @@ export const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
+  orderCardPressed: { opacity: 0.85 },
   orderIconBox: {
     width: 44,
     height: 44,

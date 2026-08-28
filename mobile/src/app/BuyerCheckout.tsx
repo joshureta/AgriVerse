@@ -116,19 +116,7 @@ export default function BuyerCheckoutScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionLabel}>Select Delivery Method</Text>
-        {DELIVERY_METHODS.map((method) => (
-          <OptionCard
-            key={method.key}
-            icon={method.icon}
-            label={method.label}
-            sub={method.sub}
-            active={deliveryMethod === method.key}
-            onPress={() => setDeliveryMethod(method.key)}
-          />
-        ))}
-
-        <View style={[styles.card, { marginTop: 6 }]}>
+        <View style={styles.card}>
           <View style={styles.summaryHeaderRow}>
             <Text style={styles.summaryHeaderIcon}>📋</Text>
             <Text style={styles.summaryHeaderTitle}>Order Summary</Text>
@@ -165,6 +153,18 @@ export default function BuyerCheckoutScreen() {
             <Text style={styles.summaryTotalValue}>PHP {total.toFixed(2)}</Text>
           </View>
         </View>
+
+        <Text style={styles.sectionLabel}>Select Delivery Method</Text>
+        {DELIVERY_METHODS.map((method) => (
+          <OptionCard
+            key={method.key}
+            icon={method.icon}
+            label={method.label}
+            sub={method.sub}
+            active={deliveryMethod === method.key}
+            onPress={() => setDeliveryMethod(method.key)}
+          />
+        ))}
 
         <Text style={styles.sectionLabel}>Select Payment Method</Text>
         {PAYMENT_METHODS.map((method) => (
