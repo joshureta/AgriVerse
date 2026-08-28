@@ -12,6 +12,23 @@ export const styles = StyleSheet.create({
   titleIcon: { fontSize: 18 },
   titleText: { fontSize: 18, fontWeight: '800', color: DARK_GREEN },
 
+  loader: { marginTop: 18 },
+  loadError: {
+    color: '#a33d35',
+    fontSize: 12,
+    textAlign: 'center',
+    marginVertical: 12,
+  },
+  notice: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: GREEN,
+    backgroundColor: '#EAF4E7',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14,
+  },
+
   // Cart item card
   itemCard: {
     flexDirection: 'row',
@@ -34,7 +51,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F6F1E4',
   },
-  itemEmoji: { fontSize: 30 },
+  itemImage: { width: 40, height: 40, resizeMode: 'contain' },
   itemInfo: { flex: 1, marginLeft: 12 },
   itemName: { fontSize: 13.5, fontWeight: '800', color: DARK_GREEN },
   itemWeight: { fontSize: 11, color: '#7C897E', marginTop: 2 },

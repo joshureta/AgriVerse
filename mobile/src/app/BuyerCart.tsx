@@ -1,27 +1,56 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
-import { styles } from '@/styles/buyer-cart.styles';
+import { CartItem, PineappleProduct, loadPineappleProducts, readBuyerCart, writeBuyerCart } from '@/lib/buyer-marketplace';
+import { GREEN, styles } from '@/styles/buyer-cart.styles';
 
 const SHIPPING_FEE = 100;
 
-type CartItem = {
-  key: string;
-  name: string;
+type DisplayItem = {
+  product_id: number;
+  size_name: string;
   weight: string;
   price: number;
   quantity: number;
-  stock: number;
+  stock_quantity: number;
+  unit_label: string;
 };
 
-// Preview-only mock data — no backend wiring yet.
-const INITIAL_ITEMS: CartItem[] = [
-  { key: 'S', name: 'Small Pineapple', weight: '400g - 600g', price: 50, quantity: 10, stock: 50 },
-  { key: 'M', name: 'Medium Pineapple', weight: '700g - 900g', price: 80, quantity: 5, stock: 50 },
-];
+// Mirrors web's ShoppingCart.jsx reconcileCart — clamps saved quantities to
+// current stock and drops anything that's gone out of stock or been removed.
+function reconcileCart(savedItems: CartItem[], products: PineappleProduct[]): DisplayItem[] {
+  const productById = new Map(products.map((product) => [product.id, product]));
+  const reconciled: DisplayItem[] = [];
+  for (const savedItem of savedItems) {
+    const product = productById.get(savedItem.product_id);
+    if (!product || product.stock_quantity <= 0) continue;
+    const quantity = Math.min(Math.max(Number(savedItem.quantity) || 0, 0), product.stock_quantity);
+    if (quantity === 0) continue;
+    reconciled.push({
+      product_id: product.id,
+      size_name: product.size_name,
+      weight: product.weight,
+      price: product.price,
+      quantity,
+      stock_quantity: product.stock_quantity,
+      unit_label: product.unit_label,
+    });
+  }
+  return reconciled;
+}
+
+function toCartItems(items: DisplayItem[]): CartItem[] {
+  return items.map((item) => ({
+    product_id: item.product_id,
+    quantity: item.quantity,
+    size_name: item.size_name,
+    weight: item.weight,
+    price: item.price,
+  }));
+}
 
 function CartItemRow({
   item,
@@ -29,25 +58,26 @@ function CartItemRow({
   onIncrease,
   onRemove,
 }: {
-  item: CartItem;
+  item: DisplayItem;
   onDecrease: () => void;
   onIncrease: () => void;
   onRemove: () => void;
 }) {
+  const name = `${item.size_name} Pineapple`;
   return (
     <View style={styles.itemCard}>
       <View style={styles.itemIconBox}>
-        <Text style={styles.itemEmoji}>🍍</Text>
+        <Image accessibilityIgnoresInvertColors source={require('@/assets/images/pineapple-product.png')} style={styles.itemImage} />
       </View>
 
       <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>{item.name}</Text>
+        <Text style={styles.itemName}>{name}</Text>
         <Text style={styles.itemWeight}>{item.weight}</Text>
 
         <View style={styles.qtyRow}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Decrease ${item.name} quantity`}
+            accessibilityLabel={`Decrease ${name} quantity`}
             disabled={item.quantity <= 1}
             onPress={onDecrease}
             style={[styles.qtyButton, item.quantity <= 1 && styles.qtyButtonDisabled]}>
@@ -56,10 +86,10 @@ function CartItemRow({
           <Text style={styles.qtyValue}>{item.quantity}</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Increase ${item.name} quantity`}
-            disabled={item.quantity >= item.stock}
+            accessibilityLabel={`Increase ${name} quantity`}
+            disabled={item.quantity >= item.stock_quantity}
             onPress={onIncrease}
-            style={[styles.qtyButton, item.quantity >= item.stock && styles.qtyButtonDisabled]}>
+            style={[styles.qtyButton, item.quantity >= item.stock_quantity && styles.qtyButtonDisabled]}>
             <Text style={styles.qtyButtonText}>+</Text>
           </Pressable>
         </View>
@@ -69,7 +99,7 @@ function CartItemRow({
         <Text style={styles.itemPrice}>PHP {item.price.toFixed(2)}</Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Remove ${item.name} from cart`}
+          accessibilityLabel={`Remove ${name} from cart`}
           hitSlop={8}
           onPress={onRemove}
           style={styles.trashButton}>
@@ -81,31 +111,82 @@ function CartItemRow({
 }
 
 export default function BuyerCartScreen() {
-  const [items, setItems] = useState<CartItem[]>(INITIAL_ITEMS);
+  const [items, setItems] = useState<DisplayItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const refreshCart = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    setNotice('');
+    const savedItems = await readBuyerCart();
+    if (savedItems.length === 0) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const products = await loadPineappleProducts();
+      const reconciled = reconcileCart(savedItems, products);
+      const changed =
+        reconciled.length !== savedItems.length ||
+        reconciled.some((item, index) => item.quantity !== Number(savedItems[index]?.quantity));
+      setItems(reconciled);
+      await writeBuyerCart(toCartItems(reconciled));
+      if (changed) setNotice('Your cart was updated to match the latest available inventory.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load your cart.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshCart();
+  }, [refreshCart]);
+
+  const updateQuantity = useCallback((productId: number, delta: number) => {
+    setItems((current) => {
+      const updated = current
+        .map((item) =>
+          item.product_id === productId
+            ? { ...item, quantity: Math.min(item.stock_quantity, Math.max(0, item.quantity + delta)) }
+            : item,
+        )
+        .filter((item) => item.quantity > 0);
+      writeBuyerCart(toCartItems(updated));
+      return updated;
+    });
+  }, []);
+
+  const removeItem = useCallback((productId: number) => {
+    setItems((current) => {
+      const updated = current.filter((item) => item.product_id !== productId);
+      writeBuyerCart(toCartItems(updated));
+      return updated;
+    });
+  }, []);
+
+  const removeAll = useCallback(() => {
+    if (items.length === 0) return;
+    Alert.alert('Remove All Items', 'Remove all pineapples from your cart?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove All',
+        style: 'destructive',
+        onPress: () => {
+          setItems([]);
+          writeBuyerCart([]);
+        },
+      },
+    ]);
+  }, [items.length]);
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingFee = items.length > 0 ? SHIPPING_FEE : 0;
   const total = subtotal + shippingFee;
-
-  const updateQuantity = (key: string, delta: number) => {
-    setItems((current) =>
-      current.map((item) =>
-        item.key === key ? { ...item, quantity: Math.min(item.stock, Math.max(1, item.quantity + delta)) } : item,
-      ),
-    );
-  };
-
-  const removeItem = (key: string) => {
-    setItems((current) => current.filter((item) => item.key !== key));
-  };
-
-  const removeAll = () => {
-    if (items.length === 0) return;
-    Alert.alert('Remove All Items', 'Remove all pineapples from your cart?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove All', style: 'destructive', onPress: () => setItems([]) },
-    ]);
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -117,7 +198,13 @@ export default function BuyerCartScreen() {
           <Text style={styles.titleText}>Shopping Cart</Text>
         </View>
 
-        {items.length === 0 ? (
+        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+
+        {loading ? (
+          <ActivityIndicator style={styles.loader} color={GREEN} />
+        ) : error ? (
+          <Text style={styles.loadError}>{error}</Text>
+        ) : items.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🍍</Text>
             <Text style={styles.emptyText}>Your cart is empty.</Text>
@@ -126,11 +213,11 @@ export default function BuyerCartScreen() {
           <>
             {items.map((item) => (
               <CartItemRow
-                key={item.key}
+                key={item.product_id}
                 item={item}
-                onDecrease={() => updateQuantity(item.key, -1)}
-                onIncrease={() => updateQuantity(item.key, 1)}
-                onRemove={() => removeItem(item.key)}
+                onDecrease={() => updateQuantity(item.product_id, -1)}
+                onIncrease={() => updateQuantity(item.product_id, 1)}
+                onRemove={() => removeItem(item.product_id)}
               />
             ))}
 
