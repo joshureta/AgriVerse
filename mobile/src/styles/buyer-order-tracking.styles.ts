@@ -123,19 +123,4 @@ export const styles = StyleSheet.create({
   stepLabel: { marginTop: 8, fontSize: 10.5, fontWeight: '800', color: DARK_GREEN, textAlign: 'center' },
   stepLabelPending: { color: '#8B968D' },
   stepDate: { marginTop: 3, fontSize: 9.5, color: '#7C897E', textAlign: 'center' },
-
-  // Order history
-  historyRow: { flexDirection: 'row', alignItems: 'center' },
-  historyInfo: { flex: 1, marginLeft: 12 },
-  historyOrderId: { fontSize: 12.5, fontWeight: '800', color: DARK_GREEN },
-  historyMeta: { fontSize: 10.5, color: '#7C897E', marginTop: 2 },
-  historyDoneCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: GREEN,
-  },
-  historyDoneCheck: { color: '#ffffff', fontSize: 13, fontWeight: '900' },
 });

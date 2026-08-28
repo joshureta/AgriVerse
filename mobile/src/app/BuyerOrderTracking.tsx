@@ -20,12 +20,6 @@ const ORDER_ITEMS = [
   { key: 'M', name: 'Pineapple', weight: '700g - 900g', size: 'Medium' },
 ];
 
-const HISTORY_ORDER = {
-  id: 'ORD-2025-001',
-  date: 'April 1, 2025',
-  items: '13 Small, 5 Large',
-};
-
 const STEPS: { key: string; label: string; icon: string; date?: string }[] = [
   { key: 'confirmed', label: 'Order Confirmed & Packing', icon: '📋', date: ORDER.confirmedDate },
   { key: 'transit', label: 'In Transit', icon: '🚚' },
@@ -148,27 +142,9 @@ export default function BuyerOrderTrackingScreen() {
             <Text style={styles.addressText}>{ORDER.address}</Text>
           </View>
         </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Order History</Text>
-
-          <View style={styles.historyRow}>
-            <View style={styles.itemIconBox}>
-              <Text style={styles.itemEmoji}>🍍</Text>
-            </View>
-            <View style={styles.historyInfo}>
-              <Text style={styles.historyOrderId}>Order #{HISTORY_ORDER.id}</Text>
-              <Text style={styles.historyMeta}>{HISTORY_ORDER.date}</Text>
-              <Text style={styles.historyMeta}>Items: {HISTORY_ORDER.items}</Text>
-            </View>
-            <View style={styles.historyDoneCircle}>
-              <Text style={styles.historyDoneCheck}>✓</Text>
-            </View>
-          </View>
-        </View>
       </ScrollView>
 
-      <BuyerBottomNavigation activeTab="orders" />
+      <BuyerBottomNavigation activeTab="account" />
     </SafeAreaView>
   );
 }
