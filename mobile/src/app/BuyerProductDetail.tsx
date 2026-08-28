@@ -11,9 +11,6 @@ const PRODUCT = {
   subtitle: 'Perfectly sweet and tender.',
   description:
     'Premium pineapple, sweet and juicy with a perfect balance of flavor. Handpicked from our local farm and delivered fresh to your door. Rich in vitamins and naturally delicious.',
-  rating: '4.8',
-  experience: '25+ Years',
-  reviews: '3k+',
 };
 
 const SIZES = [
@@ -22,16 +19,37 @@ const SIZES = [
   { key: 'L', label: 'Large', weight: '1kg - 1.3kg', price: 120 },
 ] as const;
 
-function StarIcon() {
-  return <Text style={{ fontSize: 12 }}>⭐</Text>;
-}
+const REVIEWS = [
+  {
+    key: '1',
+    name: 'Maria Santos',
+    date: '2 days ago',
+    comment: "Sweetest pineapples I've had! Delivered fresh and right on time.",
+  },
+  {
+    key: '2',
+    name: 'Carlos Reyes',
+    date: '1 week ago',
+    comment: 'Great quality and size, though a couple pieces were slightly bruised.',
+  },
+  {
+    key: '3',
+    name: 'Ana Lim',
+    date: '2 weeks ago',
+    comment: 'Perfectly ripe and juicy. Will definitely order again from this farm.',
+  },
+] as const;
 
-function LeafIcon() {
-  return <Text style={{ fontSize: 12 }}>🌿</Text>;
-}
-
-function PersonIcon() {
-  return <Text style={{ fontSize: 12 }}>👤</Text>;
+function ReviewCard({ review }: { review: (typeof REVIEWS)[number] }) {
+  return (
+    <View style={styles.reviewCard}>
+      <View style={styles.reviewHeaderRow}>
+        <Text style={styles.reviewerName}>{review.name}</Text>
+        <Text style={styles.reviewDate}>{review.date}</Text>
+      </View>
+      <Text style={styles.reviewComment}>{review.comment}</Text>
+    </View>
+  );
 }
 
 export default function BuyerProductDetailScreen() {
@@ -77,32 +95,6 @@ export default function BuyerProductDetailScreen() {
             })}
           </View>
 
-          <View style={styles.statsStrip}>
-            <View style={styles.statItem}>
-              <View style={styles.statTopRow}>
-                <StarIcon />
-                <Text style={styles.statValue}>{PRODUCT.rating}</Text>
-              </View>
-              <Text style={styles.statLabel}>Ratings</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <View style={styles.statTopRow}>
-                <LeafIcon />
-                <Text style={styles.statValue}>{PRODUCT.experience}</Text>
-              </View>
-              <Text style={styles.statLabel}>Experience</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <View style={styles.statTopRow}>
-                <PersonIcon />
-                <Text style={styles.statValue}>{PRODUCT.reviews}</Text>
-              </View>
-              <Text style={styles.statLabel}>Reviews</Text>
-            </View>
-          </View>
-
           <Text style={styles.descriptionHeading}>Description</Text>
           <Text style={styles.descriptionText}>{PRODUCT.description}</Text>
 
@@ -137,6 +129,12 @@ export default function BuyerProductDetailScreen() {
               <Text style={styles.addToCartText}>Add to Cart</Text>
             </Pressable>
           </View>
+
+          <Text style={styles.reviewsTitle}>Customer Reviews</Text>
+
+          {REVIEWS.map((review) => (
+            <ReviewCard key={review.key} review={review} />
+          ))}
         </View>
       </ScrollView>
 

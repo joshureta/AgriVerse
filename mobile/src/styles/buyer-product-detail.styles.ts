@@ -48,19 +48,6 @@ export const styles = StyleSheet.create({
   sizePillUnderline: { marginTop: 8, height: 2, width: '60%', borderRadius: 1, backgroundColor: 'transparent' },
   sizePillUnderlineActive: { backgroundColor: GREEN },
 
-  statsStrip: {
-    flexDirection: 'row',
-    marginTop: 18,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#F7FAF5',
-  },
-  statItem: { flex: 1, alignItems: 'center', gap: 3 },
-  statDivider: { width: 1, backgroundColor: '#E1E7DE' },
-  statTopRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statValue: { fontSize: 13, fontWeight: '800', color: DARK_GREEN },
-  statLabel: { fontSize: 9.5, color: '#7C897E' },
-
   descriptionHeading: { fontSize: 14, fontWeight: '800', color: GREEN, marginTop: 20 },
   descriptionText: { fontSize: 12, color: '#5E6B60', lineHeight: 18, marginTop: 8 },
 
@@ -100,4 +87,13 @@ export const styles = StyleSheet.create({
   },
   addToCartText: { color: '#ffffff', fontSize: 12.5, fontWeight: '800' },
   addToCartPressed: { opacity: 0.85 },
+
+  // Customer reviews
+  reviewsTitle: { fontSize: 14, fontWeight: '800', color: GREEN, marginTop: 20 },
+
+  reviewCard: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#EEF2EC' },
+  reviewHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  reviewerName: { fontSize: 12.5, fontWeight: '800', color: DARK_GREEN },
+  reviewDate: { fontSize: 10, color: '#9AA79C' },
+  reviewComment: { fontSize: 11.5, color: '#5E6B60', lineHeight: 17, marginTop: 8 },
 });
