@@ -58,10 +58,11 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F6F1E4',
   },
-  itemEmoji: { fontSize: 24 },
+  itemImage: { width: 26, height: 26, resizeMode: 'contain' },
   itemInfo: { flex: 1, marginLeft: 12 },
   itemName: { fontSize: 12.5, fontWeight: '800', color: DARK_GREEN },
   itemMeta: { fontSize: 10.5, color: '#7C897E', marginTop: 2 },
+  itemPrice: { fontSize: 11.5, fontWeight: '800', color: GREEN, marginLeft: 8 },
 
   divider: { height: 1, backgroundColor: '#EEF2EC', marginBottom: 12 },
 
@@ -113,14 +114,24 @@ export const styles = StyleSheet.create({
   routeTruckIcon: { fontSize: 15 },
 
   stepperRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 22 },
-  stepColumn: { alignItems: 'center', width: 90 },
+  stepColumn: { alignItems: 'center', width: 78 },
   stepConnector: { flex: 1, height: 2, marginTop: 15, borderStyle: 'dashed', borderTopWidth: 2 },
   stepCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   stepCircleDone: { backgroundColor: GREEN },
   stepCirclePending: { backgroundColor: '#E1E7DE' },
   stepCheckText: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
   stepIconText: { fontSize: 14 },
-  stepLabel: { marginTop: 8, fontSize: 10.5, fontWeight: '800', color: DARK_GREEN, textAlign: 'center' },
+  stepLabel: { marginTop: 8, fontSize: 9.5, fontWeight: '800', color: DARK_GREEN, textAlign: 'center' },
   stepLabelPending: { color: '#8B968D' },
-  stepDate: { marginTop: 3, fontSize: 9.5, color: '#7C897E', textAlign: 'center' },
+  stepDate: { marginTop: 3, fontSize: 8.5, color: '#7C897E', textAlign: 'center' },
+
+  cancelledText: {
+    marginTop: 18,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#FBE9E7',
+    color: '#a33d35',
+    fontSize: 12,
+    textAlign: 'center',
+  },
 });
