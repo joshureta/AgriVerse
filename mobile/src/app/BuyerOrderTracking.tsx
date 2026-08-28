@@ -209,7 +209,7 @@ export default function BuyerOrderTrackingScreen() {
                   {item.weight_label} · {item.quantity} {item.quantity === 1 ? 'piece' : 'pieces'}
                 </Text>
               </View>
-              <Text style={styles.itemPrice}>PHP {item.line_total.toFixed(2)}</Text>
+              <Text style={styles.itemPrice}>₱{item.line_total.toFixed(2)}</Text>
             </View>
           ))}
 

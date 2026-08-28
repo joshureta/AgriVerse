@@ -118,7 +118,7 @@ export default function BuyerPurchaseHistoryScreen() {
                 <Text style={styles.orderMeta} numberOfLines={1}>
                   {formatDate(order.created_at)} · {orderItemsText(order)}
                 </Text>
-                <Text style={styles.orderTotal}>PHP {order.total_amount.toFixed(2)}</Text>
+                <Text style={styles.orderTotal}>₱{order.total_amount.toFixed(2)}</Text>
               </View>
               <StatusBadge status={order.order_status} />
             </Pressable>

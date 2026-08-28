@@ -325,7 +325,7 @@ export default function BuyerCheckoutScreen() {
                     {item.weight} · Quantity: {item.quantity}
                   </Text>
                 </View>
-                <Text style={styles.summaryItemPrice}>PHP {(item.price * item.quantity).toFixed(2)}</Text>
+                <Text style={styles.summaryItemPrice}>₱{(item.price * item.quantity).toFixed(2)}</Text>
               </View>
             ))
           )}
@@ -334,16 +334,16 @@ export default function BuyerCheckoutScreen() {
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal ({itemCount} items)</Text>
-            <Text style={styles.summaryValue}>PHP {subtotal.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>₱{subtotal.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery Fee</Text>
-            <Text style={styles.summaryValue}>PHP {deliveryFee.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>₱{deliveryFee.toFixed(2)}</Text>
           </View>
 
           <View style={styles.summaryTotalRow}>
             <Text style={styles.summaryTotalLabel}>Total</Text>
-            <Text style={styles.summaryTotalValue}>PHP {total.toFixed(2)}</Text>
+            <Text style={styles.summaryTotalValue}>₱{total.toFixed(2)}</Text>
           </View>
         </View>
 

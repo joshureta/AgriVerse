@@ -73,7 +73,6 @@ export function BuyerHeader({ hasNotice = true, showBack = false }: { hasNotice?
           source={require('@/assets/images/toledo-trading-logo.png')}
           style={styles.logo}
         />
-        <Text style={styles.brandName}>TOLEDO TRADING</Text>
       </View>
 
       <HeaderIcons hasNotice={hasNotice} />

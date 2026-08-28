@@ -155,7 +155,7 @@ export default function BuyerProductDetailScreen() {
               <View style={styles.footer}>
                 <View style={styles.priceBlock}>
                   <Text style={styles.priceLabel}>Total</Text>
-                  <Text style={styles.priceValue}>PHP {total.toFixed(2)}</Text>
+                  <Text style={styles.priceValue}>₱{total.toFixed(2)}</Text>
                 </View>
 
                 <View style={styles.quantityRow}>

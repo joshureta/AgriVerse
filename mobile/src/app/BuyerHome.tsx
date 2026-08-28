@@ -40,7 +40,7 @@ function StepCircle({ state }: { state: 'done' | 'current' | 'pending' }) {
   }
   return (
     <View style={[styles.stepCircle, state === 'current' ? styles.stepCircleCurrent : styles.stepCirclePending]}>
-      <View style={styles.stepIconDot} />
+      <View style={[styles.stepIconDot, state === 'current' && styles.stepIconDotCurrent]} />
     </View>
   );
 }
@@ -91,14 +91,16 @@ function ProductCard({ product }: { product: PineappleProduct }) {
       accessibilityRole="button"
       accessibilityLabel={`View ${product.name}`}
       onPress={() => router.push({ pathname: '/BuyerProductDetail', params: { id: String(product.id) } })}
-      style={styles.productCard}>
+      style={({ pressed }) => [styles.productCard, pressed && styles.productCardPressed]}>
       <View style={styles.productBadge}>
         <Text style={styles.productBadgeText}>{sizeBadge(product.size_name)}</Text>
       </View>
       <Image accessibilityIgnoresInvertColors source={require('@/assets/images/pineapple-product.png')} style={styles.productImage} />
       <Text style={styles.productName}>{product.size_name}</Text>
       <Text style={styles.productWeight}>{product.weight}</Text>
-      <Text style={styles.productPrice}>PHP {product.price.toFixed(2)}</Text>
+      <View style={styles.productPriceBadge}>
+        <Text style={styles.productPrice}>₱{product.price.toFixed(2)}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -200,7 +202,9 @@ export default function BuyerHomeScreen() {
               onPress={() => router.push('/BuyerProductDetail' as never)}
               style={({ pressed }) => [styles.shopNowButton, pressed && styles.shopNowPressed]}>
               <Text style={styles.shopNowText}>SHOP NOW</Text>
-              <Text style={styles.shopNowArrow}>→</Text>
+              <View style={styles.shopNowArrowBadge}>
+                <Text style={styles.shopNowArrow}>→</Text>
+              </View>
             </Pressable>
           </View>
         </ImageBackground>
@@ -238,7 +242,7 @@ export default function BuyerHomeScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Shop Pineapples</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="View all pineapples">
+            <Pressable accessibilityRole="button" accessibilityLabel="View all pineapples" onPress={() => router.push('/BuyerProductDetail' as never)}>
               <Text style={styles.sectionLink}>View All →</Text>
             </Pressable>
           </View>
@@ -263,7 +267,7 @@ export default function BuyerHomeScreen() {
           <View style={styles.farmCard}>
             <Image
               accessibilityLabel="Our pineapple farm"
-              source={require('@/assets/images/worker-crop-farmer-hero.png')}
+              source={require('@/assets/images/pineapple-farm-story.png')}
               style={styles.farmImage}
             />
             <View style={styles.farmTextBlock}>

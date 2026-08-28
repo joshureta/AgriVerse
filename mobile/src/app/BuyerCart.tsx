@@ -194,7 +194,7 @@ export default function BuyerCartScreen() {
                 <Text style={styles.trashIcon}>🗑️</Text>
                 <Text style={styles.removeAllText}>Remove All</Text>
               </Pressable>
-              <Text style={styles.itemsTotalText}>Total: PHP {subtotal.toFixed(2)}</Text>
+              <Text style={styles.itemsTotalText}>Total: ₱{subtotal.toFixed(2)}</Text>
             </View>
           </>
         )}
@@ -217,16 +217,16 @@ export default function BuyerCartScreen() {
         <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>PHP {subtotal.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>₱{subtotal.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Shipping Fee</Text>
-            <Text style={styles.summaryValue}>PHP {shippingFee.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>₱{shippingFee.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={[styles.summaryRow, { marginBottom: 0 }]}>
             <Text style={styles.summaryTotalLabel}>Total</Text>
-            <Text style={styles.summaryTotalValue}>PHP {total.toFixed(2)}</Text>
+            <Text style={styles.summaryTotalValue}>₱{total.toFixed(2)}</Text>
           </View>
         </View>
 
