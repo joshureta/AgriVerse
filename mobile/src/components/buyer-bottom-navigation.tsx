@@ -54,7 +54,7 @@ export function BuyerBottomNavigation({ activeTab }: { activeTab: BuyerTab }) {
     { key: 'home', label: 'Home', onPress: () => router.push('/BuyerHome' as never), icon: (active) => <HomeIcon active={active} /> },
     { key: 'orders', label: 'Orders', onPress: () => router.push('/BuyerOrderTracking' as never), icon: (active) => <OrdersIcon active={active} /> },
     { key: 'cart', label: 'Cart', onPress: () => router.push('/BuyerCart' as never), icon: (active) => <CartIcon active={active} /> },
-    { key: 'account', label: 'Account', onPress: () => {}, icon: (active) => <AccountIcon active={active} /> },
+    { key: 'account', label: 'Account', onPress: () => router.push('/BuyerAccount' as never), icon: (active) => <AccountIcon active={active} /> },
   ];
 
   return (
