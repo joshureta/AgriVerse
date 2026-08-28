@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
@@ -80,9 +80,7 @@ export default function BuyerCheckoutScreen() {
   const total = subtotal + deliveryFee;
 
   const placeOrder = () => {
-    Alert.alert('Order Placed', 'Your pineapple order has been placed successfully.', [
-      { text: 'OK', onPress: () => router.push('/BuyerHome' as never) },
-    ]);
+    router.push('/BuyerOrderTracking' as never);
   };
 
   return (
