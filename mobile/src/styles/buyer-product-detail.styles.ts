@@ -8,12 +8,12 @@ export const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 8 },
 
   hero: {
-    height: 300,
+    height: 360,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F6F1E4',
   },
-  heroEmoji: { fontSize: 150 },
+  heroImage: { width: 340, height: 340, resizeMode: 'contain' },
 
   sheet: {
     marginTop: -22,
@@ -22,6 +22,26 @@ export const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     paddingHorizontal: 20,
     paddingTop: 22,
+  },
+
+  loader: { marginTop: 18 },
+  loadError: {
+    color: '#a33d35',
+    fontSize: 12,
+    textAlign: 'center',
+    marginVertical: 12,
+  },
+  emptyText: {
+    fontSize: 11.5,
+    color: '#7C897E',
+    textAlign: 'center',
+    marginVertical: 12,
+  },
+  cartNotice: {
+    marginTop: 10,
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: GREEN,
   },
 
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
@@ -87,6 +107,7 @@ export const styles = StyleSheet.create({
   },
   addToCartText: { color: '#ffffff', fontSize: 12.5, fontWeight: '800' },
   addToCartPressed: { opacity: 0.85 },
+  addToCartDisabled: { backgroundColor: '#B7C2B4' },
 
   // Customer reviews
   reviewsTitle: { fontSize: 14, fontWeight: '800', color: GREEN, marginTop: 20 },
