@@ -88,6 +88,27 @@ export default function BuyerOrderTrackingScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Delivery Progress</Text>
+
+          <View style={styles.routeRow}>
+            <View style={styles.routeLine} />
+            <View style={styles.routePillFrom}>
+              <Text style={styles.routePillLabel}>{ORDER.from.city}</Text>
+              <Text style={styles.routePillSub}>{ORDER.from.label}</Text>
+            </View>
+            <View style={styles.routeTruckCircle}>
+              <Text style={styles.routeTruckIcon}>🚚</Text>
+            </View>
+            <View style={styles.routePillTo}>
+              <Text style={styles.routePillLabelLight}>{ORDER.to.city}</Text>
+              <Text style={styles.routePillSubLight}>{ORDER.to.label}</Text>
+            </View>
+          </View>
+
+          <DeliveryStepper stage={ORDER.stage} />
+        </View>
+
+        <View style={styles.card}>
           <View style={styles.confirmedRow}>
             <View style={styles.confirmedCheckCircle}>
               <Text style={styles.confirmedCheck}>✓</Text>
@@ -126,27 +147,6 @@ export default function BuyerOrderTrackingScreen() {
             <Text style={styles.addressPin}>📍</Text>
             <Text style={styles.addressText}>{ORDER.address}</Text>
           </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Delivery Progress</Text>
-
-          <View style={styles.routeRow}>
-            <View style={styles.routeLine} />
-            <View style={styles.routePillFrom}>
-              <Text style={styles.routePillLabel}>{ORDER.from.city}</Text>
-              <Text style={styles.routePillSub}>{ORDER.from.label}</Text>
-            </View>
-            <View style={styles.routeTruckCircle}>
-              <Text style={styles.routeTruckIcon}>🚚</Text>
-            </View>
-            <View style={styles.routePillTo}>
-              <Text style={styles.routePillLabelLight}>{ORDER.to.city}</Text>
-              <Text style={styles.routePillSubLight}>{ORDER.to.label}</Text>
-            </View>
-          </View>
-
-          <DeliveryStepper stage={ORDER.stage} />
         </View>
 
         <View style={styles.card}>
