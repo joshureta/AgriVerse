@@ -4,53 +4,17 @@ import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, T
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
-import { CartItem, PineappleProduct, loadPineappleProducts, readBuyerCart, writeBuyerCart } from '@/lib/buyer-marketplace';
+import {
+  ReconciledCartItem,
+  loadPineappleProducts,
+  readBuyerCart,
+  reconcileBuyerCart,
+  reconciledToCartItems,
+  writeBuyerCart,
+} from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-cart.styles';
 
 const SHIPPING_FEE = 100;
-
-type DisplayItem = {
-  product_id: number;
-  size_name: string;
-  weight: string;
-  price: number;
-  quantity: number;
-  stock_quantity: number;
-  unit_label: string;
-};
-
-// Mirrors web's ShoppingCart.jsx reconcileCart — clamps saved quantities to
-// current stock and drops anything that's gone out of stock or been removed.
-function reconcileCart(savedItems: CartItem[], products: PineappleProduct[]): DisplayItem[] {
-  const productById = new Map(products.map((product) => [product.id, product]));
-  const reconciled: DisplayItem[] = [];
-  for (const savedItem of savedItems) {
-    const product = productById.get(savedItem.product_id);
-    if (!product || product.stock_quantity <= 0) continue;
-    const quantity = Math.min(Math.max(Number(savedItem.quantity) || 0, 0), product.stock_quantity);
-    if (quantity === 0) continue;
-    reconciled.push({
-      product_id: product.id,
-      size_name: product.size_name,
-      weight: product.weight,
-      price: product.price,
-      quantity,
-      stock_quantity: product.stock_quantity,
-      unit_label: product.unit_label,
-    });
-  }
-  return reconciled;
-}
-
-function toCartItems(items: DisplayItem[]): CartItem[] {
-  return items.map((item) => ({
-    product_id: item.product_id,
-    quantity: item.quantity,
-    size_name: item.size_name,
-    weight: item.weight,
-    price: item.price,
-  }));
-}
 
 function CartItemRow({
   item,
@@ -58,7 +22,7 @@ function CartItemRow({
   onIncrease,
   onRemove,
 }: {
-  item: DisplayItem;
+  item: ReconciledCartItem;
   onDecrease: () => void;
   onIncrease: () => void;
   onRemove: () => void;
@@ -111,7 +75,7 @@ function CartItemRow({
 }
 
 export default function BuyerCartScreen() {
-  const [items, setItems] = useState<DisplayItem[]>([]);
+  const [items, setItems] = useState<ReconciledCartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -129,12 +93,12 @@ export default function BuyerCartScreen() {
 
     try {
       const products = await loadPineappleProducts();
-      const reconciled = reconcileCart(savedItems, products);
+      const reconciled = reconcileBuyerCart(savedItems, products);
       const changed =
         reconciled.length !== savedItems.length ||
         reconciled.some((item, index) => item.quantity !== Number(savedItems[index]?.quantity));
       setItems(reconciled);
-      await writeBuyerCart(toCartItems(reconciled));
+      await writeBuyerCart(reconciledToCartItems(reconciled));
       if (changed) setNotice('Your cart was updated to match the latest available inventory.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not load your cart.');
@@ -156,7 +120,7 @@ export default function BuyerCartScreen() {
             : item,
         )
         .filter((item) => item.quantity > 0);
-      writeBuyerCart(toCartItems(updated));
+      writeBuyerCart(reconciledToCartItems(updated));
       return updated;
     });
   }, []);
@@ -164,7 +128,7 @@ export default function BuyerCartScreen() {
   const removeItem = useCallback((productId: number) => {
     setItems((current) => {
       const updated = current.filter((item) => item.product_id !== productId);
-      writeBuyerCart(toCartItems(updated));
+      writeBuyerCart(reconciledToCartItems(updated));
       return updated;
     });
   }, []);

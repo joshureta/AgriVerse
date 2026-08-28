@@ -190,3 +190,47 @@ export function buyerCartQuantity(items: CartItem[]): number {
 export async function writeBuyerCart(items: CartItem[]): Promise<void> {
   await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
 }
+
+export type ReconciledCartItem = {
+  product_id: number;
+  size_name: string;
+  weight: string;
+  price: number;
+  quantity: number;
+  stock_quantity: number;
+  unit_label: string;
+};
+
+// Shared by BuyerCart and BuyerCheckout — mirrors web's reconcileCart in
+// ShoppingCart.jsx / BuyerCheckout.jsx: clamps saved quantities to current
+// stock and drops anything that's gone out of stock or been removed.
+export function reconcileBuyerCart(savedItems: CartItem[], products: PineappleProduct[]): ReconciledCartItem[] {
+  const productById = new Map(products.map((product) => [product.id, product]));
+  const reconciled: ReconciledCartItem[] = [];
+  for (const savedItem of savedItems) {
+    const product = productById.get(savedItem.product_id);
+    if (!product || product.stock_quantity <= 0) continue;
+    const quantity = Math.min(Math.max(Number(savedItem.quantity) || 0, 0), product.stock_quantity);
+    if (quantity === 0) continue;
+    reconciled.push({
+      product_id: product.id,
+      size_name: product.size_name,
+      weight: product.weight,
+      price: product.price,
+      quantity,
+      stock_quantity: product.stock_quantity,
+      unit_label: product.unit_label,
+    });
+  }
+  return reconciled;
+}
+
+export function reconciledToCartItems(items: ReconciledCartItem[]): CartItem[] {
+  return items.map((item) => ({
+    product_id: item.product_id,
+    quantity: item.quantity,
+    size_name: item.size_name,
+    weight: item.weight,
+    price: item.price,
+  }));
+}
