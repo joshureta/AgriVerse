@@ -40,7 +40,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
           <Stack.Screen
             name="login"
-            options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
+            options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: '#FFFFFF' }, presentation: 'card' }}
           />
           <Stack.Screen
             name="signup"

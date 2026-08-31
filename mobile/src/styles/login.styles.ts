@@ -1,9 +1,20 @@
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: 'transparent' },
+  safeArea: { flex: 1, backgroundColor: '#F8ED98' },
   embeddedSafeArea: { backgroundColor: 'transparent' },
   flex: { flex: 1 },
+  background: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  backgroundFade: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 239, 112, 0.42)',
+  },
   scrollContent: { flexGrow: 1, justifyContent: 'flex-end', paddingVertical: 24 },
   card: {
     width: '100%',

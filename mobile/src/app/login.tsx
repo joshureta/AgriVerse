@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -49,6 +50,14 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
   return (
     <SafeAreaView style={[styles.safeArea, embedded && styles.embeddedSafeArea]}>
       <StatusBar style="dark" />
+      {!embedded ? (
+        <ImageBackground
+          source={require('@/assets/images/authentication-farm.png')}
+          resizeMode="cover"
+          style={styles.background}>
+          <View style={styles.backgroundFade} />
+        </ImageBackground>
+      ) : null}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>

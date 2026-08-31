@@ -1,8 +1,10 @@
 import { router } from 'expo-router';
-import { Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
+import { useAuth } from '@/context/auth-context';
 import { styles } from '@/styles/buyer-account.styles';
 
 // Preview-only mock data — no backend wiring yet.
@@ -15,6 +17,28 @@ const PROFILE = {
 };
 
 export default function BuyerAccountScreen() {
+  const { signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    if (signingOut) return;
+
+    setSigningOut(true);
+    try {
+      await signOut();
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
+      router.replace('/login');
+    } catch (caught) {
+      Alert.alert(
+        'Unable to sign out',
+        caught instanceof Error ? caught.message : 'Please try again.',
+      );
+      setSigningOut(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <BuyerHeader />
@@ -75,6 +99,21 @@ export default function BuyerAccountScreen() {
           accessibilityLabel="Edit profile"
           style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}>
           <Text style={styles.editButtonText}>Edit Profile</Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+          disabled={signingOut}
+          onPress={handleSignOut}
+          style={({ pressed }) => [
+            styles.editButton,
+            styles.signOutButton,
+            pressed && styles.editButtonPressed,
+            signingOut && styles.buttonDisabled,
+          ]}>
+          {signingOut ? <ActivityIndicator color="#ffffff" size="small" /> : null}
+          <Text style={styles.editButtonText}>{signingOut ? 'Signing Out…' : 'Sign Out'}</Text>
         </Pressable>
       </ScrollView>
 

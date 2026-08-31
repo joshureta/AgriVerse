@@ -192,4 +192,12 @@ export const styles = StyleSheet.create({
     color: '#ffffff',
     letterSpacing: 0.4,
   },
+  signOutButton: {
+    flexDirection: 'row',
+    gap: 9,
+    marginTop: 12,
+  },
+  buttonDisabled: {
+    opacity: 0.65,
+  },
 });
