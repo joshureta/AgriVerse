@@ -14,6 +14,7 @@ import {
 
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
+import { WorkerTaskSegmentedTabs } from '@/components/worker-task-segmented-tabs';
 import { TaskCompletionBlurTarget } from '@/components/task-completion-blur-target';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
@@ -39,59 +40,63 @@ const taskIcons: Record<string, string> = {
   Harvesting: '🍍',
 };
 
-function FilterTabs() {
-  return (
-    <View style={styles.filters}>
-      <Pressable onPress={() => router.replace('/WorkerTaskPending')} style={styles.filterButton}>
-        <Text style={styles.filterText}>Pending</Text>
-      </Pressable>
-      <Pressable accessibilityState={{ selected: true }} style={[styles.filterButton, styles.filterButtonActive]}>
-        <Text style={[styles.filterText, styles.filterTextActive]}>Active</Text>
-      </Pressable>
-      <Pressable onPress={() => router.replace('/WorkerTaskCompleted')} style={styles.filterButton}>
-        <Text style={styles.filterText}>Completed</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 function ActiveTaskCard({
-  expanded,
   onComplete,
-  onToggle,
   task,
 }: {
-  expanded: boolean;
   onComplete: () => void;
-  onToggle: () => void;
   task: WorkerTaskRecord;
 }) {
   return (
-    <View style={[styles.taskShell, expanded && styles.taskShellExpanded]}>
-      <Pressable onPress={onToggle} style={styles.taskSummary}>
-        <View style={styles.taskIconBox}><Text style={styles.taskIcon}>{taskIcons[task.category] || '🌾'}</Text></View>
-        <View style={styles.taskTitleArea}>
-          <Text style={styles.taskCategory}>{task.category}</Text>
-          <Text numberOfLines={1} style={styles.taskDescription}>{task.description || `${task.category} task`}</Text>
-        </View>
-        <View style={styles.priorityPill}><Text style={styles.priorityText}>{task.priority}</Text></View>
-      </Pressable>
+    <View style={styles.taskCard}>
+      {/* Radar pulse background decoration */}
+      <View style={styles.radarContainer} pointerEvents="none">
+        <View style={styles.radarOuterRing} />
+        <View style={styles.radarMidRing} />
+        <View style={styles.radarInnerCircle} />
+      </View>
 
-      {expanded ? (
-        <View style={styles.expandedCard}>
-          <View style={styles.fieldBox}>
-            <Text style={styles.detailLabel}>Field</Text>
-            <Text style={styles.fieldValue}>{task.field}</Text>
-          </View>
-          <View style={styles.descriptionBox}>
-            <Text style={styles.detailLabel}>Description</Text>
-            <Text style={styles.detailDescription}>{task.description || 'No description provided.'}</Text>
-          </View>
-          <Pressable onPress={onComplete} style={({ pressed }) => [styles.completeButton, pressed && styles.buttonPressed]}>
-            <Text style={styles.completeButtonText}>Mark as Completed</Text>
-          </Pressable>
+      {/* Top Header Row */}
+      <View style={styles.topRow}>
+        <Text style={styles.activeLabel}>Active</Text>
+        <View style={styles.inProgressBadge}>
+          <Text style={styles.inProgressText}>IN-PROGRESS</Text>
         </View>
-      ) : null}
+      </View>
+
+      {/* Task Title */}
+      <Text style={styles.taskTitle}>
+        {task.category} - {task.description || `Active task in ${task.field}`}
+      </Text>
+
+      {/* Divider */}
+      <View style={styles.divider} />
+
+      {/* Details List */}
+      <View style={styles.detailsList}>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Field:</Text>
+          <Text style={styles.detailValue}>{task.field}</Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Duration:</Text>
+          <Text style={styles.detailValue}>01:24:18</Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Start time:</Text>
+          <Text style={styles.detailValue}>08:30 AM</Text>
+        </View>
+      </View>
+
+      {/* Action Button */}
+      <Pressable
+        onPress={onComplete}
+        style={({ pressed }) => [styles.completeButton, pressed && styles.buttonPressed]}>
+        <View style={styles.completeCheckCircle}>
+          <Text style={styles.completeCheckIcon}>✓</Text>
+        </View>
+        <Text style={styles.completeButtonText}>Mark as Completed</Text>
+      </Pressable>
     </View>
   );
 }
@@ -132,31 +137,39 @@ export default function WorkerTaskActiveScreen() {
   return (
     <TaskCompletionBlurTarget>
       <SafeAreaView style={styles.safeArea}>
-      <WorkerHeader />
+        <WorkerHeader />
 
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
-        refreshControl={<RefreshControl colors={[GREEN]} refreshing={refreshing} onRefresh={() => loadTasks(true)} />}>
-        <Text style={styles.pageTitle}>Today’s Tasks</Text>
-        <FilterTabs />
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        {loading ? (
-          <ActivityIndicator color={GREEN} style={styles.loader} />
-        ) : tasks.length ? (
-          tasks.map((task) => (
-            <ActiveTaskCard
-              expanded={expandedId === task.id}
-              key={task.id}
-              onComplete={() => router.push({ pathname: '/WorkerTaskCompletion', params: { taskId: String(task.id) } })}
-              onToggle={() => setExpandedId((current) => current === task.id ? null : task.id)}
-              task={task}
+        <View style={styles.mainBodyContainer}>
+          <ScrollView
+            contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
+            refreshControl={<RefreshControl colors={[GREEN]} refreshing={refreshing} onRefresh={() => loadTasks(true)} />}>
+            <Text style={styles.pageTitle}>Today’s Tasks</Text>
+            <WorkerTaskSegmentedTabs
+              activeTab="in_progress"
+              onTabChange={(_tab, route) => router.replace(route as any)}
             />
-          ))
-        ) : (
-          <View style={styles.emptyState}><Text style={styles.emptyCheck}>✓</Text><Text style={styles.emptyTitle}>No active tasks</Text><Text style={styles.emptyCopy}>Start a pending task to see it here.</Text></View>
-        )}
-      </ScrollView>
-      <WorkerBottomNavigation activeTab="tasks" />
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {loading ? (
+              <ActivityIndicator color={GREEN} style={styles.loader} />
+            ) : tasks.length ? (
+              tasks.map((task) => (
+                <ActiveTaskCard
+                  key={task.id}
+                  onComplete={() => router.push({ pathname: '/WorkerTaskCompletion', params: { taskId: String(task.id) } })}
+                  task={task}
+                />
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyCheck}>✓</Text>
+                <Text style={styles.emptyTitle}>No active tasks</Text>
+                <Text style={styles.emptyCopy}>Start a pending task to see it here.</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+
+        <WorkerBottomNavigation activeTab="tasks" />
       </SafeAreaView>
     </TaskCompletionBlurTarget>
   );

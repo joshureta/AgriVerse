@@ -83,46 +83,48 @@ export default function WorkerScheduleScreen() {
     <SafeAreaView style={styles.safeArea}>
       <WorkerHeader />
 
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
-        refreshControl={<RefreshControl colors={[GREEN]} onRefresh={() => loadSchedule(true)} refreshing={refreshing} />}
-        showsVerticalScrollIndicator={false}>
-        <View style={styles.titleBlock}>
-          <Text style={styles.title}>My Schedule</Text>
-          <Text style={styles.subtitle}>Your assigned farm tasks this week</Text>
-        </View>
-
-        {error ? (
-          <Pressable onPress={() => loadSchedule()} style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-            <Text style={styles.retry}>Tap to retry</Text>
-          </Pressable>
-        ) : null}
-
-        {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator color={GREEN} />
-            <Text style={styles.loadingText}>Loading your schedule...</Text>
+      <View style={styles.mainBodyContainer}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
+          refreshControl={<RefreshControl colors={[GREEN]} onRefresh={() => loadSchedule(true)} refreshing={refreshing} />}
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.titleBlock}>
+            <Text style={styles.title}>My Schedule</Text>
+            <Text style={styles.subtitle}>Your assigned farm tasks this week</Text>
           </View>
-        ) : events.length > 0 ? (
-          <ScheduleCalendar
-            events={events}
-            onNextWeek={() => setWeekStart((current) => addDays(current, 7))}
-            onPrevWeek={() => setWeekStart((current) => addDays(current, -7))}
-            onSelectDate={setSelectedDate}
-            onToday={() => setWeekStart(startOfWeek(new Date()))}
-            selectedDate={selectedDate}
-            today={today}
-            weekStart={weekStart}
-          />
-        ) : (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyIcon}>✓</Text>
-            <Text style={styles.emptyTitle}>No tasks scheduled</Text>
-            <Text style={styles.emptyText}>Pull down to check for newly assigned work.</Text>
-          </View>
-        )}
-      </ScrollView>
+
+          {error ? (
+            <Pressable onPress={() => loadSchedule()} style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.retry}>Tap to retry</Text>
+            </Pressable>
+          ) : null}
+
+          {loading ? (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color={GREEN} />
+              <Text style={styles.loadingText}>Loading your schedule...</Text>
+            </View>
+          ) : events.length > 0 ? (
+            <ScheduleCalendar
+              events={events}
+              onNextWeek={() => setWeekStart((current) => addDays(current, 7))}
+              onPrevWeek={() => setWeekStart((current) => addDays(current, -7))}
+              onSelectDate={setSelectedDate}
+              onToday={() => setWeekStart(startOfWeek(new Date()))}
+              selectedDate={selectedDate}
+              today={today}
+              weekStart={weekStart}
+            />
+          ) : (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyIcon}>✓</Text>
+              <Text style={styles.emptyTitle}>No tasks scheduled</Text>
+              <Text style={styles.emptyText}>Pull down to check for newly assigned work.</Text>
+            </View>
+          )}
+        </ScrollView>
+      </View>
 
       <WorkerBottomNavigation activeTab="schedule" />
     </SafeAreaView>

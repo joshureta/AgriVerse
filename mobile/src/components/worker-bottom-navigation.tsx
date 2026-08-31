@@ -1,4 +1,10 @@
-import { styles } from '@/styles/components/worker-bottom-navigation.styles';
+import {
+  ACTIVE_ICON_COLOR,
+  ACTIVE_PILL_BG,
+  GREEN_NAV_BG,
+  INACTIVE_ICON_COLOR,
+  styles,
+} from '@/styles/components/worker-bottom-navigation.styles';
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
@@ -6,56 +12,44 @@ import { useAuth } from '@/context/auth-context';
 
 type WorkerTab = 'home' | 'tasks' | 'schedule' | 'profile';
 
-// Active tab: icon renders fully filled in the app's existing green.
-// Inactive tab: icon keeps its existing white-fill / green-outline look.
-const GREEN = '#176D34';
-const WHITE = '#ffffff';
-
 function HomeIcon({ active }: { active: boolean }) {
+  const houseColor = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
+  const doorCutoutBg = active ? ACTIVE_PILL_BG : GREEN_NAV_BG;
+
   return (
     <View style={styles.homeIconWrapper}>
       <View style={styles.homeRoofStack}>
-        <View style={styles.homeRoofTriangle} />
-        {!active ? <View style={styles.homeRoofInner} /> : null}
+        <View style={[styles.homeRoofTriangle, { borderBottomColor: houseColor }]} />
       </View>
-      <View
-        style={[
-          styles.homeHouseBody,
-          active ? { backgroundColor: GREEN } : { backgroundColor: WHITE, borderWidth: 2.5, borderColor: GREEN },
-        ]}>
-        {active ? <View style={styles.homeDoorCutout} /> : null}
+      <View style={[styles.homeHouseBody, { backgroundColor: houseColor }]}>
+        <View style={[styles.homeDoorCutout, { backgroundColor: doorCutoutBg }]} />
       </View>
     </View>
   );
 }
 
 function TasksIcon({ active }: { active: boolean }) {
-  const fill = active ? GREEN : WHITE;
+  const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <View style={[styles.clipboard, { backgroundColor: fill, borderColor: GREEN }]}>
-      <View style={[styles.clipClip, { backgroundColor: fill, borderColor: GREEN }]} />
-      <Text style={[styles.clipCheckText, { color: active ? WHITE : GREEN }]}>✓</Text>
+    <View style={[styles.clipboard, { borderColor: color, backgroundColor: 'transparent' }]}>
+      <View style={[styles.clipClip, { borderColor: color, backgroundColor: active ? ACTIVE_PILL_BG : GREEN_NAV_BG }]} />
+      <Text style={[styles.clipCheckText, { color }]}>✓</Text>
     </View>
   );
 }
 
 function CalendarIcon({ active }: { active: boolean }) {
-  const boxFill = active ? GREEN : WHITE;
-  const dotColor = active ? WHITE : GREEN;
+  const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
     <View style={styles.calendarWrapper}>
-      <View style={styles.calendarRingLeft} />
-      <View style={styles.calendarRingRight} />
-      <View style={[styles.calendarBox, { backgroundColor: boxFill, borderColor: GREEN }]}>
+      <View style={[styles.calendarRingLeft, { backgroundColor: color }]} />
+      <View style={[styles.calendarRingRight, { backgroundColor: color }]} />
+      <View style={[styles.calendarBox, { borderColor: color, backgroundColor: 'transparent' }]}>
+        <View style={[styles.calendarHeaderLine, { backgroundColor: color }]} />
         <View style={styles.calendarGridRow}>
-          <View style={[styles.calendarGridDot, { backgroundColor: dotColor }]} />
-          <View style={[styles.calendarGridDot, { backgroundColor: dotColor }]} />
-          <View style={[styles.calendarGridDot, { backgroundColor: dotColor }]} />
-        </View>
-        <View style={styles.calendarGridRow}>
-          <View style={[styles.calendarGridDot, { backgroundColor: dotColor }]} />
-          <View style={[styles.calendarGridDot, { backgroundColor: dotColor }]} />
-          <View style={[styles.calendarGridDot, { backgroundColor: dotColor }]} />
+          <View style={[styles.calendarGridDot, { backgroundColor: color }]} />
+          <View style={[styles.calendarGridDot, { backgroundColor: color }]} />
+          <View style={[styles.calendarGridDot, { backgroundColor: color }]} />
         </View>
       </View>
     </View>
@@ -63,11 +57,20 @@ function CalendarIcon({ active }: { active: boolean }) {
 }
 
 function ProfileIcon({ active }: { active: boolean }) {
-  const fill = active ? GREEN : WHITE;
+  const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
     <View style={styles.profileIcon}>
-      <View style={[styles.profileHead, { backgroundColor: fill, borderColor: GREEN }]} />
-      <View style={[styles.profileBody, { backgroundColor: fill, borderColor: GREEN }]} />
+      {active ? (
+        <>
+          <View style={[styles.profileHeadFilled, { backgroundColor: color }]} />
+          <View style={[styles.profileBodyFilled, { backgroundColor: color }]} />
+        </>
+      ) : (
+        <>
+          <View style={[styles.profileHead, { borderColor: color, backgroundColor: 'transparent' }]} />
+          <View style={[styles.profileBody, { borderColor: color, backgroundColor: 'transparent' }]} />
+        </>
+      )}
     </View>
   );
 }
@@ -78,30 +81,36 @@ export function WorkerBottomNavigation({ activeTab }: { activeTab: WorkerTab }) 
   const tasksRoute = profile?.worker_category === 'driver' ? '/DriverTaskPending' : '/WorkerTaskPending';
   const scheduleRoute = profile?.worker_category === 'driver' ? '/DriverSchedule' : '/WorkerSchedule';
 
-  const items: { key: WorkerTab; label: string; onPress: () => void; icon: React.ReactNode }[] = [
-    { key: 'home', label: 'Home', onPress: () => router.push(homeRoute), icon: <HomeIcon active={activeTab === 'home'} /> },
-    { key: 'tasks', label: 'Tasks', onPress: () => router.push(tasksRoute), icon: <TasksIcon active={activeTab === 'tasks'} /> },
-    { key: 'schedule', label: 'Schedule', onPress: () => router.push(scheduleRoute), icon: <CalendarIcon active={activeTab === 'schedule'} /> },
-    { key: 'profile', label: 'Profile', onPress: () => router.push('/explore'), icon: <ProfileIcon active={activeTab === 'profile'} /> },
+  const items: { key: WorkerTab; label: string; route: string; icon: (active: boolean) => React.ReactNode }[] = [
+    { key: 'home', label: 'Home', route: homeRoute, icon: (a) => <HomeIcon active={a} /> },
+    { key: 'tasks', label: 'Tasks', route: tasksRoute, icon: (a) => <TasksIcon active={a} /> },
+    { key: 'schedule', label: 'Schedule', route: scheduleRoute, icon: (a) => <CalendarIcon active={a} /> },
+    { key: 'profile', label: 'Profile', route: '/WorkerProfile', icon: (a) => <ProfileIcon active={a} /> },
   ];
 
   return (
-    <View style={styles.navigation}>
-      {items.map((item) => (
-        <Pressable
-          accessibilityLabel={`Go to ${item.label}`}
-          accessibilityRole="button"
-          accessibilityState={{ selected: activeTab === item.key }}
-          key={item.key}
-          onPress={item.onPress}
-          style={({ pressed }) => [
-            styles.button,
-            activeTab === item.key && styles.activeButton,
-            pressed && styles.pressedButton,
-          ]}>
-          {item.icon}
-        </Pressable>
-      ))}
+    <View style={styles.navigationArea}>
+      <View style={styles.navigation}>
+        {items.map((item) => {
+          const isActive = activeTab === item.key;
+          return (
+            <Pressable
+              accessibilityLabel={`Go to ${item.label}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+              key={item.key}
+              onPress={() => router.push(item.route as any)}
+              style={({ pressed }) => [
+                styles.button,
+                isActive && styles.activeButton,
+                pressed && styles.pressedButton,
+              ]}>
+              <View style={styles.iconSlot}>{item.icon(isActive)}</View>
+              <Text style={isActive ? styles.activeLabel : styles.label}>{item.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
