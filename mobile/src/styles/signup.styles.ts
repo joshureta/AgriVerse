@@ -4,7 +4,7 @@ const GREEN = '#176d34';
 const PALE = '#fbffd6';
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: 'transparent' },
+  safeArea: { flex: 1, backgroundColor: '#F8ED98' },
   embeddedSafeArea: { backgroundColor: 'transparent' },
   flex: { flex: 1 },
   background: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
