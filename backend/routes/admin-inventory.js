@@ -202,12 +202,15 @@ router.post("/categories", async (req, res, next) => {
 
 router.get("/stock-history", async (req, res, next) => {
   try {
-    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 50);
+    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 10, 1), 50);
+    const from = (page - 1) * pageSize;
+    const emptyResponse = { movements: [], pagination: { page, pageSize, total: 0, totalPages: 1 } };
     const supabase = getSupabase();
     const { data: category, error: categoryError } = await supabase
       .from("inventory_categories").select("id").eq("code", "pineapple").maybeSingle();
     if (categoryError) throw categoryError;
-    if (!category) return res.json({ movements: [] });
+    if (!category) return res.json(emptyResponse);
 
     const { data: pineappleItems, error: itemsError } = await supabase
       .from("inventory_items").select(inventorySelect).eq("inventory_category_id", category.id);
@@ -215,22 +218,24 @@ router.get("/stock-history", async (req, res, next) => {
     const serializedItems = (pineappleItems || []).map(serializeItem);
     const itemMap = new Map(serializedItems.map((item) => [item.id, item]));
     const itemIds = serializedItems.map((item) => item.id);
-    if (!itemIds.length) return res.json({ movements: [] });
+    if (!itemIds.length) return res.json(emptyResponse);
 
-    const { data, error } = await supabase.from("inventory_stock_movements")
-      .select("id, inventory_item_id, movement_type, quantity, quantity_before, quantity_after, created_at")
-      .in("inventory_item_id", itemIds).order("created_at", { ascending: false }).limit(limit);
+    const { data, error, count } = await supabase.from("inventory_stock_movements")
+      .select("id, inventory_item_id, movement_type, quantity, quantity_before, quantity_after, created_at", { count: "exact" })
+      .in("inventory_item_id", itemIds).order("created_at", { ascending: false }).range(from, from + pageSize - 1);
     if (error) {
       if (error.code === "42P01" || error.code === "PGRST205") {
         throw httpError(503, "Apply migration 010_inventory_stock_movements.sql to enable stock history");
       }
       throw error;
     }
+    const total = count || 0;
     return res.json({
       movements: (data || []).map((movement) => {
         const item = itemMap.get(movement.inventory_item_id);
         return { ...movement, pineapple_size: item?.variant || "Unknown", unit: item?.unit_label || "" };
       }),
+      pagination: { page, pageSize, total, totalPages: Math.max(Math.ceil(total / pageSize), 1) },
     });
   } catch (error) { return next(error); }
 });

@@ -85,6 +85,8 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   const [activeView, setActiveView] = useState(initialView)
   const [items, setItems] = useState([])
   const [stockHistory, setStockHistory] = useState([])
+  const [stockHistoryPage, setStockHistoryPage] = useState(1)
+  const [stockHistoryPagination, setStockHistoryPagination] = useState({ page: 1, total: 0, totalPages: 1 })
   const [options, setOptions] = useState({ categories: [], units: [], pineappleSizes: [], equipmentTypes: [] })
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 })
   const [page, setPage] = useState(1)
@@ -142,20 +144,23 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setHistoryLoading(true)
     setHistoryError('')
     try {
-      const data = await apiRequest(`${inventoryApi}/stock-history?limit=10`)
+      const data = await apiRequest(`${inventoryApi}/stock-history?page=${stockHistoryPage}&pageSize=10`)
       setStockHistory(data.movements || [])
+      setStockHistoryPagination(data.pagination || { page: stockHistoryPage, total: 0, totalPages: 1 })
     } catch (requestError) {
       setStockHistory([])
       setHistoryError(requestError.message)
     } finally {
       setHistoryLoading(false)
     }
-  }, [activeView, inventoryApi])
+  }, [activeView, inventoryApi, stockHistoryPage])
 
   useEffect(() => {
     const delay = window.setTimeout(loadItems, search ? 300 : 0)
     return () => window.clearTimeout(delay)
   }, [loadItems, refreshKey, search])
+
+  useEffect(() => { setStockHistoryPage(1) }, [refreshKey])
 
   useEffect(() => { loadStockHistory() }, [loadStockHistory, refreshKey])
 
@@ -412,14 +417,14 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                 </tbody>
               </table>}
             </div>
-            <footer className="inventory-pagination">
+            {activeView !== 'stock' && <footer className="inventory-pagination">
               <span>{pagination.total} total item{pagination.total === 1 ? '' : 's'}</span>
               <div>
                 <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button>
                 <strong>{page}</strong>
                 <button type="button" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button>
               </div>
-            </footer>
+            </footer>}
             {activeView === 'stock' && <section className="stock-history-section">
               <header><div><h2>Stock Movement History</h2><p>Recent pineapple stock additions and deductions</p></div></header>
               {historyError && <div className="stock-history-error" role="alert">{historyError}</div>}
@@ -438,6 +443,14 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                   </tbody>
                 </table>
               </div>
+              <footer className="inventory-pagination">
+                <span>{stockHistoryPagination.total} movement{stockHistoryPagination.total === 1 ? '' : 's'}</span>
+                <div>
+                  <button type="button" disabled={stockHistoryPage <= 1 || historyLoading} onClick={() => setStockHistoryPage((value) => value - 1)}>← Previous</button>
+                  <strong>{stockHistoryPage}</strong>
+                  <button type="button" disabled={stockHistoryPage >= stockHistoryPagination.totalPages || historyLoading} onClick={() => setStockHistoryPage((value) => value + 1)}>Next →</button>
+                </div>
+              </footer>
             </section>}
             </div>
           </section>
