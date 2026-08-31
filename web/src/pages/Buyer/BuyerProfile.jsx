@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  BriefcaseBusiness,
   Check,
   Mail,
   MapPin,
   Pencil,
   Phone,
+  ShieldCheck,
   UserRound,
   X,
 } from 'lucide-react'
@@ -26,24 +26,25 @@ const emptyForm = {
   country: 'Philippines',
 }
 
-function ProfileRow({ icon: Icon, label, children }) {
-  return (
-    <div className="profile-info-row">
-      <Icon aria-hidden="true" />
-      <strong>{label}</strong>
-      <span>{children}</span>
-    </div>
-  )
+function getInitials(name, email) {
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+    return parts[0].slice(0, 2).toUpperCase()
+  }
+  if (email) return email.slice(0, 2).toUpperCase()
+  return 'MB'
 }
 
-function ProfileField({ label, name, value, onChange, type = 'text', required = false, autoComplete }) {
+function ProfileField({ label, name, value, onChange, type = 'text', required = false, autoComplete, placeholder }) {
   return (
     <label className="profile-form-field">
-      <span>{label}</span>
+      <span>{label} {required && <em className="required-star">*</em>}</span>
       <input
         autoComplete={autoComplete}
         name={name}
         onChange={onChange}
+        placeholder={placeholder}
         required={required}
         type={type}
         value={value}
@@ -80,6 +81,11 @@ export default function BuyerProfile() {
     profile?.region,
     profile?.country,
   ].filter(Boolean).join(', '), [profile])
+
+  const initials = useMemo(
+    () => getInitials(profile?.full_name, user?.email),
+    [profile?.full_name, user?.email],
+  )
 
   function startEditing() {
     setError('')
@@ -169,61 +175,175 @@ export default function BuyerProfile() {
       <BuyerHeader />
 
       <section className="profile-content" aria-labelledby="profile-title">
-        <h1 id="profile-title">My Profile</h1>
+        <header className="profile-page-header">
+          <h1 id="profile-title">My Profile</h1>
+          <p>Manage your account personal details and delivery preferences.</p>
+        </header>
 
-        <div className={`profile-card ${editing ? 'is-editing' : ''}`}>
-          <aside className="profile-identity" aria-label="Profile picture and actions">
-            <div className="profile-avatar-large"><UserRound aria-hidden="true" /></div>
+        <div className="profile-main-card">
+          <div className="profile-hero-section">
+            <div className="profile-hero-identity">
+              <div className="profile-avatar-initials" aria-hidden="true">
+                <span>{initials}</span>
+                <span className="profile-avatar-badge" title="Verified Account">
+                  <ShieldCheck size={14} aria-hidden="true" />
+                </span>
+              </div>
+              <div className="profile-hero-text">
+                <h2>{profile?.full_name || 'Buyer User'}</h2>
+              </div>
+            </div>
+
             {!editing && (
-              <button className="profile-edit-button" type="button" onClick={startEditing}>
-                <Pencil aria-hidden="true" /> Edit Profile
+              <button className="profile-edit-btn" type="button" onClick={startEditing} aria-label="Edit Profile" title="Edit Profile">
+                <Pencil size={18} aria-hidden="true" />
               </button>
             )}
-          </aside>
+          </div>
 
-          <section className="profile-information" id="profile-details" aria-label="Profile information">
-            {editing ? (
-              <form className="profile-edit-form" onSubmit={saveProfile}>
-                <div className="profile-form-heading">
-                  <h2>Edit Profile</h2>
-                  <button type="button" onClick={cancelEditing} aria-label="Cancel editing"><X aria-hidden="true" /></button>
-                </div>
+          {message && (
+            <div className="profile-feedback-alert is-success" role="status">
+              <Check size={16} aria-hidden="true" />
+              <span>{message}</span>
+            </div>
+          )}
 
-                <div className="profile-form-grid">
-                  <ProfileField label="Full Name" name="fullName" value={form.fullName} onChange={updateField} required autoComplete="name" />
-                  <ProfileField label="Email" name="email" value={form.email} onChange={updateField} type="email" required autoComplete="email" />
-                  <ProfileField label="Phone" name="mobileNumber" value={form.mobileNumber} onChange={updateField} autoComplete="tel" />
-                  <label className="profile-form-field is-readonly">
-                    <span>Business Name</span>
-                    <input value="Juan's Fresh Market" readOnly aria-describedby="business-name-note" />
-                    <small id="business-name-note">Business name editing is not available for this account.</small>
-                  </label>
-                  <ProfileField label="Barangay" name="barangay" value={form.barangay} onChange={updateField} autoComplete="address-level3" />
-                  <ProfileField label="City / Municipality" name="cityMunicipality" value={form.cityMunicipality} onChange={updateField} autoComplete="address-level2" />
-                  <ProfileField label="Province" name="province" value={form.province} onChange={updateField} autoComplete="address-level1" />
-                  <ProfileField label="Region" name="region" value={form.region} onChange={updateField} />
-                  <ProfileField label="Country" name="country" value={form.country} onChange={updateField} autoComplete="country-name" />
+          {editing ? (
+            <form className="profile-edit-section" onSubmit={saveProfile}>
+              <div className="profile-section-heading">
+                <div>
+                  <h3>Edit Profile Details</h3>
+                  <p>Update your name, contact information, and shipping address.</p>
                 </div>
+                <button className="profile-close-btn" type="button" onClick={cancelEditing} aria-label="Cancel editing">
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
 
-                {error && <p className="profile-form-alert is-error" role="alert">{error}</p>}
-                <div className="profile-form-actions">
-                  <button className="profile-cancel-button" type="button" onClick={cancelEditing} disabled={saving}>Cancel</button>
-                  <button className="profile-save-button" type="submit" disabled={saving}><Check aria-hidden="true" /> {saving ? 'Saving…' : 'Save Changes'}</button>
+              {error && (
+                <div className="profile-feedback-alert is-error" role="alert">
+                  <X size={16} aria-hidden="true" />
+                  <span>{error}</span>
                 </div>
-              </form>
-            ) : (
-              <>
-                <h2>{profile?.full_name || 'Juan Dela Cruz'}</h2>
-                <div className="profile-info-list">
-                  <ProfileRow icon={Mail} label="Email">{user?.email || 'juan.delacruz@email.com'}</ProfileRow>
-                  <ProfileRow icon={Phone} label="Phone">{profile?.mobile_number || '+63 912 345 6789'}</ProfileRow>
-                  <ProfileRow icon={MapPin} label="Business Name">Juan&apos;s Fresh Market</ProfileRow>
-                  <ProfileRow icon={BriefcaseBusiness} label="Address">{address || '123 Market Street, Manila City Metro Manila, Philippines'}</ProfileRow>
+              )}
+
+              <div className="profile-form-grid">
+                <ProfileField
+                  autoComplete="name"
+                  label="Full Name"
+                  name="fullName"
+                  onChange={updateField}
+                  placeholder="e.g. Joshua Gabriel P. Ureta"
+                  required
+                  value={form.fullName}
+                />
+                <ProfileField
+                  autoComplete="email"
+                  label="Email Address"
+                  name="email"
+                  onChange={updateField}
+                  placeholder="your.email@example.com"
+                  required
+                  type="email"
+                  value={form.email}
+                />
+                <ProfileField
+                  autoComplete="tel"
+                  label="Phone Number"
+                  name="mobileNumber"
+                  onChange={updateField}
+                  placeholder="e.g. 0912 345 6789"
+                  value={form.mobileNumber}
+                />
+                <ProfileField
+                  autoComplete="address-level3"
+                  label="Barangay"
+                  name="barangay"
+                  onChange={updateField}
+                  placeholder="e.g. Barangay San Jose"
+                  value={form.barangay}
+                />
+                <ProfileField
+                  autoComplete="address-level2"
+                  label="City / Municipality"
+                  name="cityMunicipality"
+                  onChange={updateField}
+                  placeholder="e.g. Calamba"
+                  value={form.cityMunicipality}
+                />
+                <ProfileField
+                  autoComplete="address-level1"
+                  label="Province"
+                  name="province"
+                  onChange={updateField}
+                  placeholder="e.g. Laguna"
+                  value={form.province}
+                />
+                <ProfileField
+                  label="Region"
+                  name="region"
+                  onChange={updateField}
+                  placeholder="e.g. Region IV-A (CALABARZON)"
+                  value={form.region}
+                />
+                <ProfileField
+                  autoComplete="country-name"
+                  label="Country"
+                  name="country"
+                  onChange={updateField}
+                  placeholder="Philippines"
+                  value={form.country}
+                />
+              </div>
+
+              <div className="profile-form-actions">
+                <button className="profile-action-cancel" type="button" onClick={cancelEditing} disabled={saving}>
+                  Cancel
+                </button>
+                <button className="profile-action-save" type="submit" disabled={saving}>
+                  <Check size={16} aria-hidden="true" />
+                  <span>{saving ? 'Saving…' : 'Save Changes'}</span>
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="profile-details-grid">
+              <div className="profile-info-tile">
+                <div className="profile-tile-icon"><UserRound size={18} aria-hidden="true" /></div>
+                <div className="profile-tile-content">
+                  <span className="profile-tile-label">Full Name</span>
+                  <strong className="profile-tile-value">{profile?.full_name || 'Not provided'}</strong>
                 </div>
-                {message && <p className="profile-form-alert is-success" role="status"><Check aria-hidden="true" /> {message}</p>}
-              </>
-            )}
-          </section>
+              </div>
+
+              <div className="profile-info-tile">
+                <div className="profile-tile-icon"><Mail size={18} aria-hidden="true" /></div>
+                <div className="profile-tile-content">
+                  <span className="profile-tile-label">Email Address</span>
+                  <div className="profile-tile-value-row">
+                    <strong className="profile-tile-value">{user?.email || 'Not provided'}</strong>
+                    <span className="profile-verified-badge"><Check size={11} aria-hidden="true" /> Verified</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="profile-info-tile">
+                <div className="profile-tile-icon"><Phone size={18} aria-hidden="true" /></div>
+                <div className="profile-tile-content">
+                  <span className="profile-tile-label">Contact Number</span>
+                  <strong className="profile-tile-value">{profile?.mobile_number || 'Not provided'}</strong>
+                </div>
+              </div>
+
+              <div className="profile-info-tile profile-tile-full">
+                <div className="profile-tile-icon"><MapPin size={18} aria-hidden="true" /></div>
+                <div className="profile-tile-content">
+                  <span className="profile-tile-label">Default Delivery Address</span>
+                  <strong className="profile-tile-value">{address || 'No delivery address provided yet.'}</strong>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -231,3 +351,4 @@ export default function BuyerProfile() {
     </main>
   )
 }
+
