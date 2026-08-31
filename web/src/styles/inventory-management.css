@@ -81,19 +81,23 @@
 .admin-nav-submenu a { min-height: 39px; display: flex; align-items: center; gap: 8px; border-radius: 8px; padding: 0 9px; color: #fff; font-size: 11px; font-weight: 750; text-decoration: none; white-space: nowrap; }
 .admin-nav-submenu a:hover, .admin-nav-submenu a:focus-visible, .admin-nav-submenu a:active, .admin-nav-submenu a.is-active { background: rgba(133,190,61,.82); box-shadow: none; outline: none; }
 .inventory-modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; box-sizing: border-box; padding: 20px; background: rgba(13,43,23,.58); backdrop-filter: blur(4px); }
-.inventory-modal { position: relative; width: min(520px,100%); max-height: min(90svh,720px); overflow-y: auto; box-sizing: border-box; border: 1px solid rgba(24,104,50,.18); border-radius: 12px; padding: 30px 34px; background: #fff; box-shadow: 0 26px 75px rgba(4,28,13,.32); }
+.inventory-modal { position: relative; width: min(520px,100%); max-height: min(90svh,720px); overflow-y: auto; box-sizing: border-box; border: 1px solid rgba(24,104,50,.18); border-radius: 14px; padding: 28px 32px; background: #fff; box-shadow: 0 26px 75px rgba(4,28,13,.32); }
 .inventory-modal > p { margin: 0 0 5px; color: #6b8d50; font-size: 10px; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; }
-.inventory-modal h2 { margin: 0 0 22px; color: #196c35; font-size: 25px; }
-.inventory-modal-close { position: absolute; top: 17px; right: 20px; width: 34px; height: 34px; border: 1px solid #d4ded2; border-radius: 50%; color: #53705a; background: #f7f9f5; font: inherit; font-size: 22px; cursor: pointer; }
+.inventory-modal h2 { margin: 0 0 20px; color: #196c35; font-size: 24px; font-weight: 800; }
+.inventory-modal-close { position: absolute; top: 18px; right: 20px; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid #d4ded2; border-radius: 50%; color: #53705a; background: #f7f9f5; cursor: pointer; transition: all .15s ease; }
+.inventory-modal-close:hover { background: #eef4ec; color: #196c35; border-color: #b8cfba; }
 .inventory-modal form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 .inventory-modal label { display: grid; gap: 7px; color: #1d2a20; font-size: 11px; font-weight: 800; }
-.inventory-modal input, .inventory-modal select { min-height: 44px; box-sizing: border-box; border: 1px solid #bfc8bf; border-radius: 6px; padding: 0 12px; color: #000; background: #f7f8f7; outline: none; font: inherit; font-size: 12px; }
-.inventory-modal input:focus, .inventory-modal select:focus { border-color: #3a8950; outline: 3px solid rgba(58,137,80,.12); }
+.inventory-modal input, .inventory-modal select { min-height: 42px; box-sizing: border-box; border: 1px solid #b8cfba; border-radius: 8px; padding: 0 12px; color: #111; background: #f9fbf8; outline: none; font: inherit; font-size: 12px; transition: border-color .16s ease, box-shadow .16s ease; }
+.inventory-modal input:focus, .inventory-modal select:focus { border-color: #267a40; background: #fff; box-shadow: 0 0 0 3px rgba(38,122,64,.14); }
 .inventory-modal input.inventory-current-stock { color: #43604a; background: #edf3eb; cursor: not-allowed; }
-.inventory-modal footer { grid-column: 1 / -1; display: flex; flex-direction: row-reverse; justify-content: center; gap: 10px; margin-top: 10px; }
-.inventory-modal footer button { min-width: 112px; min-height: 43px; border: 1px solid #9ea9a0; border-radius: 6px; padding: 0 18px; color: #111; background: #f7f8f7; font: inherit; font-weight: 800; cursor: pointer; }
-.inventory-modal footer button[type='submit'] { border-color: #1f5f2b; color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); }
-.inventory-modal-error { margin: -8px 0 16px; border: 1px solid #ffd7d7; border-radius: 6px; }
+.inventory-modal footer { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+.inventory-modal footer button { min-width: 104px; min-height: 42px; border: 1px solid #b8cfba; border-radius: 8px; padding: 0 18px; color: #26342a; background: #f7f9f5; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: all .15s ease; }
+.inventory-modal footer button:hover { background: #eef3ec; }
+.inventory-modal footer button[type='submit'] { border-color: #1f5f2b; color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); box-shadow: 0 2px 6px rgba(25,108,53,.2); }
+.inventory-modal footer button[type='submit']:hover { filter: brightness(1.05); }
+.inventory-modal footer button:disabled { opacity: .55; cursor: wait; }
+.inventory-modal-error { margin: -8px 0 16px; border: 1px solid #ffd7d7; border-radius: 8px; padding: 10px 14px; color: #b42318; background: #fff0f0; font-size: 11px; font-weight: 600; }
 .category-modal { width: min(500px, 100%); }
 .category-modal form { grid-template-columns: 1fr; }
 .category-modal footer { grid-column: 1; }

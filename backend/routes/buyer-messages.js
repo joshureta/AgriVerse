@@ -37,6 +37,31 @@ async function findOrCreateConversation(buyerId) {
   return created;
 }
 
+router.get("/unread-count", async (req, res, next) => {
+  try {
+    const supabase = getSupabase();
+    const { data: conversation, error: conversationError } = await supabase
+      .from("buyer_conversations")
+      .select("id")
+      .eq("buyer_id", req.user.id)
+      .maybeSingle();
+    if (conversationError) throw conversationError;
+    if (!conversation) return res.json({ unread_count: 0 });
+
+    const { count, error: countError } = await supabase
+      .from("buyer_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", conversation.id)
+      .eq("sender_role", "admin")
+      .is("read_at", null);
+    if (countError) throw countError;
+
+    return res.json({ unread_count: count || 0 });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get("/", async (req, res, next) => {
   try {
     const supabase = getSupabase();
@@ -55,6 +80,13 @@ router.get("/", async (req, res, next) => {
       .order("created_at", { ascending: true })
       .limit(200);
     if (messagesError) throw messagesError;
+
+    await supabase
+      .from("buyer_messages")
+      .update({ read_at: new Date().toISOString() })
+      .eq("conversation_id", conversation.id)
+      .eq("sender_role", "admin")
+      .is("read_at", null);
 
     return res.json({ conversation, messages: messages || [] });
   } catch (error) {

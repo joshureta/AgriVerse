@@ -168,6 +168,7 @@ body:has(.buyer-page) #root {
   right: -2px;
   min-width: 14px;
   height: 14px;
+  box-sizing: border-box;
   display: grid;
   place-items: center;
   border: 2px solid #397f32;
@@ -177,6 +178,19 @@ body:has(.buyer-page) #root {
   background: #f23535;
   font-size: 8px;
   font-weight: 800;
+  line-height: 1;
+}
+
+.buyer-status-dot {
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  border: none;
+  padding: 0 4px;
+  background: #ef4444;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .buyer-cart-link .buyer-cart-count {

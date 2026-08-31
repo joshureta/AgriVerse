@@ -930,11 +930,16 @@ export default function CropHealthMonitoring() {
         <div className="task-modal-backdrop">
           <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-task-title" style={{ maxWidth: '640px' }}>
             <div className="task-dialog-header" style={{ minHeight: '68px', padding: '12px 24px', background: 'linear-gradient(90deg,#287a31,#1f6731)' }}>
-              <span><Sprout color="#fff" size={24} /></span>
-              <div>
-                <p>Inspection Record</p>
-                <h2 id="view-task-title" style={{ fontSize: '20px' }}>{selectedActivity.field || 'Crop'} Inspection Details</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <span><Sprout color="#fff" size={24} /></span>
+                <div>
+                  <p>Inspection Record</p>
+                  <h2 id="view-task-title" style={{ fontSize: '20px' }}>{selectedActivity.field || 'Crop'} Inspection Details</h2>
+                </div>
               </div>
+              <button className="task-modal-header-close" type="button" onClick={() => setSelectedActivity(null)} aria-label="Close">
+                <X size={18} aria-hidden="true" />
+              </button>
             </div>
 
             <div className="task-reference-body task-view-body" style={{ padding: '24px 28px' }}>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { X } from 'lucide-react'
 import archiveIcon from '../../assets/archive-inventory-icon.png'
 import inventoryIcon from '../../assets/inventory-management-icon-green.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
@@ -85,6 +86,8 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   const [activeView, setActiveView] = useState(initialView)
   const [items, setItems] = useState([])
   const [stockHistory, setStockHistory] = useState([])
+  const [stockHistoryPage, setStockHistoryPage] = useState(1)
+  const [stockHistoryPagination, setStockHistoryPagination] = useState({ page: 1, total: 0, totalPages: 1 })
   const [options, setOptions] = useState({ categories: [], units: [], pineappleSizes: [], equipmentTypes: [] })
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 })
   const [page, setPage] = useState(1)
@@ -142,20 +145,23 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setHistoryLoading(true)
     setHistoryError('')
     try {
-      const data = await apiRequest(`${inventoryApi}/stock-history?limit=10`)
+      const data = await apiRequest(`${inventoryApi}/stock-history?page=${stockHistoryPage}&pageSize=10`)
       setStockHistory(data.movements || [])
+      setStockHistoryPagination(data.pagination || { page: stockHistoryPage, total: 0, totalPages: 1 })
     } catch (requestError) {
       setStockHistory([])
       setHistoryError(requestError.message)
     } finally {
       setHistoryLoading(false)
     }
-  }, [activeView, inventoryApi])
+  }, [activeView, inventoryApi, stockHistoryPage])
 
   useEffect(() => {
     const delay = window.setTimeout(loadItems, search ? 300 : 0)
     return () => window.clearTimeout(delay)
   }, [loadItems, refreshKey, search])
+
+  useEffect(() => { setStockHistoryPage(1) }, [refreshKey])
 
   useEffect(() => { loadStockHistory() }, [loadStockHistory, refreshKey])
 
@@ -217,7 +223,10 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setSaving(true)
     setError('')
     try {
-      await apiRequest(`${inventoryApi}/${modal.item.id}/stock`, {
+      const endpoint = modal.item.id
+        ? `${inventoryApi}/${modal.item.id}/stock`
+        : `${inventoryApi}/pineapple-sizes/${modal.item.details.size_id}/stock`
+      await apiRequest(endpoint, {
         method: 'POST', body: JSON.stringify({ quantity }),
       })
       setModal(null)
@@ -388,7 +397,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                     : items.length ? items.map((item) => {
                       const status = item.stock_quantity <= 0 ? 'out' : item.stock_quantity <= 10 ? 'low' : 'in'
                       const label = status === 'out' ? 'Out of Stock' : status === 'low' ? 'Low Stock' : 'In Stock'
-                      return <tr key={item.id}><td>{item.id}</td><td><strong>{item.variant}</strong></td><td><strong className="inventory-quantity">{item.stock_quantity}</strong></td><td>{item.unit_label || '—'}</td><td><span className={`stock-status stock-${status}`}>{label}</span></td><td>{formatDate(item.updated_at)}</td><td><div className="inventory-actions"><button className="inventory-add-stock" type="button" onClick={() => openAddStock(item)}><span aria-hidden="true">+</span>Add Stock</button></div></td></tr>
+                      return <tr key={item.id ?? `size-${item.details?.size_id}`}><td>{item.id ?? '—'}</td><td><strong>{item.variant}</strong></td><td><strong className="inventory-quantity">{item.stock_quantity}</strong></td><td>{item.unit_label || 'pcs'}</td><td><span className={`stock-status stock-${status}`}>{label}</span></td><td>{formatDate(item.updated_at)}</td><td><div className="inventory-actions"><button className="inventory-add-stock" type="button" onClick={() => openAddStock(item)}><span aria-hidden="true">+</span>Add Stock</button></div></td></tr>
                     }) : <tr><td className="inventory-empty" colSpan="7">No pineapple stock records found.</td></tr>}
                 </tbody>
               </table> : <table className="inventory-table inventory-records-table">
@@ -409,14 +418,14 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                 </tbody>
               </table>}
             </div>
-            <footer className="inventory-pagination">
+            {activeView !== 'stock' && <footer className="inventory-pagination">
               <span>{pagination.total} total item{pagination.total === 1 ? '' : 's'}</span>
               <div>
                 <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button>
                 <strong>{page}</strong>
                 <button type="button" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button>
               </div>
-            </footer>
+            </footer>}
             {activeView === 'stock' && <section className="stock-history-section">
               <header><div><h2>Stock Movement History</h2><p>Recent pineapple stock additions and deductions</p></div></header>
               {historyError && <div className="stock-history-error" role="alert">{historyError}</div>}
@@ -435,6 +444,14 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                   </tbody>
                 </table>
               </div>
+              <footer className="inventory-pagination">
+                <span>{stockHistoryPagination.total} movement{stockHistoryPagination.total === 1 ? '' : 's'}</span>
+                <div>
+                  <button type="button" disabled={stockHistoryPage <= 1 || historyLoading} onClick={() => setStockHistoryPage((value) => value - 1)}>← Previous</button>
+                  <strong>{stockHistoryPage}</strong>
+                  <button type="button" disabled={stockHistoryPage >= stockHistoryPagination.totalPages || historyLoading} onClick={() => setStockHistoryPage((value) => value + 1)}>Next →</button>
+                </div>
+              </footer>
             </section>}
             </div>
           </section>
@@ -444,7 +461,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
       {modal?.mode === 'add-category' && <div className="inventory-modal-backdrop">
         <section className="inventory-modal category-modal" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
-          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">×</button>
+          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           <p>Inventory setup</p><h2 id="category-modal-title">Add Category</h2>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
           <form onSubmit={addCategory}>
@@ -457,7 +474,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
       {(modal?.mode === 'add-item' || modal?.mode === 'edit-item') && <div className="inventory-modal-backdrop">
         <section className="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="inventory-modal-title">
-          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">×</button>
+          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           <p>{modal.mode === 'add-item' ? 'New inventory record' : 'Update inventory record'}</p>
           <h2 id="inventory-modal-title">{modal.mode === 'add-item' ? 'Add Item' : `Edit ${modal.item.item_name}`}</h2>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
@@ -496,14 +513,14 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
       {modal?.mode === 'add-stock' && <div className="inventory-modal-backdrop">
         <section className="inventory-modal stock-modal" role="dialog" aria-modal="true" aria-labelledby="stock-modal-title">
-          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">×</button>
+          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           <p>Pineapple inventory</p><h2 id="stock-modal-title">Add Pineapple Stock</h2>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
           <form onSubmit={addStock}>
-            <div className="stock-modal-summary"><span>{modal.item.variant}</span><strong>{modal.item.stock_quantity} {modal.item.unit_label}</strong><small>Current available stock</small></div>
-            <label><span>Current stock</span><input className="inventory-current-stock" value={`${modal.item.stock_quantity} ${modal.item.unit_label}`} readOnly /></label>
+            <div className="stock-modal-summary"><span>{modal.item.variant}</span><strong>{modal.item.stock_quantity} {modal.item.unit_label || 'pcs'}</strong><small>Current available stock</small></div>
+            <label><span>Current stock</span><input className="inventory-current-stock" value={`${modal.item.stock_quantity} ${modal.item.unit_label || 'pcs'}`} readOnly /></label>
             <label><span>Quantity to add</span><input type="number" min="1" step="1" value={itemForm.stock_to_add} onChange={(event) => setItemForm({ ...itemForm, stock_to_add: event.target.value })} required autoFocus /></label>
-            {Number(itemForm.stock_to_add) > 0 && <div className="stock-after-preview"><span>Stock after addition</span><strong>{modal.item.stock_quantity + Number(itemForm.stock_to_add)} {modal.item.unit_label}</strong></div>}
+            {Number(itemForm.stock_to_add) > 0 && <div className="stock-after-preview"><span>Stock after addition</span><strong>{modal.item.stock_quantity + Number(itemForm.stock_to_add)} {modal.item.unit_label || 'pcs'}</strong></div>}
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Adding…' : 'Confirm Stock In'}</button></footer>
           </form>
         </section>

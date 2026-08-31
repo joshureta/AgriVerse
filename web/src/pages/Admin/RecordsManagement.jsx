@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileText } from 'lucide-react'
+import { FileText, X } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
@@ -73,8 +73,20 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url)
 }
 
-function TaskModalHeader({ title }) {
-  return <header className="task-dialog-header"><div><p>Farm records</p><h2>{title}</h2></div></header>
+function TaskModalHeader({ title, onClose, tag = 'Farm records' }) {
+  return (
+    <header className="task-dialog-header">
+      <div>
+        <p>{tag}</p>
+        <h2>{title}</h2>
+      </div>
+      {onClose && (
+        <button className="task-modal-header-close" type="button" onClick={onClose} aria-label="Close">
+          <X size={18} aria-hidden="true" />
+        </button>
+      )}
+    </header>
+  )
 }
 
 // Mock data generators — these fields aren't tracked in the database yet.
@@ -396,7 +408,7 @@ export default function RecordsManagement() {
 
       {modal?.mode === 'view-task' && <div className="task-modal-backdrop">
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-record-title">
-          <TaskModalHeader title="View Record" />
+          <TaskModalHeader title="View Record" onClose={() => setModal(null)} />
           <div className="task-reference-body task-view-body">
             <div className="task-dialog-grid">
               <div className="task-dialog-main task-view-section">
@@ -424,7 +436,7 @@ export default function RecordsManagement() {
 
       {modal?.mode === 'view-delivery' && <div className="task-modal-backdrop">
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-delivery-record-title">
-          <TaskModalHeader title="View Delivery Record" />
+          <TaskModalHeader title="View Delivery Record" tag="Delivery records" onClose={() => setModal(null)} />
           <div className="task-reference-body task-view-body">
             <div className="task-dialog-grid">
               <div className="task-dialog-main task-view-section">
