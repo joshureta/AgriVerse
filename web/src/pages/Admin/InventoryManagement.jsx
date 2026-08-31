@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { X } from 'lucide-react'
 import archiveIcon from '../../assets/archive-inventory-icon.png'
 import inventoryIcon from '../../assets/inventory-management-icon-green.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
@@ -460,7 +461,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
       {modal?.mode === 'add-category' && <div className="inventory-modal-backdrop">
         <section className="inventory-modal category-modal" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
-          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">×</button>
+          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           <p>Inventory setup</p><h2 id="category-modal-title">Add Category</h2>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
           <form onSubmit={addCategory}>
@@ -473,7 +474,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
       {(modal?.mode === 'add-item' || modal?.mode === 'edit-item') && <div className="inventory-modal-backdrop">
         <section className="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="inventory-modal-title">
-          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">×</button>
+          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           <p>{modal.mode === 'add-item' ? 'New inventory record' : 'Update inventory record'}</p>
           <h2 id="inventory-modal-title">{modal.mode === 'add-item' ? 'Add Item' : `Edit ${modal.item.item_name}`}</h2>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
@@ -512,7 +513,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
       {modal?.mode === 'add-stock' && <div className="inventory-modal-backdrop">
         <section className="inventory-modal stock-modal" role="dialog" aria-modal="true" aria-labelledby="stock-modal-title">
-          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">×</button>
+          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           <p>Pineapple inventory</p><h2 id="stock-modal-title">Add Pineapple Stock</h2>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
           <form onSubmit={addStock}>

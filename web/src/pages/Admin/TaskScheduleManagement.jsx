@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ClipboardPlus, Send } from 'lucide-react'
+import { ClipboardPlus, Send, X } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
@@ -118,8 +118,20 @@ function SummaryCard({ label, value, icon, className = '' }) {
   return <article className={`task-summary-card ${className}`}><div><span>{label}</span><strong>{value}</strong></div><i aria-hidden="true">{icon}</i></article>
 }
 
-function TaskModalHeader({ title }) {
-  return <header className="task-dialog-header"><div><p>Task scheduling</p><h2>{title}</h2></div></header>
+function TaskModalHeader({ title, onClose, tag = 'Task scheduling' }) {
+  return (
+    <header className="task-dialog-header">
+      <div>
+        <p>{tag}</p>
+        <h2>{title}</h2>
+      </div>
+      {onClose && (
+        <button className="task-modal-header-close" type="button" onClick={onClose} aria-label="Close">
+          <X size={18} aria-hidden="true" />
+        </button>
+      )}
+    </header>
+  )
 }
 
 export default function TaskScheduleManagement() {
@@ -575,7 +587,7 @@ export default function TaskScheduleManagement() {
 
       {modal?.mode === 'view' && <div className="task-modal-backdrop">
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-task-title">
-          <TaskModalHeader title="View Task" />
+          <TaskModalHeader title="View Task" onClose={() => setModal(null)} />
           <div className="task-reference-body task-view-body">
             <div className="task-dialog-grid">
               <div className="task-dialog-main task-view-section">
@@ -598,7 +610,7 @@ export default function TaskScheduleManagement() {
 
       {modal?.mode === 'view-delivery' && <div className="task-modal-backdrop">
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-delivery-title">
-          <TaskModalHeader title="View Delivery Order" />
+          <TaskModalHeader title="View Delivery Order" tag="Delivery scheduling" onClose={() => setModal(null)} />
           <div className="task-reference-body task-view-body">
             <div className="task-dialog-grid">
               <div className="task-dialog-main task-view-section">
@@ -621,7 +633,7 @@ export default function TaskScheduleManagement() {
 
       {modal?.mode === 'edit-delivery' && <div className="task-modal-backdrop">
         <section className="task-reference-modal assign-task-modal" role="dialog" aria-modal="true" aria-labelledby="edit-delivery-title">
-          <TaskModalHeader title="Edit Delivery Order" />
+          <TaskModalHeader title="Edit Delivery Order" tag="Delivery scheduling" onClose={() => setModal(null)} />
           <form className="task-reference-body" onSubmit={saveDeliveryAssignment}>
             {error && <div className="task-modal-error" role="alert">{error}</div>}
             <div className="task-dialog-grid">
@@ -642,7 +654,7 @@ export default function TaskScheduleManagement() {
 
       {(modal?.mode === 'add' || modal?.mode === 'edit') && <div className="task-modal-backdrop">
         <section className="task-reference-modal assign-task-modal" role="dialog" aria-modal="true" aria-labelledby="assign-task-title">
-          <TaskModalHeader title={assigningDriver ? 'Assign Delivery Order' : modal.mode === 'add' ? 'Assign New Task' : 'Edit Task'} />
+          <TaskModalHeader title={assigningDriver ? 'Assign Delivery Order' : modal.mode === 'add' ? 'Assign New Task' : 'Edit Task'} tag={assigningDriver ? 'Delivery assignment' : 'Task scheduling'} onClose={() => setModal(null)} />
           <form className="task-reference-body" onSubmit={saveTask}>
             {error && <div className="task-modal-error" role="alert">{error}</div>}
             <div className="task-dialog-grid">
@@ -667,7 +679,7 @@ export default function TaskScheduleManagement() {
 
       {modal?.mode === 'setting' && <div className="task-modal-backdrop">
         <section className="task-reference-modal task-setting-modal" role="dialog" aria-modal="true">
-          <TaskModalHeader title={`${modal.value ? 'Edit' : 'Add'} ${modal.type === 'categories' ? 'Task Category' : 'Field / Location'}`} />
+          <TaskModalHeader title={`${modal.value ? 'Edit' : 'Add'} ${modal.type === 'categories' ? 'Task Category' : 'Field / Location'}`} tag="Settings setup" onClose={() => setModal(null)} />
           <form className="task-reference-body" onSubmit={saveSetting}>
             {error && <div className="task-modal-error" role="alert">{error}</div>}
             <label><span>{modal.type === 'categories' ? 'Category name' : 'Field or location name'}</span><input autoFocus value={settingsForm.name} onChange={(event) => setSettingsForm({ ...settingsForm, name: event.target.value })} maxLength="120" required /></label>

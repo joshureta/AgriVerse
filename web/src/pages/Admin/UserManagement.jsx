@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import deleteIcon from '../../assets/delete-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { workerCategories } from '../../constants/user-options.js'
@@ -249,13 +250,13 @@ export default function UserManagement() {
                   </svg>
                 </span>
               </label>
-              <button className="toolbar-add-user" type="button" onClick={() => setModal({ mode: 'add', role: 'buyer' })}>
+              <button className="toolbar-add-user" type="button" onClick={() => { setError(''); setModal({ mode: 'add', role: 'buyer' }) }}>
                 <span aria-hidden="true">&#43;</span>
                 Add User
               </button>
             </div>
 
-            {error && <div className="users-error" role="alert">{error}</div>}
+            {error && !modal && <div className="users-error" role="alert">{error}</div>}
             <div className="users-table-wrap">
               <table className="users-table">
                 <thead><tr><th>FULL NAME</th><th>EMAIL</th><th>ROLE</th><th>CREATED AT</th><th>ACTIONS</th></tr></thead>
@@ -294,12 +295,15 @@ export default function UserManagement() {
       {modal && (
         <div className="user-modal-backdrop" role="presentation">
           <section className="user-modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
-            <button className="user-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">×</button>
-            <p>{modal.mode === 'add' ? 'Create account' : 'Update profile'}</p>
+            <button className="user-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">
+              <X size={18} aria-hidden="true" />
+            </button>
+            <p className="user-modal-tag">{modal.mode === 'add' ? 'Create account' : 'Update profile'}</p>
             <h2 id="user-modal-title">{modal.mode === 'add' ? 'Add a new user' : 'Edit user'}</h2>
-            <span>The table displays only the four requested profile fields.</span>
+            <span className="user-modal-subtitle">Configure the user credentials, platform role, and worker category.</span>
+            {error && <div className="user-modal-error" role="alert">{error}</div>}
             <form onSubmit={handleSubmit}>
-              <label><span>Full name</span><input name="full_name" defaultValue={modal.user?.full_name || ''} required minLength="2" maxLength="100" /></label>
+              <label><span>Full name</span><input name="full_name" defaultValue={modal.user?.full_name || ''} required minLength="2" maxLength="100" placeholder="e.g. Juan Dela Cruz" /></label>
               {modal.mode === 'add' && <>
                 <label><span>Email address</span><input name="email" type="email" required placeholder="user@example.com" /></label>
                 <label><span>Temporary password</span><input name="password" type="password" required minLength="8" placeholder="At least 8 characters" /></label>
