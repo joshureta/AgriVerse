@@ -3,9 +3,16 @@ import { StyleSheet } from 'react-native';
 const DARK_GREEN = '#134B24';
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F9F9F4' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F9F4' },
-  content: { paddingTop: 18, paddingBottom: 100, flexGrow: 1 },
+  safeArea: { flex: 1, backgroundColor: '#176D34' },
+  mainBodyContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAEF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAEF' },
+  content: { paddingTop: 20, paddingBottom: 100, flexGrow: 1 },
   titleBlock: { marginBottom: 18 },
   title: { color: DARK_GREEN, fontSize: 26, fontWeight: '800' },
   subtitle: { color: '#3D6346', fontSize: 12, fontWeight: '500', marginTop: 4 },

@@ -1,9 +1,10 @@
-import { styles } from '@/styles/worker-task-dashboard.styles';
-import { Redirect } from 'expo-router';
+import { GREEN, styles } from '@/styles/worker-task-dashboard.styles';
+import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Pressable,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -21,63 +22,100 @@ type TaskStatus = 'pending' | 'in_progress' | 'completed';
 type WorkerTask = {
   id: number;
   category: string;
+  field?: string;
+  priority?: 'high' | 'medium' | 'low';
   status: TaskStatus;
   description: string | null;
   task_name?: string;
+  estimated_duration_minutes?: number;
 };
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
-const GREEN = '#134B24';
+const categoryThemes: Record<string, { icon: string; bg: string; color: string }> = {
+  Planting: { icon: '🌱', bg: '#FDF2E9', color: '#9A3412' },
+  Irrigation: { icon: '💧', bg: '#E0F2FE', color: '#0369A1' },
+  Fertilizer: { icon: '🌿', bg: '#DCFCE7', color: '#15803D' },
+  Fertilizing: { icon: '🌿', bg: '#DCFCE7', color: '#15803D' },
+  'Crop Inspection': { icon: '🔎', bg: '#F3E8FF', color: '#7E22CE' },
+  'Pests & Disease Control': { icon: '🔎', bg: '#FEE2E2', color: '#B91C1C' },
+  Harvesting: { icon: '🍍', bg: '#FEF3C7', color: '#B45309' },
+};
 
-function ClipboardHeaderIcon() {
+function formatPriorityLabel(priority?: string) {
+  if (!priority) return 'Medium Priority';
+  const lower = priority.toLowerCase();
+  if (lower === 'high') return 'High Priority';
+  if (lower === 'low') return 'Low Priority';
+  return 'Medium Priority';
+}
+
+function ClipboardDocumentIcon() {
   return (
-    <View style={styles.clipboardIcon}>
-      <View style={styles.clipClip} />
-      {[0, 1, 2].map((line) => (
-        <View key={line} style={styles.clipCheckRow}>
-          <Text style={styles.clipCheck}>✓</Text>
-          <View style={styles.clipLine} />
-        </View>
-      ))}
+    <View style={styles.clipboardIconWrap}>
+      <View style={styles.clipboardTopClip} />
+      <View style={styles.clipboardLine} />
+      <View style={styles.clipboardLine} />
+      <View style={styles.clipboardLineShort} />
     </View>
   );
 }
 
-function WeatherWidget() {
+function MetricCard({
+  color,
+  label,
+  value,
+  onPress,
+}: {
+  color: string;
+  label: string;
+  value: number;
+  onPress?: () => void;
+}) {
   return (
-    <View style={styles.weatherBlock}>
-      <Image
-        source={require('@/assets/images/worker-weather-rain-icon.png')}
-        style={styles.weatherIconImage}
-      />
-      <View style={styles.weatherInfo}>
-        <View style={styles.weatherTitleRow}>
-          <Text style={styles.weatherTitle}>Raining</Text>
-          <Text style={styles.weatherDate}>June 26</Text>
-        </View>
-        <Text style={styles.weatherLocation}>Silang, Cavite Philippines</Text>
-      </View>
-    </View>
+    <Pressable onPress={onPress} style={[styles.metricCard, { backgroundColor: color }]}>
+      <Text style={styles.metricTopLabel}>{label}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+    </Pressable>
   );
 }
 
-function MetricCard({ color, label, value, textColor }: { color: string; label: string; value: number; textColor: string }) {
-  return (
-    <View style={[styles.metricCard, { backgroundColor: color }]}>
-      <Text style={[styles.metricValue, { color: textColor }]}>{value}</Text>
-      <Text numberOfLines={2} adjustsFontSizeToFit style={styles.metricLabel}>{label}</Text>
-    </View>
-  );
-}
+function TaskDashboardCard({
+  task,
+  onStart,
+}: {
+  task: WorkerTask;
+  onStart: () => void;
+}) {
+  const theme = categoryThemes[task.category] || { icon: '🌾', bg: '#F1F5F9', color: '#475569' };
+  const priorityKey = task.priority || 'medium';
 
-function TaskRow({ task }: { task: WorkerTask }) {
   return (
     <View style={styles.taskCard}>
-      <View style={styles.taskCopy}>
-        <Text style={styles.taskCategory}>{task.category}</Text>
-        <Text numberOfLines={1} style={styles.taskDescription}>{task.description || task.task_name || `${task.category} task`}</Text>
+      {/* Left: Squircle Category Container */}
+      <View style={[styles.categorySquircle, { backgroundColor: theme.bg }]}>
+        <Text style={styles.categoryIcon}>{theme.icon}</Text>
       </View>
-      {task.status === 'in_progress' ? <ActivityIndicator color="#666" size="small" /> : <View style={styles.statusDot} />}
+
+      {/* Center: Stacked Badges */}
+      <View style={styles.taskCenterColumn}>
+        <View style={[styles.priorityPill, styles[`priority_${priorityKey}`]]}>
+          <Text style={[styles.priorityText, styles[`priorityText_${priorityKey}`]]}>
+            {formatPriorityLabel(task.priority)}
+          </Text>
+        </View>
+
+        <View style={styles.durationPill}>
+          <Text style={styles.durationClockIcon}>🕒</Text>
+          <Text style={styles.durationPillText}>Duration</Text>
+        </View>
+      </View>
+
+      {/* Right: Start Task CTA Button */}
+      <Pressable
+        onPress={onStart}
+        style={({ pressed }) => [styles.startTaskBtn, pressed && styles.startTaskBtnPressed]}>
+        <Text style={styles.startTaskBtnText}>Start Task</Text>
+      </Pressable>
     </View>
   );
 }
@@ -96,8 +134,8 @@ export default function WorkerTaskDashboardScreen() {
     setError('');
     try {
       const response = await apiRequest<{ tasks: WorkerTask[]; summary: TaskSummary }>('/api/worker/tasks');
-      setTasks(response.tasks);
-      setSummary(response.summary);
+      setTasks(response.tasks || []);
+      setSummary(response.summary || { pending: 0, active: 0, completed: 0, total: 0 });
     } catch (caught) {
       setTasks([]);
       setSummary({ pending: 0, active: 0, completed: 0, total: 0 });
@@ -108,10 +146,13 @@ export default function WorkerTaskDashboardScreen() {
     }
   }, []);
 
-  useEffect(() => { if (profile) loadTasks(); }, [loadTasks, profile]);
+  useEffect(() => {
+    if (profile) loadTasks();
+  }, [loadTasks, profile]);
 
   const dashboard = summary;
-  const todayTasks = tasks.slice(0, 3);
+  const pendingTasks = tasks.filter((t) => t.status === 'pending');
+  const previewTasks = pendingTasks.length > 0 ? pendingTasks.slice(0, 3) : tasks.slice(0, 3);
   const horizontalPadding = width < 360 ? 14 : 18;
 
   if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
@@ -121,50 +162,96 @@ export default function WorkerTaskDashboardScreen() {
     <SafeAreaView style={styles.safeArea}>
       <WorkerHeader />
 
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadTasks(true)} colors={[GREEN]} />}>
-        
-        {/* Top Greeting & Weather Header */}
-        <View style={styles.topRow}>
-          <View style={styles.greetingBlock}>
-            <Text style={styles.greeting}>Good Day{'\n'}Worker!</Text>
+      <View style={styles.mainBodyContainer}>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadTasks(true)} colors={[GREEN]} />}>
+          
+          {/* Top Greeting */}
+          <Text style={styles.greeting}>Good Day, Worker!</Text>
+
+          {/* Farm Hero Card with Embedded Weather & Status Pill */}
+          <View style={styles.farmHeroWrapper}>
+            <Image
+              source={require('@/assets/images/worker-crop-farmer-hero.png')}
+              style={styles.heroBackgroundImage}
+              resizeMode="cover"
+            />
+
+            {/* Embedded Floating Weather Card */}
+            <View style={styles.floatingWeatherCard}>
+              <View style={styles.weatherTempRow}>
+                <Text style={styles.weatherSunIcon}>☀️</Text>
+                <Text style={styles.weatherTempValue}>28°C</Text>
+              </View>
+              <Text style={styles.weatherSubLoc}>Sunny, Silang Cavite</Text>
+            </View>
+
+            {/* Embedded Floating Status Pill */}
+            <View style={styles.floatingStatusPill}>
+              <Text style={styles.floatingStatusText}>Status Pill</Text>
+            </View>
           </View>
-          <WeatherWidget />
-        </View>
 
-        {/* Farmer Hero Art */}
-        <View style={styles.heroWrapper}>
-          <Image
-            source={require('@/assets/images/worker-crop-farmer-hero.png')}
-            style={styles.heroImage}
-            resizeMode="contain"
-          />
-        </View>
+          {/* 4 Metric Status Cards (Horizontal 1-Row Grid) */}
+          <View style={styles.metricsRow}>
+            <MetricCard
+              color="#0F3E22"
+              label="Total Tasks"
+              value={dashboard.total}
+              onPress={() => router.push('/WorkerTaskPending')}
+            />
+            <MetricCard
+              color="#237C3B"
+              label="Pending"
+              value={dashboard.pending}
+              onPress={() => router.push('/WorkerTaskPending')}
+            />
+            <MetricCard
+              color="#D99026"
+              label="Active"
+              value={dashboard.active}
+              onPress={() => router.push('/WorkerTaskActive')}
+            />
+            <MetricCard
+              color="#0F7D40"
+              label="Completed"
+              value={dashboard.completed}
+              onPress={() => router.push('/WorkerTaskCompleted')}
+            />
+          </View>
 
-        {/* 4 Metric Cards */}
-        <View style={styles.metricsRow}>
-          <MetricCard color="#A5C982" label="Total Tasks" value={dashboard.total} textColor="#1B4D27" />
-          <MetricCard color="#1E6B37" label="Pending Tasks" value={dashboard.pending} textColor="#FFFFFF" />
-          <MetricCard color="#1E6B37" label="Active Tasks" value={dashboard.active} textColor="#FFFFFF" />
-          <MetricCard color="#7E9F6B" label="Completed Tasks" value={dashboard.completed} textColor="#1B4D27" />
-        </View>
+          {/* Today's Tasks Section Header */}
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionTitleWrap}>
+              <ClipboardDocumentIcon />
+              <Text style={styles.sectionTitle}>Today’s Tasks</Text>
+            </View>
+            <Pressable onPress={() => router.push('/WorkerTaskPending')}>
+              <Text style={styles.sectionLink}>View All ({dashboard.total}) ›</Text>
+            </Pressable>
+          </View>
 
-        {/* Today's Tasks Section */}
-        <View style={styles.sectionHeading}>
-          <ClipboardHeaderIcon />
-          <Text style={styles.sectionTitle}>Today’s Tasks</Text>
-        </View>
+          {error ? <Text style={styles.loadError}>{error}</Text> : null}
+          
+          {loading ? (
+            <ActivityIndicator style={styles.loader} color={GREEN} />
+          ) : previewTasks.length > 0 ? (
+            previewTasks.map((task) => (
+              <TaskDashboardCard
+                key={task.id}
+                task={task}
+                onStart={() => router.push('/WorkerTaskPending')}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyText}>No tasks scheduled for today.</Text>
+            </View>
+          )}
 
-        {error ? <Text style={styles.loadError}>{error}</Text> : null}
-        {loading ? (
-          <ActivityIndicator style={styles.loader} color={GREEN} />
-        ) : todayTasks.length > 0 ? (
-          todayTasks.map((task) => <TaskRow key={task.id} task={task} />)
-        ) : (
-          <TaskRow task={{ id: 0, category: 'Planting', status: 'pending', description: 'Prepare planting holes' }} />
-        )}
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <WorkerBottomNavigation activeTab="home" />
     </SafeAreaView>

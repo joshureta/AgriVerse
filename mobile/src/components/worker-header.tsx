@@ -1,30 +1,31 @@
-import { Image, ImageBackground, Pressable, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { styles } from '@/styles/components/worker-header.styles';
 
 function BellIcon() {
   return (
-    <View style={styles.bell}>
-      <View style={styles.bellBody} />
-      <View style={styles.bellClapper} />
+    <View style={styles.bellWrapper}>
+      <View style={styles.bellOutline}>
+        <View style={styles.bellBody} />
+        <View style={styles.bellClapper} />
+      </View>
+      <View style={styles.badge}>
+        <Text style={styles.badgeText}>!</Text>
+      </View>
     </View>
   );
 }
 
 export function WorkerHeader() {
   return (
-    <ImageBackground
-      source={require('@/assets/images/worker-header-gradient.png')}
-      resizeMode="stretch"
-      style={styles.header}>
-      <Image
-        accessibilityLabel="AgriVerse"
-        source={require('@/assets/images/agriverse-drone-logo.png')}
-        style={styles.logo}
-      />
+    <View style={styles.header}>
+      <View style={styles.brandRow}>
+        <Text style={styles.brandIcon}>🌱</Text>
+        <Text style={styles.brandTitle}>AgriVerse</Text>
+      </View>
       <Pressable accessibilityLabel="Notifications" accessibilityRole="button" hitSlop={12}>
         <BellIcon />
       </Pressable>
-    </ImageBackground>
+    </View>
   );
 }
