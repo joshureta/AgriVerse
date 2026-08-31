@@ -410,26 +410,41 @@ export default function RecordsManagement() {
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-record-title">
           <TaskModalHeader title="View Record" onClose={() => setModal(null)} />
           <div className="task-reference-body task-view-body">
-            <div className="task-dialog-grid">
-              <div className="task-dialog-main task-view-section">
-                <div className="task-view-item"><span>Category</span><strong>{modal.task.category}</strong></div>
-                <div className="task-view-item"><span>{modal.kind === 'inspection' ? 'Assigned Inspector' : 'Farm Worker'}</span><strong>{modal.task.assigned_worker?.full_name || 'Unassigned worker'}</strong></div>
-                <div className="task-view-item"><span>Field</span><strong>{modal.task.field}</strong></div>
-                {modal.kind === 'planting' && <div className="task-view-item"><span>Number of Plants</span><strong>{mockNumberOfPlants(modal.task)}</strong></div>}
-                {modal.kind === 'fertilization' && <><div className="task-view-item"><span>Fertilizer Type</span><strong>{mockFertilizerType(modal.task)}</strong></div><div className="task-view-item"><span>Quantity Applied</span><strong>{mockQuantityApplied(modal.task)}</strong></div><div className="task-view-item"><span>Application Method</span><strong>{mockApplicationMethod(modal.task)}</strong></div></>}
-                {modal.kind === 'inspection' && <><div className="task-view-item"><span>Crop Condition</span><strong>{mockCropCondition(modal.task)}</strong></div><div className="task-view-item"><span>Pest/Disease Observed</span><strong>{mockPestObserved(modal.task)}</strong></div><div className="task-view-item"><span>Recommended Action</span><strong>{mockRecommendedAction(modal.task)}</strong></div></>}
-                {modal.kind === 'harvesting' && <><div className="task-view-item"><span>Small / Medium / Large</span><strong>{mockHarvestSizes(modal.task).small} / {mockHarvestSizes(modal.task).medium} / {mockHarvestSizes(modal.task).large}</strong></div><div className="task-view-item"><span>Damaged</span><strong>{mockHarvestSizes(modal.task).damaged}</strong></div><div className="task-view-item"><span>Grade</span><strong>{mockGrade(modal.task)}</strong></div></>}
-                {modal.kind === 'maintenance' && <><div className="task-view-item"><span>Maintenance Type</span><strong>{mockMaintenanceType(modal.task)}</strong></div><div className="task-view-item"><span>Plants Covered</span><strong>{mockPlantsCovered(modal.task)}</strong></div></>}
-                {modal.kind === 'postharvest' && <><div className="task-view-item"><span>Process Type</span><strong>{mockProcessType(modal.task)}</strong></div><div className="task-view-item"><span>Quantity Processed</span><strong>{mockQuantityProcessed(modal.task)}</strong></div></>}
+            <div className="task-view-grid">
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Category</span>
+                <strong className="task-view-tile-value">{modal.task.category}</strong>
               </div>
-              <div className="task-dialog-side task-view-section">
-                <div className="task-view-item"><span>Status</span><strong className={`task-view-status status-${modal.task.status}`}>{modal.task.status_label}</strong></div>
-                <div className="task-view-item"><span>Date Started</span><strong>{formatDate(modal.task.started_at)}</strong></div>
-                <div className="task-view-item"><span>Date Completed</span><strong>{formatDate(modal.task.completed_at)}</strong></div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Status</span>
+                <div>
+                  <span className={`task-status-badge status-${modal.task.status}`}>{modal.task.status_label}</span>
+                </div>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">{modal.kind === 'inspection' ? 'Assigned Inspector' : 'Farm Worker'}</span>
+                <strong className="task-view-tile-value">{modal.task.assigned_worker?.full_name || 'Unassigned worker'}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Field</span>
+                <strong className="task-view-tile-value">{modal.task.field}</strong>
+              </div>
+              {modal.kind === 'planting' && <div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Number of Plants</span><strong className="task-view-tile-value">{mockNumberOfPlants(modal.task)}</strong></div>}
+              {modal.kind === 'fertilization' && <><div className="task-view-tile"><span className="task-view-tile-label">Fertilizer Type</span><strong className="task-view-tile-value">{mockFertilizerType(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Quantity Applied</span><strong className="task-view-tile-value">{mockQuantityApplied(modal.task)}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Application Method</span><strong className="task-view-tile-value">{mockApplicationMethod(modal.task)}</strong></div></>}
+              {modal.kind === 'inspection' && <><div className="task-view-tile"><span className="task-view-tile-label">Crop Condition</span><strong className="task-view-tile-value">{mockCropCondition(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Pest/Disease Observed</span><strong className="task-view-tile-value">{mockPestObserved(modal.task)}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Recommended Action</span><strong className="task-view-tile-value">{mockRecommendedAction(modal.task)}</strong></div></>}
+              {modal.kind === 'harvesting' && <><div className="task-view-tile"><span className="task-view-tile-label">Small / Medium / Large</span><strong className="task-view-tile-value">{mockHarvestSizes(modal.task).small} / {mockHarvestSizes(modal.task).medium} / {mockHarvestSizes(modal.task).large}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Damaged / Grade</span><strong className="task-view-tile-value">{mockHarvestSizes(modal.task).damaged} damaged · Grade {mockGrade(modal.task)}</strong></div></>}
+              {modal.kind === 'maintenance' && <><div className="task-view-tile"><span className="task-view-tile-label">Maintenance Type</span><strong className="task-view-tile-value">{mockMaintenanceType(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Plants Covered</span><strong className="task-view-tile-value">{mockPlantsCovered(modal.task)}</strong></div></>}
+              {modal.kind === 'postharvest' && <><div className="task-view-tile"><span className="task-view-tile-label">Process Type</span><strong className="task-view-tile-value">{mockProcessType(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Quantity Processed</span><strong className="task-view-tile-value">{mockQuantityProcessed(modal.task)}</strong></div></>}
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Date Started</span>
+                <strong className="task-view-tile-value">{formatDate(modal.task.started_at)}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Date Completed</span>
+                <strong className="task-view-tile-value">{formatDate(modal.task.completed_at)}</strong>
               </div>
             </div>
             <section className="task-view-description"><span>Insights</span><p>{mockInsight(modal.task)}</p></section>
-            <footer><button type="button" onClick={() => setModal(null)}>Close</button></footer>
           </div>
         </section>
       </div>}
@@ -438,20 +453,32 @@ export default function RecordsManagement() {
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-delivery-record-title">
           <TaskModalHeader title="View Delivery Record" tag="Delivery records" onClose={() => setModal(null)} />
           <div className="task-reference-body task-view-body">
-            <div className="task-dialog-grid">
-              <div className="task-dialog-main task-view-section">
-                <div className="task-view-item"><span>Order Number</span><strong>{modal.order.order_number}</strong></div>
-                <div className="task-view-item"><span>Driver</span><strong>{modal.order.assigned_driver?.full_name || 'Unassigned driver'}</strong></div>
-                <div className="task-view-item"><span>Customer</span><strong>{modal.order.delivery_full_name || 'Not provided'}</strong></div>
+            <div className="task-view-grid">
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Order Number</span>
+                <strong className="task-view-tile-value">{modal.order.order_number}</strong>
               </div>
-              <div className="task-dialog-side task-view-section">
-                <div className="task-view-item"><span>Delivery Window</span><strong>{formatDeliveryWindow(modal.order.delivery_scheduled_at, modal.order.delivery_window_end_at)}</strong></div>
-                <div className="task-view-item"><span>Delivery Status</span><strong className={`task-view-status status-${modal.order.delivery_assignment_status || 'assigned'}`}>{(modal.order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</strong></div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Delivery Status</span>
+                <div>
+                  <span className={`task-status-badge status-${modal.order.delivery_assignment_status || 'assigned'}`}>{(modal.order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span>
+                </div>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Driver</span>
+                <strong className="task-view-tile-value">{modal.order.assigned_driver?.full_name || 'Unassigned driver'}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Customer</span>
+                <strong className="task-view-tile-value">{modal.order.delivery_full_name || 'Not provided'}</strong>
+              </div>
+              <div className="task-view-tile task-view-tile-full">
+                <span className="task-view-tile-label">Delivery Window</span>
+                <strong className="task-view-tile-value">{formatDeliveryWindow(modal.order.delivery_scheduled_at, modal.order.delivery_window_end_at)}</strong>
               </div>
             </div>
             <section className="task-view-description"><span>Delivery Address</span><p>{[modal.order.delivery_barangay, modal.order.delivery_city_municipality, modal.order.delivery_province, modal.order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'}</p></section>
             <section className="task-view-description"><span>Insights</span><p>{mockDeliveryInsight(modal.order)}</p></section>
-            <footer><button type="button" onClick={() => setModal(null)}>Close</button></footer>
           </div>
         </section>
       </div>}

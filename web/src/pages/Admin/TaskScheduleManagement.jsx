@@ -587,23 +587,41 @@ export default function TaskScheduleManagement() {
 
       {modal?.mode === 'view' && <div className="task-modal-backdrop">
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-task-title">
-          <TaskModalHeader title="View Task" onClose={() => setModal(null)} />
+          <TaskModalHeader title="View Task Details" onClose={() => setModal(null)} />
           <div className="task-reference-body task-view-body">
-            <div className="task-dialog-grid">
-              <div className="task-dialog-main task-view-section">
-                <div className="task-view-item"><span>Category</span><strong>{modal.task.category}</strong></div>
-                <div className="task-view-item"><span>Assigned Worker</span><strong>{modal.task.assigned_worker?.full_name || 'Not assigned'}</strong></div>
-                <div className="task-view-item"><span>Field</span><strong>{modal.task.field}</strong></div>
+            <div className="task-view-grid">
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Category</span>
+                <strong className="task-view-tile-value">{modal.task.category}</strong>
               </div>
-              <div className="task-dialog-side task-view-section">
-                <div className="task-view-item"><span>Priority</span><strong className={`task-view-priority priority-${modal.task.priority}`}>{modal.task.priority_label}</strong></div>
-                <div className="task-view-item"><span>Status</span><strong className={`task-view-status status-${modal.task.status}`}>{modal.task.status_label || statusLabels[modal.task.status]}</strong></div>
-                <div className="task-view-item"><span>Schedule</span><strong>{formatSchedule(modal.task.schedule_start)}</strong></div>
-                <div className="task-view-item"><span>Estimated Duration</span><strong>{durationLabel(modal.task.estimated_duration_minutes)}</strong></div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Priority &amp; Status</span>
+                <div className="task-view-pills">
+                  <span className={`task-priority-badge priority-${modal.task.priority}`}>{modal.task.priority_label}</span>
+                  <span className={`task-status-badge status-${modal.task.status}`}>{modal.task.status_label || statusLabels[modal.task.status]}</span>
+                </div>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Assigned Worker</span>
+                <strong className="task-view-tile-value">{modal.task.assigned_worker?.full_name || 'Not assigned'}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Field Location</span>
+                <strong className="task-view-tile-value">{modal.task.field}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Schedule</span>
+                <strong className="task-view-tile-value">{formatSchedule(modal.task.schedule_start)}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Estimated Duration</span>
+                <strong className="task-view-tile-value">{durationLabel(modal.task.estimated_duration_minutes)}</strong>
               </div>
             </div>
-            <section className="task-view-description"><span>Description</span><p>{modal.task.description || 'No description added.'}</p></section>
-            <footer><button type="button" onClick={() => setModal(null)}>Close</button></footer>
+            <section className="task-view-description">
+              <span>Description</span>
+              <p>{modal.task.description || 'No description added.'}</p>
+            </section>
           </div>
         </section>
       </div>}
@@ -612,21 +630,42 @@ export default function TaskScheduleManagement() {
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-delivery-title">
           <TaskModalHeader title="View Delivery Order" tag="Delivery scheduling" onClose={() => setModal(null)} />
           <div className="task-reference-body task-view-body">
-            <div className="task-dialog-grid">
-              <div className="task-dialog-main task-view-section">
-                <div className="task-view-item"><span>Order Number</span><strong>{modal.order.order_number}</strong></div>
-                <div className="task-view-item"><span>Driver</span><strong>{modal.order.assigned_driver?.full_name || 'Unassigned driver'}</strong></div>
-                <div className="task-view-item"><span>Customer</span><strong>{modal.order.delivery_full_name || 'Not provided'}</strong></div>
-                <div className="task-view-item"><span>Vehicle</span><strong>{modal.order.assigned_vehicle ? `${modal.order.assigned_vehicle.vehicle_name} · ${modal.order.assigned_vehicle.plate_number}` : 'Not selected yet'}</strong></div>
+            <div className="task-view-grid">
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Order Number</span>
+                <strong className="task-view-tile-value">{modal.order.order_number}</strong>
               </div>
-              <div className="task-dialog-side task-view-section">
-                <div className="task-view-item"><span>Delivery Window</span><strong>{formatDeliveryWindow(modal.order.delivery_scheduled_at, modal.order.delivery_window_end_at)}</strong></div>
-                <div className="task-view-item"><span>Payment</span><strong>{modal.order.payment_method}</strong></div>
-                <div className="task-view-item"><span>Delivery Status</span><strong className={`task-view-status status-${modal.order.delivery_assignment_status || 'assigned'}`}>{(modal.order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</strong></div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Delivery Status</span>
+                <div>
+                  <span className={`task-status-badge status-${modal.order.delivery_assignment_status || 'assigned'}`}>{(modal.order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span>
+                </div>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Driver</span>
+                <strong className="task-view-tile-value">{modal.order.assigned_driver?.full_name || 'Unassigned driver'}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Customer</span>
+                <strong className="task-view-tile-value">{modal.order.delivery_full_name || 'Not provided'}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Vehicle</span>
+                <strong className="task-view-tile-value">{modal.order.assigned_vehicle ? `${modal.order.assigned_vehicle.vehicle_name} · ${modal.order.assigned_vehicle.plate_number}` : 'Not selected yet'}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Payment</span>
+                <strong className="task-view-tile-value">{modal.order.payment_method}</strong>
+              </div>
+              <div className="task-view-tile task-view-tile-full">
+                <span className="task-view-tile-label">Delivery Window</span>
+                <strong className="task-view-tile-value">{formatDeliveryWindow(modal.order.delivery_scheduled_at, modal.order.delivery_window_end_at)}</strong>
               </div>
             </div>
-            <section className="task-view-description"><span>Delivery Address</span><p>{[modal.order.delivery_barangay, modal.order.delivery_city_municipality, modal.order.delivery_province, modal.order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'}</p></section>
-            <footer><button type="button" onClick={() => setModal(null)}>Close</button></footer>
+            <section className="task-view-description">
+              <span>Delivery Address</span>
+              <p>{[modal.order.delivery_barangay, modal.order.delivery_city_municipality, modal.order.delivery_province, modal.order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'}</p>
+            </section>
           </div>
         </section>
       </div>}
@@ -671,7 +710,7 @@ export default function TaskScheduleManagement() {
                 <label><span>Task Window</span><div className="date-time-pair"><input type="time" min="07:00" max="17:59" value={form.start_time} onChange={(event) => setForm({ ...form, start_time: event.target.value })} required /><input type="time" min="07:01" max="18:00" value={form.end_time} onChange={(event) => setForm({ ...form, end_time: event.target.value })} required /></div></label></>}
               </div>
             </div>
-            {!assigningDriver && <label className="task-description"><span>Description</span><textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} maxLength="2000" /></label>}
+            {!assigningDriver && <label className="task-description"><span>Description <em>(optional)</em></span><textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Add task instructions, objectives, or notes (optional)" maxLength="2000" /></label>}
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving || (assigningDriver && (!deliveryForm.order_id || !deliveryForm.delivery_date))}><Send aria-hidden="true" />{saving ? 'Saving…' : assigningDriver ? 'Assign Order' : modal.mode === 'add' ? 'Assign Task' : 'Save Task'}</button></footer>
           </form>
         </section>
@@ -683,7 +722,7 @@ export default function TaskScheduleManagement() {
           <form className="task-reference-body" onSubmit={saveSetting}>
             {error && <div className="task-modal-error" role="alert">{error}</div>}
             <label><span>{modal.type === 'categories' ? 'Category name' : 'Field or location name'}</span><input autoFocus value={settingsForm.name} onChange={(event) => setSettingsForm({ ...settingsForm, name: event.target.value })} maxLength="120" required /></label>
-            {modal.type === 'categories' && <label className="task-description"><span>Description <em>(optional)</em></span><textarea value={settingsForm.description} onChange={(event) => setSettingsForm({ ...settingsForm, description: event.target.value })} maxLength="500" /></label>}
+            {modal.type === 'categories' && <label className="task-description"><span>Description <em>(optional)</em></span><textarea value={settingsForm.description} onChange={(event) => setSettingsForm({ ...settingsForm, description: event.target.value })} placeholder="What kind of tasks belong in this category?" maxLength="500" /></label>}
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button></footer>
           </form>
         </section>

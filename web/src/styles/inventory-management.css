@@ -93,9 +93,9 @@
 .inventory-modal input.inventory-current-stock { color: #43604a; background: #edf3eb; cursor: not-allowed; }
 .inventory-modal footer { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
 .inventory-modal footer button { min-width: 104px; min-height: 42px; border: 1px solid #b8cfba; border-radius: 8px; padding: 0 18px; color: #26342a; background: #f7f9f5; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: all .15s ease; }
-.inventory-modal footer button:hover { background: #eef3ec; }
-.inventory-modal footer button[type='submit'] { border-color: #1f5f2b; color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); box-shadow: 0 2px 6px rgba(25,108,53,.2); }
-.inventory-modal footer button[type='submit']:hover { filter: brightness(1.05); }
+.inventory-modal footer button:not([type='submit']):hover { background: #eef3ec; border-color: #9cb89f; color: #16261a; }
+.inventory-modal footer button[type='submit'] { border: 1px solid #1f5f2b; color: #ffffff !important; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); box-shadow: 0 2px 6px rgba(25,108,53,.2); }
+.inventory-modal footer button[type='submit']:hover { background: radial-gradient(circle at 50% 50%, #52a440 0%, #246f33 100%) !important; color: #ffffff !important; box-shadow: 0 4px 12px rgba(25,108,53,.32); filter: brightness(1.06); }
 .inventory-modal footer button:disabled { opacity: .55; cursor: wait; }
 .inventory-modal-error { margin: -8px 0 16px; border: 1px solid #ffd7d7; border-radius: 8px; padding: 10px 14px; color: #b42318; background: #fff0f0; font-size: 11px; font-weight: 600; }
 .category-modal { width: min(500px, 100%); }

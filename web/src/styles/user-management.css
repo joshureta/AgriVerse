@@ -72,9 +72,9 @@
 .user-modal input:focus, .user-modal select:focus { border-color: #267a40; background: #fff; box-shadow: 0 0 0 3px rgba(38,122,64,.14); }
 .user-modal footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
 .user-modal footer button { min-width: 104px; min-height: 42px; border: 1px solid #b8cfba; border-radius: 8px; padding: 0 18px; color: #26342a; background: #f7f9f5; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: all .15s ease; }
-.user-modal footer button:hover { background: #eef3ec; }
-.user-modal footer button[type='submit'] { border-color: #1f5f2b; color: #fff; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); box-shadow: 0 2px 6px rgba(25,108,53,.2); }
-.user-modal footer button[type='submit']:hover { filter: brightness(1.05); }
+.user-modal footer button:not([type='submit']):hover { background: #eef3ec; border-color: #9cb89f; color: #16261a; }
+.user-modal footer button[type='submit'] { border: 1px solid #1f5f2b; color: #ffffff !important; background: radial-gradient(circle at 50% 50%, #479237 0%, #1f5f2b 100%); box-shadow: 0 2px 6px rgba(25,108,53,.2); }
+.user-modal footer button[type='submit']:hover { background: radial-gradient(circle at 50% 50%, #52a440 0%, #246f33 100%) !important; color: #ffffff !important; box-shadow: 0 4px 12px rgba(25,108,53,.32); filter: brightness(1.06); }
 .user-modal footer button:disabled { opacity: .55; cursor: wait; }
 @media (max-width: 820px) { .user-management-content { width: min(100% - 28px,1180px); } .user-page-heading { align-items: flex-start; } .users-toolbar { grid-template-columns: 138px minmax(0,1fr) auto; } .users-table { min-width: 760px; } }
 @media (max-width: 640px) { .users-toolbar { grid-template-columns: 1fr auto; } .role-filter { grid-column: 1 / -1; } }
