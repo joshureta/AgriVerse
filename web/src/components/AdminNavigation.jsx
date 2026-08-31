@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MessageCircle } from 'lucide-react'
 import dateIcon from '../assets/admin-date-icon.png'
 import cropHealthMonitoringIcon from '../assets/crop-health-monitoring-icon.png'
 import environmentalMonitoringIcon from '../assets/environmental-monitoring-icon.png'
@@ -176,6 +177,9 @@ export function AdminTopbar() {
         <time dateTime={new Date().toISOString()}>{formatDashboardDate(new Date())}</time>
       </div>
       <div className="admin-account">
+        <a className="admin-notification" href="/admin/messages" aria-label="Messages">
+          <MessageCircle aria-hidden="true" />
+        </a>
         <button className="admin-notification" type="button" aria-label="Notifications">
           <img src={notificationIcon} alt="" />
           <span aria-hidden="true" />

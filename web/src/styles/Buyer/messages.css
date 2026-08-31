@@ -20,7 +20,11 @@
 .buyer-chat-message--buyer > div { display: grid; justify-items: end; }
 .buyer-chat-message--buyer p { border-radius: 19px 19px 4px; color: #fff; background: #2e8b46; }
 
+.buyer-chat-status { margin: auto; color: #567257; font-size: 14px; text-align: center; }
+.buyer-chat-error { margin: 0; padding: 8px 18px; color: #a3271e; background: #fbe6e3; font-size: 13px; }
+
 .buyer-chat-composer { min-height: 70px; display: flex; align-items: center; gap: 4px; padding: 10px 18px; background: #eaf1d7; }
+.buyer-chat-composer input:disabled, .buyer-chat-send:disabled { opacity: .6; cursor: not-allowed; }
 .buyer-chat-composer input { min-width: 0; flex: 1; height: 42px; border: 1px solid #dce6ce; outline: 0; border-radius: 21px; padding: 0 16px; color: #334135; background: #fff; font: inherit; font-size: 14px; }
 .buyer-chat-composer input::placeholder { color: #839184; }
 .buyer-chat-send { width: 40px; height: 40px; color: #fff; background: #388d49; }

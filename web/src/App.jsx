@@ -6,6 +6,7 @@ import InventoryManagement from './pages/Admin/InventoryManagement.jsx'
 import TaskScheduleManagement from './pages/Admin/TaskScheduleManagement.jsx'
 import RecordsManagement from './pages/Admin/RecordsManagement.jsx'
 import UserManagement from './pages/Admin/UserManagement.jsx'
+import AdminMessages from './pages/Admin/AdminMessages.jsx'
 import CropHealthMonitoring from './pages/Admin/CropHealthMonitoring.jsx'
 import EnvironmentalMonitoring from './pages/Admin/EnvironmentalMonitoring.jsx'
 import BuyerLanding from './pages/Buyer/BuyerLanding.jsx'
@@ -141,6 +142,14 @@ function App() {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
         <UserManagement />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/admin/messages') {
+    return (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <AdminMessages />
       </ProtectedRoute>
     )
   }

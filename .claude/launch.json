@@ -7,6 +7,18 @@
       "runtimeArgs": ["run", "web", "--prefix", "mobile"],
       "port": 8081,
       "autoPort": true
+    },
+    {
+      "name": "agriverse-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "backend"],
+      "port": 5000
+    },
+    {
+      "name": "agriverse-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "web"],
+      "port": 5173
     }
   ]
 }

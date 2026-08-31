@@ -321,6 +321,9 @@
 
 .admin-notification {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 40px;
   height: 40px;
   border: 0;
@@ -328,6 +331,7 @@
   color: var(--admin-green);
   background: #f4f7ef;
   font-size: 17px;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -337,6 +341,11 @@
   display: block;
   margin: auto;
   object-fit: contain;
+}
+
+.admin-notification > svg {
+  width: 22px;
+  height: 22px;
 }
 
 .admin-notification > span {

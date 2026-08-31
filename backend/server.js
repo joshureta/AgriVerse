@@ -21,6 +21,8 @@ const driverOrdersRouter = require("./routes/driver-orders");
 const aiRouter = require("./routes/ai");
 const buyerPaymentsRouter = require("./routes/buyer-payments");
 const paymongoWebhookRouter = require("./routes/paymongo-webhook");
+const buyerMessagesRouter = require("./routes/buyer-messages");
+const adminMessagesRouter = require("./routes/admin-messages");
 
 const app = express();
 
@@ -93,6 +95,8 @@ app.use("/api/admin/deliveries", adminDeliveriesRouter);
 app.use("/api/buyer/products", buyerProductsRouter);
 app.use("/api/buyer/orders", buyerOrdersRouter);
 app.use("/api/buyer/payments", buyerPaymentsRouter);
+app.use("/api/buyer/messages", buyerMessagesRouter);
+app.use("/api/admin/messages", adminMessagesRouter);
 app.use("/api/seller/orders", sellerOrdersRouter);
 app.use("/api/driver/orders", driverOrdersRouter);
 app.use("/api/ai", aiRouter);

@@ -1,0 +1,100 @@
+.admin-messages-content { display: flex; flex-direction: column; gap: 16px; padding: 24px 28px; }
+.admin-messages-heading h1 { margin: 0 0 4px; font-size: 22px; color: #213124; }
+.admin-messages-heading p { margin: 0; color: #667568; font-size: 13px; }
+.admin-messages-error { margin: 0; padding: 10px 14px; border-radius: 8px; color: #a3271e; background: #fbe6e3; font-size: 13px; }
+
+.admin-messages-shell {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 560px;
+  border: 1px solid #e3ead3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.admin-messages-list {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-right: 1px solid #e3ead3;
+  background: #f8faf3;
+}
+
+.admin-messages-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #e9efdd;
+  padding: 12px 14px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.admin-messages-list-item:hover { background: #eef4e2; }
+.admin-messages-list-item.is-active { background: #e3f0d7; }
+
+.admin-messages-list-avatar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #fff;
+  background: #388d49;
+  font-weight: 600;
+}
+
+.admin-messages-list-info { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.admin-messages-list-info strong { font-size: 13.5px; color: #213124; }
+.admin-messages-list-preview {
+  overflow: hidden;
+  color: #667568;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-messages-list-meta { flex: 0 0 auto; display: grid; justify-items: end; gap: 4px; }
+.admin-messages-list-meta time { color: #8a988a; font-size: 11px; }
+.admin-messages-unread {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  color: #fff;
+  background: #efb930;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.admin-messages-thread { display: flex; flex-direction: column; min-width: 0; }
+.admin-messages-thread-header { padding: 14px 20px; border-bottom: 1px solid #e3ead3; }
+.admin-messages-thread-header strong { color: #213124; font-size: 15px; }
+
+.admin-messages-history { flex: 1; display: grid; align-content: start; gap: 14px; padding: 20px; overflow-y: auto; background: #fbfcf4; }
+.admin-messages-bubble { max-width: min(70%, 480px); justify-self: start; }
+.admin-messages-bubble p { margin: 0; border-radius: 16px 16px 16px 4px; padding: 10px 14px; color: #213124; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.06); font-size: 14px; line-height: 1.4; }
+.admin-messages-bubble time { display: block; margin: 4px 4px 0; color: #8a988a; font-size: 10px; }
+.admin-messages-bubble--admin { justify-self: end; }
+.admin-messages-bubble--admin p { border-radius: 16px 16px 4px; color: #fff; background: #2e8b46; }
+
+.admin-messages-composer { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid #e3ead3; background: #fff; }
+.admin-messages-composer input { flex: 1; height: 40px; border: 1px solid #dce6ce; border-radius: 20px; outline: 0; padding: 0 16px; font: inherit; font-size: 14px; }
+.admin-messages-composer button { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 0; border-radius: 50%; color: #fff; background: #388d49; cursor: pointer; }
+.admin-messages-composer button:disabled { opacity: .6; cursor: not-allowed; }
+.admin-messages-composer svg { width: 18px; height: 18px; }
+
+.admin-messages-empty { margin: auto; padding: 20px; color: #8a988a; font-size: 13px; text-align: center; }
+
+@media (max-width: 860px) {
+  .admin-messages-shell { grid-template-columns: 1fr; }
+  .admin-messages-list { max-height: 220px; border-right: 0; border-bottom: 1px solid #e3ead3; }
+}
