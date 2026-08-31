@@ -49,6 +49,11 @@ export async function loadBuyerMessages() {
   return { conversation: body.conversation, messages: body.messages || [] }
 }
 
+export async function loadBuyerUnreadCount() {
+  const body = await apiRequest('/api/buyer/messages/unread-count')
+  return body.unread_count || 0
+}
+
 export async function sendBuyerMessage(text) {
   const body = await apiRequest('/api/buyer/messages', {
     method: 'POST',

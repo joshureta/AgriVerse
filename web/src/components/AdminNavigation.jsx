@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MessageCircle } from 'lucide-react'
 import dateIcon from '../assets/admin-date-icon.png'
 import cropHealthMonitoringIcon from '../assets/crop-health-monitoring-icon.png'
@@ -8,6 +8,9 @@ import notificationIcon from '../assets/admin-notification-icon.png'
 import taskScheduleIcon from '../assets/task-schedule-icon.png'
 import agriverseWordmark from '../assets/agriverse-wordmark.png'
 import { useAuth } from '../hooks/useAuth.js'
+import { loadAdminConversations } from '../services/adminMessages.js'
+
+const UNREAD_POLL_INTERVAL_MS = 20000
 
 const navItems = [
   { href: '/admin', icon: 'dashboard', label: 'Dashboard', key: 'dashboard' },
@@ -162,7 +165,30 @@ export function AdminSidebar({ active }) {
 export function AdminTopbar() {
   const { profile, signOut } = useAuth()
   const [signingOut, setSigningOut] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const displayName = profile?.full_name || 'Administrator'
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchUnreadCount() {
+      try {
+        const conversations = await loadAdminConversations()
+        if (cancelled) return
+        const total = conversations.reduce((sum, conversation) => sum + (conversation.unread_count || 0), 0)
+        setUnreadCount(total)
+      } catch {
+        // Badge just won't refresh this cycle; not worth surfacing an error for.
+      }
+    }
+
+    fetchUnreadCount()
+    const interval = window.setInterval(fetchUnreadCount, UNREAD_POLL_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [])
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -177,12 +203,18 @@ export function AdminTopbar() {
         <time dateTime={new Date().toISOString()}>{formatDashboardDate(new Date())}</time>
       </div>
       <div className="admin-account">
-        <a className="admin-notification" href="/admin/messages" aria-label="Messages">
+        <a
+          className="admin-notification"
+          href="/admin/messages"
+          aria-label={unreadCount > 0 ? `Messages (${unreadCount} unread)` : 'Messages'}
+        >
           <MessageCircle aria-hidden="true" />
+          {unreadCount > 0 && (
+            <span className="admin-message-badge" aria-hidden="true">{unreadCount > 99 ? '99+' : unreadCount}</span>
+          )}
         </a>
         <button className="admin-notification" type="button" aria-label="Notifications">
           <img src={notificationIcon} alt="" />
-          <span aria-hidden="true" />
         </button>
         <div className="admin-avatar" aria-hidden="true">
           {displayName.charAt(0).toUpperCase()}

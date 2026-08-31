@@ -28,7 +28,8 @@ function limitSellerInventory(req, res, next) {
   const readsPineappleStock = req.method === "GET" && req.path === "/";
   const readsStockHistory = req.method === "GET" && req.path === "/stock-history";
   const addsStock = req.method === "POST" && /^\/\d+\/stock$/.test(req.path);
-  if (!readsPineappleStock && !readsStockHistory && !addsStock) {
+  const addsPineappleSizeStock = req.method === "POST" && /^\/pineapple-sizes\/\d+\/stock$/.test(req.path);
+  if (!readsPineappleStock && !readsStockHistory && !addsStock && !addsPineappleSizeStock) {
     return res.status(403).json({ error: "Sellers can only manage pineapple stock" });
   }
 
@@ -281,9 +282,32 @@ router.get("/", async (req, res, next) => {
     if (activeCountResult.error) throw activeCountResult.error;
     if (archivedCountResult.error) throw archivedCountResult.error;
     if (pineappleCountResult.error) throw pineappleCountResult.error;
-    const total = count || 0;
+    let items = (data || []).map(serializeItem);
+    let total = count || 0;
+
+    if (pineappleOnly && !archived && !search && page === 1) {
+      const { data: sizes, error: sizesError } = await getSupabase()
+        .from("pineapple_sizes").select("id, size_name").eq("status", true).order("size_name");
+      if (sizesError) throw sizesError;
+      const stockedSizeIds = new Set(items.map((item) => item.details?.size_id).filter(Boolean));
+      const missingSizes = (sizes || []).filter((size) => !stockedSizeIds.has(size.id));
+      const placeholders = missingSizes.map((size) => serializeItem({
+        id: null,
+        item_name: `${size.size_name} Pineapple`,
+        quantity: 0,
+        created_at: null,
+        updated_at: null,
+        archived_at: null,
+        category: { id: pineappleCategoryId, category_name: "Pineapple", code: "pineapple", status: true },
+        unit: null,
+        pineapple_inventory: [{ inventory_id: null, size_id: size.id, harvest_date: null, size: { id: size.id, size_name: size.size_name, status: true } }],
+      }));
+      items = [...items, ...placeholders];
+      total += placeholders.length;
+    }
+
     return res.json({
-      items: (data || []).map(serializeItem),
+      items,
       pagination: { page, pageSize, total, totalPages: Math.max(Math.ceil(total / pageSize), 1) },
       viewCounts: {
         items: activeCountResult.count || 0,
@@ -319,6 +343,62 @@ router.patch("/:id", async (req, res, next) => {
     if (error) throwDatabaseError(error);
     await replaceDetails(id, payload.detail);
     return res.json({ item: await fetchItem(id) });
+  } catch (error) { return next(error); }
+});
+
+router.post("/pineapple-sizes/:sizeId/stock", async (req, res, next) => {
+  try {
+    const sizeId = readId(req.params.sizeId, "Pineapple size");
+    const quantity = readQuantity(req.body.quantity, { allowZero: false });
+    const supabase = getSupabase();
+
+    const { data: size, error: sizeError } = await supabase
+      .from("pineapple_sizes").select("id, size_name").eq("id", sizeId).eq("status", true).single();
+    if (sizeError || !size) throw httpError(400, "The selected pineapple size is unavailable");
+
+    const { data: category, error: categoryError } = await supabase
+      .from("inventory_categories").select("id").eq("code", "pineapple").single();
+    if (categoryError || !category) throw httpError(500, "Pineapple inventory category is not configured");
+
+    const { data: existingItems, error: existingItemsError } = await supabase
+      .from("inventory_items")
+      .select("id, pineapple_inventory!inner(size_id)")
+      .eq("inventory_category_id", category.id)
+      .eq("pineapple_inventory.size_id", sizeId)
+      .is("archived_at", null)
+      .limit(1);
+    if (existingItemsError) throw existingItemsError;
+    const existingItem = (existingItems || [])[0] || null;
+
+    let itemId;
+    if (existingItem) {
+      itemId = existingItem.id;
+      const { error } = await supabase.rpc("add_inventory_stock", { p_item_id: itemId, p_quantity: quantity });
+      if (error) throw error;
+    } else {
+      const { data: unit, error: unitError } = await supabase
+        .from("measurement_units").select("id").eq("abbreviation", "pcs").eq("status", true).single();
+      if (unitError || !unit) throw httpError(500, "Default pineapple unit is not configured");
+
+      const { data: created, error: createError } = await supabase
+        .from("inventory_items")
+        .insert({
+          inventory_category_id: category.id,
+          unit_id: unit.id,
+          item_name: `${size.size_name} Pineapple`,
+          quantity,
+          created_by: req.user.id,
+        })
+        .select("id").single();
+      if (createError) throwDatabaseError(createError);
+      itemId = created.id;
+
+      const { error: linkError } = await supabase
+        .from("pineapple_inventory").insert({ inventory_id: itemId, size_id: sizeId });
+      if (linkError) throw linkError;
+    }
+
+    return res.json({ item: await fetchItem(itemId) });
   } catch (error) { return next(error); }
 });
 

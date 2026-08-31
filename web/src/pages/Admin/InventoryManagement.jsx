@@ -217,7 +217,10 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setSaving(true)
     setError('')
     try {
-      await apiRequest(`${inventoryApi}/${modal.item.id}/stock`, {
+      const endpoint = modal.item.id
+        ? `${inventoryApi}/${modal.item.id}/stock`
+        : `${inventoryApi}/pineapple-sizes/${modal.item.details.size_id}/stock`
+      await apiRequest(endpoint, {
         method: 'POST', body: JSON.stringify({ quantity }),
       })
       setModal(null)
@@ -388,7 +391,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                     : items.length ? items.map((item) => {
                       const status = item.stock_quantity <= 0 ? 'out' : item.stock_quantity <= 10 ? 'low' : 'in'
                       const label = status === 'out' ? 'Out of Stock' : status === 'low' ? 'Low Stock' : 'In Stock'
-                      return <tr key={item.id}><td>{item.id}</td><td><strong>{item.variant}</strong></td><td><strong className="inventory-quantity">{item.stock_quantity}</strong></td><td>{item.unit_label || '—'}</td><td><span className={`stock-status stock-${status}`}>{label}</span></td><td>{formatDate(item.updated_at)}</td><td><div className="inventory-actions"><button className="inventory-add-stock" type="button" onClick={() => openAddStock(item)}><span aria-hidden="true">+</span>Add Stock</button></div></td></tr>
+                      return <tr key={item.id ?? `size-${item.details?.size_id}`}><td>{item.id ?? '—'}</td><td><strong>{item.variant}</strong></td><td><strong className="inventory-quantity">{item.stock_quantity}</strong></td><td>{item.unit_label || 'pcs'}</td><td><span className={`stock-status stock-${status}`}>{label}</span></td><td>{formatDate(item.updated_at)}</td><td><div className="inventory-actions"><button className="inventory-add-stock" type="button" onClick={() => openAddStock(item)}><span aria-hidden="true">+</span>Add Stock</button></div></td></tr>
                     }) : <tr><td className="inventory-empty" colSpan="7">No pineapple stock records found.</td></tr>}
                 </tbody>
               </table> : <table className="inventory-table inventory-records-table">
@@ -500,10 +503,10 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
           <p>Pineapple inventory</p><h2 id="stock-modal-title">Add Pineapple Stock</h2>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
           <form onSubmit={addStock}>
-            <div className="stock-modal-summary"><span>{modal.item.variant}</span><strong>{modal.item.stock_quantity} {modal.item.unit_label}</strong><small>Current available stock</small></div>
-            <label><span>Current stock</span><input className="inventory-current-stock" value={`${modal.item.stock_quantity} ${modal.item.unit_label}`} readOnly /></label>
+            <div className="stock-modal-summary"><span>{modal.item.variant}</span><strong>{modal.item.stock_quantity} {modal.item.unit_label || 'pcs'}</strong><small>Current available stock</small></div>
+            <label><span>Current stock</span><input className="inventory-current-stock" value={`${modal.item.stock_quantity} ${modal.item.unit_label || 'pcs'}`} readOnly /></label>
             <label><span>Quantity to add</span><input type="number" min="1" step="1" value={itemForm.stock_to_add} onChange={(event) => setItemForm({ ...itemForm, stock_to_add: event.target.value })} required autoFocus /></label>
-            {Number(itemForm.stock_to_add) > 0 && <div className="stock-after-preview"><span>Stock after addition</span><strong>{modal.item.stock_quantity + Number(itemForm.stock_to_add)} {modal.item.unit_label}</strong></div>}
+            {Number(itemForm.stock_to_add) > 0 && <div className="stock-after-preview"><span>Stock after addition</span><strong>{modal.item.stock_quantity + Number(itemForm.stock_to_add)} {modal.item.unit_label || 'pcs'}</strong></div>}
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Adding…' : 'Confirm Stock In'}</button></footer>
           </form>
         </section>

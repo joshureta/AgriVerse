@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   Bell,
   ChevronDown,
@@ -11,11 +12,35 @@ import {
 import { useAuth } from '../hooks/useAuth.js'
 import jtoledoLogo from '../assets/Jtoledologo.png'
 import { buyerCartQuantity, readBuyerCart } from '../services/buyerMarketplace.js'
+import { loadBuyerUnreadCount } from '../services/buyerMessages.js'
+
+const UNREAD_POLL_INTERVAL_MS = 20000
 
 export function BuyerHeader({ active = 'home', cartCount }) {
   const { profile, signOut } = useAuth()
   const buyerName = profile?.full_name || 'Buyer'
   const displayedCartCount = cartCount ?? buyerCartQuantity(readBuyerCart())
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchUnreadCount() {
+      try {
+        const count = await loadBuyerUnreadCount()
+        if (!cancelled) setUnreadCount(count)
+      } catch {
+        // Badge just won't refresh this cycle; not worth surfacing an error for.
+      }
+    }
+
+    fetchUnreadCount()
+    const interval = window.setInterval(fetchUnreadCount, UNREAD_POLL_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [])
 
   async function handleSignOut() {
     await signOut()
@@ -26,9 +51,15 @@ export function BuyerHeader({ active = 'home', cartCount }) {
     <header className="buyer-site-header">
       <div className="buyer-header-main">
         <div className="buyer-header-alerts" aria-label="Messages and notifications">
-          <a className="buyer-icon-link" href="/buyer/messages" aria-label="Messages">
+          <a
+            className="buyer-icon-link"
+            href="/buyer/messages"
+            aria-label={unreadCount > 0 ? `Messages (${unreadCount} unread)` : 'Messages'}
+          >
             <MessageCircle aria-hidden="true" />
-            <span className="buyer-status-dot">1</span>
+            {unreadCount > 0 && (
+              <span className="buyer-status-dot">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            )}
           </a>
           <button className="buyer-icon-link" type="button" aria-label="Notifications">
             <Bell aria-hidden="true" />
