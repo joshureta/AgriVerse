@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCheck, Clock, MessageSquare, Search, Send, User } from 'lucide-react'
+import { CheckCheck, ChevronDown, Clock, MessageSquare, Search, Send } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { loadAdminConversation, loadAdminConversations, sendAdminMessage } from '../../services/adminMessages.js'
 import '../../styles/admin-dashboard.css'
@@ -30,7 +30,22 @@ export default function AdminMessages() {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const historyRef = useRef(null)
+  const shouldScrollToLatestRef = useRef(true)
+
+  function updateJumpToLatest() {
+    const history = historyRef.current
+    if (!history) return
+    setShowJumpToLatest(history.scrollHeight - history.scrollTop - history.clientHeight > 48)
+  }
+
+  function scrollToLatest(behavior = 'smooth') {
+    const history = historyRef.current
+    if (!history) return
+    history.scrollTo({ top: history.scrollHeight, behavior })
+    setShowJumpToLatest(false)
+  }
 
   const fetchConversations = useCallback(async (isBackground = false) => {
     try {
@@ -78,13 +93,17 @@ export default function AdminMessages() {
 
   useEffect(() => {
     if (selectedId) {
+      shouldScrollToLatestRef.current = true
       fetchCurrentThread(selectedId, false)
     }
   }, [selectedId, fetchCurrentThread])
 
   useEffect(() => {
-    if (historyRef.current) {
-      historyRef.current.scrollTop = historyRef.current.scrollHeight
+    if (shouldScrollToLatestRef.current) {
+      scrollToLatest('auto')
+      shouldScrollToLatestRef.current = false
+    } else {
+      updateJumpToLatest()
     }
   }, [messages])
 
@@ -95,6 +114,7 @@ export default function AdminMessages() {
     setError('')
     try {
       const message = await sendAdminMessage(selectedId, body)
+      shouldScrollToLatestRef.current = true
       setMessages((current) => [...current, message])
       setDraft('')
       fetchConversations(true)
@@ -232,7 +252,12 @@ export default function AdminMessages() {
                     </div>
                   </header>
 
-                  <div className="admin-messages-history" ref={historyRef} aria-live="polite">
+                  <div
+                    className="admin-messages-history"
+                    ref={historyRef}
+                    onScroll={updateJumpToLatest}
+                    aria-live="polite"
+                  >
                     {threadLoading && (
                       <p className="admin-messages-empty">Loading messages…</p>
                     )}
@@ -262,8 +287,20 @@ export default function AdminMessages() {
                             </div>
                           </article>
                         )
-                      })}
+                    })}
                   </div>
+
+                  {showJumpToLatest && (
+                    <button
+                      type="button"
+                      className="chat-jump-to-latest admin-chat-jump-to-latest"
+                      onClick={() => scrollToLatest()}
+                      aria-label="Scroll to latest message"
+                    >
+                      <ChevronDown size={18} aria-hidden="true" />
+                      <span>Latest</span>
+                    </button>
+                  )}
 
                   <form className="admin-messages-composer" onSubmit={onSubmit}>
                     <label className="sr-only" htmlFor="admin-message-input">

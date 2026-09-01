@@ -191,6 +191,11 @@
   scroll-behavior: smooth;
 }
 
+.buyer-chat-jump-to-latest {
+  right: clamp(18px, 4vw, 48px);
+  bottom: 84px;
+}
+
 /* Custom Scrollbar */
 .buyer-chat-history::-webkit-scrollbar {
   width: 6px;

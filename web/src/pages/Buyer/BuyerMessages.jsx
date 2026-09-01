@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CheckCheck, Clock, Send, Sparkles, Sprout } from 'lucide-react'
+import { CheckCheck, ChevronDown, Clock, Send, Sparkles, Sprout } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import { loadBuyerMessages, sendBuyerMessage } from '../../services/buyerMessages.js'
 import '../../styles/Buyer/buyerLanding.css'
@@ -38,7 +38,22 @@ export default function BuyerMessages() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const historyRef = useRef(null)
+  const shouldScrollToLatestRef = useRef(true)
+
+  function updateJumpToLatest() {
+    const history = historyRef.current
+    if (!history) return
+    setShowJumpToLatest(history.scrollHeight - history.scrollTop - history.clientHeight > 48)
+  }
+
+  function scrollToLatest(behavior = 'smooth') {
+    const history = historyRef.current
+    if (!history) return
+    history.scrollTo({ top: history.scrollHeight, behavior })
+    setShowJumpToLatest(false)
+  }
 
   const fetchMessages = useCallback(async (isBackground = false) => {
     try {
@@ -66,8 +81,11 @@ export default function BuyerMessages() {
   }, [fetchMessages])
 
   useEffect(() => {
-    if (historyRef.current) {
-      historyRef.current.scrollTop = historyRef.current.scrollHeight
+    if (shouldScrollToLatestRef.current) {
+      scrollToLatest('auto')
+      shouldScrollToLatestRef.current = false
+    } else {
+      updateJumpToLatest()
     }
   }, [messages])
 
@@ -78,6 +96,7 @@ export default function BuyerMessages() {
     setError('')
     try {
       const { message } = await sendBuyerMessage(body)
+      shouldScrollToLatestRef.current = true
       setMessages((current) => [...current, message])
       setDraft('')
     } catch (err) {
@@ -129,6 +148,7 @@ export default function BuyerMessages() {
             <div
               className="buyer-chat-history"
               ref={historyRef}
+              onScroll={updateJumpToLatest}
               aria-label="Conversation with JToledo Farm"
               aria-live="polite"
             >
@@ -219,6 +239,18 @@ export default function BuyerMessages() {
                   )
                 })}
             </div>
+
+            {showJumpToLatest && (
+              <button
+                type="button"
+                className="chat-jump-to-latest buyer-chat-jump-to-latest"
+                onClick={() => scrollToLatest()}
+                aria-label="Scroll to latest message"
+              >
+                <ChevronDown size={18} aria-hidden="true" />
+                <span>Latest</span>
+              </button>
+            )}
 
             {error && (
               <div className="buyer-chat-error-banner">
