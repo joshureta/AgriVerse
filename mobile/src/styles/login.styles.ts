@@ -4,7 +4,7 @@ export const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: 'transparent' },
   embeddedSafeArea: { backgroundColor: 'transparent' },
   flex: { flex: 1 },
-  scrollContent: { flexGrow: 1, justifyContent: 'flex-end', paddingVertical: 24 },
+  scrollContent: { flexGrow: 1, justifyContent: 'flex-end', paddingTop: 24 },
   card: {
     width: '100%',
     backgroundColor: 'rgba(251, 255, 214, 0.96)',

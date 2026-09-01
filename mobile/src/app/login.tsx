@@ -47,7 +47,7 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, embedded && styles.embeddedSafeArea]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safeArea, embedded && styles.embeddedSafeArea]}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

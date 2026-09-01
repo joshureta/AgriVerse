@@ -164,7 +164,7 @@ export default function SignUpScreen({ embedded = false, onSignIn }: { embedded?
 
   function next() { if (validateStep()) setStep((current) => Math.min(2, current + 1)); }
 
-  return <SafeAreaView style={[styles.safeArea, embedded && styles.embeddedSafeArea]}>
+  return <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safeArea, embedded && styles.embeddedSafeArea]}>
     <StatusBar style="dark" />
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
