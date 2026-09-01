@@ -123,41 +123,66 @@
 .seller-confirmation-dialog > footer button:disabled { opacity: .58; cursor: wait; }
 
 .seller-order-modal-backdrop { position: fixed; z-index: 100; inset: 0; display: flex; justify-content: flex-end; background: rgba(10,31,17,.46); backdrop-filter: blur(2px); }
-.seller-order-modal { width: min(540px, 100%); height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fff; box-shadow: -18px 0 60px rgba(0,0,0,.23); animation: seller-drawer-in 220ms ease-out; }
+.seller-order-modal { width: min(610px, 100%); height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #f7faf5; box-shadow: -18px 0 60px rgba(0,0,0,.23); animation: seller-drawer-in 220ms ease-out; }
 @keyframes seller-drawer-in { from { opacity: .6; transform: translateX(36px); } to { opacity: 1; transform: translateX(0); } }
-.seller-order-modal > header { min-height: 102px; display: flex; align-items: flex-start; justify-content: space-between; padding: 23px 24px; color: #fff; background: #1d7038; }
-.seller-order-modal > header div { display: grid; grid-template-columns: auto auto; align-items: center; justify-items: start; gap: 3px 8px; }
-.seller-order-modal > header small { grid-column: 1 / -1; font-size: 9px; opacity: .76; }
-.seller-order-modal h2 { margin: 0; font-size: 23px; }
+.seller-order-modal > header { min-height: 132px; display: flex; flex: 0 0 auto; align-items: flex-start; justify-content: space-between; box-sizing: border-box; padding: 25px 28px; color: #fff; background: #1d7038; }
+.seller-order-modal-heading { min-width: 0; display: grid; gap: 7px; }
+.seller-order-modal-heading > div { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.seller-order-modal > header small { font-size: 9px; font-weight: 650; letter-spacing: .045em; opacity: .78; text-transform: uppercase; }
+.seller-order-modal h2 { margin: 0; font-size: 25px; }
+.seller-order-modal-heading > p { margin: 0; font-size: 10px; font-weight: 500; opacity: .76; }
 .seller-order-modal > header .seller-status { color: #176b34; background: #fff; }
-.seller-order-modal > header button { width: 36px; height: 36px; display: grid; flex: 0 0 36px; place-items: center; border: 0; border-radius: 50%; color: #fff; background: rgba(255,255,255,.13); cursor: pointer; }
+.seller-order-modal > header button { width: 38px; height: 38px; display: grid; flex: 0 0 38px; place-items: center; border: 1px solid rgba(255,255,255,.15); border-radius: 50%; color: #fff; background: rgba(255,255,255,.12); cursor: pointer; transition: background 150ms ease, transform 150ms ease; }
 .seller-order-modal > header button:hover { background: rgba(255,255,255,.22); }
+.seller-order-modal > header button:active { transform: scale(.95); }
 .seller-order-modal > header svg { width: 18px; }
-.seller-order-modal-body { flex: 1; display: grid; align-content: start; gap: 12px; overflow-y: auto; padding: 19px 22px; }
-.seller-order-modal-body section { border: 1px solid #e1e8dd; border-radius: 11px; padding: 15px; }
-.seller-order-modal-body h3 { margin: 0 0 12px; color: #216f38; font-size: 12px; }
-.seller-order-modal-body dl { display: grid; gap: 8px; margin: 0; }
-.seller-order-modal-body dl > div { display: grid; grid-template-columns: 105px 1fr; gap: 8px; }
-.seller-order-modal-body dt { color: #7d877e; font-size: 9px; }
-.seller-order-modal-body dd { margin: 0; color: #273229; font-size: 10px; line-height: 1.45; text-transform: capitalize; }
-.seller-modal-items article { display: flex; justify-content: space-between; gap: 15px; border-bottom: 1px solid #edf0eb; padding: 9px 0; }
+.seller-order-modal-body { flex: 1; overflow-y: auto; padding: 22px 24px 30px; scrollbar-color: #91a696 transparent; scrollbar-width: thin; }
+.seller-order-receipt { overflow: hidden; border: 1px solid #d8e2d5; border-radius: 12px; padding: 0 22px; background: #fff; box-shadow: 0 8px 24px rgba(31,75,39,.065); }
+.seller-receipt-heading { display: grid; justify-items: center; gap: 3px; border-bottom: 1px dashed #becdbb; padding: 23px 12px 20px; text-align: center; }
+.seller-receipt-heading span { color: #22723a; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.seller-receipt-heading strong { color: #26352a; font-size: 14px; font-weight: 750; }
+.seller-receipt-heading small { color: #849087; font-size: 9px; font-weight: 500; }
+.seller-order-receipt > section { border: 0; border-bottom: 1px dashed #becdbb; border-radius: 0; padding: 20px 0; background: transparent; box-shadow: none; }
+.seller-modal-section-title { margin-bottom: 15px; }
+.seller-modal-section-title > div { min-width: 0; display: grid; gap: 2px; }
+.seller-order-modal-body .seller-modal-section-title h3 { margin: 0; color: #1e6935; font-size: 13px; line-height: 1.2; }
+.seller-modal-section-title small { color: #849087; font-size: 9px; font-weight: 500; }
+.seller-order-modal-body dl { display: grid; gap: 0; margin: 0; }
+.seller-order-modal-body dl > div { display: grid; grid-template-columns: 116px minmax(0,1fr); gap: 10px; border-bottom: 1px solid #eef2ec; padding: 8px 0; }
+.seller-order-modal-body dl > div:first-child { padding-top: 0; }
+.seller-order-modal-body dl > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.seller-order-modal-body dt { color: #849087; font-size: 10px; font-weight: 500; }
+.seller-order-modal-body dd { margin: 0; color: #26352a; font-size: 11px; font-weight: 550; line-height: 1.5; text-transform: capitalize; }
+.seller-modal-address dd { text-transform: none; }
+.seller-payment-status { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 8px; color: #8d6511; background: #fff0bd; font-size: 9px; font-weight: 750; text-transform: uppercase; }
+.seller-payment-status.is-paid { color: #176b34; background: #e1f2dd; }
+.seller-payment-summary dl > .seller-payment-total { align-items: center; margin-top: 8px; border-top: 3px double #aebfaa; border-bottom: 0; padding: 14px 0 0; background: transparent; }
+.seller-payment-total dt { color: #246b37; font-weight: 750; }
+.seller-payment-total dd { color: #176b34; font-size: 15px; font-weight: 800; text-align: right; }
+.seller-modal-items article { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; align-items: center; gap: 11px; border-bottom: 1px solid #edf0eb; padding: 11px 0; }
 .seller-modal-items article:last-child { border-bottom: 0; }
 .seller-modal-items article div { display: grid; gap: 3px; }
-.seller-modal-items strong,.seller-modal-items b { font-size: 10px; }
+.seller-item-quantity { color: #246f38; font-size: 10px; font-weight: 800; text-align: center; }
+.seller-modal-items strong,.seller-modal-items b { font-size: 11px; }
+.seller-modal-items b { color: #1c6332; white-space: nowrap; }
 .seller-modal-items small { color: #79837a; font-size: 9px; }
 .seller-order-modal-body section > p { margin: 0; color: #566158; font-size: 10px; line-height: 1.6; }
+.seller-customer-note .seller-modal-section-title { margin-bottom: 10px; }
 .seller-status-history ol { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
 .seller-status-history li { position: relative; min-height: 50px; display: flex; align-items: flex-start; gap: 10px; }
 .seller-status-history li::after { content: ''; position: absolute; top: 10px; bottom: -2px; left: 5px; width: 2px; background: #b5d4b7; }
 .seller-status-history li:last-child::after { display: none; }
 .seller-status-history li > span { z-index: 1; width: 12px; height: 12px; flex: 0 0 12px; margin-top: 4px; border: 3px solid #dff0df; border-radius: 50%; background: #297a3e; }
 .seller-status-history li div { display: grid; gap: 2px; }
-.seller-status-history strong { font-size: 9px; }
-.seller-status-history small { color: #7c857d; font-size: 8px; }
-.seller-status-history em { margin-top: 3px; color: #776666; font-size: 8px; font-style: normal; }
-.seller-order-modal > footer { min-height: 72px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e1e8dd; padding: 14px 22px; }
-.seller-order-modal > footer button { min-height: 42px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 8px; padding: 0 15px; color: #fff; background: #23743a; font: inherit; font-size: 9px; font-weight: 850; cursor: pointer; }
-.seller-order-modal > footer button.is-danger { color: #b62f2f; background: #fff0f0; }
+.seller-status-history strong { font-size: 10px; }
+.seller-status-history small { color: #7c857d; font-size: 9px; }
+.seller-status-history em { margin-top: 3px; color: #776666; font-size: 9px; font-style: normal; }
+.seller-order-modal > footer { min-height: 76px; display: flex; flex: 0 0 auto; justify-content: flex-end; gap: 10px; box-sizing: border-box; border-top: 1px solid #dce5d9; padding: 15px 22px; background: #fff; box-shadow: 0 -8px 22px rgba(24,67,33,.06); }
+.seller-order-modal > footer button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #23743a; border-radius: 9px; padding: 0 18px; color: #fff; background: #23743a; font: inherit; font-size: 10px; font-weight: 750; cursor: pointer; transition: background 150ms ease, border-color 150ms ease, transform 150ms ease; }
+.seller-order-modal > footer button:hover { border-color: #2c8244; background: #2c8244; }
+.seller-order-modal > footer button:active { transform: translateY(1px); }
+.seller-order-modal > footer button.is-danger { border-color: #f2d2d2; color: #b62f2f; background: #fff2f2; }
+.seller-order-modal > footer button.is-danger:hover { border-color: #ecc3c3; background: #fde7e7; }
 .seller-order-modal > footer button:disabled { opacity: .55; cursor: wait; }
 .seller-order-modal > footer svg { width: 15px; }
 
@@ -195,6 +220,8 @@
   .seller-confirmation-backdrop { padding: 12px; }
   .seller-confirmation-dialog { border-radius: 16px; padding: 22px 18px; }
   .seller-order-modal-body { padding: 15px; }
+  .seller-order-receipt { padding: 0 16px; }
+  .seller-order-modal-body dl > div { grid-template-columns: 92px minmax(0,1fr); }
   .seller-order-modal > footer { flex-wrap: wrap; padding: 12px 15px; }
   .seller-order-modal > footer button { flex: 1; justify-content: center; white-space: nowrap; }
 }
