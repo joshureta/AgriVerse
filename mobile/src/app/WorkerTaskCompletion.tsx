@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/context/auth-context';
 import { taskCompletionBlurTargetRef } from '@/components/task-completion-blur-target';
 import { apiRequest } from '@/lib/api';
+import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
 
 type WorkerTask = {
   id: number;
@@ -166,6 +167,7 @@ export default function WorkerTaskCompletionScreen() {
   if (!profile) return <Redirect href="/login" />;
 
   const pagePadding = width < 360 ? 14 : 25;
+  const workAllowed = canWorkCropTaskNow();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -273,14 +275,15 @@ export default function WorkerTaskCompletionScreen() {
                 </View>
 
                 {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
+                {!workAllowed ? <Text style={styles.errorText}>{CROP_WORK_HOURS_LABEL}</Text> : null}
                 <Pressable
-                  disabled={submitting}
+                  disabled={submitting || !workAllowed}
                   onPress={submitCompletion}
-                  style={({ pressed }) => [styles.submitButton, (pressed || submitting) && styles.submitButtonPressed]}>
+                  style={({ pressed }) => [styles.submitButton, (pressed || submitting || !workAllowed) && styles.submitButtonPressed]}>
                   {submitting ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
-                    <Text style={styles.submitText}>Complete Task</Text>
+                    <Text style={styles.submitText}>{workAllowed ? 'Complete Task' : 'Work unavailable'}</Text>
                   )}
                 </Pressable>
               </View>

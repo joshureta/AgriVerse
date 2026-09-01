@@ -22,7 +22,6 @@ import {
   deleteBuyerDeliveryAddress,
   loadPineappleProducts,
   loadBuyerDeliveryAddresses,
-  loadBuyerOrder,
   buyerCartQuantity,
   placeBuyerOrder,
   readBuyerCart,
@@ -91,35 +90,6 @@ export default function BuyerCheckout() {
   const [addressConfirmed, setAddressConfirmed] = useState(false)
   const [alternateAddress, setAlternateAddress] = useState(emptyAddress)
   const [retryingPayment, setRetryingPayment] = useState(false)
-
-  useEffect(() => {
-    const url = new URL(window.location.href)
-    if (url.searchParams.get('payment') !== 'return') return undefined
-    const returnedOrderId = url.searchParams.get('order')
-    url.searchParams.delete('payment')
-    url.searchParams.delete('order')
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
-    if (!returnedOrderId) return undefined
-
-    let active = true
-    let attempts = 0
-    async function pollOrderStatus() {
-      try {
-        const order = await loadBuyerOrder(returnedOrderId)
-        if (!active) return
-        setPlacedOrder(order)
-        setOrderToastVisible(true)
-        attempts += 1
-        if (order.payment_status === 'pending' && attempts < 5) {
-          window.setTimeout(pollOrderStatus, 3000)
-        }
-      } catch (requestError) {
-        if (active) setError(requestError.message)
-      }
-    }
-    pollOrderStatus()
-    return () => { active = false }
-  }, [])
 
   async function retryGcashPayment() {
     if (!placedOrder || retryingPayment) return
@@ -509,25 +479,13 @@ export default function BuyerCheckout() {
               <span className="checkout-order-toast-icon"><Check aria-hidden="true" /></span>
               <div>
                 {placedOrder.payment_method === 'gcash' ? (
-                  placedOrder.payment_status === 'paid' ? (
-                    <>
-                      <strong>Payment confirmed</strong>
-                      <p>Your GCash payment for order <b>{placedOrder.order_number}</b> was confirmed. It&apos;s now being prepared.</p>
-                    </>
-                  ) : placedOrder.payment_status === 'failed' ? (
-                    <>
-                      <strong>Payment failed</strong>
-                      <p>Your GCash payment for order <b>{placedOrder.order_number}</b> did not go through.</p>
-                      <button type="button" className="checkout-retry-payment" onClick={retryGcashPayment} disabled={retryingPayment}>
-                        {retryingPayment ? 'Redirecting…' : 'Retry Payment'}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <strong>Confirming payment…</strong>
-                      <p>We&apos;re confirming your GCash payment for order <b>{placedOrder.order_number}</b>. This can take a few seconds.</p>
-                    </>
-                  )
+                  <>
+                    <strong>GCash checkout not started</strong>
+                    <p>Order <b>{placedOrder.order_number}</b> was placed, but the GCash checkout could not be started.</p>
+                    <button type="button" className="checkout-retry-payment" onClick={retryGcashPayment} disabled={retryingPayment}>
+                      {retryingPayment ? 'Redirecting…' : 'Retry Payment'}
+                    </button>
+                  </>
                 ) : (
                   <>
                     <strong>Order placed</strong>

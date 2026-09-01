@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { assertCropTaskSchedule } = require("../lib/crop-work-hours");
 
 const router = express.Router();
 const taskSelect = [
@@ -84,6 +85,7 @@ async function ensureFarmWorker(workerId) {
     .eq("id", workerId).eq("role", "farm_worker").single();
   if (error || !data) throw httpError(400, "The selected user is not an available farm worker");
   if (["driver", "seller"].includes(data.worker_category)) throw httpError(400, "Drivers and sellers cannot be assigned farm tasks");
+  return data;
 }
 
 async function ensureActive(table, id, label, select = "id") {
@@ -119,13 +121,14 @@ async function readTaskBody(body) {
   const field = await ensureActive("farm_fields", body.field_id, "Field", "id, field_name");
   const priority = await ensureActive("task_priorities", body.priority_id, "Priority", "id, code");
   const taskStatus = await ensureActive("task_statuses", body.status_id, "Status", "id, code");
-  await ensureFarmWorker(assignedWorkerId);
+  const worker = await ensureFarmWorker(assignedWorkerId);
 
   const scheduleDate = readDate(body.schedule_date);
   const startTime = readTime(body.start_time, "Start time");
   const endTime = body.end_time ? readTime(body.end_time, "End time") : addMinutes(startTime, duration);
   if (endTime <= startTime) throw httpError(400, "Schedule end time must be after start time");
   if (startTime < "07:00:00" || endTime > "18:00:00") throw httpError(400, "Tasks must be scheduled between 7:00 AM and 6:00 PM");
+  assertCropTaskSchedule(worker.worker_category, startTime, endTime);
 
   const scheduleCode = taskStatus.code === "pending" ? "scheduled" : taskStatus.code;
   const scheduleStatus = await ensureActive("schedule_statuses", body.schedule_status_id || body.schedule_status?.id || await lookupIdByCode("schedule_statuses", scheduleCode), "Schedule status", "id, code");

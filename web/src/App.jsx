@@ -13,6 +13,7 @@ import BuyerLanding from './pages/Buyer/BuyerLanding.jsx'
 import ShoppingCart from './pages/Buyer/ShoppingCart.jsx'
 import BuyerOrders from './pages/Buyer/BuyerOrders.jsx'
 import BuyerCheckout from './pages/Buyer/BuyerCheckout.jsx'
+import PaymentConfirmation from './pages/Buyer/PaymentConfirmation.jsx'
 import DeliveryProgress from './pages/Buyer/DeliveryProgress.jsx'
 import BuyerProfile from './pages/Buyer/BuyerProfile.jsx'
 import BuyerMessages from './pages/Buyer/BuyerMessages.jsx'
@@ -94,6 +95,14 @@ function App() {
     return (
       <ProtectedRoute allowedRoles={['buyer']}>
         <BuyerCheckout />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/buyer/payment-confirmation') {
+    return (
+      <ProtectedRoute allowedRoles={['buyer']}>
+        <PaymentConfirmation />
       </ProtectedRoute>
     )
   }

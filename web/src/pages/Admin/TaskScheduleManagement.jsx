@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ClipboardPlus, Send, X } from 'lucide-react'
+import { ChevronDown, ClipboardPlus, Send, X } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
@@ -110,6 +110,98 @@ function minutesInWindow(startTime, endTime) {
     throw new Error('Select a schedule between 7:00 AM and 6:00 PM, with an end time after the start time.')
   }
   return end - start
+}
+
+function isCropWorkerSchedule(workerCategory, startTime, endTime) {
+  if (workerCategory !== 'crop_management_worker') return true
+  const toMinutes = (time) => {
+    const [hour, minute] = String(time || '').split(':').map(Number)
+    return hour * 60 + minute
+  }
+  const start = toMinutes(startTime)
+  const end = toMinutes(endTime)
+  return (start >= 480 && end <= 710) || (start >= 780 && end <= 960)
+}
+
+function formatCropTime(minutes) {
+  const hour = Math.floor(minutes / 60)
+  const minute = minutes % 60
+  const suffix = hour >= 12 ? 'PM' : 'AM'
+  const displayHour = hour % 12 || 12
+  return { value: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`, label: `${displayHour}:${String(minute).padStart(2, '0')} ${suffix}` }
+}
+
+function cropTimeOptions(kind, startTime) {
+  const startMinutes = Number(String(startTime || '').slice(0, 2)) * 60 + Number(String(startTime || '').slice(3, 5))
+  const ranges = kind === 'start'
+    ? [[480, 705], [780, 955]]
+    : startMinutes < 710 ? [[startMinutes + 5, 710]] : [[startMinutes + 5, 960]]
+  const options = []
+  for (const [first, last] of ranges) {
+    for (let minute = first; minute <= last; minute += 5) options.push(formatCropTime(minute))
+  }
+  return options
+}
+
+function CropTaskTimeSelect({ kind, startTime, value, onChange }) {
+  const options = cropTimeOptions(kind, startTime)
+  const selectedValue = options.some((option) => option.value === value) ? value : options[0]?.value || ''
+  const [open, setOpen] = useState(false)
+  const selectedOption = options.find((option) => option.value === selectedValue)
+  return (
+    <div className="crop-task-time-picker">
+      <button
+        type="button"
+        className="crop-task-time-trigger"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label={kind === 'start' ? 'Crop task start time' : 'Crop task end time'}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span>{selectedOption?.label || 'Select time'}</span><ChevronDown size={16} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="crop-task-time-menu" role="listbox" aria-label={kind === 'start' ? 'Start time options' : 'End time options'}>
+          {options.map((option) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={option.value === selectedValue}
+              className={option.value === selectedValue ? 'is-selected' : ''}
+              key={option.value}
+              onClick={() => { onChange({ target: { value: option.value } }); setOpen(false) }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function deliveryTimeOptions(kind, startTime) {
+  const startMinutes = Number(String(startTime || '').slice(0, 2)) * 60 + Number(String(startTime || '').slice(3, 5))
+  const first = kind === 'start' ? 420 : startMinutes + 5
+  const last = kind === 'start' ? 1075 : 1080
+  const options = []
+  for (let minute = first; minute <= last; minute += 5) options.push(formatCropTime(minute))
+  return options
+}
+
+function DeliveryTimeSelect({ kind, startTime, value, onChange }) {
+  const options = deliveryTimeOptions(kind, startTime)
+  const selectedValue = options.some((option) => option.value === value) ? value : options[0]?.value || ''
+  const selectedOption = options.find((option) => option.value === selectedValue)
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="crop-task-time-picker">
+      <button type="button" className="crop-task-time-trigger" aria-expanded={open} aria-haspopup="listbox" aria-label={kind === 'start' ? 'Delivery start time' : 'Delivery end time'} onClick={() => setOpen((current) => !current)}>
+        <span>{selectedOption?.label || 'Select time'}</span><ChevronDown size={16} aria-hidden="true" />
+      </button>
+      {open && <div className="crop-task-time-menu" role="listbox" aria-label={kind === 'start' ? 'Delivery start time options' : 'Delivery end time options'}>{options.map((option) => <button type="button" role="option" aria-selected={option.value === selectedValue} className={option.value === selectedValue ? 'is-selected' : ''} key={option.value} onClick={() => { onChange({ target: { value: option.value } }); setOpen(false) }}>{option.label}</button>)}</div>}
+    </div>
+  )
 }
 
 function ChecklistIcon() { return <ClipboardPlus aria-hidden="true" /> }
@@ -275,6 +367,7 @@ export default function TaskScheduleManagement() {
       field_id: options.fields[0]?.id || '',
       priority_id: options.priorities[0]?.id || '',
       status_id: options.statuses.find((status) => status.code === 'pending')?.id || options.statuses[0]?.id || '',
+      ...(initialWorker?.worker_category === 'crop_management_worker' ? { start_time: '08:00', end_time: '09:00' } : {}),
     })
     setDeliveryForm(emptyDeliveryForm)
     apiRequest('/api/admin/deliveries/ready-orders')
@@ -346,6 +439,9 @@ export default function TaskScheduleManagement() {
         return
       }
       const estimatedDuration = minutesInWindow(form.start_time, form.end_time)
+      if (!isCropWorkerSchedule(form.worker_category, form.start_time, form.end_time)) {
+        throw new Error('Crop-management tasks must be scheduled entirely from 8:00 AM–11:50 AM or 1:00 PM–4:00 PM. Lunch break is 11:50 AM–1:00 PM.')
+      }
       await apiRequest(editing ? `/api/admin/tasks/${modal.task.id}` : '/api/admin/tasks', {
         method: editing ? 'PATCH' : 'POST',
         body: JSON.stringify({
@@ -683,7 +779,7 @@ export default function TaskScheduleManagement() {
               </div>
               <div className="task-dialog-side">
                 <label><span>Delivery Date</span><input type="date" value={deliveryEditForm.delivery_date} onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, delivery_date: event.target.value })} required /></label>
-                <label><span>Delivery Window</span><div className="date-time-pair"><input type="time" min="07:00" max="17:59" value={deliveryEditForm.start_time} onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, start_time: event.target.value })} required /><input type="time" min="07:01" max="18:00" value={deliveryEditForm.end_time} onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, end_time: event.target.value })} required /></div></label>
+                <label><span>Delivery Window</span><div className="date-time-pair delivery-time-pair"><DeliveryTimeSelect kind="start" value={deliveryEditForm.start_time} onChange={(event) => { const startTime = event.target.value; const endOptions = deliveryTimeOptions('end', startTime); setDeliveryEditForm({ ...deliveryEditForm, start_time: startTime, end_time: endOptions.some((option) => option.value === deliveryEditForm.end_time) ? deliveryEditForm.end_time : endOptions[0]?.value || '' }) }} /><DeliveryTimeSelect kind="end" startTime={deliveryEditForm.start_time} value={deliveryEditForm.end_time} onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, end_time: event.target.value })} /></div><small>Schedule deliveries only from 7:00 AM to 6:00 PM.</small></label>
               </div>
             </div>
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving}><Send aria-hidden="true" />{saving ? 'Saving…' : 'Save Delivery'}</button></footer>
@@ -698,16 +794,16 @@ export default function TaskScheduleManagement() {
             {error && <div className="task-modal-error" role="alert">{error}</div>}
             <div className="task-dialog-grid">
               <div className="task-dialog-main">
-                <label><span>Farm Worker Category</span><select value={form.worker_category} onChange={(event) => { const workerCategory = event.target.value; const firstWorker = options.workers.find((worker) => worker.worker_category === workerCategory); setForm({ ...form, worker_category: workerCategory, assigned_worker_id: firstWorker?.id || '' }) }} required><option value="" disabled>Select Worker Category</option>{availableWorkerCategories.map((category) => <option value={category} key={category}>{workerCategoryLabels[category] || category}</option>)}</select></label>
+                <label><span>Farm Worker Category</span><select value={form.worker_category} onChange={(event) => { const workerCategory = event.target.value; const firstWorker = options.workers.find((worker) => worker.worker_category === workerCategory); setForm({ ...form, worker_category: workerCategory, assigned_worker_id: firstWorker?.id || '', ...(workerCategory === 'crop_management_worker' ? { start_time: '08:00', end_time: '09:00' } : {}) }) }} required><option value="" disabled>Select Worker Category</option>{availableWorkerCategories.map((category) => <option value={category} key={category}>{workerCategoryLabels[category] || category}</option>)}</select></label>
                 <label><span>{assigningDriver ? 'Select Driver' : 'Select Worker'}</span><select value={form.assigned_worker_id} onChange={(event) => setForm({ ...form, assigned_worker_id: event.target.value })} required><option value="" disabled>{assigningDriver ? 'Select Driver' : 'Select Worker'}</option>{visibleWorkers.map((worker) => <option value={worker.id} key={worker.id}>{worker.full_name}</option>)}</select></label>
                 {!assigningDriver && <label><span>Select Task Category</span><select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="" disabled>Select Task Category</option>{options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>}
-                {assigningDriver ? <label><span>Select Ready Order</span><select value={deliveryForm.order_id} onChange={(event) => setDeliveryForm({ ...deliveryForm, order_id: event.target.value })} required><option value="" disabled>Select Order</option>{readyOrders.map((order) => <option value={order.id} key={order.id}>{order.order_number} — {order.delivery_full_name}</option>)}</select><small>{readyOrders.length ? 'Only seller-marked ready delivery orders without a driver are shown.' : 'No ready delivery orders are available.'}</small></label> : <label><span>Select Field</span><select value={form.field_id} onChange={(event) => setForm({ ...form, field_id: event.target.value })} required><option value="" disabled>Select Field</option>{options.fields.map((field) => <option value={field.id} key={field.id}>{field.field_name}</option>)}</select></label>}
+                {assigningDriver ? <label><span>Select Ready Order</span><select value={deliveryForm.order_id} onChange={(event) => setDeliveryForm({ ...deliveryForm, order_id: event.target.value })} required><option value="" disabled>Select Order</option>{readyOrders.map((order) => <option value={order.id} key={order.id}>{order.order_number} — {order.delivery_full_name}</option>)}</select>{!readyOrders.length && <small>No ready delivery orders are available.</small>}</label> : <label><span>Select Field</span><select value={form.field_id} onChange={(event) => setForm({ ...form, field_id: event.target.value })} required><option value="" disabled>Select Field</option>{options.fields.map((field) => <option value={field.id} key={field.id}>{field.field_name}</option>)}</select></label>}
               </div>
               <div className="task-dialog-side">
-                {assigningDriver ? <><label><span>Delivery Date</span><input type="date" value={deliveryForm.delivery_date} onChange={(event) => setDeliveryForm({ ...deliveryForm, delivery_date: event.target.value })} required /></label><label><span>Delivery Window</span><div className="date-time-pair"><input type="time" min="07:00" max="17:59" value={deliveryForm.start_time} onChange={(event) => setDeliveryForm({ ...deliveryForm, start_time: event.target.value })} required /><input type="time" min="07:01" max="18:00" value={deliveryForm.end_time} onChange={(event) => setDeliveryForm({ ...deliveryForm, end_time: event.target.value })} required /></div><small>Schedule deliveries only from 7:00 AM to 6:00 PM.</small></label></> : <><label><span>Priority Level</span><select value={form.priority_id} onChange={(event) => setForm({ ...form, priority_id: event.target.value })} required><option value="" disabled>Select Level</option>{options.priorities.map((priority) => <option value={priority.id} key={priority.id}>{priority.priority_name}</option>)}</select></label>
+                {assigningDriver ? <><label><span>Delivery Date</span><input type="date" value={deliveryForm.delivery_date} onChange={(event) => setDeliveryForm({ ...deliveryForm, delivery_date: event.target.value })} required /></label><label><span>Delivery Window</span><div className="date-time-pair delivery-time-pair"><DeliveryTimeSelect kind="start" value={deliveryForm.start_time} onChange={(event) => { const startTime = event.target.value; const endOptions = deliveryTimeOptions('end', startTime); setDeliveryForm({ ...deliveryForm, start_time: startTime, end_time: endOptions.some((option) => option.value === deliveryForm.end_time) ? deliveryForm.end_time : endOptions[0]?.value || '' }) }} /><DeliveryTimeSelect kind="end" startTime={deliveryForm.start_time} value={deliveryForm.end_time} onChange={(event) => setDeliveryForm({ ...deliveryForm, end_time: event.target.value })} /></div><small>Schedule deliveries only from 7:00 AM to 6:00 PM.</small></label></> : <><label><span>Priority Level</span><select value={form.priority_id} onChange={(event) => setForm({ ...form, priority_id: event.target.value })} required><option value="" disabled>Select Level</option>{options.priorities.map((priority) => <option value={priority.id} key={priority.id}>{priority.priority_name}</option>)}</select></label>
                 {modal.mode === 'edit' && <label><span>Status Level</span><select value={form.status_id} onChange={(event) => setForm({ ...form, status_id: event.target.value })}>{options.statuses.map((status) => <option value={status.id} key={status.id}>{status.status_name}</option>)}</select></label>}
                 <label><span>Task Date</span><input type="date" value={form.start_date} onChange={(event) => setForm({ ...form, start_date: event.target.value })} required /></label>
-                <label><span>Task Window</span><div className="date-time-pair"><input type="time" min="07:00" max="17:59" value={form.start_time} onChange={(event) => setForm({ ...form, start_time: event.target.value })} required /><input type="time" min="07:01" max="18:00" value={form.end_time} onChange={(event) => setForm({ ...form, end_time: event.target.value })} required /></div></label></>}
+                <label><span>Task Window</span><div className="date-time-pair">{form.worker_category === 'crop_management_worker' ? <><CropTaskTimeSelect kind="start" value={form.start_time} onChange={(event) => { const startTime = event.target.value; const endOptions = cropTimeOptions('end', startTime); setForm({ ...form, start_time: startTime, end_time: endOptions.some((option) => option.value === form.end_time) ? form.end_time : endOptions[0]?.value || '' }) }} /><CropTaskTimeSelect kind="end" startTime={form.start_time} value={form.end_time} onChange={(event) => setForm({ ...form, end_time: event.target.value })} /></> : <><input type="time" min="07:00" max="17:59" value={form.start_time} onChange={(event) => setForm({ ...form, start_time: event.target.value })} required /><input type="time" min="07:01" max="18:00" value={form.end_time} onChange={(event) => setForm({ ...form, end_time: event.target.value })} required /></>}</div>{form.worker_category === 'crop_management_worker' && <small>Crop-management work: 8:00 AM–11:50 AM and 1:00 PM–4:00 PM. Lunch break: 11:50 AM–1:00 PM.</small>}</label></>}
               </div>
             </div>
             {!assigningDriver && <label className="task-description"><span>Description <em>(optional)</em></span><textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Add task instructions, objectives, or notes (optional)" maxLength="2000" /></label>}

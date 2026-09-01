@@ -122,7 +122,17 @@
 .task-view-item > strong { overflow-wrap: anywhere; color: #1d3825; font-size: 13px; font-weight: 750; line-height: 1.3; }
 .task-view-item > .task-view-priority, .task-view-item > .task-view-status { font-size: 11px; font-weight: 900; text-transform: uppercase; }
 .date-time-pair { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(72px,.8fr); gap: 5px; }
-.date-time-pair input { min-width: 0; padding-inline: 11px; }
+.date-time-pair input, .date-time-pair select { min-width: 0; padding-inline: 11px; }
+.crop-task-time-picker { position: relative; min-width: 0; }
+.date-time-pair:has(.crop-task-time-picker) { grid-template-columns: 135px 135px; }
+.date-time-pair.delivery-time-pair { grid-template-columns: 135px 135px; }
+.crop-task-time-trigger { width: 100%; min-height: 34px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #b8cfba; border-radius: 8px; padding: 0 10px; color: #26382a; background: #f9fbf8; font: inherit; font-size: 12px; cursor: pointer; }
+.crop-task-time-trigger svg { flex: 0 0 auto; color: #3d5b45; stroke-width: 2.5; }
+.crop-task-time-trigger:focus-visible { border-color: #267a40; outline: none; box-shadow: 0 0 0 3px rgba(38,122,64,.14); }
+.crop-task-time-menu { position: absolute; z-index: 20; top: calc(100% + 5px); left: 0; width: 100%; max-height: 200px; overflow-y: auto; border: 1px solid #b8cfba; border-radius: 8px; background: #fff; box-shadow: 0 10px 24px rgba(25, 57, 34, .18); }
+.crop-task-time-menu button { width: 100%; min-height: 32px; border: 0; padding: 0 12px; color: #26382a; background: #fff; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.crop-task-time-menu button:hover, .crop-task-time-menu button.is-selected { color: #fff; background: #267a40; }
+.assign-task-modal .date-time-pair + small { margin-top: -2px; }
 .task-description { margin-top: 24px; }
 .task-reference-modal textarea { min-height: 142px; resize: vertical; padding: 12px 14px; line-height: 1.45; }
 .assign-task-modal { width: min(620px, 96vw) !important; border-radius: 14px; }

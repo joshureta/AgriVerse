@@ -17,6 +17,7 @@ import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { WorkerTaskSegmentedTabs } from '@/components/worker-task-segmented-tabs';
 import { apiRequest } from '@/lib/api';
+import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
 type WorkerTaskRecord = {
@@ -59,12 +60,14 @@ function TaskCard({
   task,
   expanded,
   busy,
+  workAllowed,
   onExpand,
   onStatusChange,
 }: {
   task: WorkerTaskRecord;
   expanded: boolean;
   busy: boolean;
+  workAllowed: boolean;
   onExpand: () => void;
   onStatusChange: (status: TaskStatus) => void;
 }) {
@@ -130,10 +133,10 @@ function TaskCard({
       {/* Start Task Action CTA */}
       {task.status !== 'completed' ? (
         <Pressable
-          disabled={busy}
+          disabled={busy || !workAllowed}
           onPress={() => onStatusChange(nextStatus)}
-          style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}>
-          {busy ? <ActivityIndicator color="#176D34" size="small" /> : <Text style={styles.startButtonText}>Start Task</Text>}
+          style={({ pressed }) => [styles.startButton, (pressed || busy || !workAllowed) && styles.startButtonPressed]}>
+          {busy ? <ActivityIndicator color="#176D34" size="small" /> : <Text style={styles.startButtonText}>{workAllowed ? 'Start Task' : CROP_WORK_HOURS_LABEL}</Text>}
         </Pressable>
       ) : (
         <View style={styles.completedBanner}>
@@ -177,6 +180,7 @@ export default function WorkerTaskPending() {
   }, [loadTasks, profile]);
 
   const visibleTasks = tasks.filter((task) => task.status === filter);
+  const workAllowed = canWorkCropTaskNow();
 
   async function updateTaskStatus(task: WorkerTaskRecord, status: TaskStatus) {
     setBusyId(task.id);
@@ -240,6 +244,7 @@ export default function WorkerTaskPending() {
                 onExpand={() => setExpandedId((current) => (current === task.id ? null : task.id))}
                 onStatusChange={(status) => updateTaskStatus(task, status)}
                 task={task}
+                workAllowed={workAllowed}
               />
             ))
           ) : (

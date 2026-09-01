@@ -6,6 +6,7 @@ const {
   requireRole,
 } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { assertCropWorkerCanWork } = require("../lib/crop-work-hours");
 
 const router = express.Router();
 const statuses = new Set(["pending", "in_progress", "completed"]);
@@ -164,6 +165,7 @@ async function uploadCropImage(base64Data, mimeType, fieldName) {
 
 router.post("/:id/complete", async (req, res, next) => {
   try {
+    assertCropWorkerCanWork(req.profile);
     const taskId = readTaskId(req.params.id);
     const completedAt = new Date(req.body.completed_at);
     if (Number.isNaN(completedAt.getTime())) throw httpError(400, "A valid finish time is required");
@@ -239,6 +241,7 @@ router.patch("/:id/status", async (req, res, next) => {
     const expectedStatus = currentStatus === "pending" ? "in_progress"
       : currentStatus === "in_progress" ? "completed" : null;
     if (status !== expectedStatus) throw httpError(409, `Task cannot move from ${currentStatus} to ${status}`);
+    assertCropWorkerCanWork(req.profile);
 
     const updatePayload = { status_id: statusIds[status] };
     if (status === "in_progress") {
