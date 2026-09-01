@@ -1,26 +1,87 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Bell,
+  CheckCircle2,
   ChevronDown,
+  Clock3,
   Mail,
   Menu,
   MessageCircle,
+  PackageCheck,
   Send,
   ShoppingCart,
+  Truck,
   UserRound,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.js'
 import jtoledoLogo from '../assets/Jtoledologo.png'
-import { buyerCartQuantity, readBuyerCart } from '../services/buyerMarketplace.js'
+import { buyerCartQuantity, loadBuyerOrders, readBuyerCart } from '../services/buyerMarketplace.js'
 import { loadBuyerUnreadCount } from '../services/buyerMessages.js'
 
 const UNREAD_POLL_INTERVAL_MS = 20000
+const NOTIFICATION_READ_KEY = 'agriverse_buyer_read_notifications_v1'
+
+const notificationCopy = {
+  pending: ['Order received', 'Your order is waiting for seller confirmation.'],
+  confirmed: ['Order confirmed', 'The seller confirmed your order.'],
+  preparing: ['Order is being prepared', 'Your pineapples are being packed.'],
+  ready_for_delivery: ['Order is ready', 'Your order is ready for delivery or pickup.'],
+  out_for_delivery: ['Out for delivery', 'Your pineapple order is on the way.'],
+  delivered: ['Order delivered', 'Your order has been marked as delivered.'],
+  cancelled: ['Order cancelled', 'This order was cancelled. Open it for details.'],
+}
+
+function notificationDate(order) {
+  const statusDate = {
+    confirmed: order.confirmed_at,
+    preparing: order.preparing_at,
+    ready_for_delivery: order.ready_for_delivery_at,
+    out_for_delivery: order.out_for_delivery_at,
+    delivered: order.delivered_at,
+    cancelled: order.cancelled_at,
+  }
+  return statusDate[order.order_status] || order.created_at
+}
+
+function formatAlertTime(value) {
+  const date = new Date(value)
+  const elapsed = Date.now() - date.getTime()
+  if (!Number.isFinite(elapsed) || elapsed < 60000) return 'Now'
+  if (elapsed < 3600000) return `${Math.floor(elapsed / 60000)}m ago`
+  if (elapsed < 86400000) return `${Math.floor(elapsed / 3600000)}h ago`
+  return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' }).format(date)
+}
+
+function createOrderNotifications(orders) {
+  return orders.map((order) => {
+    const status = order.order_status || 'pending'
+    const [title, message] = notificationCopy[status] || notificationCopy.pending
+    return {
+      id: `${order.id}:${status}`,
+      status,
+      title,
+      message,
+      orderNumber: order.order_number,
+      createdAt: notificationDate(order),
+      href: `/buyer/delivery-progress?track=${order.id}`,
+    }
+  }).sort((first, second) => new Date(second.createdAt) - new Date(first.createdAt)).slice(0, 6)
+}
 
 export function BuyerHeader({ active = 'home', cartCount }) {
   const { profile, signOut } = useAuth()
   const buyerName = profile?.full_name || 'Buyer'
   const displayedCartCount = cartCount ?? buyerCartQuantity(readBuyerCart())
   const [unreadCount, setUnreadCount] = useState(0)
+  const [notifications, setNotifications] = useState([])
+  const [notificationsLoading, setNotificationsLoading] = useState(true)
+  const [notificationsError, setNotificationsError] = useState(false)
+  const [readNotificationIds, setReadNotificationIds] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem(NOTIFICATION_READ_KEY) || '[]') }
+    catch { return [] }
+  })
+  const notificationMenuRef = useRef(null)
+  const notificationUnreadCount = notifications.filter((notification) => !readNotificationIds.includes(notification.id)).length
 
   useEffect(() => {
     let cancelled = false
@@ -42,6 +103,62 @@ export function BuyerHeader({ active = 'home', cartCount }) {
     }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchNotifications() {
+      try {
+        const orders = await loadBuyerOrders()
+        if (!cancelled) {
+          setNotifications(createOrderNotifications(orders))
+          setNotificationsError(false)
+        }
+      } catch {
+        if (!cancelled) setNotificationsError(true)
+      } finally {
+        if (!cancelled) setNotificationsLoading(false)
+      }
+    }
+
+    fetchNotifications()
+    const interval = window.setInterval(fetchNotifications, UNREAD_POLL_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [])
+
+  useEffect(() => {
+    function closeNotificationMenu(event) {
+      if (notificationMenuRef.current && !notificationMenuRef.current.contains(event.target)) {
+        notificationMenuRef.current.removeAttribute('open')
+      }
+    }
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') notificationMenuRef.current?.removeAttribute('open')
+    }
+    document.addEventListener('pointerdown', closeNotificationMenu)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeNotificationMenu)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [])
+
+  function saveReadNotifications(ids) {
+    setReadNotificationIds(ids)
+    window.localStorage.setItem(NOTIFICATION_READ_KEY, JSON.stringify(ids))
+  }
+
+  function markNotificationRead(id) {
+    if (readNotificationIds.includes(id)) return
+    saveReadNotifications([...readNotificationIds, id])
+  }
+
+  function markAllNotificationsRead() {
+    saveReadNotifications([...new Set([...readNotificationIds, ...notifications.map((notification) => notification.id)])])
+  }
+
   async function handleSignOut() {
     await signOut()
     window.location.replace('/login')
@@ -61,10 +178,30 @@ export function BuyerHeader({ active = 'home', cartCount }) {
               <span className="buyer-status-dot">{unreadCount > 99 ? '99+' : unreadCount}</span>
             )}
           </a>
-          <button className="buyer-icon-link" type="button" aria-label="Notifications">
-            <Bell aria-hidden="true" />
-            <span className="buyer-status-dot">1</span>
-          </button>
+          <details className="buyer-notification-menu" ref={notificationMenuRef}>
+            <summary className="buyer-icon-link" aria-label={notificationUnreadCount ? `Notifications (${notificationUnreadCount} unread)` : 'Notifications'}>
+              <Bell aria-hidden="true" />
+              {notificationUnreadCount > 0 && <span className="buyer-status-dot">{notificationUnreadCount > 99 ? '99+' : notificationUnreadCount}</span>}
+            </summary>
+            <section className="buyer-notification-dropdown" aria-label="Recent notifications">
+              <header><div><h2>Notifications</h2><p>Recent order updates</p></div>{notificationUnreadCount > 0 && <button type="button" onClick={markAllNotificationsRead}>Mark all as read</button>}</header>
+              <div className="buyer-notification-list">
+                {notificationsLoading && <p className="buyer-notification-state">Loading notifications…</p>}
+                {!notificationsLoading && notificationsError && <p className="buyer-notification-state is-error">Notifications could not be refreshed.</p>}
+                {!notificationsLoading && !notificationsError && notifications.length === 0 && <p className="buyer-notification-state">You have no order updates yet.</p>}
+                {!notificationsLoading && notifications.map((notification) => (
+                  <a className={`buyer-notification-item${readNotificationIds.includes(notification.id) ? '' : ' is-unread'}`} href={notification.href} onClick={() => markNotificationRead(notification.id)} key={notification.id}>
+                    <span className={`buyer-notification-icon is-${notification.status}`}>
+                      {notification.status === 'delivered' ? <CheckCircle2 aria-hidden="true" /> : notification.status === 'out_for_delivery' ? <Truck aria-hidden="true" /> : notification.status === 'pending' ? <Clock3 aria-hidden="true" /> : <PackageCheck aria-hidden="true" />}
+                    </span>
+                    <span className="buyer-notification-copy"><strong>{notification.title}</strong><small>{notification.orderNumber}</small><p>{notification.message}</p><time dateTime={notification.createdAt}>{formatAlertTime(notification.createdAt)}</time></span>
+                    {!readNotificationIds.includes(notification.id) && <i aria-label="Unread" />}
+                  </a>
+                ))}
+              </div>
+              {notifications.length > 0 && <footer><a href="/buyer/delivery-progress">View all orders</a></footer>}
+            </section>
+          </details>
         </div>
 
         <a className="buyer-brand" href="/buyer" aria-label="JToledo Trading home">
