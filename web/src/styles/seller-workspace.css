@@ -32,9 +32,15 @@
 
 /* Page heading hierarchy */
 .seller-dashboard .seller-hero-copy h1,
-.seller-orders-page .seller-orders-title h1,
 .seller-inventory-page .inventory-heading h1 {
   font-size: var(--seller-type-page-title);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -.025em;
+}
+
+.seller-orders-page .seller-orders-title h1 {
+  font-size: clamp(27px, 2.5vw, 35px);
   font-weight: 800;
   line-height: 1.12;
   letter-spacing: -.025em;
@@ -48,11 +54,19 @@
 }
 
 .seller-dashboard .seller-hero-copy > span,
-.seller-orders-page .seller-orders-title > div > span,
 .seller-inventory-page .inventory-title-copy {
   margin: 5px 0 0;
   color: #667568;
   font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.seller-orders-page .seller-orders-title > div > span {
+  margin: 3px 0 0;
+  color: #667568;
+  font-size: 13px;
   font-weight: 400;
   line-height: 1.5;
   letter-spacing: 0;
@@ -82,15 +96,23 @@
 }
 
 /* Summary cards */
-.seller-dashboard .seller-stats small,
-.seller-orders-page .seller-order-stats small {
+.seller-dashboard .seller-stats small {
   font-size: var(--seller-type-body);
   font-weight: 700;
 }
 
-.seller-dashboard .seller-stats strong,
-.seller-orders-page .seller-order-stats strong {
+.seller-orders-page .seller-order-stats small {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.seller-dashboard .seller-stats strong {
   font-size: 24px;
+  font-weight: 800;
+}
+
+.seller-orders-page .seller-order-stats strong {
+  font-size: 30px;
   font-weight: 800;
 }
 
