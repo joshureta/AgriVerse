@@ -1,10 +1,23 @@
-import { styles } from '@/styles/driver-task-pending.styles';
+import { GREEN, styles } from '@/styles/driver-task-pending.styles';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, RefreshControl, SafeAreaView, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
+import {
+  DRIVER_TASK_TABS,
+  WorkerTaskSegmentedTabs,
+} from '@/components/worker-task-segmented-tabs';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import {
@@ -12,19 +25,18 @@ import {
   DriverOrder,
   DriverOrdersResponse,
   DriverVehiclesResponse,
-  deliveryStatusLabel,
   formatDeliveryAddress,
   formatDeliveryWindow,
   formatPeso,
 } from '@/lib/driver-deliveries';
 
-const vehicleImage = require('@/assets/images/driver-equipment.png');
-
-function DetailField({ label, value }: { label: string; value: string | number }) {
-  return <View style={styles.detailBox}><Text style={styles.detailLabel}>{label}</Text><Text style={styles.detailValue}>{value}</Text></View>;
-}
-
-function VehicleSelector({ vehicles, selectedId, open, onSelect, onToggle }: {
+function VehicleSelector({
+  vehicles,
+  selectedId,
+  open,
+  onSelect,
+  onToggle,
+}: {
   vehicles: DeliveryVehicle[];
   selectedId?: number;
   open: boolean;
@@ -33,29 +45,56 @@ function VehicleSelector({ vehicles, selectedId, open, onSelect, onToggle }: {
 }) {
   const selected = vehicles.find((vehicle) => vehicle.id === selectedId);
   return (
-    <View style={[styles.detailBox, styles.vehicleField]}>
-      <Text style={styles.detailLabel}>Select Vehicle</Text>
-      <Pressable accessibilityRole="button" onPress={onToggle} style={styles.vehicleSelect}>
-        <Text numberOfLines={1} style={[styles.vehicleValue, !selected && styles.vehiclePlaceholder]}>
-          {selected ? `${selected.vehicle_name} · ${selected.plate_number}` : 'Choose an available vehicle'}
+    <View style={styles.vehiclePickerBox}>
+      <Text style={styles.detailLabel}>SELECT VEHICLE</Text>
+      <Pressable accessibilityRole="button" onPress={onToggle} style={styles.vehicleSelectControl}>
+        <Text
+          numberOfLines={1}
+          style={[styles.vehicleSelectText, !selected && styles.vehiclePlaceholder]}>
+          {selected
+            ? `🚛 ${selected.vehicle_name} · ${selected.plate_number}`
+            : 'Choose an available vehicle'}
         </Text>
-        <View style={styles.chevron} />
+        <Text style={{ fontSize: 11, color: GREEN }}>▾</Text>
       </Pressable>
       {open ? (
-        <View style={styles.vehicleOptions}>
-          {vehicles.length ? vehicles.map((vehicle) => (
-            <Pressable key={vehicle.id} onPress={() => onSelect(vehicle)} style={[styles.vehicleOption, selectedId === vehicle.id && styles.vehicleOptionSelected]}>
-              <Text style={styles.vehicleOptionName}>{vehicle.vehicle_name}</Text>
-              <Text style={styles.vehicleOptionPlate}>{vehicle.plate_number}</Text>
-            </Pressable>
-          )) : <Text style={styles.noVehicles}>No vehicle is currently available.</Text>}
+        <View style={styles.vehicleOptionsList}>
+          {vehicles.length ? (
+            vehicles.map((vehicle) => (
+              <Pressable
+                key={vehicle.id}
+                onPress={() => onSelect(vehicle)}
+                style={[
+                  styles.vehicleOptionItem,
+                  selectedId === vehicle.id && styles.vehicleOptionItemSelected,
+                ]}>
+                <Text style={styles.vehicleOptionName}>🚛 {vehicle.vehicle_name}</Text>
+                <Text style={styles.vehicleOptionPlate}>Plate: {vehicle.plate_number}</Text>
+              </Pressable>
+            ))
+          ) : (
+            <View style={{ padding: 10 }}>
+              <Text style={styles.noVehiclesNotice}>No vehicle is currently available.</Text>
+            </View>
+          )}
         </View>
       ) : null}
     </View>
   );
 }
 
-function PendingDeliveryCard({ order, vehicles, selectedVehicleId, expanded, selectorOpen, busy, onAccept, onExpand, onSelectVehicle, onToggleSelector }: {
+function PendingDeliveryCard({
+  order,
+  vehicles,
+  selectedVehicleId,
+  expanded,
+  selectorOpen,
+  busy,
+  onAccept,
+  onExpand,
+  onSelectVehicle,
+  onToggleSelector,
+}: {
   order: DriverOrder;
   vehicles: DeliveryVehicle[];
   selectedVehicleId?: number;
@@ -67,25 +106,100 @@ function PendingDeliveryCard({ order, vehicles, selectedVehicleId, expanded, sel
   onSelectVehicle: (vehicle: DeliveryVehicle) => void;
   onToggleSelector: () => void;
 }) {
+  const orderNumber = order.order_number || `Order #${order.id}`;
+  const destination = formatDeliveryAddress(order);
+
   return (
     <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
-      <Pressable onPress={onExpand} style={styles.taskSummary}>
-        <View style={styles.taskIconCircle}><Image source={vehicleImage} style={styles.taskIcon} /></View>
-        <View style={styles.taskTitleArea}><Text style={styles.taskCategory}>{order.order_number}</Text><Text numberOfLines={1} style={styles.taskDescription}>{formatDeliveryAddress(order)}</Text></View>
-        <View style={styles.statusPill}><Text style={styles.statusPillText}>{deliveryStatusLabel(order.delivery_assignment_status)}</Text></View>
+      {/* Top Header Row */}
+      <Pressable onPress={onExpand} style={styles.cardHeaderRow}>
+        <View style={styles.cardHeaderLeft}>
+          <View style={styles.categorySquircle}>
+            <Text style={styles.categoryIconText}>🚚</Text>
+          </View>
+          <View style={[styles.priorityPill, styles.priorityPill_order]}>
+            <Text style={[styles.priorityText, styles.priorityText_order]}>{orderNumber}</Text>
+          </View>
+        </View>
+
+        <View style={styles.cardHeaderRight}>
+          <View style={styles.durationRow}>
+            <Text style={styles.durationClock}>🕒</Text>
+            <Text style={styles.durationText}>Window</Text>
+          </View>
+          <Text style={styles.chevron}>{expanded ? '▲' : '▼'}</Text>
+        </View>
       </Pressable>
+
+      {/* Main Item Title */}
+      <Text style={styles.taskTitle}>
+        Deliver to {order.delivery_full_name || 'Customer'} · {destination}
+      </Text>
+
+      {/* Expanded Details Section */}
       {expanded ? (
-        <View style={styles.details}>
-          <DetailField label="Order Number" value={order.order_number} />
-          <DetailField label="Receiver Name" value={order.delivery_full_name || 'Not provided'} />
-          <DetailField label="Contact Number" value={order.delivery_mobile_number || 'Not provided'} />
-          <DetailField label="Delivery Location" value={formatDeliveryAddress(order)} />
-          <DetailField label="Delivery Window" value={formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)} />
-          <DetailField label="Payment" value={`${order.payment_method} · ${formatPeso(order.total_amount)}`} />
-          <VehicleSelector vehicles={vehicles} selectedId={selectedVehicleId} open={selectorOpen} onSelect={onSelectVehicle} onToggle={onToggleSelector} />
-          {!vehicles.length ? <Text style={styles.noVehiclesNotice}>No available vehicle can be assigned right now.</Text> : null}
-          <Pressable disabled={busy || !selectedVehicleId || !vehicles.length} onPress={onAccept} style={[styles.startButton, (busy || !selectedVehicleId || !vehicles.length) && styles.startButtonDisabled]}>
-            {busy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.startButtonText}>Accept Delivery</Text>}
+        <View style={styles.detailsSection}>
+          {/* Side-by-side Info Boxes */}
+          <View style={styles.detailGrid}>
+            <View style={styles.detailBoxSmall}>
+              <Text style={styles.detailLabel}>RECEIVER</Text>
+              <Text numberOfLines={1} style={styles.detailValue}>
+                {order.delivery_full_name || 'Not provided'}
+              </Text>
+            </View>
+            <View style={styles.detailBoxSmall}>
+              <Text style={styles.detailLabel}>CONTACT</Text>
+              <Text numberOfLines={1} style={styles.detailValue}>
+                {order.delivery_mobile_number || 'Not provided'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Delivery Location & Payment Box */}
+          <View style={styles.detailBox}>
+            <Text style={styles.detailLabel}>DELIVERY LOCATION &amp; PAYMENT</Text>
+            <Text style={styles.detailValue}>
+              {destination} · {order.payment_method} ({formatPeso(order.total_amount)})
+            </Text>
+          </View>
+
+          {/* Delivery Window Box */}
+          <View style={styles.detailBox}>
+            <Text style={styles.detailLabel}>DELIVERY WINDOW</Text>
+            <Text style={styles.detailValue}>
+              {formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}
+            </Text>
+          </View>
+
+          {/* Vehicle Selector */}
+          <VehicleSelector
+            vehicles={vehicles}
+            selectedId={selectedVehicleId}
+            open={selectorOpen}
+            onSelect={onSelectVehicle}
+            onToggle={onToggleSelector}
+          />
+
+          {!vehicles.length ? (
+            <Text style={styles.noVehiclesNotice}>
+              No available vehicle can be assigned right now.
+            </Text>
+          ) : null}
+
+          {/* Accept Delivery Action Button */}
+          <Pressable
+            disabled={busy || !selectedVehicleId || !vehicles.length}
+            onPress={onAccept}
+            style={({ pressed }) => [
+              styles.startButton,
+              (busy || !selectedVehicleId || !vehicles.length) && styles.startButtonDisabled,
+              pressed && styles.startButtonPressed,
+            ]}>
+            {busy ? (
+              <ActivityIndicator color={GREEN} size="small" />
+            ) : (
+              <Text style={styles.startButtonText}>Accept Delivery</Text>
+            )}
           </Pressable>
         </View>
       ) : null}
@@ -95,7 +209,7 @@ function PendingDeliveryCard({ order, vehicles, selectedVehicleId, expanded, sel
 
 export default function DriverTaskPending() {
   const { width } = useWindowDimensions();
-  const { loading: authLoading, profile, signOut } = useAuth();
+  const { loading: authLoading, profile } = useAuth();
   const [orders, setOrders] = useState<DriverOrder[]>([]);
   const [vehicles, setVehicles] = useState<DeliveryVehicle[]>([]);
   const [selectedVehicles, setSelectedVehicles] = useState<Record<number, number>>({});
@@ -114,10 +228,14 @@ export default function DriverTaskPending() {
         apiRequest<DriverOrdersResponse>('/api/driver/orders'),
         apiRequest<DriverVehiclesResponse>('/api/driver/orders/vehicles'),
       ]);
-      const pendingOrders = (orderResult.orders ?? []).filter((order) => order.delivery_assignment_status === 'assigned');
+      const pendingOrders = (orderResult.orders ?? []).filter(
+        (order) => order.delivery_assignment_status === 'assigned'
+      );
       setOrders(pendingOrders);
       setVehicles(vehicleResult.vehicles ?? []);
-      setExpandedId((current) => pendingOrders.some((order) => order.id === current) ? current : pendingOrders[0]?.id ?? null);
+      setExpandedId((current) =>
+        pendingOrders.some((order) => order.id === current) ? current : pendingOrders[0]?.id ?? null
+      );
     } catch (caught) {
       setOrders([]);
       setVehicles([]);
@@ -129,51 +247,120 @@ export default function DriverTaskPending() {
     }
   }, []);
 
-  useEffect(() => { if (profile) loadDeliveries(); }, [loadDeliveries, profile]);
+  useEffect(() => {
+    if (profile) loadDeliveries();
+  }, [loadDeliveries, profile]);
 
   async function acceptDelivery(order: DriverOrder) {
     const vehicleId = selectedVehicles[order.id];
-    if (!vehicleId) { setError('Select an available vehicle before accepting this delivery.'); return; }
+    if (!vehicleId) {
+      setError('Select an available vehicle before accepting this delivery.');
+      return;
+    }
     setBusyId(order.id);
     setError('');
     try {
-      await apiRequest(`/api/driver/orders/${order.id}/accept`, { method: 'POST', body: JSON.stringify({ vehicle_id: vehicleId }) });
+      await apiRequest(`/api/driver/orders/${order.id}/accept`, {
+        method: 'POST',
+        body: JSON.stringify({ vehicle_id: vehicleId }),
+      });
       router.replace('/DriverTaskActive');
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Could not accept this delivery.';
       await loadDeliveries();
       setError(message);
-    } finally { setBusyId(null); }
+    } finally {
+      setBusyId(null);
+    }
   }
 
-  async function logout() { await signOut(); router.replace('/login'); }
-
-  if (authLoading) return <View style={styles.center}><ActivityIndicator color="#237c31" size="large" /></View>;
+  if (authLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={GREEN} size="large" />
+      </View>
+    );
+  }
   if (!profile) return <Redirect href="/login" />;
-  const horizontalPadding = width < 360 ? 14 : 22;
+  const horizontalPadding = width < 360 ? 14 : 20;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <WorkerHeader />
-      <ScrollView contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]} refreshControl={<RefreshControl colors={['#237c31']} onRefresh={() => loadDeliveries(true)} refreshing={refreshing} />}>
-        <View style={styles.titleRow}><Text style={styles.sectionTitle}>Today&apos;s Deliveries</Text><Pressable onPress={logout}><Text style={styles.signOut}>Sign out</Text></Pressable></View>
-        <View style={styles.filters}>
-          <Pressable accessibilityState={{ selected: true }} style={[styles.filterButton, styles.filterButtonActive]}><Text style={[styles.filterText, styles.filterTextActive]}>Pending</Text></Pressable>
-          <Pressable onPress={() => router.replace('/DriverTaskActive')} style={styles.filterButton}><Text style={styles.filterText}>Active</Text></Pressable>
-          <Pressable onPress={() => router.replace('/DriverTaskCompleted')} style={styles.filterButton}><Text style={styles.filterText}>Completed</Text></Pressable>
-        </View>
-        {error ? <Pressable onPress={() => loadDeliveries()} style={styles.errorBox}><Text style={styles.errorText}>{error}</Text><Text style={styles.retry}>Tap to retry</Text></Pressable> : null}
-        {loading ? <View style={styles.loadingBox}><ActivityIndicator color="#237c31" /><Text style={styles.loadingText}>Loading assigned deliveries...</Text></View> : orders.length ? orders.map((order) => (
-          <PendingDeliveryCard
-            busy={busyId === order.id} expanded={expandedId === order.id} key={order.id}
-            onAccept={() => acceptDelivery(order)} onExpand={() => setExpandedId((current) => current === order.id ? null : order.id)}
-            onSelectVehicle={(vehicle) => { setSelectedVehicles((current) => ({ ...current, [order.id]: vehicle.id })); setOpenSelectorId(null); }}
-            onToggleSelector={() => setOpenSelectorId((current) => current === order.id ? null : order.id)}
-            order={order} selectedVehicleId={selectedVehicles[order.id]} selectorOpen={openSelectorId === order.id} vehicles={vehicles}
+
+      <View style={styles.mainBodyContainer}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
+          refreshControl={
+            <RefreshControl
+              colors={[GREEN]}
+              onRefresh={() => loadDeliveries(true)}
+              refreshing={refreshing}
+            />
+          }>
+          {/* Section Title */}
+          <View style={styles.titleRow}>
+            <Text style={styles.sectionTitle}>Today’s Tasks</Text>
+          </View>
+
+          {/* Segmented 3-Tab Filter Bar */}
+          <WorkerTaskSegmentedTabs
+            activeTab="pending"
+            tabs={DRIVER_TASK_TABS}
+            onTabChange={(_, route) => router.replace(route as any)}
           />
-        )) : <View style={styles.emptyBox}><Text style={styles.emptyIcon}>✓</Text><Text style={styles.emptyTitle}>No pending deliveries</Text><Text style={styles.emptyText}>Pull down to check for newly assigned orders.</Text></View>}
-      </ScrollView>
+
+          {/* Error Banner */}
+          {error ? (
+            <Pressable onPress={() => loadDeliveries()} style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.retry}>Tap to retry</Text>
+            </Pressable>
+          ) : null}
+
+          {/* Deliveries List */}
+          {loading ? (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color={GREEN} />
+              <Text style={styles.loadingText}>Loading assigned deliveries...</Text>
+            </View>
+          ) : orders.length ? (
+            orders.map((order) => (
+              <PendingDeliveryCard
+                key={order.id}
+                order={order}
+                vehicles={vehicles}
+                selectedVehicleId={selectedVehicles[order.id]}
+                expanded={expandedId === order.id}
+                selectorOpen={openSelectorId === order.id}
+                busy={busyId === order.id}
+                onAccept={() => acceptDelivery(order)}
+                onExpand={() =>
+                  setExpandedId((current) => (current === order.id ? null : order.id))
+                }
+                onSelectVehicle={(vehicle) => {
+                  setSelectedVehicles((current) => ({ ...current, [order.id]: vehicle.id }));
+                  setOpenSelectorId(null);
+                }}
+                onToggleSelector={() =>
+                  setOpenSelectorId((current) => (current === order.id ? null : order.id))
+                }
+              />
+            ))
+          ) : (
+            <View style={styles.emptyBox}>
+              <View style={styles.emptyCheckCircle}>
+                <Text style={styles.emptyCheckText}>✓</Text>
+              </View>
+              <Text style={styles.emptyTitle}>No pending deliveries</Text>
+              <Text style={styles.emptyText}>Pull down to check for newly assigned orders.</Text>
+            </View>
+          )}
+        </ScrollView>
+      </View>
+
       <WorkerBottomNavigation activeTab="tasks" />
     </SafeAreaView>
   );
 }
+

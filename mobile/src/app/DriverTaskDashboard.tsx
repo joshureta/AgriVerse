@@ -1,107 +1,131 @@
-import { styles } from '@/styles/driver-task-dashboard.styles';
-import { Redirect } from 'expo-router';
+import { GREEN, styles } from '@/styles/driver-task-dashboard.styles';
+import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Pressable,
   RefreshControl,
+  SafeAreaView,
   ScrollView,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
-import { DriverOrder, DriverOrdersResponse, formatDeliveryAddress, isActiveDelivery } from '@/lib/driver-deliveries';
+import {
+  DriverOrder,
+  DriverOrdersResponse,
+  formatDeliveryAddress,
+  formatDeliveryRoute,
+  isActiveDelivery,
+} from '@/lib/driver-deliveries';
+import { loadWeather, WEATHER_ICONS, type WeatherSnapshot } from '@/lib/weather';
 
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
-const GREEN = '#134B24';
-
-const sampleDeliveries = [
-  { id: 1, category: 'Delivery', description: 'Deliver 1000 pineapples.', status: 'pending' },
-  { id: 2, category: 'Delivery', description: 'Deliver 2000 pineapples.', status: 'pending' },
-  { id: 3, category: 'Delivery', description: 'Deliver 500 pineapples.', status: 'in_progress' },
-];
-
-function ClipboardHeaderIcon() {
+function ClipboardDocumentIcon() {
   return (
-    <View style={styles.clipboardIcon}>
-      <View style={styles.clipClip} />
-      {[0, 1, 2].map((line) => (
-        <View key={line} style={styles.clipCheckRow}>
-          <Text style={styles.clipCheck}>✓</Text>
-          <View style={styles.clipLine} />
-        </View>
-      ))}
+    <View style={styles.clipboardIconWrap}>
+      <View style={styles.clipboardTopClip} />
+      <View style={styles.clipboardLine} />
+      <View style={styles.clipboardLine} />
+      <View style={styles.clipboardLineShort} />
     </View>
   );
 }
 
-function WeatherWidget() {
+function MetricCard({
+  color,
+  label,
+  value,
+  onPress,
+}: {
+  color: string;
+  label: string;
+  value: number;
+  onPress?: () => void;
+}) {
   return (
-    <View style={styles.weatherBlock}>
+    <Pressable onPress={onPress} style={[styles.metricCard, { backgroundColor: color }]}>
+      <Text style={styles.metricTopLabel}>{label}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+    </Pressable>
+  );
+}
+
+function EquipmentCard({
+  label,
+  isTransit = false,
+  onPress,
+}: {
+  label: string;
+  isTransit?: boolean;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.equipmentCard,
+        isTransit ? styles.equipmentCard_transit : styles.equipmentCard_available,
+      ]}>
       <Image
-        source={require('@/assets/images/worker-weather-rain-icon.png')}
-        style={styles.weatherIconImage}
+        source={require('@/assets/images/driver-equipment.png')}
+        style={styles.equipmentVehicle}
       />
-      <View style={styles.weatherInfo}>
-        <View style={styles.weatherTitleRow}>
-          <Text style={styles.weatherTitle}>Raining</Text>
-          <Text style={styles.weatherDate}>June 26</Text>
-        </View>
-        <Text style={styles.weatherLocation}>Silang, Cavite Philippines</Text>
-      </View>
-    </View>
-  );
-}
-
-function MetricCard({ color, label, value, textColor }: { color: string; label: string; value: number; textColor: string }) {
-  return (
-    <View style={[styles.metricCard, { backgroundColor: color }]}>
-      <Text style={[styles.metricValue, { color: textColor }]}>{value}</Text>
-      <Text numberOfLines={2} adjustsFontSizeToFit style={styles.metricLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function EquipmentCard({ label, tint }: { label: string; tint: string }) {
-  return (
-    <View style={[styles.equipmentCard, { backgroundColor: tint }]}>
-      <Image source={require('@/assets/images/driver-equipment.png')} style={styles.equipmentVehicle} />
       <Text style={styles.equipmentLabel}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
-function TaskRow({ order }: { order: DriverOrder | { id: number; category: string; description: string; status: string } }) {
+function DeliveryDashboardCard({
+  order,
+  onPress,
+}: {
+  order: DriverOrder | { id: number; order_number?: string; category?: string; description?: string };
+  onPress: () => void;
+}) {
   const isDriverOrder = 'delivery_assignment_status' in order;
-  const isActive = isDriverOrder ? isActiveDelivery(order as DriverOrder) : (order as { status: string }).status === 'in_progress';
-  const description = isDriverOrder
-    ? (order as DriverOrder).order_number
-      ? `Deliver order ${(order as DriverOrder).order_number}.`
-      : formatDeliveryAddress(order as DriverOrder)
-    : (order as { description: string }).description;
+  const orderNumber = isDriverOrder
+    ? (order as DriverOrder).order_number || `Order #${order.id}`
+    : (order as { order_number?: string }).order_number || `Order #${order.id}`;
+
+  const route = isDriverOrder
+    ? formatDeliveryRoute(order as DriverOrder)
+    : (order as { description?: string }).description || 'Silang -> Tagaytay';
 
   return (
     <View style={styles.taskCard}>
-      <View style={styles.taskThumbnail}>
-        <Image
-          source={require('@/assets/images/driver-task-delivery-icon.png')}
-          style={styles.taskVehicle}
-        />
+      {/* Left: Squircle Vehicle Icon */}
+      <View style={[styles.categorySquircle, { backgroundColor: '#DCFCE7' }]}>
+        <Text style={styles.categoryIcon}>🚚</Text>
       </View>
-      <View style={styles.taskCopy}>
-        <Text style={styles.taskCategory}>Delivery</Text>
-        <Text numberOfLines={1} style={styles.taskDescription}>
-          {description}
-        </Text>
+
+      {/* Center: Stacked Badges */}
+      <View style={styles.taskCenterColumn}>
+        <View style={[styles.priorityPill, styles.priorityPill_order]}>
+          <Text style={[styles.priorityText, styles.priorityText_order]}>{orderNumber}</Text>
+        </View>
+
+        <View style={styles.durationPill}>
+          <Text style={styles.durationClockIcon}>📍</Text>
+          <Text numberOfLines={1} style={styles.durationPillText}>
+            {route}
+          </Text>
+        </View>
       </View>
-      {isActive ? <ActivityIndicator color="#70736F" size="small" /> : <View style={styles.statusDot} />}
+
+      {/* Right: Accept / View CTA */}
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.startTaskBtn, pressed && styles.startTaskBtnPressed]}>
+        <Text style={styles.startTaskBtnText}>Accept</Text>
+      </Pressable>
     </View>
   );
 }
@@ -114,6 +138,7 @@ export default function DriverTaskDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
 
   const loadTasks = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -137,14 +162,16 @@ export default function DriverTaskDashboardScreen() {
     }
   }, []);
 
-  useEffect(() => { if (profile) loadTasks(); }, [loadTasks, profile]);
+  useEffect(() => {
+    if (profile) {
+      loadTasks();
+      loadWeather().then(setWeather);
+    }
+  }, [loadTasks, profile]);
 
-  const hasSummary = summary.total > 0 || summary.pending > 0 || summary.active > 0 || summary.completed > 0;
-  const totalTasks = hasSummary ? summary.total : 6;
-  const pendingTasks = hasSummary ? summary.pending : 3;
-  const activeTasks = hasSummary ? summary.active : 2;
-  const completedTasks = hasSummary ? summary.completed : 9;
-
+  const dashboard = summary;
+  const pendingOrders = orders.filter((o) => o.delivery_assignment_status === 'assigned');
+  const previewOrders = pendingOrders.length > 0 ? pendingOrders.slice(0, 3) : orders.slice(0, 3);
   const horizontalPadding = width < 360 ? 14 : 18;
 
   if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
@@ -154,63 +181,137 @@ export default function DriverTaskDashboardScreen() {
     <SafeAreaView style={styles.safeArea}>
       <WorkerHeader />
 
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
-        refreshControl={<RefreshControl colors={[GREEN]} onRefresh={() => loadTasks(true)} refreshing={refreshing} />}
-        showsVerticalScrollIndicator={false}
-        style={styles.page}>
-        
-        {/* Top Greeting & Weather Header */}
-        <View style={styles.topRow}>
-          <View style={styles.greetingBlock}>
-            <Text style={styles.greeting}>Good Day{'\n'}Driver!</Text>
+      <View style={styles.mainBodyContainer}>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                loadTasks(true);
+                loadWeather().then(setWeather);
+              }}
+              colors={[GREEN]}
+            />
+          }>
+          
+          {/* Top Greeting */}
+          <Text style={styles.greeting}>Good Day, Driver!</Text>
+
+          {/* Logistics Hero Card with Embedded Weather & Status Pill */}
+          <View style={styles.farmHeroWrapper}>
+            <Image
+              source={require('@/assets/images/driver-dashboard-hero.png')}
+              style={styles.heroBackgroundImage}
+              resizeMode="cover"
+            />
+
+            {/* Embedded Floating Weather Card */}
+            <View style={styles.floatingWeatherCard}>
+              <View style={styles.weatherTempRow}>
+                <Text style={styles.weatherSunIcon}>{weather ? WEATHER_ICONS[weather.condition] : '☀️'}</Text>
+                <Text style={styles.weatherTempValue}>{weather ? `${weather.temp}°C` : '28°C'}</Text>
+              </View>
+              <Text ellipsizeMode="tail" numberOfLines={2} style={styles.weatherSubLoc}>
+                {weather ? `${weather.label}, ${weather.locationLabel}` : 'Sunny, Silang Cavite'}
+              </Text>
+            </View>
+
+            {/* Embedded Floating Status Pill */}
+            <View style={styles.floatingStatusPill}>
+              <Text style={styles.floatingStatusText}>Fleet: Ready</Text>
+            </View>
           </View>
-          <WeatherWidget />
-        </View>
 
-        {/* Driver Hero Art */}
-        <View style={styles.heroWrapper}>
-          <Image
-            source={require('@/assets/images/driver-dashboard-hero.png')}
-            style={styles.heroImage}
-            resizeMode="contain"
-          />
-        </View>
+          {/* 4 Metric Status Cards (Horizontal 1-Row Grid) */}
+          <View style={styles.metricsRow}>
+            <MetricCard
+              color="#0F3E22"
+              label="Total Tasks"
+              value={dashboard.total}
+              onPress={() => router.push('/DriverTaskPending')}
+            />
+            <MetricCard
+              color="#237C3B"
+              label="Pending"
+              value={dashboard.pending}
+              onPress={() => router.push('/DriverTaskPending')}
+            />
+            <MetricCard
+              color="#D99026"
+              label="Active"
+              value={dashboard.active}
+              onPress={() => router.push('/DriverTaskActive')}
+            />
+            <MetricCard
+              color="#0F7D40"
+              label="Completed"
+              value={dashboard.completed}
+              onPress={() => router.push('/DriverTaskCompleted')}
+            />
+          </View>
 
-        {/* 4 Metric Cards */}
-        <View style={styles.metricsRow}>
-          <MetricCard color="#A5C982" label="Total Tasks" value={totalTasks} textColor="#1B4D27" />
-          <MetricCard color="#1E6B37" label="Pending Tasks" value={pendingTasks} textColor="#FFFFFF" />
-          <MetricCard color="#1B6434" label="Active Tasks" value={activeTasks} textColor="#FFFFFF" />
-          <MetricCard color="#7E9F6B" label="Completed Tasks" value={completedTasks} textColor="#1B4D27" />
-        </View>
+          {/* Equipment Status Section */}
+          <View style={styles.equipmentSection}>
+            <Text style={styles.equipmentHeading}>Equipment Status</Text>
+            <View style={styles.equipmentRow}>
+              <EquipmentCard
+                label="Available"
+                onPress={() => router.push('/DriverTaskPending')}
+              />
+              <EquipmentCard
+                label="On Transit"
+                isTransit={true}
+                onPress={() => router.push('/DriverTaskActive')}
+              />
+              <EquipmentCard
+                label="Available"
+                onPress={() => router.push('/DriverTaskPending')}
+              />
+            </View>
+          </View>
 
-        {/* Equipment Status Section */}
-        <Text style={styles.equipmentTitle}>Equipment Status</Text>
-        <View style={styles.equipmentRow}>
-          <EquipmentCard label="Available" tint="#1E6B37" />
-          <EquipmentCard label="On Transit" tint="#4A855A" />
-          <EquipmentCard label="Available" tint="#1E6B37" />
-        </View>
+          {/* Today's Deliveries Section Header */}
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionTitleWrap}>
+              <ClipboardDocumentIcon />
+              <Text style={styles.sectionTitle}>Today’s Deliveries</Text>
+            </View>
+            <Pressable onPress={() => router.push('/DriverTaskPending')}>
+              <Text style={styles.sectionLink}>View All ({dashboard.total}) ›</Text>
+            </Pressable>
+          </View>
 
-        {/* Today's Tasks Section */}
-        <View style={styles.sectionHeading}>
-          <ClipboardHeaderIcon />
-          <Text style={styles.sectionTitle}>Today’s Tasks</Text>
-        </View>
+          {/* Error Banner */}
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-        {error ? <Text style={styles.loadError}>{error}</Text> : null}
-        {loading ? (
-          <ActivityIndicator style={styles.loader} color={GREEN} />
-        ) : orders.length > 0 ? (
-          orders.slice(0, 3).map((order) => <TaskRow key={order.id} order={order} />)
-        ) : (
-          sampleDeliveries.map((delivery) => <TaskRow key={delivery.id} order={delivery} />)
-        )}
-      </ScrollView>
+          {/* Deliveries List */}
+          {loading ? (
+            <ActivityIndicator style={{ marginTop: 20 }} color={GREEN} />
+          ) : previewOrders.length > 0 ? (
+            previewOrders.map((order) => (
+              <DeliveryDashboardCard
+                key={order.id}
+                order={order}
+                onPress={() => router.push('/DriverTaskPending')}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No pending deliveries</Text>
+              <Text style={styles.emptySubtitle}>All assigned dispatches have been completed.</Text>
+            </View>
+          )}
+        </ScrollView>
+      </View>
 
       <WorkerBottomNavigation activeTab="home" />
     </SafeAreaView>
   );
 }
+
 

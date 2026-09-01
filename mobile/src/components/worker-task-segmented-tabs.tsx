@@ -4,21 +4,31 @@ import { Animated, LayoutChangeEvent, Pressable, Text, View } from 'react-native
 
 export type TaskTabValue = 'pending' | 'in_progress' | 'completed';
 
-export const TASK_TABS: { label: string; value: TaskTabValue; route: string }[] = [
+export type TabItem = { label: string; value: TaskTabValue; route: string };
+
+export const TASK_TABS: TabItem[] = [
   { label: 'Pending', value: 'pending', route: '/WorkerTaskPending' },
   { label: 'Active', value: 'in_progress', route: '/WorkerTaskActive' },
   { label: 'Completed', value: 'completed', route: '/WorkerTaskCompleted' },
 ];
 
+export const DRIVER_TASK_TABS: TabItem[] = [
+  { label: 'Pending', value: 'pending', route: '/DriverTaskPending' },
+  { label: 'Active', value: 'in_progress', route: '/DriverTaskActive' },
+  { label: 'Completed', value: 'completed', route: '/DriverTaskCompleted' },
+];
+
 export function WorkerTaskSegmentedTabs({
   activeTab,
   onTabChange,
+  tabs = TASK_TABS,
 }: {
   activeTab: TaskTabValue;
   onTabChange: (tab: TaskTabValue, route: string) => void;
+  tabs?: TabItem[];
 }) {
   const [containerWidth, setContainerWidth] = useState(0);
-  const activeIndex = TASK_TABS.findIndex((t) => t.value === activeTab);
+  const activeIndex = tabs.findIndex((t) => t.value === activeTab);
   const animValue = useRef(new Animated.Value(activeIndex >= 0 ? activeIndex : 0)).current;
 
   useEffect(() => {
@@ -60,7 +70,7 @@ export function WorkerTaskSegmentedTabs({
         />
       ) : null}
 
-      {TASK_TABS.map((tab, idx) => {
+      {tabs.map((tab, idx) => {
         const isSelected = (activeIndex >= 0 ? activeIndex : 0) === idx;
         return (
           <Pressable

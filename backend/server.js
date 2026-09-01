@@ -23,6 +23,7 @@ const buyerPaymentsRouter = require("./routes/buyer-payments");
 const paymongoWebhookRouter = require("./routes/paymongo-webhook");
 const buyerMessagesRouter = require("./routes/buyer-messages");
 const adminMessagesRouter = require("./routes/admin-messages");
+const weatherRouter = require("./routes/weather");
 
 const app = express();
 
@@ -100,6 +101,7 @@ app.use("/api/admin/messages", adminMessagesRouter);
 app.use("/api/seller/orders", sellerOrdersRouter);
 app.use("/api/driver/orders", driverOrdersRouter);
 app.use("/api/ai", aiRouter);
+app.use("/api/weather", weatherRouter);
 
 const PORT = process.env.PORT || 5000;
 

@@ -17,6 +17,7 @@ import { useAuth } from '@/context/auth-context';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { apiRequest } from '@/lib/api';
+import { loadWeather, WEATHER_ICONS, type WeatherSnapshot } from '@/lib/weather';
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
 type WorkerTask = {
@@ -128,6 +129,7 @@ export default function WorkerTaskDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
 
   const loadTasks = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -147,7 +149,10 @@ export default function WorkerTaskDashboardScreen() {
   }, []);
 
   useEffect(() => {
-    if (profile) loadTasks();
+    if (profile) {
+      loadTasks();
+      loadWeather().then(setWeather);
+    }
   }, [loadTasks, profile]);
 
   const dashboard = summary;
@@ -165,7 +170,16 @@ export default function WorkerTaskDashboardScreen() {
       <View style={styles.mainBodyContainer}>
         <ScrollView
           contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadTasks(true)} colors={[GREEN]} />}>
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                loadTasks(true);
+                loadWeather().then(setWeather);
+              }}
+              colors={[GREEN]}
+            />
+          }>
           
           {/* Top Greeting */}
           <Text style={styles.greeting}>Good Day, Worker!</Text>
@@ -181,15 +195,17 @@ export default function WorkerTaskDashboardScreen() {
             {/* Embedded Floating Weather Card */}
             <View style={styles.floatingWeatherCard}>
               <View style={styles.weatherTempRow}>
-                <Text style={styles.weatherSunIcon}>☀️</Text>
-                <Text style={styles.weatherTempValue}>28°C</Text>
+                <Text style={styles.weatherSunIcon}>{weather ? WEATHER_ICONS[weather.condition] : '☀️'}</Text>
+                <Text style={styles.weatherTempValue}>{weather ? `${weather.temp}°C` : '28°C'}</Text>
               </View>
-              <Text style={styles.weatherSubLoc}>Sunny, Silang Cavite</Text>
+              <Text ellipsizeMode="tail" numberOfLines={2} style={styles.weatherSubLoc}>
+                {weather ? `${weather.label}, ${weather.locationLabel}` : 'Sunny, Silang Cavite'}
+              </Text>
             </View>
 
             {/* Embedded Floating Status Pill */}
             <View style={styles.floatingStatusPill}>
-              <Text style={styles.floatingStatusText}>Status Pill</Text>
+              <Text style={styles.floatingStatusText}>Status Pilld</Text>
             </View>
           </View>
 
