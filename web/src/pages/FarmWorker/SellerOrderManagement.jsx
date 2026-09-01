@@ -193,8 +193,7 @@ export default function SellerOrderManagement() {
         <SellerTopbar />
         <div className="seller-orders-content">
           <header className="seller-orders-title">
-            <div className="seller-title-icon"><Box /></div>
-            <div><p>Seller workspace</p><h1>Order Management</h1><span>Receive, confirm, fulfill, and complete buyer orders.</span></div>
+            <div className="seller-orders-title-copy"><h1>Order Management</h1><span>Receive, confirm, fulfill, and complete buyer orders.</span></div>
             <small className={refreshing ? 'is-refreshing' : ''}>{refreshing ? 'Updating...' : 'Auto-refresh on'}</small>
           </header>
 
@@ -206,12 +205,12 @@ export default function SellerOrderManagement() {
           </section>
 
           <section className="seller-orders-table-card">
-            <div className="seller-order-toolbar">
-              <label className="seller-order-search"><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search order, customer, phone, or item" aria-label="Search orders" /></label>
+            <div className="seller-order-tabs" role="tablist">
+              {tabs.filter((tab) => tab.key !== 'all').map((tab) => <button className={activeTab === tab.key ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === tab.key} onClick={() => selectStage(tab.key)} key={tab.key}>{tab.label}</button>)}
             </div>
 
-            <div className="seller-order-tabs" role="tablist">
-              {tabs.map((tab) => <button className={activeTab === tab.key ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === tab.key} onClick={() => selectStage(tab.key)} key={tab.key}>{tab.label}</button>)}
+            <div className="seller-order-toolbar">
+              <label className="seller-order-search"><Search /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search orders" aria-label="Search orders" /></label>
             </div>
 
             {error && <div className="seller-order-error" role="alert">{error}<button type="button" onClick={() => setError('')}>Dismiss</button></div>}
