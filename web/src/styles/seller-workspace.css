@@ -1,0 +1,188 @@
+/* Shared typography for every seller-facing workspace. */
+:is(.seller-dashboard, .seller-orders-page, .seller-inventory-page) {
+  --seller-type-page-title: clamp(30px, 3vw, 38px);
+  --seller-type-section-title: 16px;
+  --seller-type-card-title: 12px;
+  --seller-type-body: 11px;
+  --seller-type-label: 10px;
+  --seller-type-meta: 9px;
+  font-family: var(--sans);
+  font-size: var(--seller-type-body);
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+:is(.seller-dashboard, .seller-orders-page, .seller-inventory-page)
+  :is(button, input, select, textarea) {
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+/* Navigation and account controls */
+:is(.seller-dashboard, .seller-orders-page, .seller-inventory-page) .admin-nav a {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+:is(.seller-dashboard, .seller-orders-page, .seller-inventory-page)
+  :is(.admin-date, .admin-identity, .admin-signout, .admin-sidebar-footer) {
+  font-family: inherit;
+}
+
+/* Page heading hierarchy */
+.seller-dashboard .seller-hero-copy h1,
+.seller-orders-page .seller-orders-title h1,
+.seller-inventory-page .inventory-heading h1 {
+  font-size: var(--seller-type-page-title);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -.025em;
+}
+
+.seller-dashboard .seller-hero-copy > p,
+.seller-orders-page .seller-orders-title p {
+  font-size: var(--seller-type-label);
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.seller-dashboard .seller-hero-copy > span,
+.seller-orders-page .seller-orders-title > div > span,
+.seller-inventory-page .inventory-title-copy {
+  margin: 5px 0 0;
+  color: #667568;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+/* Section and card titles */
+.seller-dashboard .seller-panel h2,
+.seller-inventory-page .seller-stock-banner h2,
+.seller-inventory-page .stock-history-section h2 {
+  font-size: var(--seller-type-section-title);
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.seller-dashboard .seller-panel header small,
+.seller-inventory-page .seller-stock-live {
+  font-size: var(--seller-type-meta);
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.seller-dashboard .seller-stock-banner p,
+.seller-inventory-page .seller-stock-banner p,
+.seller-inventory-page .stock-history-section p {
+  font-size: var(--seller-type-label);
+  font-weight: 400;
+}
+
+/* Summary cards */
+.seller-dashboard .seller-stats small,
+.seller-orders-page .seller-order-stats small {
+  font-size: var(--seller-type-body);
+  font-weight: 700;
+}
+
+.seller-dashboard .seller-stats strong,
+.seller-orders-page .seller-order-stats strong {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.seller-dashboard .seller-stats :is(p, strong em),
+.seller-orders-page .seller-order-stats em {
+  font-size: var(--seller-type-meta);
+  font-weight: 500;
+}
+
+/* Dashboard lists and supporting information */
+.seller-dashboard .seller-order-list strong,
+.seller-dashboard .seller-inventory li strong {
+  font-size: var(--seller-type-body);
+  font-weight: 700;
+}
+
+.seller-dashboard .seller-order-list small,
+.seller-dashboard .seller-inventory li small,
+.seller-dashboard .seller-stock-ring small,
+.seller-dashboard :is(.seller-chart-labels, .seller-chart-months) {
+  font-size: var(--seller-type-meta);
+  font-weight: 500;
+}
+
+.seller-dashboard :is(.seller-order-status, .seller-revenue > header > span),
+.seller-orders-page .seller-status,
+.seller-inventory-page :is(.stock-status, .movement-badge) {
+  font-size: var(--seller-type-meta);
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+/* Tables, filters, pagination, and actions */
+.seller-orders-page .seller-order-search input,
+.seller-inventory-page :is(.inventory-search input, .inventory-filter select) {
+  font-size: var(--seller-type-body);
+  font-weight: 500;
+}
+
+.seller-orders-page .seller-order-tabs button,
+.seller-orders-page .seller-row-actions button,
+.seller-orders-page .seller-order-pagination,
+.seller-inventory-page :is(.inventory-actions button, .inventory-pagination button, .inventory-modal footer button) {
+  font-size: var(--seller-type-body);
+  font-weight: 700;
+}
+
+.seller-orders-page .seller-order-table th,
+.seller-inventory-page :is(.inventory-table th, .stock-history-table th) {
+  font-size: var(--seller-type-meta);
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.seller-orders-page .seller-order-table td,
+.seller-inventory-page :is(.inventory-table td, .stock-history-table td) {
+  font-size: var(--seller-type-body);
+  font-weight: 400;
+}
+
+.seller-orders-page .seller-order-table td > strong,
+.seller-inventory-page .inventory-table td > strong {
+  font-size: var(--seller-type-body);
+  font-weight: 700;
+}
+
+.seller-orders-page .seller-order-table td > small,
+.seller-inventory-page .inventory-table td > small {
+  font-size: var(--seller-type-meta);
+  font-weight: 500;
+}
+
+/* Dialogs and forms */
+.seller-orders-page :is(.seller-confirmation-dialog, .seller-order-modal),
+.seller-inventory-page .inventory-modal {
+  font-family: inherit;
+}
+
+.seller-orders-page :is(.seller-confirmation-dialog h2, .seller-order-modal h2),
+.seller-inventory-page .inventory-modal h2 {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.seller-orders-page :is(.seller-confirmation-message, .seller-order-modal-body dd, .seller-modal-items strong, .seller-modal-items b),
+.seller-inventory-page :is(.inventory-modal label, .inventory-modal input, .inventory-modal select, .stock-confirmation-copy) {
+  font-size: var(--seller-type-body);
+}
+
+.seller-orders-page :is(.seller-confirmation-dialog > footer button, .seller-order-modal > footer button),
+.seller-inventory-page .inventory-modal footer button {
+  font-size: var(--seller-type-body);
+  font-weight: 700;
+}
