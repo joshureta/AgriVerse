@@ -6,6 +6,7 @@ import { SellerSidebar, SellerTopbar } from '../../components/SellerNavigation.j
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/inventory-management.css'
+import '../../styles/seller-workspace.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 5
@@ -344,7 +345,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
           <header className="inventory-heading">
             <div className="inventory-title">
               <h1>Inventory Management</h1>
-              <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
+              <p className="inventory-title-copy">
                 Track farm supplies, harvested stock levels, and storage distribution across sectors
               </p>
             </div>
