@@ -78,7 +78,12 @@ async function fetchForecast(latitude, longitude) {
   const url = new URL(FORECAST_URL);
   url.searchParams.set("latitude", latitude);
   url.searchParams.set("longitude", longitude);
-  url.searchParams.set("current", "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m");
+  url.searchParams.set(
+    "current",
+    "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,surface_pressure,precipitation"
+  );
+  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,sunrise,sunset");
+  url.searchParams.set("forecast_days", "1");
   url.searchParams.set("timezone", "Asia/Manila");
 
   const response = await fetch(url);
@@ -87,8 +92,25 @@ async function fetchForecast(latitude, longitude) {
   const current = payload?.current;
   if (!current) throw new Error("Weather provider returned an unexpected response.");
 
-  cacheSet(forecastCache, key, current);
-  return current;
+  const daily = payload?.daily;
+  const result = {
+    ...current,
+    highTemp:
+      daily?.temperature_2m_max?.[0] != null
+        ? Math.round(daily.temperature_2m_max[0])
+        : Math.round(current.temperature_2m + 3),
+    lowTemp:
+      daily?.temperature_2m_min?.[0] != null
+        ? Math.round(daily.temperature_2m_min[0])
+        : Math.round(current.temperature_2m - 4),
+    sunrise: daily?.sunrise?.[0] || null,
+    sunset: daily?.sunset?.[0] || null,
+    precipitation: current.precipitation != null ? Number(current.precipitation) : 0,
+    pressure: current.surface_pressure != null ? Math.round(current.surface_pressure) : 1012,
+  };
+
+  cacheSet(forecastCache, key, result);
+  return result;
 }
 
 function profileLocationQuery(profile) {
@@ -110,8 +132,14 @@ router.get("/current", requireAuth, async (req, res, next) => {
       condition,
       label,
       temp: Math.round(current.temperature_2m),
+      highTemp: current.highTemp,
+      lowTemp: current.lowTemp,
       humidity: Math.round(current.relative_humidity_2m),
       windSpeed: Math.round(current.wind_speed_10m),
+      precipitation: current.precipitation,
+      pressure: current.pressure,
+      sunrise: current.sunrise,
+      sunset: current.sunset,
       locationLabel: place.label || query,
       observedAt: current.time || new Date().toISOString(),
     });

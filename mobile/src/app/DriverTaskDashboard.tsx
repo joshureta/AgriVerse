@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import { ApiWeatherBanner } from '@/components/api-weather-banner';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
@@ -24,7 +25,7 @@ import {
   formatDeliveryRoute,
   isActiveDelivery,
 } from '@/lib/driver-deliveries';
-import { loadWeather, WEATHER_ICONS, type WeatherSnapshot } from '@/lib/weather';
+import { loadWeather, type WeatherSnapshot } from '@/lib/weather';
 
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
@@ -198,30 +199,8 @@ export default function DriverTaskDashboardScreen() {
           {/* Top Greeting */}
           <Text style={styles.greeting}>Good Day, Driver!</Text>
 
-          {/* Logistics Hero Card with Embedded Weather & Status Pill */}
-          <View style={styles.farmHeroWrapper}>
-            <Image
-              source={require('@/assets/images/driver-dashboard-hero.png')}
-              style={styles.heroBackgroundImage}
-              resizeMode="cover"
-            />
-
-            {/* Embedded Floating Weather Card */}
-            <View style={styles.floatingWeatherCard}>
-              <View style={styles.weatherTempRow}>
-                <Text style={styles.weatherSunIcon}>{weather ? WEATHER_ICONS[weather.condition] : '☀️'}</Text>
-                <Text style={styles.weatherTempValue}>{weather ? `${weather.temp}°C` : '28°C'}</Text>
-              </View>
-              <Text ellipsizeMode="tail" numberOfLines={2} style={styles.weatherSubLoc}>
-                {weather ? `${weather.label}, ${weather.locationLabel}` : 'Sunny, Silang Cavite'}
-              </Text>
-            </View>
-
-            {/* Embedded Floating Status Pill */}
-            <View style={styles.floatingStatusPill}>
-              <Text style={styles.floatingStatusText}>Fleet: Ready</Text>
-            </View>
-          </View>
+          {/* API Weather Banner Card */}
+          <ApiWeatherBanner weather={weather} />
 
           {/* 4 Metric Status Cards (Horizontal 1-Row Grid) */}
           <View style={styles.metricsRow}>

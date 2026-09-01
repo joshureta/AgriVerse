@@ -4,14 +4,27 @@ import { apiRequest } from './api';
 
 const WEATHER_CACHE_KEY = 'agriverseWeatherSnapshot';
 
-export type WeatherCondition = 'sunny' | 'cloudy' | 'overcast' | 'foggy' | 'rainy' | 'snowy' | 'stormy';
+export type WeatherCondition =
+  | 'sunny'
+  | 'cloudy'
+  | 'overcast'
+  | 'foggy'
+  | 'rainy'
+  | 'snowy'
+  | 'stormy';
 
 export type WeatherSnapshot = {
   condition: WeatherCondition;
   label: string;
   temp: number;
+  highTemp?: number;
+  lowTemp?: number;
   humidity: number;
+  precipitation?: number;
+  pressure?: number;
   windSpeed: number;
+  sunrise?: string | null;
+  sunset?: string | null;
   locationLabel: string;
   observedAt: string;
 };
@@ -24,6 +37,22 @@ export const WEATHER_ICONS: Record<WeatherCondition, string> = {
   rainy: '🌧️',
   snowy: '❄️',
   stormy: '⛈️',
+};
+
+export const DEFAULT_WEATHER_SNAPSHOT: WeatherSnapshot = {
+  condition: 'sunny',
+  label: 'Sunny',
+  temp: 28,
+  highTemp: 32,
+  lowTemp: 24,
+  humidity: 65,
+  precipitation: 0.0,
+  pressure: 1012,
+  windSpeed: 14,
+  sunrise: null,
+  sunset: null,
+  locationLabel: 'Silang, Cavite',
+  observedAt: new Date().toISOString(),
 };
 
 async function readCachedWeather(): Promise<WeatherSnapshot | null> {
@@ -49,6 +78,8 @@ export async function loadWeather(): Promise<WeatherSnapshot | null> {
     await writeCachedWeather(snapshot);
     return snapshot;
   } catch {
-    return readCachedWeather();
+    const cached = await readCachedWeather();
+    return cached || DEFAULT_WEATHER_SNAPSHOT;
   }
 }
+
