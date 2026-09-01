@@ -3,7 +3,7 @@ import {
   ArrowLeft,
   CalendarDays,
   Check,
-  ClipboardList,
+  ChevronRight,
   MapPin,
   PackageCheck,
   PackageOpen,
@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
-import pineappleDeliveryHistory from '../../assets/buyer/pineapple-delivery-history.png'
 import { buyerCartQuantity, loadBuyerOrders, readBuyerCart } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/deliveryProgress.css'
@@ -152,21 +151,25 @@ export default function DeliveryProgress() {
 
         {!loading && !error && orders.length > 0 && !selectedOrder && (
           <section className="delivery-card order-history is-history-view" aria-labelledby="order-history-title">
-            <h2 id="order-history-title"><ClipboardList aria-hidden="true" /> Order History</h2>
+            <header className="history-heading">
+              <div><h2 id="order-history-title">Order History</h2><p>{orders.length} order{orders.length === 1 ? '' : 's'} placed from this account</p></div>
+              <a className="new-order-button" href="/buyer/order">Place New Order</a>
+            </header>
             <div className="history-list">
+              <div className="history-list-head" aria-hidden="true"><span>Order</span><span>Items</span><span>Total</span><span>Status</span><span /></div>
               {orders.map((order) => (
                 <button className="history-order" type="button" key={order.id} onClick={() => { setSelectedOrderId(order.id); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
-                  <div className="history-product-art"><img src={pineappleDeliveryHistory} alt="" /></div>
                   <div className="history-copy">
-                    <small>Order {order.order_number}</small>
+                    <small>{order.order_number}</small>
                     <time>{formatDate(order.created_at)}</time>
-                    <p><strong>Items:</strong> {orderItemsText(order)}</p>
                   </div>
+                  <p className="history-items">{orderItemsText(order)}</p>
+                  <div className="history-payment"><strong>PHP {Number(order.total_amount || 0).toLocaleString()}</strong><small>{String(order.delivery_method || 'Delivery').replaceAll('_', ' ')}</small></div>
                   <span className={`history-status is-${order.order_status}`}>{statusLabels[order.order_status] || order.order_status}</span>
+                  <span className="history-view-order">View details <ChevronRight aria-hidden="true" /></span>
                 </button>
               ))}
             </div>
-            <a className="new-order-button" href="/buyer/order">Place New Order</a>
           </section>
         )}
 

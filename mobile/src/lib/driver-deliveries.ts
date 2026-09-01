@@ -35,6 +35,15 @@ export function formatDeliveryAddress(order: DriverOrder) {
     .filter(Boolean).join(', ') || 'Delivery address unavailable';
 }
 
+export function formatDeliveryRoute(order: DriverOrder, origin = 'Silang') {
+  const destination =
+    order.delivery_city_municipality ||
+    order.delivery_province ||
+    order.delivery_barangay ||
+    'Tagaytay';
+  return `${origin} -> ${destination}`;
+}
+
 export function formatDeliveryWindow(start: string | null, end: string | null) {
   if (!start || !end) return 'Schedule pending';
   const dateTime = new Intl.DateTimeFormat('en-PH', {

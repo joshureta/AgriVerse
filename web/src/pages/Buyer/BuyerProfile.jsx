@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Check,
-  Mail,
-  MapPin,
   Pencil,
-  Phone,
   ShieldCheck,
-  UserRound,
   X,
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
@@ -34,6 +30,11 @@ function getInitials(name, email) {
   }
   if (email) return email.slice(0, 2).toUpperCase()
   return 'MB'
+}
+
+function memberSince(value) {
+  if (!value) return 'Recently joined'
+  return `Member since ${new Intl.DateTimeFormat('en-PH', { month: 'long', year: 'numeric' }).format(new Date(value))}`
 }
 
 function ProfileField({ label, name, value, onChange, type = 'text', required = false, autoComplete, placeholder }) {
@@ -177,7 +178,7 @@ export default function BuyerProfile() {
       <section className="profile-content" aria-labelledby="profile-title">
         <header className="profile-page-header">
           <h1 id="profile-title">My Profile</h1>
-          <p>Manage your account personal details and delivery preferences.</p>
+          <p>Keep your contact and delivery information up to date.</p>
         </header>
 
         <div className="profile-main-card">
@@ -185,18 +186,19 @@ export default function BuyerProfile() {
             <div className="profile-hero-identity">
               <div className="profile-avatar-initials" aria-hidden="true">
                 <span>{initials}</span>
-                <span className="profile-avatar-badge" title="Verified Account">
-                  <ShieldCheck size={14} aria-hidden="true" />
-                </span>
               </div>
               <div className="profile-hero-text">
                 <h2>{profile?.full_name || 'Buyer User'}</h2>
+                <p>{user?.email || 'No email provided'}</p>
+                <span className="profile-account-status"><ShieldCheck size={14} aria-hidden="true" /> Verified buyer account</span>
+                <small>{memberSince(user?.created_at)}</small>
               </div>
             </div>
 
             {!editing && (
               <button className="profile-edit-btn" type="button" onClick={startEditing} aria-label="Edit Profile" title="Edit Profile">
                 <Pencil size={18} aria-hidden="true" />
+                <span>Edit profile</span>
               </button>
             )}
           </div>
@@ -307,9 +309,14 @@ export default function BuyerProfile() {
               </div>
             </form>
           ) : (
-            <div className="profile-details-grid">
+            <section className="profile-details-section" aria-labelledby="profile-details-title">
+              <header className="profile-details-heading">
+                <span>Account details</span>
+                <h3 id="profile-details-title">Personal information</h3>
+                <p>This information is used for order updates and deliveries.</p>
+              </header>
+              <div className="profile-details-grid">
               <div className="profile-info-tile">
-                <div className="profile-tile-icon"><UserRound size={18} aria-hidden="true" /></div>
                 <div className="profile-tile-content">
                   <span className="profile-tile-label">Full Name</span>
                   <strong className="profile-tile-value">{profile?.full_name || 'Not provided'}</strong>
@@ -317,7 +324,6 @@ export default function BuyerProfile() {
               </div>
 
               <div className="profile-info-tile">
-                <div className="profile-tile-icon"><Mail size={18} aria-hidden="true" /></div>
                 <div className="profile-tile-content">
                   <span className="profile-tile-label">Email Address</span>
                   <div className="profile-tile-value-row">
@@ -328,7 +334,6 @@ export default function BuyerProfile() {
               </div>
 
               <div className="profile-info-tile">
-                <div className="profile-tile-icon"><Phone size={18} aria-hidden="true" /></div>
                 <div className="profile-tile-content">
                   <span className="profile-tile-label">Contact Number</span>
                   <strong className="profile-tile-value">{profile?.mobile_number || 'Not provided'}</strong>
@@ -336,13 +341,13 @@ export default function BuyerProfile() {
               </div>
 
               <div className="profile-info-tile profile-tile-full">
-                <div className="profile-tile-icon"><MapPin size={18} aria-hidden="true" /></div>
                 <div className="profile-tile-content">
                   <span className="profile-tile-label">Default Delivery Address</span>
                   <strong className="profile-tile-value">{address || 'No delivery address provided yet.'}</strong>
                 </div>
               </div>
-            </div>
+              </div>
+            </section>
           )}
         </div>
       </section>

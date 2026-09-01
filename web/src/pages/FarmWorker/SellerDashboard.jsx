@@ -12,6 +12,7 @@ import sellerHero from '../../assets/seller-dashboard-pineapple-crates.png'
 import { useAuth } from '../../hooks/useAuth.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/seller-dashboard.css'
+import '../../styles/seller-workspace.css'
 
 const recentOrders = [
   { customer: 'James Rivera', order: '24 pineapples', status: 'New', tone: 'new' },

@@ -18,6 +18,7 @@ import { SellerSidebar, SellerTopbar } from '../../components/SellerNavigation.j
 import { changeSellerOrderStatus, loadSellerOrders } from '../../services/sellerOrders.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/seller-order-management.css'
+import '../../styles/seller-workspace.css'
 
 const tabs = [
   { key: 'all', label: 'All Orders', statuses: null },
@@ -192,8 +193,7 @@ export default function SellerOrderManagement() {
         <SellerTopbar />
         <div className="seller-orders-content">
           <header className="seller-orders-title">
-            <div className="seller-title-icon"><Box /></div>
-            <div><p>Seller workspace</p><h1>Order Management</h1><span>Receive, confirm, fulfill, and complete buyer orders.</span></div>
+            <div className="seller-orders-title-copy"><h1>Order Management</h1><span>Receive, confirm, fulfill, and complete buyer orders.</span></div>
             <small className={refreshing ? 'is-refreshing' : ''}>{refreshing ? 'Updating...' : 'Auto-refresh on'}</small>
           </header>
 
@@ -205,12 +205,12 @@ export default function SellerOrderManagement() {
           </section>
 
           <section className="seller-orders-table-card">
-            <div className="seller-order-toolbar">
-              <label className="seller-order-search"><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search order, customer, phone, or item" aria-label="Search orders" /></label>
+            <div className="seller-order-tabs" role="tablist">
+              {tabs.filter((tab) => tab.key !== 'all').map((tab) => <button className={activeTab === tab.key ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === tab.key} onClick={() => selectStage(tab.key)} key={tab.key}>{tab.label}</button>)}
             </div>
 
-            <div className="seller-order-tabs" role="tablist">
-              {tabs.map((tab) => <button className={activeTab === tab.key ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === tab.key} onClick={() => selectStage(tab.key)} key={tab.key}>{tab.label}</button>)}
+            <div className="seller-order-toolbar">
+              <label className="seller-order-search"><Search /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search orders" aria-label="Search orders" /></label>
             </div>
 
             {error && <div className="seller-order-error" role="alert">{error}<button type="button" onClick={() => setError('')}>Dismiss</button></div>}
@@ -250,15 +250,40 @@ export default function SellerOrderManagement() {
 
       {selected && <div className="seller-order-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null) }}>
         <section className="seller-order-modal" role="dialog" aria-modal="true" aria-labelledby="seller-order-dialog-title">
-          <header><div><small>{selected.order_number}</small><h2 id="seller-order-dialog-title">Order Details</h2><span className={`seller-status is-${selected.order_status}`}>{statusLabels[selected.order_status]}</span></div><button type="button" onClick={() => setSelected(null)} aria-label="Close order details"><X /></button></header>
+          <header>
+            <div className="seller-order-modal-heading">
+              <small>Order · {selected.order_number}</small>
+              <div><h2 id="seller-order-dialog-title">Order Details</h2><span className={`seller-status is-${selected.order_status}`}>{statusLabels[selected.order_status]}</span></div>
+              <p>Placed {dateTime(selected.created_at)}</p>
+            </div>
+            <button type="button" onClick={() => setSelected(null)} aria-label="Close order details"><X /></button>
+          </header>
           <div className="seller-order-modal-body">
-            <section><h3>Customer &amp; Delivery</h3><dl><div><dt>Customer</dt><dd>{selected.delivery_full_name}</dd></div><div><dt>Mobile</dt><dd>{selected.delivery_mobile_number || 'Not provided'}</dd></div><div><dt>Method</dt><dd>{selected.delivery_method}</dd></div><div><dt>Address</dt><dd>{[selected.delivery_barangay, selected.delivery_city_municipality, selected.delivery_province, selected.delivery_region, selected.delivery_country].filter(Boolean).join(', ') || 'Farm pickup'}</dd></div></dl></section>
-            <section><h3>Payment Summary</h3><dl><div><dt>Method</dt><dd>{selected.payment_method}</dd></div><div><dt>Status</dt><dd>{selected.payment_status}</dd></div><div><dt>Subtotal</dt><dd>{money(selected.subtotal)}</dd></div><div><dt>Shipping</dt><dd>{money(selected.shipping_fee)}</dd></div><div><dt>Total</dt><dd><strong>{money(selected.total_amount)}</strong></dd></div></dl></section>
-            <section className="seller-modal-items"><h3>Ordered Items</h3>{selected.items.map((item) => <article key={item.id}><div><strong>{item.product_name}</strong><small>{item.weight_label} · {item.quantity} pieces at {money(item.unit_price)}</small></div><b>{money(item.line_total)}</b></article>)}</section>
-            <section><h3>Customer Note</h3><p>{selected.customer_note || 'No additional instructions were provided.'}</p></section>
-            <section className="seller-status-history"><h3>Status Timeline</h3><ol><li><span /><div><strong>Order Placed</strong><small>{dateTime(selected.created_at)}</small></div></li>{[...(selected.history || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).map((entry) => <li key={entry.id}><span /><div><strong>{statusLabels[entry.new_status]}</strong><small>{dateTime(entry.created_at)}</small>{entry.note && <em>{entry.note}</em>}</div></li>)}</ol></section>
+            <div className="seller-order-receipt">
+              <div className="seller-receipt-heading"><span>Order receipt</span><strong>{selected.order_number}</strong><small>{dateTime(selected.created_at)}</small></div>
+              <section>
+                <div className="seller-modal-section-title"><div><h3>Customer &amp; Delivery</h3><small>Recipient and fulfillment details</small></div></div>
+                <dl><div><dt>Customer</dt><dd>{selected.delivery_full_name}</dd></div><div><dt>Mobile</dt><dd>{selected.delivery_mobile_number || 'Not provided'}</dd></div><div><dt>Method</dt><dd>{selected.delivery_method}</dd></div><div className="seller-modal-address"><dt>Address</dt><dd>{[selected.delivery_barangay, selected.delivery_city_municipality, selected.delivery_province, selected.delivery_region, selected.delivery_country].filter(Boolean).join(', ') || 'Farm pickup'}</dd></div></dl>
+              </section>
+              <section className="seller-modal-items">
+                <div className="seller-modal-section-title"><div><h3>Ordered Items</h3><small>{selected.items.length} item{selected.items.length === 1 ? '' : 's'} in this order</small></div></div>
+                {selected.items.map((item) => <article key={item.id}><span className="seller-item-quantity">{item.quantity}×</span><div><strong>{item.product_name}</strong><small>{item.weight_label} · {money(item.unit_price)} each</small></div><b>{money(item.line_total)}</b></article>)}
+              </section>
+              <section className="seller-payment-summary">
+                <div className="seller-modal-section-title"><div><h3>Payment Summary</h3><small>Charges and payment status</small></div></div>
+                <dl><div><dt>Method</dt><dd>{selected.payment_method?.replaceAll('_', ' ')}</dd></div><div><dt>Status</dt><dd><span className={`seller-payment-status is-${selected.payment_status}`}>{selected.payment_status}</span></dd></div><div><dt>Subtotal</dt><dd>{money(selected.subtotal)}</dd></div><div><dt>Shipping</dt><dd>{money(selected.shipping_fee)}</dd></div><div className="seller-payment-total"><dt>Total</dt><dd>{money(selected.total_amount)}</dd></div></dl>
+              </section>
+              <section className="seller-customer-note">
+                <div className="seller-modal-section-title"><div><h3>Customer Note</h3><small>Special instructions from the buyer</small></div></div>
+                <p>{selected.customer_note || 'No additional instructions were provided.'}</p>
+              </section>
+              <section className="seller-status-history">
+                <div className="seller-modal-section-title"><div><h3>Status Timeline</h3><small>Order activity and updates</small></div></div>
+                <ol><li><span /><div><strong>Order Placed</strong><small>{dateTime(selected.created_at)}</small></div></li>{[...(selected.history || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).map((entry) => <li key={entry.id}><span /><div><strong>{statusLabels[entry.new_status]}</strong><small>{dateTime(entry.created_at)}</small>{entry.note && <em>{entry.note}</em>}</div></li>)}</ol>
+              </section>
+            </div>
           </div>
-          {(nextActions[selected.order_status] || []).length > 0 && <footer>{(nextActions[selected.order_status] || []).map((action) => <button className={action.danger ? 'is-danger' : 'is-primary'} type="button" disabled={updating} onClick={() => requestOrderAction(selected, action)} key={action.status}>{actionIcon(action.status)} {action.label}</button>)}</footer>}
+          {(nextActions[selected.order_status] || []).length > 0 && <footer>{[...(nextActions[selected.order_status] || [])].sort((first, second) => Number(second.danger) - Number(first.danger)).map((action) => <button className={action.danger ? 'is-danger' : 'is-primary'} type="button" disabled={updating} onClick={() => requestOrderAction(selected, action)} key={action.status}>{actionIcon(action.status)} {action.label}</button>)}</footer>}
         </section>
       </div>}
 
