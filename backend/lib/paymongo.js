@@ -26,4 +26,19 @@ async function paymongoRequest(path, body) {
   return payload;
 }
 
-module.exports = { paymongoRequest };
+async function paymongoGet(path) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "GET",
+    headers: { Authorization: authHeader() },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = payload?.errors?.[0]?.detail || "PayMongo request failed";
+    const error = new Error(message);
+    error.status = response.status >= 400 && response.status < 500 ? 400 : 502;
+    throw error;
+  }
+  return payload;
+}
+
+module.exports = { paymongoRequest, paymongoGet };

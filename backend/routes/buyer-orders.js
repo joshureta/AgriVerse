@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { paymongoGet } = require("../lib/paymongo");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("buyer"));
@@ -10,8 +11,40 @@ const orderSelect = [
   "subtotal, shipping_fee, total_amount, customer_note",
   "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
   "estimated_delivery_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
+  "paymongo_payment_intent_id",
   "items:buyer_order_items(id, pineapple_size_id, product_name, weight_label, quantity, unit_price, line_total)",
 ].join(",");
+
+// Webhooks are the primary way payment_status gets updated, but they can't reach a
+// backend that PayMongo can't route to (e.g. local dev without a public tunnel) and
+// can occasionally be missed in production. As a fallback, whenever a buyer looks up
+// a still-pending GCash order we also ask PayMongo directly and reconcile.
+async function reconcileGcashPaymentStatus(order) {
+  if (order.payment_method !== "gcash" || order.payment_status !== "pending" || !order.paymongo_payment_intent_id) {
+    return order;
+  }
+  try {
+    const intent = await paymongoGet(`/payment_intents/${order.paymongo_payment_intent_id}`);
+    const attributes = intent?.data?.attributes;
+    const nextStatus = attributes?.status === "succeeded"
+      ? "paid"
+      : attributes?.status === "awaiting_payment_method" && attributes?.last_payment_error
+        ? "failed"
+        : null;
+    if (!nextStatus) return order;
+
+    const { data: updated, error } = await getSupabase()
+      .from("buyer_orders")
+      .update({ payment_status: nextStatus })
+      .eq("id", order.id)
+      .eq("payment_status", "pending")
+      .select(orderSelect)
+      .single();
+    return error ? order : updated;
+  } catch {
+    return order;
+  }
+}
 
 function httpError(status, message) {
   const error = new Error(message);
@@ -20,8 +53,9 @@ function httpError(status, message) {
 }
 
 function serializeOrder(order) {
+  const { paymongo_payment_intent_id, ...rest } = order;
   return {
-    ...order,
+    ...rest,
     subtotal: Number(order.subtotal),
     shipping_fee: Number(order.shipping_fee),
     total_amount: Number(order.total_amount),
@@ -169,7 +203,8 @@ router.get("/:id", async (req, res, next) => {
       .single();
     if (error?.code === "PGRST116") throw httpError(404, "Order not found");
     if (error) throw error;
-    return res.json({ order: serializeOrder(data) });
+    const reconciledOrder = await reconcileGcashPaymentStatus(data);
+    return res.json({ order: serializeOrder(reconciledOrder) });
   } catch (error) {
     return next(error);
   }

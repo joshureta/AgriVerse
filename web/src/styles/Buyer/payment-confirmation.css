@@ -1,0 +1,269 @@
+.payment-confirmation-page {
+  background: #fbfcf4;
+}
+
+.payment-confirmation-shell {
+  min-height: calc(100vh - 420px);
+  width: min(calc(100% - 32px), 640px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  padding: 56px 0;
+}
+
+.payment-confirmation-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #edf0e5;
+  border-radius: 24px;
+  padding: 52px 40px 44px;
+  background: #fff;
+  box-shadow: 0 12px 25px rgba(68, 83, 57, 0.09);
+  text-align: center;
+  animation: payment-confirmation-in 260ms ease-out;
+}
+
+.payment-confetti {
+  position: fixed;
+  z-index: 5;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.payment-confetti i {
+  position: absolute;
+  top: -24px;
+  left: var(--x);
+  width: 9px;
+  height: 15px;
+  border-radius: 2px;
+  background: hsl(var(--hue), 68%, 48%);
+  animation: payment-confetti-fall 1800ms cubic-bezier(.16,.72,.36,1) var(--delay) both;
+  transform: rotate(var(--rotation));
+}
+
+.payment-confirmation-icon {
+  width: 84px;
+  height: 84px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 6px;
+  border-radius: 50%;
+}
+
+.payment-confirmation-icon svg {
+  width: 46px;
+  height: 46px;
+  stroke-width: 2.2;
+}
+
+.payment-confirmation-icon.is-success {
+  color: #fff;
+  background: linear-gradient(180deg, #4ba440, #2d8233);
+  box-shadow: 0 10px 26px rgba(45, 130, 51, 0.28);
+  animation: payment-confirmation-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.payment-confirmation-icon.is-failed {
+  color: #fff;
+  background: #c63b3b;
+  box-shadow: 0 10px 26px rgba(198, 59, 59, 0.24);
+}
+
+.payment-confirmation-icon.is-pending {
+  color: #2f833f;
+  background: #eef6ea;
+}
+
+.payment-confirmation-icon .is-spinning {
+  animation: payment-confirmation-spin 900ms linear infinite;
+}
+
+.payment-confirmation-card h1 {
+  margin: 0;
+  color: #12351b;
+  font-size: clamp(22px, 2.6vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.payment-confirmation-card > p {
+  max-width: 440px;
+  margin: 0;
+  color: #4e5b50;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.payment-confirmation-card > p b {
+  color: #216934;
+}
+
+.payment-confirmation-summary {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 4px;
+  border: 1px dashed #cad9c5;
+  border-radius: 14px;
+  padding: 18px 22px;
+  background: #fbfdf9;
+}
+
+.payment-confirmation-summary div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.payment-confirmation-summary dt {
+  color: #657168;
+  font-size: 12px;
+}
+
+.payment-confirmation-summary dd {
+  margin: 0;
+  color: #12351b;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.payment-confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.payment-confirmation-actions .is-primary,
+.payment-confirmation-actions .is-secondary {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 0 24px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.payment-confirmation-actions .is-primary {
+  border: 0;
+  color: #fff;
+  background: linear-gradient(180deg, #4ba440, #2d8233);
+  box-shadow: 0 8px 17px rgba(40, 111, 50, 0.18);
+}
+
+.payment-confirmation-actions .is-primary:hover,
+.payment-confirmation-actions .is-primary:focus-visible {
+  outline: 3px solid rgba(50, 133, 68, 0.2);
+  background: linear-gradient(180deg, #55af49, #26762d);
+}
+
+.payment-confirmation-actions .is-primary:disabled {
+  outline: none;
+  color: rgba(255, 255, 255, 0.8);
+  background: #8ca88e;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.payment-confirmation-actions .is-secondary {
+  border: 1px solid #bfcabc;
+  color: #2f4632;
+  background: #fff;
+}
+
+.payment-confirmation-actions .is-secondary:hover,
+.payment-confirmation-actions .is-secondary:focus-visible {
+  outline: 3px solid rgba(47, 135, 63, 0.12);
+  background: #f4f8f2;
+}
+
+.payment-confirmation-stall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  border-top: 1px dashed #d8e2d3;
+  padding-top: 16px;
+}
+
+.payment-confirmation-stall p {
+  margin: 0;
+  color: #657168;
+  font-size: 12px;
+}
+
+.payment-confirmation-stall button {
+  min-height: 40px;
+  border: 1px solid #91bd8c;
+  border-radius: 8px;
+  padding: 0 18px;
+  color: #26763a;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.payment-confirmation-stall button:hover,
+.payment-confirmation-stall button:focus-visible {
+  outline: 3px solid rgba(47, 135, 63, 0.13);
+  background: #eef7eb;
+}
+
+.payment-confirmation-error {
+  color: #a42626;
+  font-size: 12px;
+}
+
+@keyframes payment-confirmation-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes payment-confirmation-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes payment-confirmation-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes payment-confetti-fall {
+  from { opacity: 0; transform: translate3d(0, -20px, 0) rotate(0deg); }
+  10% { opacity: 1; }
+  to { opacity: 0; transform: translate3d(var(--drift), 108vh, 0) rotate(540deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .payment-confetti { display: none; }
+}
+
+@media (max-width: 600px) {
+  .payment-confirmation-card {
+    padding: 40px 24px 34px;
+  }
+
+  .payment-confirmation-actions .is-primary,
+  .payment-confirmation-actions .is-secondary {
+    width: 100%;
+  }
+}

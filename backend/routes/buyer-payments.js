@@ -34,7 +34,7 @@ router.post("/:orderId/gcash-checkout", async (req, res, next) => {
 
     const amount = Math.round(Number(order.total_amount) * 100);
     const webAppUrl = (process.env.WEB_APP_URL || "http://localhost:5173").replace(/\/$/, "");
-    const returnUrl = `${webAppUrl}/buyer/checkout?order=${order.id}&payment=return`;
+    const returnUrl = `${webAppUrl}/buyer/payment-confirmation?order=${order.id}`;
 
     const methodResponse = await paymongoRequest("/payment_methods", {
       data: {
