@@ -39,20 +39,28 @@ export default function BuyerMessages() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
+  const [hasUnreadLatestReply, setHasUnreadLatestReply] = useState(false)
   const historyRef = useRef(null)
   const shouldScrollToLatestRef = useRef(true)
+  const isNearLatestRef = useRef(true)
+  const lastMessageIdRef = useRef(null)
 
   function updateJumpToLatest() {
     const history = historyRef.current
     if (!history) return
-    setShowJumpToLatest(history.scrollHeight - history.scrollTop - history.clientHeight > 48)
+    const isNearLatest = history.scrollHeight - history.scrollTop - history.clientHeight <= 72
+    isNearLatestRef.current = isNearLatest
+    setShowJumpToLatest(!isNearLatest)
+    if (isNearLatest) setHasUnreadLatestReply(false)
   }
 
   function scrollToLatest(behavior = 'smooth') {
     const history = historyRef.current
     if (!history) return
+    isNearLatestRef.current = true
     history.scrollTo({ top: history.scrollHeight, behavior })
     setShowJumpToLatest(false)
+    setHasUnreadLatestReply(false)
   }
 
   const fetchMessages = useCallback(async (isBackground = false) => {
@@ -81,12 +89,24 @@ export default function BuyerMessages() {
   }, [fetchMessages])
 
   useEffect(() => {
-    if (shouldScrollToLatestRef.current) {
+    const latestMessage = messages.at(-1)
+    const latestMessageId = latestMessage?.id ?? null
+    const receivedNewMessage =
+      lastMessageIdRef.current !== null && lastMessageIdRef.current !== latestMessageId
+
+    if (
+      shouldScrollToLatestRef.current ||
+      lastMessageIdRef.current === null ||
+      isNearLatestRef.current
+    ) {
       scrollToLatest('auto')
-      shouldScrollToLatestRef.current = false
-    } else {
-      updateJumpToLatest()
+    } else if (receivedNewMessage && latestMessage?.sender_role !== 'buyer') {
+      setShowJumpToLatest(true)
+      setHasUnreadLatestReply(true)
     }
+
+    shouldScrollToLatestRef.current = false
+    lastMessageIdRef.current = latestMessageId
   }, [messages])
 
   async function handleSend(textToSend) {
@@ -249,6 +269,9 @@ export default function BuyerMessages() {
               >
                 <ChevronDown size={18} aria-hidden="true" />
                 <span>Latest</span>
+                {hasUnreadLatestReply && (
+                  <span className="buyer-latest-unread-dot" aria-label="New admin reply" />
+                )}
               </button>
             )}
 
