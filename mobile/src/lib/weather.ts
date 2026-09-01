@@ -13,6 +13,16 @@ export type WeatherCondition =
   | 'snowy'
   | 'stormy';
 
+export type DailyForecastItem = {
+  date: string;
+  day: string;
+  condition: WeatherCondition;
+  label: string;
+  lowTemp: number;
+  highTemp: number;
+  rainChance?: number;
+};
+
 export type WeatherSnapshot = {
   condition: WeatherCondition;
   label: string;
@@ -25,6 +35,7 @@ export type WeatherSnapshot = {
   windSpeed: number;
   sunrise?: string | null;
   sunset?: string | null;
+  dailyForecast?: DailyForecastItem[];
   locationLabel: string;
   observedAt: string;
 };
@@ -51,6 +62,13 @@ export const DEFAULT_WEATHER_SNAPSHOT: WeatherSnapshot = {
   windSpeed: 14,
   sunrise: null,
   sunset: null,
+  dailyForecast: [
+    { date: '2026-09-01', day: 'Today', condition: 'sunny', label: 'Sunny', lowTemp: 24, highTemp: 32, rainChance: 0 },
+    { date: '2026-09-02', day: 'Tomorrow', condition: 'cloudy', label: 'Partly Cloudy', lowTemp: 24, highTemp: 31, rainChance: 20 },
+    { date: '2026-09-03', day: 'Thu', condition: 'sunny', label: 'Sunny', lowTemp: 25, highTemp: 33, rainChance: 0 },
+    { date: '2026-09-04', day: 'Fri', condition: 'cloudy', label: 'Partly Cloudy', lowTemp: 24, highTemp: 32, rainChance: 10 },
+    { date: '2026-09-05', day: 'Sat', condition: 'sunny', label: 'Sunny', lowTemp: 25, highTemp: 34, rainChance: 0 },
+  ],
   locationLabel: 'Silang, Cavite',
   observedAt: new Date().toISOString(),
 };

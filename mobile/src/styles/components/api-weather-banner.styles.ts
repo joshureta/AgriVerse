@@ -1,4 +1,4 @@
-﻿import { StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 export const GREEN = '#176D34';
 export const DARK_GREEN = '#143A1E';
@@ -6,46 +6,55 @@ export const DARK_GREEN = '#143A1E';
 export const styles = StyleSheet.create({
   card: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
     borderRadius: 24,
+    marginBottom: 16,
+    borderWidth: 1,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  backgroundImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  cardInner: {
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#EAEFE8',
-    elevation: 3,
-    shadowColor: GREEN,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   locationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F1F6F0',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 16,
   },
-  locationPin: {
-    fontSize: 12,
-  },
   locationText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
-    color: DARK_GREEN,
     letterSpacing: -0.2,
   },
-  weatherArtText: {
-    fontSize: 34,
+  weatherArtWrapper: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tempRow: {
     flexDirection: 'row',
@@ -56,21 +65,19 @@ export const styles = StyleSheet.create({
   mainTempText: {
     fontSize: 38,
     fontWeight: '900',
-    color: '#0F2D18',
     letterSpacing: -1,
     lineHeight: 44,
   },
   hlStack: {
     justifyContent: 'center',
-    gap: 2,
+    gap: 1,
   },
   hlLabel: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#64748B',
+    opacity: 0.85,
   },
   hlValue: {
-    color: '#1E293B',
     fontWeight: '800',
   },
   conditionPill: {
@@ -79,96 +86,95 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
-    backgroundColor: '#DCFCE7',
   },
   conditionPillText: {
     fontSize: 11.5,
     fontWeight: '800',
-    color: '#15803D',
   },
   divider: {
     height: 1,
-    backgroundColor: '#EEF2EC',
-    marginVertical: 12,
+    marginVertical: 10,
   },
-  metricsGrid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginBottom: 12,
-  },
-  metricCol: {
-    alignItems: 'center',
-    gap: 3,
-    minWidth: 55,
-  },
-  metricLabel: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#64748B',
-    textTransform: 'capitalize',
-  },
-  metricValue: {
-    fontSize: 13.5,
-    fontWeight: '900',
-    color: '#0F2D18',
-  },
-  solarArcSection: {
-    backgroundColor: '#F8FAF7',
+
+  // 5-Day Forecast Container
+  forecastSection: {
     borderRadius: 16,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingTop: 10,
-    paddingBottom: 6,
+    paddingBottom: 4,
+    borderWidth: 1,
   },
-  solarHeaderRow: {
+  forecastHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginBottom: 6,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+  },
+  forecastTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  forecastTitleText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  forecastScrollList: {
+    maxHeight: 145,
+  },
+  forecastScrollContent: {
+    paddingRight: 2,
+  },
+  forecastRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 7,
+    borderBottomWidth: 1,
   },
-  solarTimeBadge: {
+  dayCol: {
+    width: 68,
+    fontWeight: '800',
     fontSize: 12,
-    fontWeight: '900',
-    color: '#0F2D18',
   },
-  solarSublabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  arcTrackWrap: {
-    width: '100%',
-    height: 38,
-    marginTop: 4,
-    position: 'relative',
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-  },
-  arcCurve: {
-    width: '100%',
-    height: 60,
-    borderTopLeftRadius: 160,
-    borderTopRightRadius: 160,
-    borderWidth: 2,
-    borderBottomWidth: 0,
-    borderColor: '#CBD5E1',
-    borderStyle: 'dashed',
-  },
-  sunPointerDot: {
-    position: 'absolute',
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#FBBF24',
+  iconCol: {
+    width: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
+    gap: 1,
   },
-  sunIcon: {
+  rainChanceText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  tempLow: {
+    width: 26,
+    textAlign: 'right',
+    fontWeight: '700',
+    fontSize: 12,
+    opacity: 0.85,
+  },
+  tempBarWrap: {
+    flex: 1,
+    height: 5,
+    borderRadius: 4,
+    marginHorizontal: 10,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  tempBarFill: {
+    position: 'absolute',
+    height: '100%',
+    borderRadius: 4,
+  },
+  tempHigh: {
+    width: 26,
+    textAlign: 'left',
+    fontWeight: '900',
     fontSize: 12,
   },
 });

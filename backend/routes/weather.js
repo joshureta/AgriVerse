@@ -82,8 +82,11 @@ async function fetchForecast(latitude, longitude) {
     "current",
     "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,surface_pressure,precipitation"
   );
-  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,sunrise,sunset");
-  url.searchParams.set("forecast_days", "1");
+  url.searchParams.set(
+    "daily",
+    "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset"
+  );
+  url.searchParams.set("forecast_days", "5");
   url.searchParams.set("timezone", "Asia/Manila");
 
   const response = await fetch(url);
@@ -93,6 +96,32 @@ async function fetchForecast(latitude, longitude) {
   if (!current) throw new Error("Weather provider returned an unexpected response.");
 
   const daily = payload?.daily;
+  const times = daily?.time || [];
+  const dailyForecast = times.map((timeStr, idx) => {
+    const code = daily?.weather_code?.[idx] ?? 0;
+    const { condition, label } = classifyWeatherCode(code);
+    const dateObj = new Date(timeStr);
+    let dayLabel = "Today";
+    if (idx === 1) {
+      dayLabel = "Tomorrow";
+    } else if (idx > 1) {
+      dayLabel = dateObj.toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric" });
+    }
+
+    return {
+      date: timeStr,
+      day: dayLabel,
+      condition,
+      label,
+      lowTemp: daily?.temperature_2m_min?.[idx] != null ? Math.round(daily.temperature_2m_min[idx]) : 24,
+      highTemp: daily?.temperature_2m_max?.[idx] != null ? Math.round(daily.temperature_2m_max[idx]) : 32,
+      rainChance:
+        daily?.precipitation_probability_max?.[idx] != null
+          ? Math.round(daily.precipitation_probability_max[idx])
+          : 0,
+    };
+  });
+
   const result = {
     ...current,
     highTemp:
@@ -107,6 +136,7 @@ async function fetchForecast(latitude, longitude) {
     sunset: daily?.sunset?.[0] || null,
     precipitation: current.precipitation != null ? Number(current.precipitation) : 0,
     pressure: current.surface_pressure != null ? Math.round(current.surface_pressure) : 1012,
+    dailyForecast,
   };
 
   cacheSet(forecastCache, key, result);
@@ -140,6 +170,7 @@ router.get("/current", requireAuth, async (req, res, next) => {
       pressure: current.pressure,
       sunrise: current.sunrise,
       sunset: current.sunset,
+      dailyForecast: current.dailyForecast || [],
       locationLabel: place.label || query,
       observedAt: current.time || new Date().toISOString(),
     });
