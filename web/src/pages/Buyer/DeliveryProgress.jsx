@@ -8,6 +8,7 @@ import {
   PackageCheck,
   PackageOpen,
   ReceiptText,
+  Search,
   Store,
   Truck,
 } from 'lucide-react'
@@ -43,6 +44,35 @@ const statusLabels = {
   delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
+}
+
+const ORDER_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'to_pay', label: 'To Pay' },
+  { id: 'preparing', label: 'Preparing' },
+  { id: 'to_receive', label: 'To Receive' },
+  { id: 'completed', label: 'Completed' },
+  { id: 'cancelled', label: 'Cancelled' },
+  { id: 'returns', label: 'Returns & Refunds' },
+]
+
+function matchesOrderFilter(order, filter) {
+  if (filter === 'all') return true
+  if (filter === 'to_pay') {
+    return order.payment_method === 'gcash' && order.order_status !== 'cancelled' && ['unpaid', 'pending', 'failed'].includes(order.payment_status)
+  }
+  if (filter === 'preparing') {
+    return ['confirmed', 'preparing', 'ready_for_delivery'].includes(order.order_status)
+  }
+  if (filter === 'to_receive') {
+    return ['out_for_delivery', 'delivered'].includes(order.order_status)
+  }
+  if (filter === 'completed') return order.order_status === 'completed'
+  if (filter === 'cancelled') return order.order_status === 'cancelled'
+  if (filter === 'returns') {
+    return order.payment_status === 'refunded' || Boolean(order.delivery_dispute_status)
+  }
+  return true
 }
 
 function formatDate(value, includeTime = false) {
@@ -103,6 +133,8 @@ export default function DeliveryProgress() {
   }, [])
   const [orders, setOrders] = useState([])
   const [selectedOrderId, setSelectedOrderId] = useState(null)
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [confirming, setConfirming] = useState(false)
@@ -151,6 +183,22 @@ export default function DeliveryProgress() {
     () => orders.find((order) => order.id === selectedOrderId) || null,
     [orders, selectedOrderId],
   )
+
+  const filteredOrders = useMemo(
+    () => orders.filter((order) => matchesOrderFilter(order, activeFilter)),
+    [activeFilter, orders],
+  )
+
+  const visibleOrders = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return filteredOrders
+    return filteredOrders.filter((order) => [
+      order.order_number,
+      orderItemsText(order),
+      statusLabels[order.order_status] || order.order_status,
+      order.delivery_method,
+    ].some((value) => String(value || '').toLowerCase().includes(query)))
+  }, [filteredOrders, searchQuery])
 
   useEffect(() => {
     setDisputeFormOpen(false)
@@ -205,6 +253,25 @@ export default function DeliveryProgress() {
           </div>
         </header>
 
+        {!selectedOrder && (
+          <>
+            <nav className="buyer-order-tabs" aria-label="Filter orders by status">
+              {ORDER_FILTERS.map((filter) => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  className={activeFilter === filter.id ? 'is-active' : ''}
+                  aria-pressed={activeFilter === filter.id}
+                  onClick={() => setActiveFilter(filter.id)}
+                >
+                  <span>{filter.label}</span>
+                </button>
+              ))}
+            </nav>
+
+          </>
+        )}
+
         {error && <div className="delivery-message is-error" role="alert"><span>{error}</span><button type="button" onClick={fetchOrders}>Try again</button></div>}
         {loading && <div className="delivery-message" role="status">Loading your orders…</div>}
         {!loading && !error && orders.length === 0 && <section className="delivery-card delivery-empty">
@@ -214,15 +281,40 @@ export default function DeliveryProgress() {
           <a href="/buyer/order">Place Your First Order</a>
         </section>}
 
-        {!loading && !error && orders.length > 0 && !selectedOrder && (
+        {!loading && !error && orders.length > 0 && filteredOrders.length === 0 && !selectedOrder && (
+          <section className="delivery-card delivery-empty delivery-filter-empty">
+            <PackageOpen aria-hidden="true" />
+            <h2>No orders in this category</h2>
+            <p>Orders matching this status will appear here.</p>
+            <button type="button" onClick={() => setActiveFilter('all')}>View All Orders</button>
+          </section>
+        )}
+
+        {!loading && !error && filteredOrders.length > 0 && !selectedOrder && (
           <section className="delivery-card order-history is-history-view" aria-labelledby="order-history-title">
             <header className="history-heading">
-              <div><h2 id="order-history-title">Order History</h2><p>{orders.length} order{orders.length === 1 ? '' : 's'} placed from this account</p></div>
-              <a className="new-order-button" href="/buyer/order">Place New Order</a>
+              <div><h2 id="order-history-title">{activeFilter === 'all' ? 'Order History' : ORDER_FILTERS.find((filter) => filter.id === activeFilter)?.label}</h2><p>{visibleOrders.length} order{visibleOrders.length === 1 ? '' : 's'} in this view</p></div>
+              <label className="order-history-search">
+                <span className="sr-only">Search your orders</span>
+                <Search aria-hidden="true" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search order number or item"
+                />
+              </label>
             </header>
             <div className="history-list">
               <div className="history-list-head" aria-hidden="true"><span>Order</span><span>Items</span><span>Total</span><span>Status</span><span /></div>
-              {orders.map((order) => (
+              {visibleOrders.length === 0 && (
+                <div className="history-search-empty">
+                  <Search aria-hidden="true" />
+                  <p>No orders match “{searchQuery.trim()}”.</p>
+                  <button type="button" onClick={() => setSearchQuery('')}>Clear Search</button>
+                </div>
+              )}
+              {visibleOrders.map((order) => (
                 <button className="history-order" type="button" key={order.id} onClick={() => { setSelectedOrderId(order.id); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
                   <div className="history-copy">
                     <small>{order.order_number}</small>
