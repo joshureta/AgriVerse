@@ -283,7 +283,9 @@
   box-shadow: 0 0 0 5px rgba(51, 139, 63, .14);
 }
 
+.delivery-milestone.is-complete strong,
 .delivery-milestone.is-current strong { color: #176b32; }
+.delivery-milestone.is-complete time,
 .delivery-milestone.is-current time { color: #397744; }
 
 .milestone-line {

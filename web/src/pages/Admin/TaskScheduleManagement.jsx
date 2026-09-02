@@ -330,7 +330,9 @@ export default function TaskScheduleManagement() {
     }
   }, [])
 
-  useEffect(() => { loadDisputeOrders() }, [loadDisputeOrders, refreshKey])
+  useEffect(() => {
+    if (workView === 'disputes') loadDisputeOrders()
+  }, [loadDisputeOrders, refreshKey, workView])
 
   async function resolveDispute(resolution) {
     setSaving(true)
