@@ -488,6 +488,57 @@
   justify-content: flex-end;
 }
 
+.buyer-typing-row {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+}
+
+.buyer-typing-row .buyer-message-avatar {
+  margin-bottom: 0;
+}
+
+.buyer-typing-row small {
+  color: #7b887e;
+  font-size: 10.5px;
+  font-style: italic;
+}
+
+.chat-typing-indicator {
+  min-width: 50px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  border-radius: 17px 17px 17px 4px;
+  padding: 0 12px;
+  background: #f1f5f0;
+}
+
+.chat-typing-indicator > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6f8e74;
+  animation: chat-typing-bounce 1.2s ease-in-out infinite;
+}
+
+.chat-typing-indicator > span:nth-child(2) { animation-delay: 150ms; }
+.chat-typing-indicator > span:nth-child(3) { animation-delay: 300ms; }
+
+@keyframes chat-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: .55; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-typing-indicator > span { animation: none; }
+}
+
 /* Error Banner */
 .buyer-chat-error-banner {
   display: flex;

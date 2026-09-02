@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CheckCheck, ChevronDown, Clock, Send, Sparkles, Sprout } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
-import { loadBuyerMessages, sendBuyerMessage } from '../../services/buyerMessages.js'
+import { loadBuyerMessages, sendBuyerMessage, setBuyerTyping } from '../../services/buyerMessages.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/messages.css'
 
@@ -39,6 +39,7 @@ export default function BuyerMessages() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [supportOnline, setSupportOnline] = useState(false)
+  const [supportTyping, setSupportTyping] = useState(false)
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const [hasUnreadLatestReply, setHasUnreadLatestReply] = useState(false)
   const historyRef = useRef(null)
@@ -69,6 +70,7 @@ export default function BuyerMessages() {
       const { messages: loaded, presence } = await loadBuyerMessages()
       setMessages(loaded)
       setSupportOnline(Boolean(presence?.online))
+      setSupportTyping(Boolean(presence?.is_typing))
       setError('')
     } catch (err) {
       if (!isBackground) setError(err.message)
@@ -82,10 +84,10 @@ export default function BuyerMessages() {
   useEffect(() => {
     fetchMessages()
 
-    // Periodically poll for new replies every 7 seconds
+    // Poll frequently enough for typing indicators while also receiving new replies.
     const interval = setInterval(() => {
       fetchMessages(true)
-    }, 7000)
+    }, 3000)
 
     return () => clearInterval(interval)
   }, [fetchMessages])
@@ -140,6 +142,22 @@ export default function BuyerMessages() {
       handleSend()
     }
   }
+
+  const buyerIsTyping = Boolean(draft.trim()) && !sending
+
+  useEffect(() => {
+    if (!buyerIsTyping) return undefined
+
+    setBuyerTyping(true).catch(() => {})
+    const interval = window.setInterval(() => {
+      setBuyerTyping(true).catch(() => {})
+    }, 2500)
+
+    return () => {
+      window.clearInterval(interval)
+      setBuyerTyping(false).catch(() => {})
+    }
+  }, [buyerIsTyping])
 
   const lastBuyerMessageId = [...messages]
     .reverse()
@@ -279,6 +297,18 @@ export default function BuyerMessages() {
                     </div>
                   )
                 })}
+
+              {!loading && supportTyping && (
+                <div className="buyer-typing-row" role="status" aria-label="JToledo Farm is typing">
+                  <div className="buyer-message-avatar" aria-hidden="true">
+                    <Sprout size={16} />
+                  </div>
+                  <div className="chat-typing-indicator">
+                    <span /><span /><span />
+                  </div>
+                  <small>JToledo Farm is typing</small>
+                </div>
+              )}
             </div>
 
             {showJumpToLatest && (

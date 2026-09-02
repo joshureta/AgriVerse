@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCheck, ChevronDown, Clock, MessageSquare, Search, Send } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
-import { loadAdminConversation, loadAdminConversations, sendAdminMessage } from '../../services/adminMessages.js'
+import { loadAdminConversation, loadAdminConversations, sendAdminMessage, setAdminTyping } from '../../services/adminMessages.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/admin-messages.css'
 
@@ -31,6 +31,7 @@ export default function AdminMessages() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [selectedPresence, setSelectedPresence] = useState(null)
+  const [buyerTyping, setBuyerTyping] = useState(false)
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const historyRef = useRef(null)
   const shouldScrollToLatestRef = useRef(true)
@@ -68,6 +69,7 @@ export default function AdminMessages() {
       const { conversation, messages: loaded } = await loadAdminConversation(id)
       setMessages(loaded)
       setSelectedPresence(conversation?.is_online ?? null)
+      setBuyerTyping(Boolean(conversation?.is_typing))
     } catch (err) {
       if (!isBackground) setError(err.message)
     } finally {
@@ -81,14 +83,14 @@ export default function AdminMessages() {
     })
   }, [fetchConversations])
 
-  // Poll for conversation list and active thread updates every 7s
+  // Poll frequently enough for typing indicators while also receiving new messages.
   useEffect(() => {
     const interval = setInterval(() => {
       fetchConversations(true)
       if (selectedId) {
         fetchCurrentThread(selectedId, true)
       }
-    }, 7000)
+    }, 3000)
 
     return () => clearInterval(interval)
   }, [fetchConversations, fetchCurrentThread, selectedId])
@@ -139,6 +141,22 @@ export default function AdminMessages() {
       handleSend()
     }
   }
+
+  const adminIsTyping = Boolean(draft.trim()) && !sending && Boolean(selectedId)
+
+  useEffect(() => {
+    if (!adminIsTyping || !selectedId) return undefined
+
+    setAdminTyping(selectedId, true).catch(() => {})
+    const interval = window.setInterval(() => {
+      setAdminTyping(selectedId, true).catch(() => {})
+    }, 2500)
+
+    return () => {
+      window.clearInterval(interval)
+      setAdminTyping(selectedId, false).catch(() => {})
+    }
+  }, [adminIsTyping, selectedId])
 
   const filteredConversations = useMemo(() => {
     if (!searchQuery.trim()) return conversations
@@ -220,7 +238,7 @@ export default function AdminMessages() {
 
                         <div className="admin-item-bottom">
                           <span className="admin-messages-list-preview">
-                            {conversation.last_message?.body || 'No messages yet'}
+                            {conversation.is_typing ? 'Typing…' : conversation.last_message?.body || 'No messages yet'}
                           </span>
                           {conversation.unread_count > 0 && (
                             <span className="admin-messages-unread">
@@ -308,6 +326,14 @@ export default function AdminMessages() {
                           </article>
                         )
                     })}
+                    {!threadLoading && buyerTyping && (
+                      <div className="admin-typing-row" role="status" aria-label={`${selectedConversation.buyer?.full_name || 'Buyer'} is typing`}>
+                        <div className="chat-typing-indicator">
+                          <span /><span /><span />
+                        </div>
+                        <small>{selectedConversation.buyer?.full_name || 'Buyer'} is typing</small>
+                      </div>
+                    )}
                   </div>
 
                   {showJumpToLatest && (

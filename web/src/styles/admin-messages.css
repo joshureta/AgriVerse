@@ -482,6 +482,53 @@
   color: #16a34a;
 }
 
+.admin-typing-row {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.admin-typing-row small {
+  color: #7b887e;
+  font-size: 10px;
+  font-style: italic;
+}
+
+.admin-typing-row .chat-typing-indicator {
+  min-width: 50px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  border-radius: 17px 17px 17px 4px;
+  padding: 0 12px;
+  background: #f1f5f0;
+}
+
+.admin-typing-row .chat-typing-indicator > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6f8e74;
+  animation: admin-chat-typing-bounce 1.2s ease-in-out infinite;
+}
+
+.admin-typing-row .chat-typing-indicator > span:nth-child(2) { animation-delay: 150ms; }
+.admin-typing-row .chat-typing-indicator > span:nth-child(3) { animation-delay: 300ms; }
+
+@keyframes admin-chat-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: .55; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-typing-row .chat-typing-indicator > span { animation: none; }
+}
+
 /* ---------------- COMPOSER ---------------- */
 .admin-messages-composer {
   display: flex;

@@ -6,11 +6,18 @@ const router = express.Router();
 router.use(requireAuth, requireRole("buyer"));
 
 const ONLINE_WINDOW_MS = 45 * 1000;
+const TYPING_WINDOW_MS = 7 * 1000;
 
 function isOnline(lastSeenAt) {
   if (!lastSeenAt) return false;
   const seenAt = new Date(lastSeenAt).getTime();
   return Number.isFinite(seenAt) && Date.now() - seenAt <= ONLINE_WINDOW_MS;
+}
+
+function isTyping(typingAt) {
+  if (!typingAt) return false;
+  const timestamp = new Date(typingAt).getTime();
+  return Number.isFinite(timestamp) && Date.now() - timestamp <= TYPING_WINDOW_MS;
 }
 
 function httpError(status, message) {
@@ -30,7 +37,7 @@ async function findOrCreateConversation(buyerId) {
   const supabase = getSupabase();
   const { data: existing, error: existingError } = await supabase
     .from("buyer_conversations")
-    .select("id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at")
+    .select("id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at, buyer_typing_at, admin_typing_at")
     .eq("buyer_id", buyerId)
     .maybeSingle();
   if (existingError) throw existingError;
@@ -39,7 +46,7 @@ async function findOrCreateConversation(buyerId) {
   const { data: created, error: createError } = await supabase
     .from("buyer_conversations")
     .insert({ buyer_id: buyerId })
-    .select("id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at")
+    .select("id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at, buyer_typing_at, admin_typing_at")
     .single();
   if (createError) throw createError;
   return created;
@@ -75,7 +82,7 @@ router.get("/", async (req, res, next) => {
     const supabase = getSupabase();
     const { data: conversation, error: conversationError } = await supabase
       .from("buyer_conversations")
-      .select("id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at")
+      .select("id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at, buyer_typing_at, admin_typing_at")
       .eq("buyer_id", req.user.id)
       .maybeSingle();
     if (conversationError) throw conversationError;
@@ -107,6 +114,7 @@ router.get("/", async (req, res, next) => {
       presence: {
         online: isOnline(conversation.admin_last_seen_at),
         last_seen_at: conversation.admin_last_seen_at,
+        is_typing: isTyping(conversation.admin_typing_at),
       },
     });
   } catch (error) {
@@ -121,7 +129,7 @@ router.post("/", async (req, res, next) => {
 
     await getSupabase()
       .from("buyer_conversations")
-      .update({ buyer_last_seen_at: new Date().toISOString() })
+      .update({ buyer_last_seen_at: new Date().toISOString(), buyer_typing_at: null })
       .eq("id", conversation.id);
 
     const { data: message, error } = await getSupabase()
@@ -142,8 +150,24 @@ router.post("/", async (req, res, next) => {
       presence: {
         online: isOnline(conversation.admin_last_seen_at),
         last_seen_at: conversation.admin_last_seen_at,
+        is_typing: isTyping(conversation.admin_typing_at),
       },
     });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/typing", async (req, res, next) => {
+  try {
+    const conversation = await findOrCreateConversation(req.user.id);
+    const typingAt = req.body?.is_typing ? new Date().toISOString() : null;
+    const { error } = await getSupabase()
+      .from("buyer_conversations")
+      .update({ buyer_typing_at: typingAt, buyer_last_seen_at: new Date().toISOString() })
+      .eq("id", conversation.id);
+    if (error) throw error;
+    return res.json({ is_typing: Boolean(typingAt) });
   } catch (error) {
     return next(error);
   }

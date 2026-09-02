@@ -61,3 +61,10 @@ export async function sendBuyerMessage(text) {
   })
   return { conversation: body.conversation, message: body.message, presence: body.presence }
 }
+
+export async function setBuyerTyping(isTyping) {
+  return apiRequest('/api/buyer/messages/typing', {
+    method: 'POST',
+    body: JSON.stringify({ is_typing: isTyping }),
+  })
+}

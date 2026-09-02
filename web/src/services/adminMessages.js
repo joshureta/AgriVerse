@@ -61,3 +61,10 @@ export async function sendAdminMessage(conversationId, text) {
   })
   return body.message
 }
+
+export async function setAdminTyping(conversationId, isTyping) {
+  return apiRequest(`/api/admin/messages/${conversationId}/typing`, {
+    method: 'POST',
+    body: JSON.stringify({ is_typing: isTyping }),
+  })
+}
