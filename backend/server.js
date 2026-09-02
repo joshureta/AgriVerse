@@ -53,6 +53,15 @@ app.use("/api/webhooks/paymongo", express.raw({ type: "application/json" }), pay
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
+// API responses must never be cached by the browser — a stale cached error
+// (e.g. a 404 from before a route existed) would otherwise keep reappearing
+// even after the server is fixed, since fetch() defaults to consulting the
+// HTTP cache before hitting the network.
+app.use("/api", (req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+});
+
 app.get("/", (req, res) => {
   res.json({
     name: "AgriVerse API",
