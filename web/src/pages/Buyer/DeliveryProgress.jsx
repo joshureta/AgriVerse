@@ -11,7 +11,7 @@ import {
   Store,
   Truck,
 } from 'lucide-react'
-import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
+import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import {
   buyerCartQuantity,
@@ -195,7 +195,6 @@ export default function DeliveryProgress() {
   return (
     <main className="buyer-page delivery-page">
       <BuyerHeader active="orders" cartCount={buyerCartQuantity(readBuyerCart())} />
-      <BuyerJourneyNav current="delivery" />
 
       <div className="delivery-content">
         <header className="delivery-title">
@@ -284,14 +283,6 @@ export default function DeliveryProgress() {
               </div>}
           </section>
 
-          {selectedOrder.delivery_proof_image_url && (
-            <section className="delivery-card delivery-proof" aria-labelledby="delivery-proof-title">
-              <h2 id="delivery-proof-title">Delivery Photo</h2>
-              <img src={selectedOrder.delivery_proof_image_url} alt="Proof of delivery submitted by the driver" />
-              {selectedOrder.delivery_proof_notes && <p>{selectedOrder.delivery_proof_notes}</p>}
-            </section>
-          )}
-
           {selectedOrder.order_status === 'delivered' && selectedOrder.delivery_dispute_status !== 'open' && (
             <section className="delivery-card delivery-confirmation" aria-labelledby="delivery-confirmation-title">
               <h2 id="delivery-confirmation-title">Did you receive your order?</h2>
@@ -368,6 +359,14 @@ export default function DeliveryProgress() {
               <div className="delivery-total"><span>Total</span><strong>PHP {selectedOrder.total_amount.toLocaleString()}</strong></div>
             </section>
           </div>
+
+          {selectedOrder.delivery_proof_image_url && (
+            <section className="delivery-card delivery-proof" aria-labelledby="delivery-proof-title">
+              <h2 id="delivery-proof-title">Delivery Photo</h2>
+              <img src={selectedOrder.delivery_proof_image_url} alt="Proof of delivery submitted by the driver" />
+              {selectedOrder.delivery_proof_notes && <p>{selectedOrder.delivery_proof_notes}</p>}
+            </section>
+          )}
 
         </>}
       </div>
