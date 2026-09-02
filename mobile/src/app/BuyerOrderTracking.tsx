@@ -1,10 +1,10 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
-import { BuyerOrder, loadBuyerOrder } from '@/lib/buyer-marketplace';
+import { BuyerOrder, confirmBuyerOrderReceipt, loadBuyerOrder, reportBuyerOrderDispute } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-order-tracking.styles';
 
 const STATUS_RANK: Record<BuyerOrder['order_status'], number> = {
@@ -14,6 +14,7 @@ const STATUS_RANK: Record<BuyerOrder['order_status'], number> = {
   ready_for_delivery: 1,
   out_for_delivery: 2,
   delivered: 3,
+  completed: 4,
   cancelled: 0,
 };
 
@@ -96,6 +97,11 @@ export default function BuyerOrderTrackingScreen() {
   const [order, setOrder] = useState<BuyerOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [disputing, setDisputing] = useState(false);
+  const [disputeFormOpen, setDisputeFormOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const loadOrder = useCallback(async () => {
     if (!id) {
@@ -118,6 +124,34 @@ export default function BuyerOrderTrackingScreen() {
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
+
+  async function handleConfirmReceipt() {
+    if (!order) return;
+    setConfirming(true);
+    setActionError('');
+    try {
+      setOrder(await confirmBuyerOrderReceipt(order.id));
+    } catch (caught) {
+      setActionError(caught instanceof Error ? caught.message : 'Could not confirm this delivery.');
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  async function handleSubmitDispute() {
+    if (!order || !disputeReason.trim()) return;
+    setDisputing(true);
+    setActionError('');
+    try {
+      setOrder(await reportBuyerOrderDispute(order.id, disputeReason.trim()));
+      setDisputeFormOpen(false);
+      setDisputeReason('');
+    } catch (caught) {
+      setActionError(caught instanceof Error ? caught.message : 'Could not submit this report.');
+    } finally {
+      setDisputing(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -176,6 +210,78 @@ export default function BuyerOrderTrackingScreen() {
             <DeliveryStepper order={order} />
           )}
         </View>
+
+        {order.delivery_proof_image_url ? (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Delivery Photo</Text>
+            <Image accessibilityIgnoresInvertColors source={{ uri: order.delivery_proof_image_url }} style={styles.proofImage} />
+            {order.delivery_proof_notes ? <Text style={styles.proofNote}>{order.delivery_proof_notes}</Text> : null}
+          </View>
+        ) : null}
+
+        {order.order_status === 'delivered' && order.delivery_dispute_status !== 'open' ? (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Did you receive your order?</Text>
+            <Text style={styles.confirmationText}>
+              Let us know so we can close out this order. If you don't respond in a few days, it will be marked completed automatically.
+            </Text>
+            {actionError ? <Text style={styles.actionErrorText}>{actionError}</Text> : null}
+            {!disputeFormOpen ? (
+              <View style={styles.actionRow}>
+                <Pressable
+                  disabled={confirming || disputing}
+                  onPress={handleConfirmReceipt}
+                  style={[styles.primaryButton, (confirming || disputing) && styles.buttonDisabled]}>
+                  {confirming ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={styles.primaryButtonText}>Confirm Receipt</Text>}
+                </Pressable>
+                <Pressable
+                  disabled={confirming || disputing}
+                  onPress={() => setDisputeFormOpen(true)}
+                  style={[styles.secondaryButton, (confirming || disputing) && styles.buttonDisabled]}>
+                  <Text style={styles.secondaryButtonText}>Report an Issue</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <TextInput
+                  accessibilityLabel="What went wrong"
+                  maxLength={1000}
+                  multiline
+                  onChangeText={setDisputeReason}
+                  placeholder="What went wrong?"
+                  placeholderTextColor="#9ca3af"
+                  style={styles.disputeInput}
+                  value={disputeReason}
+                />
+                <View style={styles.actionRow}>
+                  <Pressable
+                    disabled={disputing || !disputeReason.trim()}
+                    onPress={handleSubmitDispute}
+                    style={[styles.dangerButton, (disputing || !disputeReason.trim()) && styles.buttonDisabled]}>
+                    {disputing ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={styles.dangerButtonText}>Submit Report</Text>}
+                  </Pressable>
+                  <Pressable disabled={disputing} onPress={() => setDisputeFormOpen(false)} style={[styles.secondaryButton, disputing && styles.buttonDisabled]}>
+                    <Text style={styles.secondaryButtonText}>Cancel</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </View>
+        ) : null}
+
+        {order.delivery_dispute_status === 'open' ? (
+          <View style={[styles.card, styles.pendingReviewCard]}>
+            <Text style={styles.pendingReviewTitle}>We're reviewing your report</Text>
+            <Text style={styles.confirmationText}>{order.delivery_dispute_reason}</Text>
+          </View>
+        ) : null}
+
+        {order.delivery_dispute_status === 'resolved' && order.delivery_dispute_resolution_notes ? (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Update on your report</Text>
+            <Text style={styles.confirmationText}>{order.delivery_dispute_resolution_notes}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <View style={styles.confirmedRow}>

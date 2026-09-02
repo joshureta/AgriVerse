@@ -68,6 +68,6 @@ export function deliveryStatusLabel(status: DeliveryAssignmentStatus) {
 export function activeDeliveryAction(status: DeliveryAssignmentStatus) {
   if (status === 'accepted') return { label: 'Confirm Pickup', nextStatus: 'picked_up' as const };
   if (status === 'picked_up') return { label: 'Start Delivery', nextStatus: 'out_for_delivery' as const };
-  if (status === 'out_for_delivery') return { label: 'Complete Delivery', nextStatus: 'delivered' as const };
+  if (status === 'out_for_delivery') return { label: 'Submit Delivery Proof', nextStatus: 'delivered' as const };
   return null;
 }

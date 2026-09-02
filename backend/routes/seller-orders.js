@@ -3,7 +3,7 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 
 const router = express.Router();
-const allowedStatuses = new Set(["pending", "confirmed", "preparing", "ready_for_delivery", "out_for_delivery", "delivered", "cancelled"]);
+const allowedStatuses = new Set(["pending", "confirmed", "preparing", "ready_for_delivery", "out_for_delivery", "delivered", "completed", "cancelled"]);
 const orderSelect = [
   "id, order_number, buyer_id, delivery_method, payment_method, payment_status, order_status",
   "subtotal, shipping_fee, total_amount, customer_note",
@@ -80,7 +80,10 @@ router.patch("/:id/status", async (req, res, next) => {
   try {
     const status = String(req.body.status || "").trim();
     const note = String(req.body.note || "").trim();
-    if (!allowedStatuses.has(status) || status === "pending") throw httpError(400, "Invalid next order status");
+    // "delivered" and "completed" are only reachable through the driver-proof and buyer-confirmation flows.
+    if (!allowedStatuses.has(status) || status === "pending" || status === "delivered" || status === "completed") {
+      throw httpError(400, "Invalid next order status");
+    }
     if (note.length > 500) throw httpError(400, "Status note must not exceed 500 characters");
     const { data, error } = await getSupabase().rpc("change_buyer_order_status", {
       p_order_id: readOrderId(req.params.id),

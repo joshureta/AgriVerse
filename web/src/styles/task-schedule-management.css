@@ -109,6 +109,15 @@
 .task-view-description { display: grid; gap: 6px; margin-top: 14px; }
 .task-view-description > span { color: #657e6a; font-size: 10px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .task-view-description p { min-height: auto; margin: 0; border: none; padding: 0; color: #26382a; background: transparent; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+.dispute-proof-photo { width: 100%; max-width: 320px; margin-top: 6px; border: 1px solid #d4ded2; border-radius: 10px; }
+.dispute-resolution-notes { width: 100%; box-sizing: border-box; border: 1px solid #b8cfba; border-radius: 8px; padding: 10px 12px; color: #26342a; background: #f7f9f5; font: inherit; font-size: 13px; resize: vertical; }
+.dispute-resolve-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; border-top: 1px solid #e4ebe1; padding-top: 18px; }
+.dispute-resolve-actions button { min-width: 130px; min-height: 40px; border: 0; border-radius: 8px; padding: 0 18px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: all .15s ease; }
+.dispute-resolve-actions button:disabled { cursor: not-allowed; opacity: .55; }
+.dispute-resolve-actions .is-primary { color: #fff; background: #227b3d; box-shadow: 0 2px 6px rgba(25,108,53,.2); }
+.dispute-resolve-actions .is-primary:hover:not(:disabled) { background: #1b7337; }
+.dispute-resolve-actions .is-secondary { color: #26342a; background: #f2f4f7; border: 1px solid #b8cfba; }
+.dispute-resolve-actions .is-secondary:hover:not(:disabled) { background: #e7ece6; }
 .view-task-modal footer { display: flex; justify-content: flex-end; margin-top: 16px; border-top: 1px solid #edf2ec; padding-top: 14px; }
 .view-task-modal footer button { min-width: 90px; min-height: 38px; border: 1px solid #b8cfba; border-radius: 8px; padding: 0 16px; color: #26342a; background: #f7f9f5; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: all .15s ease; }
 .view-task-modal footer button:hover { background: #eef3ec; }

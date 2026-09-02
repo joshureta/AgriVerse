@@ -61,6 +61,53 @@ router.post("/:id/assign", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.get("/disputes", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase().from("buyer_orders")
+      .select("id, order_number, total_amount, payment_method, delivery_full_name, delivery_mobile_number, delivery_city_municipality, delivery_barangay, delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at, delivery_dispute_reason, delivery_dispute_created_at, assigned_driver:profiles!buyer_orders_assigned_driver_id_fkey(id, full_name)")
+      .eq("delivery_dispute_status", "open").order("delivery_dispute_created_at", { ascending: true });
+    if (error) throw error;
+    return res.json({ orders: data || [] });
+  } catch (error) { return next(error); }
+});
+
+router.post("/:id/resolve-dispute", async (req, res, next) => {
+  try {
+    const id = orderId(req.params.id);
+    const resolution = String(req.body.resolution || "").trim();
+    if (!["completed", "escalated"].includes(resolution)) throw httpError(400, "Select a valid resolution");
+    const notes = String(req.body.notes || "").trim();
+    if (!notes) throw httpError(400, "A resolution note is required");
+    if (notes.length > 1000) throw httpError(400, "Resolution note must not exceed 1000 characters");
+
+    const now = new Date().toISOString();
+    const update = {
+      delivery_dispute_status: "resolved",
+      delivery_dispute_resolution: resolution,
+      delivery_dispute_resolved_by: req.user.id,
+      delivery_dispute_resolved_at: now,
+      delivery_dispute_resolution_notes: notes,
+    };
+    if (resolution === "completed") {
+      update.order_status = "completed";
+      update.completed_at = now;
+      update.completed_via = "dispute_resolved";
+    }
+    const { data, error } = await getSupabase().from("buyer_orders").update(update)
+      .eq("id", id).eq("order_status", "delivered").eq("delivery_dispute_status", "open")
+      .select("id, order_number, order_status, delivery_dispute_status, delivery_dispute_resolution").maybeSingle();
+    if (error) throw error;
+    if (!data) throw httpError(409, "This dispute is no longer open");
+
+    if (resolution === "completed") {
+      await getSupabase().from("buyer_order_status_history").insert({
+        order_id: id, previous_status: "delivered", new_status: "completed", changed_by: req.user.id, note: notes,
+      });
+    }
+    return res.json({ order: data });
+  } catch (error) { return next(error); }
+});
+
 router.patch("/:id/assignment", async (req, res, next) => {
   try {
     const assignedDriverId = driverId(req.body.driver_id);

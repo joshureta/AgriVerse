@@ -250,6 +250,8 @@ export default function TaskScheduleManagement() {
   const [deliveryForm, setDeliveryForm] = useState(emptyDeliveryForm)
   const [deliveryEditForm, setDeliveryEditForm] = useState({ driver_id: '', delivery_date: '', start_time: '07:00', end_time: '08:00' })
   const [readyOrders, setReadyOrders] = useState([])
+  const [disputeOrders, setDisputeOrders] = useState([])
+  const [disputeResolutionNotes, setDisputeResolutionNotes] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const filterRef = useRef(null)
   const statusLabels = useMemo(
@@ -318,6 +320,35 @@ export default function TaskScheduleManagement() {
   }, [])
 
   useEffect(() => { loadAssignedDeliveryOrders() }, [loadAssignedDeliveryOrders, refreshKey])
+
+  const loadDisputeOrders = useCallback(async () => {
+    try {
+      const data = await apiRequest('/api/admin/deliveries/disputes')
+      setDisputeOrders(data.orders || [])
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }, [])
+
+  useEffect(() => { loadDisputeOrders() }, [loadDisputeOrders, refreshKey])
+
+  async function resolveDispute(resolution) {
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/deliveries/${modal.order.id}/resolve-dispute`, {
+        method: 'POST',
+        body: JSON.stringify({ resolution, notes: disputeResolutionNotes.trim() }),
+      })
+      setModal(null)
+      setDisputeResolutionNotes('')
+      setRefreshKey((key) => key + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const loadSettings = useCallback(async () => {
     try {
@@ -620,13 +651,27 @@ export default function TaskScheduleManagement() {
               <button className={workView === 'all' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('all'); setPage(1) }}>All</button>
               <button className={workView === 'crop' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('crop'); setPage(1) }}>Crop Management</button>
               <button className={workView === 'deliveries' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('deliveries'); setPage(1) }}>Driver Deliveries</button>
+              <button className={workView === 'disputes' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('disputes'); setPage(1) }}>Disputes{disputeOrders.length > 0 ? ` (${disputeOrders.length})` : ''}</button>
             </nav>
-            <div className="tasks-toolbar">
+            {workView !== 'disputes' && <div className="tasks-toolbar">
               <div className="task-filter" ref={filterRef}><button type="button" onClick={() => setFilterOpen((open) => !open)} aria-haspopup="listbox" aria-expanded={filterOpen}><span>Filter by</span><i aria-hidden="true" /></button>{filterOpen && <div className="task-filter-menu" role="listbox" aria-label="Filter work by status"><p>Filter crop tasks</p>{[{ id: 'all', code: '', status_name: 'All statuses' }, ...options.statuses].map((status) => <button type="button" role="option" aria-selected={filter === status.code} className={filter === status.code ? 'is-selected' : ''} key={status.id} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>)}<p className="task-filter-group">Filter delivery status</p>{driverDeliveryStatuses.map((status) => <button type="button" role="option" aria-selected={filter === status.code} className={filter === status.code ? 'is-selected' : ''} key={status.code} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>)}</div>}</div>
               <label className="task-search"><span className="sr-only">Search tasks</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search tasks" /><span aria-hidden="true" /></label>
               <button className="assign-task-toolbar-button" type="button" onClick={openNewTask} disabled={!options.workers.length}><span>＋</span>Assign New Task</button>
-            </div>
+            </div>}
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
+            {workView === 'disputes' ? <>
+            <div className="tasks-table-wrap">
+              <table className="tasks-table">
+                <thead><tr><th>ORDER NUMBER</th><th>CUSTOMER</th><th>DRIVER</th><th>REPORTED</th><th>REASON</th><th>ACTIONS</th></tr></thead>
+                <tbody>{disputeOrders.length ? disputeOrders.map((order) => (
+                  <tr key={`dispute-${order.id}`}><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td>{formatSchedule(order.delivery_dispute_created_at)}</td><td>{order.delivery_dispute_reason}</td><td><div className="task-actions"><button type="button" onClick={() => { setDisputeResolutionNotes(''); setModal({ mode: 'review-dispute', order }) }}>Review</button></div></td></tr>
+                )) : <tr><td className="tasks-empty" colSpan="6">No open disputes.</td></tr>}</tbody>
+              </table>
+            </div>
+            <footer className="task-pagination">
+              <span>{disputeOrders.length} open dispute{disputeOrders.length === 1 ? '' : 's'}</span>
+            </footer>
+            </> : <>
             <div className="tasks-table-wrap">
               <table className="tasks-table">
                 <thead>{workView === 'deliveries'
@@ -654,6 +699,7 @@ export default function TaskScheduleManagement() {
                 <button type="button" disabled={(workView === 'deliveries' ? page >= deliveryTotalPages : page >= (pagination.totalPages || 1)) || loading} onClick={() => setPage((v) => v + 1)}>Next →</button>
               </div>
             </footer>
+            </>}
             </> : <>
               <div className="task-settings-toolbar">
                 <label className="task-search"><span className="sr-only">{settingsConfig.searchLabel}</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder={settingsConfig.searchLabel} /><span aria-hidden="true" /></label>
@@ -762,6 +808,63 @@ export default function TaskScheduleManagement() {
               <span>Delivery Address</span>
               <p>{[modal.order.delivery_barangay, modal.order.delivery_city_municipality, modal.order.delivery_province, modal.order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'}</p>
             </section>
+          </div>
+        </section>
+      </div>}
+
+      {modal?.mode === 'review-dispute' && <div className="task-modal-backdrop">
+        <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="review-dispute-title">
+          <TaskModalHeader title="Review Delivery Dispute" tag="Dispute resolution" onClose={() => setModal(null)} />
+          <div className="task-reference-body task-view-body">
+            <div className="task-view-grid">
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Order Number</span>
+                <strong className="task-view-tile-value">{modal.order.order_number}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Driver</span>
+                <strong className="task-view-tile-value">{modal.order.assigned_driver?.full_name || 'Unassigned driver'}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Customer</span>
+                <strong className="task-view-tile-value">{modal.order.delivery_full_name || 'Not provided'}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Reported</span>
+                <strong className="task-view-tile-value">{formatSchedule(modal.order.delivery_dispute_created_at)}</strong>
+              </div>
+            </div>
+            <section className="task-view-description">
+              <span>Buyer's Report</span>
+              <p>{modal.order.delivery_dispute_reason}</p>
+            </section>
+            {modal.order.delivery_proof_image_url && (
+              <section className="task-view-description">
+                <span>Driver's Delivery Proof</span>
+                <img className="dispute-proof-photo" src={modal.order.delivery_proof_image_url} alt="Delivery proof submitted by the driver" />
+                {modal.order.delivery_proof_notes && <p>{modal.order.delivery_proof_notes}</p>}
+              </section>
+            )}
+            <section className="task-view-description">
+              <span>Resolution Note (required)</span>
+              <textarea
+                className="dispute-resolution-notes"
+                value={disputeResolutionNotes}
+                onChange={(event) => setDisputeResolutionNotes(event.target.value)}
+                rows={3}
+                maxLength={1000}
+                placeholder="Explain your decision…"
+              />
+            </section>
+            {error && <div className="tasks-error" role="alert">{error}</div>}
+            <div className="dispute-resolve-actions">
+              <button type="button" className="is-primary" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveDispute('completed')}>
+                {saving ? 'Saving…' : 'Mark Completed'}
+              </button>
+              <button type="button" className="is-secondary" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveDispute('escalated')}>
+                {saving ? 'Saving…' : 'Escalate'}
+              </button>
+            </div>
           </div>
         </section>
       </div>}

@@ -8,3 +8,4 @@
 .driver-delivery-actions button { min-height: 37px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 7px; color: #fff; background: #24743a; font: inherit; font-size: 10px; font-weight: 850; cursor: pointer; }.driver-delivery-actions button:disabled { opacity: .55; cursor: wait; }.driver-delivery-actions button svg { width: 15px; }
 .driver-delivery-actions p, .driver-delivery-actions small { margin: 0; color: #637165; font-size: 9px; }
 .driver-delivery-complete { display: inline-flex; align-items: center; gap: 6px; width: fit-content; color: #1a7037; font-size: 10px; font-weight: 850; }.driver-delivery-complete svg { width: 16px; }
+.driver-delivery-mobile-note { display: flex; align-items: center; gap: 7px; border-radius: 7px; padding: 9px 10px; color: #465e91; background: #e4edff; font-size: 9px; font-weight: 700; }.driver-delivery-mobile-note svg { width: 15px; flex-shrink: 0; }

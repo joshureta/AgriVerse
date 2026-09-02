@@ -14,6 +14,7 @@ const STATUS_LABELS: Record<BuyerOrderStatus, string> = {
   ready_for_delivery: 'Ready for Delivery',
   out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
+  completed: 'Completed',
   cancelled: 'Cancelled',
 };
 

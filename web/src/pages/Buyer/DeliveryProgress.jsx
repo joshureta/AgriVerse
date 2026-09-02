@@ -13,7 +13,14 @@ import {
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
-import { buyerCartQuantity, loadBuyerOrders, readBuyerCart } from '../../services/buyerMarketplace.js'
+import {
+  buyerCartQuantity,
+  confirmBuyerOrderReceipt,
+  loadBuyerOrder,
+  loadBuyerOrders,
+  readBuyerCart,
+  reportBuyerOrderDispute,
+} from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/deliveryProgress.css'
 
@@ -24,6 +31,7 @@ const statusRank = {
   ready_for_delivery: 1,
   out_for_delivery: 2,
   delivered: 3,
+  completed: 4,
 }
 
 const statusLabels = {
@@ -33,6 +41,7 @@ const statusLabels = {
   ready_for_delivery: 'Ready for Delivery',
   out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
+  completed: 'Completed',
   cancelled: 'Cancelled',
 }
 
@@ -96,6 +105,11 @@ export default function DeliveryProgress() {
   const [selectedOrderId, setSelectedOrderId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [confirming, setConfirming] = useState(false)
+  const [disputing, setDisputing] = useState(false)
+  const [disputeFormOpen, setDisputeFormOpen] = useState(false)
+  const [disputeReason, setDisputeReason] = useState('')
+  const [receiptError, setReceiptError] = useState('')
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -119,10 +133,61 @@ export default function DeliveryProgress() {
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
+  // Fetching the single order (rather than reusing the list) is what lets the backend
+  // reconcile GCash payment status and the buyer-confirmation auto-complete timeout.
+  useEffect(() => {
+    if (!selectedOrderId) return undefined
+    let cancelled = false
+    loadBuyerOrder(selectedOrderId)
+      .then((freshOrder) => {
+        if (cancelled) return
+        setOrders((current) => current.map((order) => (order.id === freshOrder.id ? freshOrder : order)))
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [selectedOrderId])
+
   const selectedOrder = useMemo(
     () => orders.find((order) => order.id === selectedOrderId) || null,
     [orders, selectedOrderId],
   )
+
+  useEffect(() => {
+    setDisputeFormOpen(false)
+    setDisputeReason('')
+    setReceiptError('')
+  }, [selectedOrderId])
+
+  async function handleConfirmReceipt() {
+    if (!selectedOrder) return
+    setConfirming(true)
+    setReceiptError('')
+    try {
+      const updatedOrder = await confirmBuyerOrderReceipt(selectedOrder.id)
+      setOrders((current) => current.map((order) => (order.id === updatedOrder.id ? updatedOrder : order)))
+    } catch (requestError) {
+      setReceiptError(requestError.message)
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  async function handleSubmitDispute(event) {
+    event.preventDefault()
+    if (!selectedOrder) return
+    setDisputing(true)
+    setReceiptError('')
+    try {
+      const updatedOrder = await reportBuyerOrderDispute(selectedOrder.id, disputeReason.trim())
+      setOrders((current) => current.map((order) => (order.id === updatedOrder.id ? updatedOrder : order)))
+      setDisputeFormOpen(false)
+      setDisputeReason('')
+    } catch (requestError) {
+      setReceiptError(requestError.message)
+    } finally {
+      setDisputing(false)
+    }
+  }
 
   const milestones = selectedOrder ? createMilestones(selectedOrder) : []
   const destination = selectedOrder ? getDeliveryAddress(selectedOrder) : ''
@@ -218,6 +283,66 @@ export default function DeliveryProgress() {
                 ))}
               </div>}
           </section>
+
+          {selectedOrder.delivery_proof_image_url && (
+            <section className="delivery-card delivery-proof" aria-labelledby="delivery-proof-title">
+              <h2 id="delivery-proof-title">Delivery Photo</h2>
+              <img src={selectedOrder.delivery_proof_image_url} alt="Proof of delivery submitted by the driver" />
+              {selectedOrder.delivery_proof_notes && <p>{selectedOrder.delivery_proof_notes}</p>}
+            </section>
+          )}
+
+          {selectedOrder.order_status === 'delivered' && selectedOrder.delivery_dispute_status !== 'open' && (
+            <section className="delivery-card delivery-confirmation" aria-labelledby="delivery-confirmation-title">
+              <h2 id="delivery-confirmation-title">Did you receive your order?</h2>
+              <p>Let us know so we can close out this order. If you don't respond in a few days, it will be marked completed automatically.</p>
+              {receiptError && <div className="delivery-message is-error" role="alert">{receiptError}</div>}
+              {!disputeFormOpen ? (
+                <div className="delivery-confirmation-actions">
+                  <button type="button" className="is-primary" onClick={handleConfirmReceipt} disabled={confirming || disputing}>
+                    {confirming ? 'Confirming…' : 'Confirm Receipt'}
+                  </button>
+                  <button type="button" className="is-secondary" onClick={() => setDisputeFormOpen(true)} disabled={confirming || disputing}>
+                    Report an Issue
+                  </button>
+                </div>
+              ) : (
+                <form className="delivery-dispute-form" onSubmit={handleSubmitDispute}>
+                  <label htmlFor="delivery-dispute-reason">What went wrong?</label>
+                  <textarea
+                    id="delivery-dispute-reason"
+                    value={disputeReason}
+                    onChange={(event) => setDisputeReason(event.target.value)}
+                    maxLength={1000}
+                    rows={3}
+                    required
+                  />
+                  <div className="delivery-confirmation-actions">
+                    <button type="submit" className="is-danger" disabled={disputing || !disputeReason.trim()}>
+                      {disputing ? 'Submitting…' : 'Submit Report'}
+                    </button>
+                    <button type="button" className="is-secondary" onClick={() => setDisputeFormOpen(false)} disabled={disputing}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+            </section>
+          )}
+
+          {selectedOrder.delivery_dispute_status === 'open' && (
+            <section className="delivery-card delivery-dispute-pending" aria-labelledby="delivery-dispute-pending-title">
+              <h2 id="delivery-dispute-pending-title">We're reviewing your report</h2>
+              <p>{selectedOrder.delivery_dispute_reason}</p>
+            </section>
+          )}
+
+          {selectedOrder.delivery_dispute_status === 'resolved' && selectedOrder.delivery_dispute_resolution_notes && (
+            <section className="delivery-card delivery-dispute-pending" aria-labelledby="delivery-dispute-resolved-title">
+              <h2 id="delivery-dispute-resolved-title">Update on your report</h2>
+              <p>{selectedOrder.delivery_dispute_resolution_notes}</p>
+            </section>
+          )}
 
           <div className="delivery-summary-grid">
             <section className="delivery-card order-details" aria-labelledby="order-details-title">

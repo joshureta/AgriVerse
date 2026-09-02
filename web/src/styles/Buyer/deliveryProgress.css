@@ -147,6 +147,7 @@
 .delivery-current-status.is-pending { background: #b8860b; }
 .delivery-current-status.is-cancelled { background: #b13b3b; }
 .delivery-current-status.is-delivered { background: #22863a; }
+.delivery-current-status.is-completed { background: #176b32; }
 
 .delivery-cancelled {
   border: 1px solid #e7bdbd;
@@ -296,6 +297,73 @@
 .delivery-milestone .delivery-icon-badge { position: relative; z-index: 1; }
 .delivery-milestone strong { margin-top: 10px; font-size: 12px; }
 .delivery-milestone time { margin-top: 3px; color: #89928b; font-size: 10px; font-weight: 650; }
+
+.delivery-proof,
+.delivery-confirmation,
+.delivery-dispute-pending {
+  margin-top: 20px;
+  padding: 22px 28px;
+}
+
+.delivery-proof img {
+  width: 100%;
+  max-width: 360px;
+  margin-top: 14px;
+  border-radius: 12px;
+  border: 1px solid #e1eadc;
+}
+
+.delivery-proof p,
+.delivery-confirmation p,
+.delivery-dispute-pending p {
+  margin: 10px 0 0;
+  color: #4c5b4e;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.delivery-confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.delivery-confirmation-actions button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 9px;
+  padding: 0 20px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.delivery-confirmation-actions button:disabled { opacity: .6; cursor: wait; }
+.delivery-confirmation-actions .is-primary { color: #fff; background: #26743a; }
+.delivery-confirmation-actions .is-primary:hover { background: #1f6332; }
+.delivery-confirmation-actions .is-secondary { color: #2c5330; background: #eaf2e6; }
+.delivery-confirmation-actions .is-secondary:hover { background: #dcebd7; }
+.delivery-confirmation-actions .is-danger { color: #fff; background: #b13b3b; }
+.delivery-confirmation-actions .is-danger:hover { background: #98302f; }
+
+.delivery-dispute-form { margin-top: 16px; }
+.delivery-dispute-form label { display: block; margin-bottom: 8px; color: #2c5330; font-size: 12px; font-weight: 750; }
+.delivery-dispute-form textarea {
+  width: 100%;
+  border: 1px solid #c8d9c3;
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: #1f2e21;
+  background: #fbfcf4;
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.delivery-dispute-pending { border-color: #f0e2b8; background: #fffcf1; }
+.delivery-dispute-pending h2 { color: #8a6a12; }
 
 .delivery-summary-grid {
   display: grid;
@@ -457,6 +525,7 @@
 .history-status.is-pending { color: #9a710e; background: transparent; }
 .history-status.is-cancelled { color: #b13b3b; background: transparent; }
 .history-status.is-delivered { color: #22863a; background: transparent; }
+.history-status.is-completed { color: #176b32; background: transparent; }
 .history-view-order { display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; color: #286f3a; font-size: 11px; font-weight: 750; white-space: nowrap; }
 .history-view-order svg { width: 15px; height: 15px; }
 

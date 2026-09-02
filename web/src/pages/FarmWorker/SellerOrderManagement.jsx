@@ -24,13 +24,13 @@ const tabs = [
   { key: 'all', label: 'All Orders', statuses: null },
   { key: 'awaiting', label: 'Awaiting Confirmation', statuses: ['pending'] },
   { key: 'fulfillment', label: 'In Fulfillment', statuses: ['confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery'] },
-  { key: 'completed', label: 'Completed', statuses: ['delivered'] },
+  { key: 'completed', label: 'Completed', statuses: ['delivered', 'completed'] },
   { key: 'cancelled', label: 'Cancelled', statuses: ['cancelled'] },
 ]
 
 const statusLabels = {
   pending: 'Pending', confirmed: 'Confirmed', preparing: 'Packaging', ready_for_delivery: 'Ready for Delivery',
-  out_for_delivery: 'In Transit', delivered: 'Delivered', cancelled: 'Cancelled',
+  out_for_delivery: 'In Transit', delivered: 'Delivered', completed: 'Completed', cancelled: 'Cancelled',
 }
 
 const nextActions = {
@@ -38,7 +38,6 @@ const nextActions = {
   confirmed: [{ status: 'preparing', label: 'Start Preparing' }, { status: 'cancelled', label: 'Cancel Order', danger: true }],
   preparing: [{ status: 'ready_for_delivery', label: 'Mark as Ready' }],
   ready_for_delivery: [{ status: 'out_for_delivery', label: 'Start Delivery' }],
-  out_for_delivery: [{ status: 'delivered', label: 'Mark as Delivered' }],
 }
 
 function money(value) {

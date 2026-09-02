@@ -12,8 +12,14 @@ const orderSelect = [
   "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
   "estimated_delivery_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
   "paymongo_payment_intent_id",
+  "delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at",
+  "buyer_confirmed_at, delivery_dispute_status, delivery_dispute_reason, delivery_dispute_created_at, delivery_dispute_resolution, delivery_dispute_resolution_notes",
+  "completed_at, completed_via",
   "items:buyer_order_items(id, pineapple_size_id, product_name, weight_label, quantity, unit_price, line_total)",
 ].join(",");
+
+// A delivered order auto-completes if the buyer never confirms or disputes it.
+const AUTO_COMPLETE_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
 
 // Webhooks are the primary way payment_status gets updated, but they can't reach a
 // backend that PayMongo can't route to (e.g. local dev without a public tunnel) and
@@ -44,6 +50,36 @@ async function reconcileGcashPaymentStatus(order) {
   } catch {
     return order;
   }
+}
+
+// If the buyer never confirms or disputes a delivered order within the window,
+// it auto-completes the next time they look at it (same idea as reconcileGcashPaymentStatus above).
+async function reconcileDeliveryCompletion(order) {
+  if (order.order_status !== "delivered" || order.delivery_dispute_status || order.buyer_confirmed_at || !order.delivery_proof_submitted_at) {
+    return order;
+  }
+  const submittedAt = new Date(order.delivery_proof_submitted_at).getTime();
+  if (Number.isNaN(submittedAt) || Date.now() - submittedAt < AUTO_COMPLETE_AFTER_MS) return order;
+
+  const now = new Date().toISOString();
+  const { data: updated, error } = await getSupabase()
+    .from("buyer_orders")
+    .update({ order_status: "completed", completed_at: now, completed_via: "auto_timeout" })
+    .eq("id", order.id)
+    .eq("order_status", "delivered")
+    .is("delivery_dispute_status", null)
+    .select(orderSelect)
+    .single();
+  if (error || !updated) return order;
+
+  await getSupabase().from("buyer_order_status_history").insert({
+    order_id: order.id,
+    previous_status: "delivered",
+    new_status: "completed",
+    changed_by: null,
+    note: "Auto-completed: buyer did not respond within the confirmation window",
+  });
+  return updated;
 }
 
 function httpError(status, message) {
@@ -203,8 +239,65 @@ router.get("/:id", async (req, res, next) => {
       .single();
     if (error?.code === "PGRST116") throw httpError(404, "Order not found");
     if (error) throw error;
-    const reconciledOrder = await reconcileGcashPaymentStatus(data);
+    const paymentReconciledOrder = await reconcileGcashPaymentStatus(data);
+    const reconciledOrder = await reconcileDeliveryCompletion(paymentReconciledOrder);
     return res.json({ order: serializeOrder(reconciledOrder) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/:id/confirm-receipt", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid order ID");
+    const now = new Date().toISOString();
+    const { data, error } = await getSupabase()
+      .from("buyer_orders")
+      .update({ order_status: "completed", buyer_confirmed_at: now, completed_at: now, completed_via: "buyer_confirmed" })
+      .eq("id", id)
+      .eq("buyer_id", req.user.id)
+      .eq("order_status", "delivered")
+      .is("delivery_dispute_status", null)
+      .select(orderSelect)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw httpError(409, "This order cannot be confirmed right now");
+
+    await getSupabase().from("buyer_order_status_history").insert({
+      order_id: id,
+      previous_status: "delivered",
+      new_status: "completed",
+      changed_by: req.user.id,
+      note: "Buyer confirmed receipt",
+    });
+    return res.json({ order: serializeOrder(data) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/:id/dispute", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid order ID");
+    const reason = String(req.body.reason || "").trim();
+    if (!reason) throw httpError(400, "Tell us what went wrong with this delivery");
+    if (reason.length > 1000) throw httpError(400, "Report must not exceed 1000 characters");
+
+    const now = new Date().toISOString();
+    const { data, error } = await getSupabase()
+      .from("buyer_orders")
+      .update({ delivery_dispute_status: "open", delivery_dispute_reason: reason, delivery_dispute_created_at: now })
+      .eq("id", id)
+      .eq("buyer_id", req.user.id)
+      .eq("order_status", "delivered")
+      .is("delivery_dispute_status", null)
+      .select(orderSelect)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw httpError(409, "This order cannot be reported right now");
+    return res.json({ order: serializeOrder(data) });
   } catch (error) {
     return next(error);
   }

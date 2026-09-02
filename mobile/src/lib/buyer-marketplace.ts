@@ -34,7 +34,10 @@ export type BuyerOrderStatus =
   | 'ready_for_delivery'
   | 'out_for_delivery'
   | 'delivered'
+  | 'completed'
   | 'cancelled';
+
+export type DeliveryDisputeStatus = 'open' | 'resolved' | null;
 
 export type BuyerOrder = {
   id: number;
@@ -63,6 +66,17 @@ export type BuyerOrder = {
   cancelled_at: string | null;
   created_at: string;
   updated_at: string;
+  delivery_proof_image_url: string | null;
+  delivery_proof_notes: string | null;
+  delivery_proof_submitted_at: string | null;
+  buyer_confirmed_at: string | null;
+  delivery_dispute_status: DeliveryDisputeStatus;
+  delivery_dispute_reason: string | null;
+  delivery_dispute_created_at: string | null;
+  delivery_dispute_resolution: 'completed' | 'escalated' | null;
+  delivery_dispute_resolution_notes: string | null;
+  completed_at: string | null;
+  completed_via: 'buyer_confirmed' | 'auto_timeout' | 'dispute_resolved' | null;
   items: BuyerOrderItem[];
 };
 
@@ -91,6 +105,21 @@ export async function loadBuyerOrders(): Promise<BuyerOrder[]> {
 
 export async function loadBuyerOrder(orderId: number): Promise<BuyerOrder> {
   const { order } = await apiRequest<{ order: BuyerOrder }>(`/api/buyer/orders/${orderId}`);
+  return order;
+}
+
+export async function confirmBuyerOrderReceipt(orderId: number): Promise<BuyerOrder> {
+  const { order } = await apiRequest<{ order: BuyerOrder }>(`/api/buyer/orders/${orderId}/confirm-receipt`, {
+    method: 'POST',
+  });
+  return order;
+}
+
+export async function reportBuyerOrderDispute(orderId: number, reason: string): Promise<BuyerOrder> {
+  const { order } = await apiRequest<{ order: BuyerOrder }>(`/api/buyer/orders/${orderId}/dispute`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
   return order;
 }
 

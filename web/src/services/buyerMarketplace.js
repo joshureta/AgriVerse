@@ -197,6 +197,29 @@ export async function loadBuyerOrder(orderId, retry = true) {
   }
 }
 
+export async function confirmBuyerOrderReceipt(orderId) {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/buyer/orders/${orderId}/confirm-receipt`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to confirm this delivery')
+  return body.order
+}
+
+export async function reportBuyerOrderDispute(orderId, reason) {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/buyer/orders/${orderId}/dispute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ reason }),
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to submit this report')
+  return body.order
+}
+
 export function readBuyerCart() {
   try {
     const stored = JSON.parse(window.localStorage.getItem(CART_STORAGE_KEY) || '[]')
