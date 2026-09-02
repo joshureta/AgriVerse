@@ -14,19 +14,21 @@
   width: 100%;
   max-width: 100%;
   margin: 0;
-  padding: 0;
+  padding: 24px clamp(20px, 5vw, 72px);
+  box-sizing: border-box;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
 }
 
 .buyer-messages-shell {
   width: 100%;
-  height: calc(100dvh - 140px);
+  max-width: 1240px;
+  margin: 0 auto;
+  height: calc(100dvh - 188px);
   min-height: 520px;
   background: #ffffff;
   border: 0;
-  border-top: 1px solid #edf2f7;
-  border-bottom: 1px solid #edf2f7;
   border-radius: 0;
   box-shadow: none;
   display: flex;
@@ -82,9 +84,13 @@
   right: 0;
   width: 13px;
   height: 13px;
-  background: #22c55e;
+  background: #94a3b8;
   border: 2.5px solid #ffffff;
   border-radius: 50%;
+}
+
+.buyer-support-status-dot.is-online {
+  background: #22c55e;
 }
 
 .buyer-messenger-contact {
@@ -129,9 +135,17 @@
 .buyer-contact-status .status-indicator {
   width: 7px;
   height: 7px;
-  background: #22c55e;
+  background: #94a3b8;
   border-radius: 50%;
   display: inline-block;
+}
+
+.buyer-contact-status.is-online {
+  color: #15803d;
+}
+
+.buyer-contact-status.is-online .status-indicator {
+  background: #22c55e;
 }
 
 .buyer-header-actions {
@@ -437,7 +451,16 @@
   color: #94a3b8;
 }
 
-.delivered-icon {
+.buyer-read-receipt {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.buyer-read-receipt.is-seen {
   color: #16a34a;
 }
 
@@ -563,6 +586,10 @@
 
 /* ---------------- RESPONSIVENESS ---------------- */
 @media (max-width: 768px) {
+  .buyer-messages-container {
+    padding: 12px;
+  }
+
   .buyer-messenger-header {
     padding: 12px 16px;
     min-height: 66px;
@@ -621,6 +648,10 @@
 }
 
 @media (max-width: 620px) {
+  .buyer-messages-container {
+    padding: 0;
+  }
+
   .buyer-messages-shell {
     height: calc(100dvh - 78px);
     min-height: 440px;

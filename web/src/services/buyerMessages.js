@@ -46,7 +46,7 @@ async function apiRequest(path, options = {}, retry = true) {
 
 export async function loadBuyerMessages() {
   const body = await apiRequest('/api/buyer/messages')
-  return { conversation: body.conversation, messages: body.messages || [] }
+  return { conversation: body.conversation, messages: body.messages || [], presence: body.presence }
 }
 
 export async function loadBuyerUnreadCount() {
@@ -59,5 +59,5 @@ export async function sendBuyerMessage(text) {
     method: 'POST',
     body: JSON.stringify({ body: text }),
   })
-  return { conversation: body.conversation, message: body.message }
+  return { conversation: body.conversation, message: body.message, presence: body.presence }
 }

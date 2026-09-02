@@ -5,6 +5,14 @@ const { getSupabase } = require("../supabase");
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
 
+const ONLINE_WINDOW_MS = 45 * 1000;
+
+function isOnline(lastSeenAt) {
+  if (!lastSeenAt) return false;
+  const seenAt = new Date(lastSeenAt).getTime();
+  return Number.isFinite(seenAt) && Date.now() - seenAt <= ONLINE_WINDOW_MS;
+}
+
 function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
@@ -29,13 +37,20 @@ router.get("/", async (req, res, next) => {
     const { data, error } = await getSupabase()
       .from("buyer_conversations")
       .select([
-        "id, buyer_id, created_at, last_message_at",
+        "id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at",
         "buyer:profiles!buyer_conversations_buyer_id_fkey(id, full_name)",
         "messages:buyer_messages(id, sender_role, body, created_at, read_at)",
       ].join(","))
       .order("last_message_at", { ascending: false })
       .limit(200);
     if (error) throw error;
+
+    if (data?.length) {
+      await getSupabase()
+        .from("buyer_conversations")
+        .update({ admin_last_seen_at: new Date().toISOString() })
+        .in("id", data.map((conversation) => conversation.id));
+    }
 
     const conversations = (data || []).map((conversation) => {
       const messages = conversation.messages || [];
@@ -51,6 +66,8 @@ router.get("/", async (req, res, next) => {
         last_message_at: conversation.last_message_at,
         last_message: lastMessage ? { body: lastMessage.body, sender_role: lastMessage.sender_role, created_at: lastMessage.created_at } : null,
         unread_count: unreadCount,
+        is_online: isOnline(conversation.buyer_last_seen_at),
+        last_seen_at: conversation.buyer_last_seen_at,
       };
     });
 
@@ -67,11 +84,16 @@ router.get("/:conversationId", async (req, res, next) => {
 
     const { data: conversation, error: conversationError } = await supabase
       .from("buyer_conversations")
-      .select("id, buyer_id, created_at, last_message_at, buyer:profiles!buyer_conversations_buyer_id_fkey(id, full_name)")
+      .select("id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at, buyer:profiles!buyer_conversations_buyer_id_fkey(id, full_name)")
       .eq("id", conversationId)
       .single();
     if (conversationError?.code === "PGRST116") throw httpError(404, "Conversation not found");
     if (conversationError) throw conversationError;
+
+    await supabase
+      .from("buyer_conversations")
+      .update({ admin_last_seen_at: new Date().toISOString() })
+      .eq("id", conversationId);
 
     const { data: messages, error: messagesError } = await supabase
       .from("buyer_messages")
@@ -89,7 +111,12 @@ router.get("/:conversationId", async (req, res, next) => {
       .is("read_at", null);
 
     return res.json({
-      conversation: { ...conversation, buyer: Array.isArray(conversation.buyer) ? conversation.buyer[0] : conversation.buyer },
+      conversation: {
+        ...conversation,
+        buyer: Array.isArray(conversation.buyer) ? conversation.buyer[0] : conversation.buyer,
+        is_online: isOnline(conversation.buyer_last_seen_at),
+        last_seen_at: conversation.buyer_last_seen_at,
+      },
       messages: messages || [],
     });
   } catch (error) {
@@ -110,6 +137,11 @@ router.post("/:conversationId/messages", async (req, res, next) => {
       .single();
     if (conversationError?.code === "PGRST116") throw httpError(404, "Conversation not found");
     if (conversationError) throw conversationError;
+
+    await supabase
+      .from("buyer_conversations")
+      .update({ admin_last_seen_at: new Date().toISOString() })
+      .eq("id", conversationId);
 
     const { data: message, error } = await supabase
       .from("buyer_messages")

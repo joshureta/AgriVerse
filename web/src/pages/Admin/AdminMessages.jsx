@@ -30,6 +30,7 @@ export default function AdminMessages() {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [selectedPresence, setSelectedPresence] = useState(null)
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const historyRef = useRef(null)
   const shouldScrollToLatestRef = useRef(true)
@@ -64,8 +65,9 @@ export default function AdminMessages() {
     if (!id) return
     if (!isBackground) setThreadLoading(true)
     try {
-      const { messages: loaded } = await loadAdminConversation(id)
+      const { conversation, messages: loaded } = await loadAdminConversation(id)
       setMessages(loaded)
+      setSelectedPresence(conversation?.is_online ?? null)
     } catch (err) {
       if (!isBackground) setError(err.message)
     } finally {
@@ -94,6 +96,7 @@ export default function AdminMessages() {
   useEffect(() => {
     if (selectedId) {
       shouldScrollToLatestRef.current = true
+      setSelectedPresence(null)
       fetchCurrentThread(selectedId, false)
     }
   }, [selectedId, fetchCurrentThread])
@@ -148,6 +151,10 @@ export default function AdminMessages() {
   }, [conversations, searchQuery])
 
   const selectedConversation = conversations.find((c) => c.id === selectedId)
+  const buyerOnline = selectedPresence ?? Boolean(selectedConversation?.is_online)
+  const lastAdminMessageId = [...messages]
+    .reverse()
+    .find((message) => message.sender_role === 'admin')?.id
 
   return (
     <main className="admin-dashboard admin-messages-page">
@@ -198,6 +205,7 @@ export default function AdminMessages() {
                     >
                       <div className="admin-messages-list-avatar" aria-hidden="true">
                         {initial}
+                        <span className={`admin-list-presence${conversation.is_online ? ' is-online' : ' is-offline'}`} />
                       </div>
 
                       <div className="admin-messages-list-info">
@@ -245,9 +253,14 @@ export default function AdminMessages() {
                     <div className="admin-thread-user-info">
                       <div className="admin-thread-avatar">
                         {(selectedConversation.buyer?.full_name || 'B').charAt(0).toUpperCase()}
+                        <span className={`admin-avatar-presence${buyerOnline ? ' is-online' : ' is-offline'}`} />
                       </div>
                       <div className="admin-thread-details">
                         <h2>{selectedConversation.buyer?.full_name || 'Buyer'}</h2>
+                        <p className={`admin-thread-status${buyerOnline ? ' is-online' : ' is-offline'}`}>
+                          <span className="presence-dot" aria-hidden="true" />
+                          {buyerOnline ? 'Online' : 'Offline'}
+                        </p>
                       </div>
                     </div>
                   </header>
@@ -281,8 +294,15 @@ export default function AdminMessages() {
                                 <Clock size={10} aria-hidden="true" />
                                 {formatTime(message.created_at)}
                               </time>
-                              {isAdmin && (
-                                <CheckCheck size={12} className="admin-check" aria-hidden="true" />
+                              {isAdmin && message.id === lastAdminMessageId && (
+                                <span
+                                  className={`admin-read-receipt${message.read_at ? ' is-seen' : ''}`}
+                                  title={message.read_at ? 'Seen' : 'Delivered'}
+                                  aria-label={message.read_at ? 'Seen' : 'Delivered'}
+                                >
+                                  <CheckCheck size={13} aria-hidden="true" />
+                                  <span>{message.read_at ? 'Seen' : 'Delivered'}</span>
+                                </span>
                               )}
                             </div>
                           </article>

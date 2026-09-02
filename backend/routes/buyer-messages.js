@@ -5,6 +5,14 @@ const { getSupabase } = require("../supabase");
 const router = express.Router();
 router.use(requireAuth, requireRole("buyer"));
 
+const ONLINE_WINDOW_MS = 45 * 1000;
+
+function isOnline(lastSeenAt) {
+  if (!lastSeenAt) return false;
+  const seenAt = new Date(lastSeenAt).getTime();
+  return Number.isFinite(seenAt) && Date.now() - seenAt <= ONLINE_WINDOW_MS;
+}
+
 function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
@@ -22,7 +30,7 @@ async function findOrCreateConversation(buyerId) {
   const supabase = getSupabase();
   const { data: existing, error: existingError } = await supabase
     .from("buyer_conversations")
-    .select("id, buyer_id, created_at, last_message_at")
+    .select("id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at")
     .eq("buyer_id", buyerId)
     .maybeSingle();
   if (existingError) throw existingError;
@@ -31,7 +39,7 @@ async function findOrCreateConversation(buyerId) {
   const { data: created, error: createError } = await supabase
     .from("buyer_conversations")
     .insert({ buyer_id: buyerId })
-    .select("id, buyer_id, created_at, last_message_at")
+    .select("id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at")
     .single();
   if (createError) throw createError;
   return created;
@@ -67,11 +75,16 @@ router.get("/", async (req, res, next) => {
     const supabase = getSupabase();
     const { data: conversation, error: conversationError } = await supabase
       .from("buyer_conversations")
-      .select("id, buyer_id, created_at, last_message_at")
+      .select("id, buyer_id, created_at, last_message_at, buyer_last_seen_at, admin_last_seen_at")
       .eq("buyer_id", req.user.id)
       .maybeSingle();
     if (conversationError) throw conversationError;
-    if (!conversation) return res.json({ conversation: null, messages: [] });
+    if (!conversation) return res.json({ conversation: null, messages: [], presence: { online: false } });
+
+    await supabase
+      .from("buyer_conversations")
+      .update({ buyer_last_seen_at: new Date().toISOString() })
+      .eq("id", conversation.id);
 
     const { data: messages, error: messagesError } = await supabase
       .from("buyer_messages")
@@ -88,7 +101,14 @@ router.get("/", async (req, res, next) => {
       .eq("sender_role", "admin")
       .is("read_at", null);
 
-    return res.json({ conversation, messages: messages || [] });
+    return res.json({
+      conversation,
+      messages: messages || [],
+      presence: {
+        online: isOnline(conversation.admin_last_seen_at),
+        last_seen_at: conversation.admin_last_seen_at,
+      },
+    });
   } catch (error) {
     return next(error);
   }
@@ -98,6 +118,11 @@ router.post("/", async (req, res, next) => {
   try {
     const body = readBody(req.body?.body);
     const conversation = await findOrCreateConversation(req.user.id);
+
+    await getSupabase()
+      .from("buyer_conversations")
+      .update({ buyer_last_seen_at: new Date().toISOString() })
+      .eq("id", conversation.id);
 
     const { data: message, error } = await getSupabase()
       .from("buyer_messages")
@@ -111,7 +136,14 @@ router.post("/", async (req, res, next) => {
       .single();
     if (error) throw error;
 
-    return res.status(201).json({ conversation, message });
+    return res.status(201).json({
+      conversation,
+      message,
+      presence: {
+        online: isOnline(conversation.admin_last_seen_at),
+        last_seen_at: conversation.admin_last_seen_at,
+      },
+    });
   } catch (error) {
     return next(error);
   }

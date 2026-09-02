@@ -38,6 +38,7 @@ export default function BuyerMessages() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [supportOnline, setSupportOnline] = useState(false)
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const [hasUnreadLatestReply, setHasUnreadLatestReply] = useState(false)
   const historyRef = useRef(null)
@@ -65,8 +66,9 @@ export default function BuyerMessages() {
 
   const fetchMessages = useCallback(async (isBackground = false) => {
     try {
-      const { messages: loaded } = await loadBuyerMessages()
+      const { messages: loaded, presence } = await loadBuyerMessages()
       setMessages(loaded)
+      setSupportOnline(Boolean(presence?.online))
       setError('')
     } catch (err) {
       if (!isBackground) setError(err.message)
@@ -115,9 +117,10 @@ export default function BuyerMessages() {
     setSending(true)
     setError('')
     try {
-      const { message } = await sendBuyerMessage(body)
+      const { message, presence } = await sendBuyerMessage(body)
       shouldScrollToLatestRef.current = true
       setMessages((current) => [...current, message])
+      setSupportOnline(Boolean(presence?.online))
       setDraft('')
     } catch (err) {
       setError(err.message)
@@ -138,6 +141,10 @@ export default function BuyerMessages() {
     }
   }
 
+  const lastBuyerMessageId = [...messages]
+    .reverse()
+    .find((message) => message.sender_role === 'buyer')?.id
+
   return (
     <main className="buyer-page buyer-messages-page">
       <BuyerHeader />
@@ -151,13 +158,20 @@ export default function BuyerMessages() {
                 <div className="buyer-support-avatar">
                   <Sprout className="support-icon" aria-hidden="true" />
                 </div>
-                <span className="buyer-support-status-dot" title="Online" />
+                <span
+                  className={`buyer-support-status-dot${supportOnline ? ' is-online' : ' is-offline'}`}
+                  title={supportOnline ? 'Online' : 'Offline'}
+                />
               </div>
 
               <div className="buyer-messenger-contact">
                 <div className="buyer-contact-title-row">
                   <h1 id="chat-title">JToledo Farm</h1>
                 </div>
+                <p className={`buyer-contact-status ${supportOnline ? 'is-online' : 'is-offline'}`}>
+                  <span className="status-indicator" aria-hidden="true" />
+                  {supportOnline ? 'Online' : 'Offline'}
+                </p>
               </div>
             </div>
           </header>
@@ -249,8 +263,15 @@ export default function BuyerMessages() {
                               <Clock size={11} className="time-icon" aria-hidden="true" />
                               {formatTime(message.created_at)}
                             </time>
-                            {isBuyer && (
-                              <CheckCheck size={13} className="delivered-icon" aria-hidden="true" />
+                            {isBuyer && message.id === lastBuyerMessageId && (
+                              <span
+                                className={`buyer-read-receipt${message.read_at ? ' is-seen' : ''}`}
+                                title={message.read_at ? 'Seen' : 'Delivered'}
+                                aria-label={message.read_at ? 'Seen' : 'Delivered'}
+                              >
+                                <CheckCheck size={14} aria-hidden="true" />
+                                <span>{message.read_at ? 'Seen' : 'Delivered'}</span>
+                              </span>
                             )}
                           </div>
                         </div>
