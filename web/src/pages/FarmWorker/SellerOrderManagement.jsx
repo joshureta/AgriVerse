@@ -40,6 +40,14 @@ const nextActions = {
   ready_for_delivery: [{ status: 'out_for_delivery', label: 'Start Delivery' }],
 }
 
+const DRIVER_READY_STATUSES = new Set(['accepted', 'picked_up'])
+
+function availableActions(order) {
+  const actions = nextActions[order.order_status] || []
+  if (order.order_status !== 'ready_for_delivery') return actions
+  return actions.filter((action) => action.status !== 'out_for_delivery' || DRIVER_READY_STATUSES.has(order.delivery_assignment_status))
+}
+
 function money(value) {
   return `PHP ${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
 }
@@ -220,7 +228,7 @@ export default function SellerOrderManagement() {
                   {loading && <tr><td colSpan="6" className="seller-order-empty"><span>Loading orders...</span></td></tr>}
                   {!loading && visibleOrders.length === 0 && <tr><td colSpan="6" className="seller-order-empty"><PackageOpen /><strong>{filtersActive ? 'No matching orders' : `No ${tabs.find((tab) => tab.key === activeTab)?.label.toLowerCase()} yet`}</strong><span>{filtersActive ? 'Try changing or clearing your filters.' : 'Orders in this stage will appear here.'}</span>{filtersActive && <button type="button" onClick={clearFilters}>Clear filters</button>}</td></tr>}
                   {!loading && visibleOrders.map((order) => {
-                    const primaryAction = (nextActions[order.order_status] || []).find((action) => !action.danger)
+                    const primaryAction = availableActions(order).find((action) => !action.danger)
                     return <tr key={order.id} tabIndex="0" onClick={() => setSelected(order)} onKeyDown={(event) => { if (event.key === 'Enter') setSelected(order) }}>
                       <td><strong>{order.order_number}</strong><small>{itemsSummary(order)}</small></td>
                       <td><strong>{order.delivery_full_name}</strong><small>{order.delivery_mobile_number || 'No phone provided'}</small></td>
@@ -282,7 +290,8 @@ export default function SellerOrderManagement() {
               </section>
             </div>
           </div>
-          {(nextActions[selected.order_status] || []).length > 0 && <footer>{[...(nextActions[selected.order_status] || [])].sort((first, second) => Number(second.danger) - Number(first.danger)).map((action) => <button className={action.danger ? 'is-danger' : 'is-primary'} type="button" disabled={updating} onClick={() => requestOrderAction(selected, action)} key={action.status}>{actionIcon(action.status)} {action.label}</button>)}</footer>}
+          {availableActions(selected).length > 0 && <footer>{[...availableActions(selected)].sort((first, second) => Number(second.danger) - Number(first.danger)).map((action) => <button className={action.danger ? 'is-danger' : 'is-primary'} type="button" disabled={updating} onClick={() => requestOrderAction(selected, action)} key={action.status}>{actionIcon(action.status)} {action.label}</button>)}</footer>}
+          {selected.order_status === 'ready_for_delivery' && !DRIVER_READY_STATUSES.has(selected.delivery_assignment_status) && <footer><small className="seller-driver-pending-note">Waiting for a driver to accept this delivery before it can start.</small></footer>}
         </section>
       </div>}
 

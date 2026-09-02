@@ -5,7 +5,7 @@ const { getSupabase } = require("../supabase");
 const router = express.Router();
 const allowedStatuses = new Set(["pending", "confirmed", "preparing", "ready_for_delivery", "out_for_delivery", "delivered", "completed", "cancelled"]);
 const orderSelect = [
-  "id, order_number, buyer_id, delivery_method, payment_method, payment_status, order_status",
+  "id, order_number, buyer_id, delivery_method, payment_method, payment_status, order_status, delivery_assignment_status",
   "subtotal, shipping_fee, total_amount, customer_note",
   "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
   "estimated_delivery_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
