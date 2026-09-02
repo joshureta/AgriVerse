@@ -3,26 +3,27 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   header: {
     height: 64,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#176D34',
     zIndex: 10,
   },
-  brandRow: {
+  zone: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  brandIcon: {
-    fontSize: 22,
+  zoneCenter: {
+    justifyContent: 'center',
   },
-  brandTitle: {
-    color: '#FFFFFF',
-    fontSize: 21,
-    fontWeight: '800',
-    letterSpacing: -0.4,
+  zoneEnd: {
+    justifyContent: 'flex-end',
+  },
+  logo: {
+    width: 36,
+    height: 36,
+    resizeMode: 'contain',
   },
   bellWrapper: {
     width: 38,
@@ -32,28 +33,10 @@ export const styles = StyleSheet.create({
     position: 'relative',
   },
   bellOutline: {
-    width: 20,
+    width: 22,
     height: 22,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  bellBody: {
-    width: 17,
-    height: 18,
-    borderTopLeftRadius: 8.5,
-    borderTopRightRadius: 8.5,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    backgroundColor: 'transparent',
-  },
-  bellClapper: {
-    width: 5,
-    height: 3,
-    marginTop: 1,
-    borderRadius: 2,
-    backgroundColor: '#FFFFFF',
   },
   badge: {
     position: 'absolute',

@@ -136,7 +136,13 @@ function TaskCard({
           disabled={busy || !workAllowed}
           onPress={() => onStatusChange(nextStatus)}
           style={({ pressed }) => [styles.startButton, (pressed || busy || !workAllowed) && styles.startButtonPressed]}>
-          {busy ? <ActivityIndicator color="#176D34" size="small" /> : <Text style={styles.startButtonText}>{workAllowed ? 'Start Task' : CROP_WORK_HOURS_LABEL}</Text>}
+          {busy ? (
+            <ActivityIndicator color="#176D34" size="small" />
+          ) : workAllowed ? (
+            <Text style={styles.startButtonText}>Start Task</Text>
+          ) : (
+            <Text style={[styles.startButtonText, styles.startButtonTextWrap]}>{CROP_WORK_HOURS_LABEL}</Text>
+          )}
         </Pressable>
       ) : (
         <View style={styles.completedBanner}>

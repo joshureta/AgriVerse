@@ -185,6 +185,7 @@ export default function BuyerHomeScreen() {
     <SafeAreaView style={styles.safeArea}>
       <BuyerHeader />
 
+      <View style={styles.mainBodyContainer}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <ImageBackground
@@ -285,6 +286,7 @@ export default function BuyerHomeScreen() {
           </View>
         </View>
       </ScrollView>
+      </View>
 
       <BuyerBottomNavigation activeTab="home" />
     </SafeAreaView>

@@ -172,7 +172,7 @@ export default function DriverTaskDashboardScreen() {
 
   const dashboard = summary;
   const pendingOrders = orders.filter((o) => o.delivery_assignment_status === 'assigned');
-  const previewOrders = pendingOrders.length > 0 ? pendingOrders.slice(0, 3) : orders.slice(0, 3);
+  const previewOrders = pendingOrders.slice(0, 3);
   const horizontalPadding = width < 360 ? 14 : 18;
 
   if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
@@ -197,7 +197,7 @@ export default function DriverTaskDashboardScreen() {
           }>
           
           {/* Top Greeting */}
-          <Text style={styles.greeting}>Good Day, Driver!</Text>
+          <Text style={styles.greeting}>Good Day, {profile?.full_name || 'Driver'}!</Text>
 
           {/* API Weather Banner Card */}
           <ApiWeatherBanner weather={weather} />

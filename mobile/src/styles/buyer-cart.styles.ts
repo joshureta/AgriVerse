@@ -11,6 +11,13 @@ export const ORANGE = '#E87A24';
 export const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: GREEN,
+  },
+  mainBodyContainer: {
+    flex: 1,
+    overflow: 'hidden',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     backgroundColor: '#F3F7F1',
   },
   scrollContent: {

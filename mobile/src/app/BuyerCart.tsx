@@ -156,6 +156,7 @@ export default function BuyerCartScreen() {
     <SafeAreaView style={styles.safeArea}>
       <BuyerHeader showBack />
 
+      <View style={styles.mainBodyContainer}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.titleRow}>
           <Text style={styles.titleIcon}>🛒</Text>
@@ -243,6 +244,7 @@ export default function BuyerCartScreen() {
           <Text style={styles.checkoutButtonText}>Check Out</Text>
         </Pressable>
       </ScrollView>
+      </View>
 
       <BuyerBottomNavigation activeTab="cart" />
     </SafeAreaView>

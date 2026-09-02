@@ -1,12 +1,16 @@
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
-import { ICON_MUTED, styles } from '@/styles/components/buyer-bottom-navigation.styles';
+import {
+  ACTIVE_ICON_COLOR,
+  INACTIVE_ICON_COLOR,
+  styles,
+} from '@/styles/components/buyer-bottom-navigation.styles';
 
 type BuyerTab = 'home' | 'orders' | 'cart' | 'account';
 
 function HomeIcon({ active }: { active: boolean }) {
-  const color = active ? '#ffffff' : ICON_MUTED;
+  const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
     <View style={styles.homeIcon}>
       <View style={[styles.homeRoof, { borderBottomColor: color }]} />
@@ -16,7 +20,7 @@ function HomeIcon({ active }: { active: boolean }) {
 }
 
 function OrdersIcon({ active }: { active: boolean }) {
-  const color = active ? '#ffffff' : ICON_MUTED;
+  const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
     <View style={styles.boxIcon}>
       <View style={[styles.boxBody, { borderColor: color }]} />
@@ -26,7 +30,7 @@ function OrdersIcon({ active }: { active: boolean }) {
 }
 
 function CartIcon({ active }: { active: boolean }) {
-  const color = active ? '#ffffff' : ICON_MUTED;
+  const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
     <View style={styles.cartIcon}>
       <View style={[styles.cartHandle, { borderColor: color }]} />
@@ -40,7 +44,7 @@ function CartIcon({ active }: { active: boolean }) {
 }
 
 function AccountIcon({ active }: { active: boolean }) {
-  const color = active ? '#ffffff' : ICON_MUTED;
+  const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
     <View style={styles.profileIcon}>
       <View style={[styles.profileHead, { borderColor: color }]} />
@@ -52,28 +56,30 @@ function AccountIcon({ active }: { active: boolean }) {
 export function BuyerBottomNavigation({ activeTab }: { activeTab: BuyerTab }) {
   const items: { key: BuyerTab; label: string; onPress: () => void; icon: (active: boolean) => React.ReactNode }[] = [
     { key: 'home', label: 'Home', onPress: () => router.push('/BuyerHome' as never), icon: (active) => <HomeIcon active={active} /> },
-    { key: 'orders', label: 'Orders', onPress: () => router.push('/BuyerProductDetail' as never), icon: (active) => <OrdersIcon active={active} /> },
+    { key: 'orders', label: 'Orders', onPress: () => router.push('/BuyerPurchaseHistory' as never), icon: (active) => <OrdersIcon active={active} /> },
     { key: 'cart', label: 'Cart', onPress: () => router.push('/BuyerCart' as never), icon: (active) => <CartIcon active={active} /> },
     { key: 'account', label: 'Account', onPress: () => router.push('/BuyerAccount' as never), icon: (active) => <AccountIcon active={active} /> },
   ];
 
   return (
-    <View style={styles.navigation}>
-      {items.map((item) => {
-        const active = activeTab === item.key;
-        return (
-          <Pressable
-            accessibilityLabel={`Go to ${item.label}`}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            key={item.key}
-            onPress={item.onPress}
-            style={({ pressed }) => [styles.button, active && styles.activeButton, pressed && styles.pressedButton]}>
-            {item.icon(active)}
-            <Text style={[styles.label, active && styles.activeLabel]}>{item.label}</Text>
-          </Pressable>
-        );
-      })}
+    <View style={styles.navigationArea}>
+      <View style={styles.navigation}>
+        {items.map((item) => {
+          const active = activeTab === item.key;
+          return (
+            <Pressable
+              accessibilityLabel={`Go to ${item.label}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              key={item.key}
+              onPress={item.onPress}
+              style={({ pressed }) => [styles.button, active && styles.activeButton, pressed && styles.pressedButton]}>
+              {item.icon(active)}
+              <Text style={active ? styles.activeLabel : styles.label}>{item.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }

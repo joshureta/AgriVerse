@@ -242,7 +242,7 @@ export const styles = StyleSheet.create({
 
   // Start Task Button
   startButton: {
-    height: 44,
+    minHeight: 44,
     borderRadius: 10,
     backgroundColor: '#F7F8F0',
     borderWidth: 1.5,
@@ -250,6 +250,8 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
   },
   startButtonPressed: {
     backgroundColor: '#EAF4D9',
@@ -260,6 +262,12 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  startButtonTextWrap: {
+    fontSize: 11,
+    lineHeight: 15,
+    letterSpacing: 0,
   },
   completedBanner: {
     alignSelf: 'center',

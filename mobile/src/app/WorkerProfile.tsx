@@ -17,25 +17,11 @@ import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
 import { styles } from '@/styles/worker-profile.styles';
 
-type ProfileRowProps = {
-  androidIcon: 'mail' | 'phone' | 'eco' | 'location_on';
-  iosIcon: 'envelope.fill' | 'phone.fill' | 'leaf.fill' | 'location.fill';
-  label: string;
-  value: string;
-};
-
-function ProfileRow({ androidIcon, iosIcon, label, value }: ProfileRowProps) {
+function InfoRow({ icon, text, bold }: { icon: string; text: string; bold?: boolean }) {
   return (
-    <View style={styles.profileRow}>
-      <View style={styles.rowIcon}>
-        <SymbolView
-          name={{ android: androidIcon, ios: iosIcon, web: androidIcon }}
-          size={21}
-          tintColor="#176D34"
-        />
-      </View>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value}</Text>
+    <View style={styles.infoRow}>
+      <Text style={styles.infoIcon}>{icon}</Text>
+      <Text style={bold ? styles.infoNameText : styles.infoText}>{text}</Text>
     </View>
   );
 }
@@ -68,6 +54,7 @@ export default function WorkerProfileScreen() {
 
   if (!profile) return <Redirect href="/login" />;
 
+  const isDriver = profile.worker_category === 'driver';
   const address = [
     profile.barangay,
     profile.city_municipality,
@@ -104,50 +91,30 @@ export default function WorkerProfileScreen() {
           showsVerticalScrollIndicator={false}>
           <Text style={styles.screenTitle}>My Profile</Text>
 
-          <View style={styles.profileCard}>
-            <View style={styles.identitySection}>
-              <View style={styles.avatar}>
-                <SymbolView
-                  name={{ android: 'account_circle', ios: 'person.crop.circle.fill', web: 'account_circle' }}
-                  size={88}
-                  tintColor="#176D34"
-                />
+          <View style={styles.card}>
+            <View style={styles.avatarWrap}>
+              <View style={styles.avatarCircle}>
+                <View style={styles.avatarHead} />
+                <View style={styles.avatarBody} />
+              </View>
+              <View style={styles.avatarBadge}>
+                <Text style={styles.avatarBadgeEmoji}>{isDriver ? '🚚' : '🌾'}</Text>
               </View>
             </View>
 
-            <View style={styles.informationCard}>
-              <Text adjustsFontSizeToFit minimumFontScale={0.78} numberOfLines={1} style={styles.fullName}>
-                {profile.full_name || 'AgriVerse Worker'}
-              </Text>
-
-              <View style={styles.profileRows}>
-                <ProfileRow
-                  androidIcon="mail"
-                  iosIcon="envelope.fill"
-                  label="Email"
-                  value={session?.user.email || 'Not provided'}
-                />
-                <ProfileRow
-                  androidIcon="phone"
-                  iosIcon="phone.fill"
-                  label="Phone"
-                  value={profile.mobile_number || 'Not provided'}
-                />
-                <ProfileRow
-                  androidIcon="eco"
-                  iosIcon="leaf.fill"
-                  label="Worker Type"
-                  value={formatWorkerCategory(profile.worker_category)}
-                />
-                <ProfileRow
-                  androidIcon="location_on"
-                  iosIcon="location.fill"
-                  label="Address"
-                  value={address || 'Not provided'}
-                />
-              </View>
-            </View>
+            <InfoRow icon="👤" text={profile.full_name || 'AgriVerse Worker'} bold />
+            <InfoRow icon="✉️" text={session?.user.email || 'Not provided'} />
+            <InfoRow icon="📞" text={profile.mobile_number || 'Not provided'} />
+            <InfoRow icon="🌿" text={formatWorkerCategory(profile.worker_category)} />
+            <InfoRow icon="📍" text={address || 'Not provided'} />
           </View>
+
+          <Pressable
+            accessibilityLabel="Edit profile"
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}>
+            <Text style={styles.editButtonText}>Edit Profile</Text>
+          </Pressable>
 
           <Pressable
             accessibilityLabel="Sign out"
@@ -160,7 +127,7 @@ export default function WorkerProfileScreen() {
               signingOut && styles.logoutButtonDisabled,
             ]}>
             {signingOut ? (
-              <ActivityIndicator color="#176D34" size="small" />
+              <ActivityIndicator color="#ffffff" size="small" />
             ) : (
               <SymbolView
                 name={{
@@ -168,8 +135,8 @@ export default function WorkerProfileScreen() {
                   ios: 'rectangle.portrait.and.arrow.right',
                   web: 'logout',
                 }}
-                size={21}
-                tintColor="#176D34"
+                size={20}
+                tintColor="#ffffff"
               />
             )}
             <Text style={styles.logoutText}>{signingOut ? 'Signing out…' : 'Sign Out'}</Text>

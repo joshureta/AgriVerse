@@ -158,7 +158,7 @@ export default function WorkerTaskDashboardScreen() {
 
   const dashboard = summary;
   const pendingTasks = tasks.filter((t) => t.status === 'pending');
-  const previewTasks = pendingTasks.length > 0 ? pendingTasks.slice(0, 3) : tasks.slice(0, 3);
+  const previewTasks = pendingTasks.slice(0, 3);
   const horizontalPadding = width < 360 ? 14 : 18;
 
   if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
@@ -183,7 +183,7 @@ export default function WorkerTaskDashboardScreen() {
           }>
           
           {/* Top Greeting */}
-          <Text style={styles.greeting}>Good Day, Worker!</Text>
+          <Text style={styles.greeting}>Good Day, {profile?.full_name || 'Worker'}!</Text>
 
           {/* API Weather Banner Card */}
           <ApiWeatherBanner weather={weather} />

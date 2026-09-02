@@ -7,16 +7,12 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1F5F2B',
-    shadowColor: '#0B2E16',
+    backgroundColor: '#176D34',
+    shadowColor: '#125829',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   logo: {
     width: 36,
@@ -29,7 +25,7 @@ export const styles = StyleSheet.create({
     gap: 16,
   },
 
-  // 3-zone layout used only when a back button is shown (logo centers on its own).
+  // 3-zone layout keeps the logo centered whether or not a back button is shown.
   zone: {
     flex: 1,
     flexDirection: 'row',
@@ -60,38 +56,34 @@ export const styles = StyleSheet.create({
   },
   chat: {
     width: 26,
-    height: 22,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chatBubble: {
-    width: 22,
+  chatBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 16,
     height: 16,
-    borderRadius: 7,
-    borderBottomLeftRadius: 2,
-    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: '#E4572E',
+    borderWidth: 1.5,
+    borderColor: '#176D34',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
   },
   bell: {
     width: 26,
     height: 26,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  bellBody: {
-    width: 16,
-    height: 17,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
-    backgroundColor: '#ffffff',
-  },
-  bellClapper: {
-    width: 5,
-    height: 4,
-    marginTop: 2,
-    borderRadius: 3,
-    backgroundColor: '#ffffff',
   },
   bellDot: {
     position: 'absolute',
@@ -102,6 +94,6 @@ export const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#E4572E',
     borderWidth: 1.5,
-    borderColor: '#165E28',
+    borderColor: '#176D34',
   },
 });

@@ -186,8 +186,8 @@ export const styles = StyleSheet.create({
     backgroundColor: '#3D7853',
   },
   equipmentVehicle: {
-    width: 58,
-    height: 48,
+    width: 72,
+    height: 58,
     resizeMode: 'contain',
   },
   equipmentLabel: {

@@ -1,45 +1,65 @@
 import { StyleSheet } from 'react-native';
 
-export const BAR_GREEN = '#0E2E18';
-export const ICON_LIGHT = '#E7F2E4';
-export const ICON_MUTED = '#8FB89A';
+export const GREEN_NAV_BG = '#176D34';
+export const ACTIVE_PILL_BG = '#EAF5EA';
+export const ACTIVE_ICON_COLOR = '#176D34';
+export const INACTIVE_ICON_COLOR = '#E0F2E9';
+export const INACTIVE_TEXT_COLOR = '#DCF0E2';
 
 export const styles = StyleSheet.create({
-  navigation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
+  navigationArea: {
     paddingHorizontal: 12,
     paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: BAR_GREEN,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    paddingBottom: 10,
+    backgroundColor: '#F8FAEF',
+  },
+  navigation: {
+    height: 70,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 7,
+    borderRadius: 35,
+    backgroundColor: GREEN_NAV_BG,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    elevation: 14,
+    shadowColor: '#07150C',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
   button: {
     flex: 1,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 18,
+    borderRadius: 28,
+    marginHorizontal: 3,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
   },
   activeButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    backgroundColor: ACTIVE_PILL_BG,
   },
   pressedButton: {
     opacity: 0.75,
   },
   label: {
     fontSize: 11,
-    fontWeight: '700',
-    color: ICON_MUTED,
+    fontWeight: '600',
+    color: INACTIVE_TEXT_COLOR,
     marginTop: 2,
+    height: 14,
+    textAlign: 'center',
   },
   activeLabel: {
-    color: '#ffffff',
+    fontSize: 11,
     fontWeight: '800',
+    color: ACTIVE_ICON_COLOR,
+    marginTop: 2,
+    height: 14,
+    textAlign: 'center',
   },
 
   homeIcon: {

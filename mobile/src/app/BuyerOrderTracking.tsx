@@ -160,7 +160,7 @@ export default function BuyerOrderTrackingScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={GREEN} size="large" />
         </View>
-        <BuyerBottomNavigation activeTab="account" />
+        <BuyerBottomNavigation activeTab="orders" />
       </SafeAreaView>
     );
   }
@@ -172,7 +172,7 @@ export default function BuyerOrderTrackingScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
           <Text style={{ color: '#a33d35', fontSize: 13, textAlign: 'center' }}>{error || 'Order not found.'}</Text>
         </View>
-        <BuyerBottomNavigation activeTab="account" />
+        <BuyerBottomNavigation activeTab="orders" />
       </SafeAreaView>
     );
   }
@@ -328,7 +328,7 @@ export default function BuyerOrderTrackingScreen() {
         </View>
       </ScrollView>
 
-      <BuyerBottomNavigation activeTab="account" />
+      <BuyerBottomNavigation activeTab="orders" />
     </SafeAreaView>
   );
 }

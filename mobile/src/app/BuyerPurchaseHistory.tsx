@@ -91,6 +91,7 @@ export default function BuyerPurchaseHistoryScreen() {
     <SafeAreaView style={styles.safeArea}>
       <BuyerHeader showBack />
 
+      <View style={styles.mainBodyContainer}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.titleText}>My Purchases</Text>
 
@@ -126,8 +127,9 @@ export default function BuyerPurchaseHistoryScreen() {
           ))
         )}
       </ScrollView>
+      </View>
 
-      <BuyerBottomNavigation activeTab="account" />
+      <BuyerBottomNavigation activeTab="orders" />
     </SafeAreaView>
   );
 }

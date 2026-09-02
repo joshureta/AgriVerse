@@ -1,3 +1,4 @@
+import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
@@ -43,6 +44,7 @@ export default function BuyerAccountScreen() {
     <SafeAreaView style={styles.safeArea}>
       <BuyerHeader />
 
+      <View style={styles.mainBodyContainer}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.titleText}>My Account</Text>
 
@@ -112,10 +114,19 @@ export default function BuyerAccountScreen() {
             pressed && styles.editButtonPressed,
             signingOut && styles.buttonDisabled,
           ]}>
-          {signingOut ? <ActivityIndicator color="#ffffff" size="small" /> : null}
+          {signingOut ? (
+            <ActivityIndicator color="#ffffff" size="small" />
+          ) : (
+            <SymbolView
+              name={{ android: 'logout', ios: 'rectangle.portrait.and.arrow.right', web: 'logout' }}
+              size={20}
+              tintColor="#ffffff"
+            />
+          )}
           <Text style={styles.editButtonText}>{signingOut ? 'Signing Out…' : 'Sign Out'}</Text>
         </Pressable>
       </ScrollView>
+      </View>
 
       <BuyerBottomNavigation activeTab="account" />
     </SafeAreaView>
