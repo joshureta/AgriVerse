@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowRight, Check, PackagePlus, X } from 'lucide-react'
+import { ArrowRight, Check, PackageMinus, PackagePlus, X } from 'lucide-react'
 import archiveIcon from '../../assets/archive-inventory-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { SellerSidebar, SellerTopbar } from '../../components/SellerNavigation.jsx'
@@ -210,27 +210,39 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   function openAddStock(item) {
     setItemForm({ ...emptyItemForm, stock_quantity: item.stock_quantity, stock_to_add: '' })
     setError('')
-    setModal({ mode: 'add-stock', item })
+    setModal({ mode: 'add-stock', item, direction: 'add' })
+  }
+
+  function openRemoveStock(item) {
+    setItemForm({ ...emptyItemForm, stock_quantity: item.stock_quantity, stock_to_add: '' })
+    setError('')
+    setModal({ mode: 'add-stock', item, direction: 'remove' })
   }
 
   function requestStockConfirmation(event) {
     event.preventDefault()
     const quantity = Number(itemForm.stock_to_add)
+    const removing = modal.direction === 'remove'
     if (!Number.isSafeInteger(quantity) || quantity < 1) {
-      setError('Stock to add must be a whole number greater than zero.')
+      setError(`Quantity to ${removing ? 'remove' : 'add'} must be a whole number greater than zero.`)
+      return
+    }
+    if (removing && quantity > modal.item.stock_quantity) {
+      setError('Cannot remove more than the current stock.')
       return
     }
     setError('')
     setModal((currentModal) => ({ ...currentModal, mode: 'confirm-stock' }))
   }
 
-  async function addStock() {
+  async function submitStockChange() {
     const quantity = Number(itemForm.stock_to_add)
+    const removing = modal.direction === 'remove'
     setSaving(true)
     setError('')
     try {
       const endpoint = modal.item.id
-        ? `${inventoryApi}/${modal.item.id}/stock`
+        ? `${inventoryApi}/${modal.item.id}/stock${removing ? '/remove' : ''}`
         : `${inventoryApi}/pineapple-sizes/${modal.item.details.size_id}/stock`
       await apiRequest(endpoint, {
         method: 'POST', body: JSON.stringify({ quantity }),
@@ -256,12 +268,6 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setError('')
     try {
       const editing = modal.mode === 'edit-item'
-      const stockToAdd = editing && itemForm.stock_to_add !== ''
-        ? Number(itemForm.stock_to_add)
-        : 0
-      if (!Number.isSafeInteger(stockToAdd) || stockToAdd < 0) {
-        throw new Error('Stock to add must be a whole number of zero or greater.')
-      }
       const payload = {
         ...itemForm,
         inventory_category_id: Number(itemForm.inventory_category_id),
@@ -279,12 +285,6 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
           body: JSON.stringify(payload),
         },
       )
-      if (editing && stockToAdd > 0) {
-        await apiRequest(`${inventoryApi}/${modal.item.id}/stock`, {
-          method: 'POST',
-          body: JSON.stringify({ quantity: stockToAdd }),
-        })
-      }
       setModal(null)
       setPage(1)
       setRefreshKey((value) => value + 1)
@@ -415,8 +415,12 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                         <td>{item.id}</td><td><span className="inventory-category-badge">{item.item_type}</span></td><td><strong>{item.item_name}</strong></td><td className="inventory-details-cell">{categoryDetails(item)}</td>
                         <td><strong className="inventory-quantity">{item.stock_quantity}</strong></td><td>{item.unit_label || '—'}</td><td>{formatDate(activeView === 'archive' ? item.archived_at : item.updated_at)}</td>
                         <td><div className="inventory-actions">
-                          {activeView === 'items' ? <><button className="inventory-edit" type="button" onClick={() => openEditItem(item)} aria-label={`Edit ${item.item_name}`}>✎</button>
-                            <button className="inventory-archive" type="button" onClick={() => archiveItem(item)} aria-label={`Archive ${item.item_name}`}><img src={archiveIcon} alt="" /></button></>
+                          {activeView === 'items' ? <>
+                            <button className="inventory-edit" type="button" onClick={() => openEditItem(item)} aria-label={`Edit ${item.item_name}`}>✎</button>
+                            <button className="inventory-add-stock-icon" type="button" onClick={() => openAddStock(item)} aria-label={`Add stock to ${item.item_name}`}><PackagePlus size={14} aria-hidden="true" /></button>
+                            <button className="inventory-remove-stock" type="button" onClick={() => openRemoveStock(item)} aria-label={`Remove stock from ${item.item_name}`} disabled={item.stock_quantity <= 0}><PackageMinus size={14} aria-hidden="true" /></button>
+                            <button className="inventory-archive" type="button" onClick={() => archiveItem(item)} aria-label={`Archive ${item.item_name}`}><img src={archiveIcon} alt="" /></button>
+                          </>
                             : <button className="inventory-restore" type="button" onClick={() => restoreItem(item)} aria-label={`Restore ${item.item_name}`}>Restore</button>}
                         </div></td>
                       </tr>
@@ -490,10 +494,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
             <label><span>Unit</span><select value={itemForm.unit_id} onChange={(event) => setItemForm({ ...itemForm, unit_id: event.target.value })} required><option value="" disabled>Select unit</option>{options.units.map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_name} ({unit.abbreviation})</option>)}</select></label>
             {modal.mode === 'add-item'
               ? <label><span>Starting stock</span><input type="number" min="0" step="1" value={itemForm.stock_quantity} onChange={(event) => setItemForm({ ...itemForm, stock_quantity: event.target.value })} required /></label>
-              : <>
-                <label><span>Current stock</span><input className="inventory-current-stock" type="number" value={itemForm.stock_quantity} readOnly aria-readonly="true" /></label>
-                <label><span>Quantity to add</span><input type="number" min="0" step="1" value={itemForm.stock_to_add} onChange={(event) => setItemForm({ ...itemForm, stock_to_add: event.target.value })} placeholder="Enter additional stock" /></label>
-              </>}
+              : <label><span>Current stock</span><input className="inventory-current-stock" type="number" value={itemForm.stock_quantity} readOnly aria-readonly="true" /></label>}
             {selectedCategory?.code === 'pineapple' && <>
               <label><span>Size</span><select value={itemForm.size_id} onChange={(event) => setItemForm({ ...itemForm, size_id: event.target.value })} required><option value="" disabled>Select size</option>{options.pineappleSizes.map((size) => <option value={size.id} key={size.id}>{size.size_name}</option>)}</select></label>
               <label><span>Harvest date</span><input type="date" value={itemForm.harvest_date} onChange={(event) => setItemForm({ ...itemForm, harvest_date: event.target.value })} /></label>
@@ -521,21 +522,21 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
         <section className="inventory-modal stock-modal" role="dialog" aria-modal="true" aria-labelledby="stock-modal-title">
           <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           <div className="stock-modal-heading">
-            <span className="stock-modal-icon" aria-hidden="true"><PackagePlus size={21} /></span>
-            <div><p>Pineapple inventory</p><h2 id="stock-modal-title">Add Pineapple Stock</h2></div>
+            <span className={`stock-modal-icon${modal.direction === 'remove' ? ' stock-modal-icon-remove' : ''}`} aria-hidden="true">{modal.direction === 'remove' ? <PackageMinus size={21} /> : <PackagePlus size={21} />}</span>
+            <div><p>{modal.item.category_code === 'pineapple' ? 'Pineapple inventory' : `${modal.item.item_type} inventory`}</p><h2 id="stock-modal-title">{modal.direction === 'remove' ? 'Remove Stock' : 'Add Stock'}</h2></div>
           </div>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
           <form onSubmit={requestStockConfirmation}>
             <div className="stock-modal-summary">
-              <div><small>Selected size</small><span>{modal.item.variant}</span></div>
+              <div><small>{modal.item.category_code === 'pineapple' ? 'Selected size' : 'Item'}</small><span>{modal.item.category_code === 'pineapple' ? modal.item.variant : modal.item.item_name}</span></div>
               <div><small>Available now</small><strong>{modal.item.stock_quantity} <em>{modal.item.unit_label || 'pcs'}</em></strong></div>
             </div>
             <label className="stock-quantity-field">
-              <span>Quantity to add</span>
-              <div className="stock-input-wrap"><input type="number" min="1" step="1" value={itemForm.stock_to_add} onChange={(event) => setItemForm({ ...itemForm, stock_to_add: event.target.value })} placeholder="0" aria-describedby="stock-quantity-help" required autoFocus /><span>{modal.item.unit_label || 'pcs'}</span></div>
-              <small id="stock-quantity-help">Enter a whole number greater than zero.</small>
+              <span>{modal.direction === 'remove' ? 'Quantity to remove' : 'Quantity to add'}</span>
+              <div className="stock-input-wrap"><input type="number" min="1" max={modal.direction === 'remove' ? modal.item.stock_quantity : undefined} step="1" value={itemForm.stock_to_add} onChange={(event) => setItemForm({ ...itemForm, stock_to_add: event.target.value })} placeholder="0" aria-describedby="stock-quantity-help" required autoFocus /><span>{modal.item.unit_label || 'pcs'}</span></div>
+              <small id="stock-quantity-help">Enter a whole number greater than zero{modal.direction === 'remove' ? `, up to ${modal.item.stock_quantity}` : ''}.</small>
             </label>
-            {Number(itemForm.stock_to_add) > 0 && <div className="stock-after-preview"><span>Current <strong>{modal.item.stock_quantity}</strong></span><ArrowRight size={16} aria-hidden="true" /><span>New total <strong>{Number(modal.item.stock_quantity) + Number(itemForm.stock_to_add)} {modal.item.unit_label || 'pcs'}</strong></span></div>}
+            {Number(itemForm.stock_to_add) > 0 && <div className="stock-after-preview"><span>Current <strong>{modal.item.stock_quantity}</strong></span><ArrowRight size={16} aria-hidden="true" /><span>New total <strong>{modal.direction === 'remove' ? Number(modal.item.stock_quantity) - Number(itemForm.stock_to_add) : Number(modal.item.stock_quantity) + Number(itemForm.stock_to_add)} {modal.item.unit_label || 'pcs'}</strong></span></div>}
             <footer className="stock-modal-actions"><button type="submit">Confirm</button></footer>
           </form>
         </section>
@@ -546,17 +547,17 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
           <button className="inventory-modal-close" type="button" onClick={() => setModal((currentModal) => ({ ...currentModal, mode: 'add-stock' }))} aria-label="Go back"><X size={18} aria-hidden="true" /></button>
           <span className="stock-confirmation-icon" aria-hidden="true"><Check size={24} /></span>
           <p>Confirm stock update</p>
-          <h2 id="stock-confirmation-title">Add {itemForm.stock_to_add} {modal.item.unit_label || 'pcs'}?</h2>
-          <p id="stock-confirmation-description" className="stock-confirmation-copy">Please review the change before updating the inventory for <strong>{modal.item.variant}</strong>.</p>
+          <h2 id="stock-confirmation-title">{modal.direction === 'remove' ? 'Remove' : 'Add'} {itemForm.stock_to_add} {modal.item.unit_label || 'pcs'}?</h2>
+          <p id="stock-confirmation-description" className="stock-confirmation-copy">Please review the change before updating the inventory for <strong>{modal.item.category_code === 'pineapple' ? modal.item.variant : modal.item.item_name}</strong>.</p>
           <div className="stock-confirmation-totals">
             <div><span>Current stock</span><strong>{modal.item.stock_quantity} {modal.item.unit_label || 'pcs'}</strong></div>
             <ArrowRight size={18} aria-hidden="true" />
-            <div><span>New total</span><strong>{Number(modal.item.stock_quantity) + Number(itemForm.stock_to_add)} {modal.item.unit_label || 'pcs'}</strong></div>
+            <div><span>New total</span><strong>{modal.direction === 'remove' ? Number(modal.item.stock_quantity) - Number(itemForm.stock_to_add) : Number(modal.item.stock_quantity) + Number(itemForm.stock_to_add)} {modal.item.unit_label || 'pcs'}</strong></div>
           </div>
           {error && <div className="inventory-modal-error" role="alert">{error}</div>}
           <footer>
             <button type="button" onClick={() => setModal((currentModal) => ({ ...currentModal, mode: 'add-stock' }))} disabled={saving}>Go back</button>
-            <button type="button" className="stock-confirm-submit" onClick={addStock} disabled={saving}>{saving ? 'Adding stock…' : 'Yes, add stock'}</button>
+            <button type="button" className="stock-confirm-submit" onClick={submitStockChange} disabled={saving}>{saving ? (modal.direction === 'remove' ? 'Removing stock…' : 'Adding stock…') : (modal.direction === 'remove' ? 'Yes, remove stock' : 'Yes, add stock')}</button>
           </footer>
         </section>
       </div>}

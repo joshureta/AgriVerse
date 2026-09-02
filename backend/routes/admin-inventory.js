@@ -427,6 +427,20 @@ router.post("/:id/stock", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.post("/:id/stock/remove", async (req, res, next) => {
+  try {
+    const id = readId(req.params.id);
+    const { error } = await getSupabase().rpc("remove_inventory_stock", {
+      p_item_id: id, p_quantity: readQuantity(req.body.quantity, { allowZero: false }),
+    });
+    if (error) {
+      if (error.message?.includes("not found")) throw httpError(404, "Inventory item was not found or has insufficient stock");
+      throw error;
+    }
+    return res.json({ item: await fetchItem(id) });
+  } catch (error) { return next(error); }
+});
+
 router.post("/:id/archive", async (req, res, next) => {
   try {
     const id = readId(req.params.id);
