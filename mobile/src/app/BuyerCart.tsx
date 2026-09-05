@@ -227,6 +227,10 @@ export default function BuyerCartScreen() {
 
       <View style={styles.mainBodyContainer}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.titleBlock}>
+            <Text style={styles.titleText}>Shopping Cart</Text>
+          </View>
+
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
           {loading ? (

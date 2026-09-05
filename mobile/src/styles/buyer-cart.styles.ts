@@ -23,6 +23,16 @@ export const styles = StyleSheet.create({
     paddingBottom: 28,
   },
 
+  titleBlock: {
+    marginBottom: 16,
+  },
+  titleText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: DARK_GREEN,
+    letterSpacing: -0.3,
+  },
+
   loader: {
     marginTop: 24,
   },

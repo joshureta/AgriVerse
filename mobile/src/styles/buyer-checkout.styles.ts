@@ -30,12 +30,11 @@ export const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   subtitleText: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: TEXT_MUTED,
-    marginTop: 4,
+    marginTop: 3,
     lineHeight: 17,
   },
-
   loader: {
     marginTop: 12,
   },
@@ -71,52 +70,97 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CARD_BORDER,
     shadowColor: '#0B2E16',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 3,
   },
 
-  // Address card
-  addressRow: {
+  // Card Header Standard
+  cardHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
   },
-  avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  cardIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: SAGE_BG,
+    borderWidth: 1,
+    borderColor: SAGE_BORDER,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: GREEN,
   },
-  avatarEmoji: {
-    fontSize: 18,
+  cardTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: DARK_GREEN,
+    letterSpacing: -0.2,
   },
-  addressTextBlock: {
-    flex: 1,
-    marginLeft: 12,
+  cardBadge: {
+    backgroundColor: '#E4EFE3',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
+  cardBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: GREEN,
+    letterSpacing: 0.2,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#F0F4EE',
+    marginBottom: 14,
+  },
+
+  // Delivery Information Card (Single clean card)
   addressHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  addressName: {
+  deliveryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  deliverySectionTitle: {
     fontSize: 14,
     fontWeight: '800',
     color: DARK_GREEN,
+    letterSpacing: -0.2,
   },
   editLink: {
-    fontSize: 12,
-    fontWeight: '750' as never,
+    fontSize: 12.5,
+    fontWeight: '700',
     color: GREEN,
   },
-  addressText: {
-    fontSize: 12,
-    color: '#556658',
-    marginTop: 4,
-    lineHeight: 17,
+  deliveryName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: DARK_GREEN,
+    marginBottom: 3,
+  },
+  deliveryAddress: {
+    fontSize: 12.5,
+    color: '#4B5E4F',
+    lineHeight: 18,
+  },
+  deliveryEmptyText: {
+    fontSize: 12.5,
+    color: TEXT_MUTED,
+    lineHeight: 18,
   },
 
   // Section label above a group of option cards
@@ -124,8 +168,8 @@ export const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '800',
     color: DARK_GREEN,
-    marginBottom: 10,
-    letterSpacing: 0.2,
+    marginBottom: 12,
+    letterSpacing: -0.2,
   },
 
   // Delivery / payment option cards
@@ -141,10 +185,10 @@ export const styles = StyleSheet.create({
   },
   optionCardActive: {
     borderColor: GREEN,
-    backgroundColor: '#F3FAF0',
+    backgroundColor: '#F5FAF3',
     shadowColor: GREEN,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 2,
   },
@@ -153,8 +197,8 @@ export const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   optionIconCircle: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -162,25 +206,30 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: SAGE_BORDER,
   },
+  optionIconCircleActive: {
+    backgroundColor: '#E1EFE0',
+    borderColor: '#C3DCBE',
+  },
   optionIconText: {
     fontSize: 18,
   },
   gcashBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: GCASH_BLUE,
   },
   gcashBadgeText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '900',
   },
   optionTextBlock: {
     flex: 1,
     marginLeft: 12,
+    marginRight: 8,
   },
   optionLabel: {
     fontSize: 13,
@@ -194,32 +243,46 @@ export const styles = StyleSheet.create({
     lineHeight: 15,
   },
   radioOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.8,
     borderColor: '#C7D3C4',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#ffffff',
   },
   radioOuterActive: {
     borderColor: GREEN,
+    backgroundColor: '#ffffff',
   },
   radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
     backgroundColor: GREEN,
   },
 
+  notesLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  notesLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: DARK_GREEN,
+  },
   notesInput: {
     minHeight: 74,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: CARD_BORDER,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FAFCF9',
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 6,
     fontSize: 12.5,
     color: DARK_GREEN,
     textAlignVertical: 'top',
@@ -232,7 +295,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CARD_BORDER,
     marginTop: -2,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   bankDetailRow: {
     flexDirection: 'row',
@@ -254,16 +317,29 @@ export const styles = StyleSheet.create({
   summaryHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
+    justifyContent: 'space-between',
+    paddingBottom: 12,
   },
-  summaryHeaderIcon: {
-    fontSize: 16,
+  summaryHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  summaryHeaderIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: SAGE_BG,
+    borderWidth: 1,
+    borderColor: SAGE_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   summaryHeaderTitle: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '800',
     color: DARK_GREEN,
+    letterSpacing: -0.2,
   },
 
   summaryItemRow: {
@@ -274,7 +350,7 @@ export const styles = StyleSheet.create({
   summaryItemIconBox: {
     width: 48,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F7FAF5',
@@ -309,14 +385,15 @@ export const styles = StyleSheet.create({
 
   summaryDivider: {
     height: 1,
-    backgroundColor: '#EDF2EC',
+    backgroundColor: '#F0F4EE',
+    marginTop: 4,
     marginBottom: 12,
   },
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   summaryLabel: {
     fontSize: 12.5,
@@ -332,8 +409,8 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 4,
-    padding: 12,
+    marginTop: 8,
+    padding: 14,
     borderRadius: 14,
     backgroundColor: SAGE_BG,
     borderWidth: 1,
@@ -345,21 +422,23 @@ export const styles = StyleSheet.create({
     color: DARK_GREEN,
   },
   summaryTotalValue: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '900',
     color: GREEN,
   },
 
   placeOrderButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 15,
-    borderRadius: 26,
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 28,
     backgroundColor: GREEN,
     shadowColor: GREEN,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
     elevation: 4,
   },
   placeOrderButtonDisabled: {
@@ -368,42 +447,76 @@ export const styles = StyleSheet.create({
     elevation: 0,
   },
   placeOrderButtonPressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
+    transform: [{ scale: 0.985 }],
   },
   placeOrderButtonText: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '800',
     color: '#ffffff',
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
 
   // Delivery address modal
   modalBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(9, 32, 16, 0.52)',
+    backgroundColor: 'rgba(9, 32, 16, 0.55)',
   },
   modalCard: {
     maxHeight: '85%',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     backgroundColor: '#ffffff',
-    padding: 22,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 28,
     borderWidth: 1,
     borderColor: CARD_BORDER,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalHandleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D6DFD4',
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
     color: DARK_GREEN,
+    letterSpacing: -0.2,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F2F6F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: TEXT_MUTED,
     marginBottom: 16,
   },
   fieldBlock: {
     marginBottom: 12,
   },
   fieldLabel: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
     color: DARK_GREEN,
     marginBottom: 6,
@@ -421,7 +534,7 @@ export const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 8,
+    marginTop: 14,
   },
   modalCancelButton: {
     flex: 1,
@@ -439,7 +552,7 @@ export const styles = StyleSheet.create({
     color: '#556658',
   },
   modalSaveButton: {
-    flex: 1,
+    flex: 1.2,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 13,

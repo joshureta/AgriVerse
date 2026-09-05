@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { openBrowserAsync } from 'expo-web-browser';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
@@ -21,7 +22,7 @@ import {
   saveDefaultBuyerDeliveryAddress,
   writeBuyerCart,
 } from '@/lib/buyer-marketplace';
-import { GREEN, styles } from '@/styles/buyer-checkout.styles';
+import { GREEN, TEXT_MUTED, styles } from '@/styles/buyer-checkout.styles';
 
 const DELIVERY_FEE = 100;
 
@@ -51,30 +52,207 @@ function addressIsComplete(address: DeliveryAddressInput) {
   );
 }
 
+function MapPinIcon({ color = GREEN, size = 18 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 21s-7-4.35-7-10a7 7 0 1 1 14 0c0 5.65-7 10-7 10Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx={12} cy={11} r={2.5} stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+function UserIcon({ color = GREEN, size = 14 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx={12} cy={7} r={4} stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+function PhoneIcon({ color = TEXT_MUTED, size = 13 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function PencilIcon({ color = GREEN, size = 13 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function TruckIcon({ color = GREEN, size = 20 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M15 18H9M19 18h2a1 1 0 0 0 1-1v-5.5a1.5 1.5 0 0 0-.44-1.06L18.5 7.38A1.5 1.5 0 0 0 17.44 7H14v11h1"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx={7} cy={18} r={2} stroke={color} strokeWidth={2} />
+      <Circle cx={17} cy={18} r={2} stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+function PackageIcon({ color = GREEN, size = 20 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="m3.3 7 8.7 5 8.7-5M12 22V12"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function CashIcon({ color = GREEN, size = 20 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x={2} y={6} width={20} height={12} rx={2} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx={12} cy={12} r={2.5} stroke={color} strokeWidth={2} />
+      <Path d="M6 12h.01M18 12h.01" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function CardIcon({ color = GREEN, size = 20 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x={2} y={5} width={20} height={14} rx={2} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M2 10h20" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M6 15h2M10 15h4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+
+function LockIcon({ color = '#ffffff', size = 15 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x={3} y={11} width={18} height={11} rx={2} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M7 11V7a5 5 0 0 1 10 0v4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function CloseIcon({ color = '#556658', size = 15 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M18 6 6 18M6 6l12 12" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function StoreIcon({ color = GREEN, size = 16 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="m2 7 4.42-4.42A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.41.59L22 7M2 7v13a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7M2 7h20M9 22v-8h6v8"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 const DELIVERY_METHODS = [
-  { key: 'delivery', icon: '🚚', label: 'Standard Delivery', sub: 'Delivery service straight to your registered address.' },
-  { key: 'pickup', icon: '📦', label: 'On-site Pickup', sub: 'Collect your order directly from JToledo Trading.' },
+  { key: 'delivery', label: 'Standard Delivery', sub: 'Delivery service straight to your registered address.' },
+  { key: 'pickup', label: 'On-site Pickup', sub: 'Collect your order directly from JToledo Trading Farm.' },
 ] as const;
 
 const PAYMENT_METHODS = [
-  { key: 'cash', icon: '💵', label: 'Cash on Delivery', sub: 'Pay with cash when your pineapples arrive.' },
-  { key: 'bank', icon: '💳', label: 'Bank Transfer', sub: 'Transfer directly to the JToledo bank account.' },
-  { key: 'gcash', icon: 'G', label: 'GCash', sub: 'Pay securely using your GCash mobile wallet.' },
+  { key: 'cash', label: 'Cash on Delivery', sub: 'Pay with cash when your pineapples arrive.' },
+  { key: 'bank', label: 'Bank Transfer', sub: 'Transfer directly to the JToledo bank account.' },
+  { key: 'gcash', label: 'GCash', sub: 'Pay securely using your GCash mobile wallet.' },
 ] as const;
 
 function OptionCard({
-  icon,
+  methodKey,
   label,
   sub,
   active,
   onPress,
 }: {
-  icon: string;
+  methodKey: string;
   label: string;
   sub: string;
   active: boolean;
   onPress: () => void;
 }) {
+  const iconColor = active ? GREEN : '#445648';
+
+  const renderIcon = () => {
+    switch (methodKey) {
+      case 'delivery':
+        return <TruckIcon color={iconColor} size={20} />;
+      case 'pickup':
+        return <PackageIcon color={iconColor} size={20} />;
+      case 'cash':
+        return <CashIcon color={iconColor} size={20} />;
+      case 'bank':
+        return <CardIcon color={iconColor} size={20} />;
+      case 'gcash':
+        return (
+          <View style={styles.gcashBadge}>
+            <Text style={styles.gcashBadgeText}>G</Text>
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <Pressable
       accessibilityRole="radio"
@@ -82,14 +260,10 @@ function OptionCard({
       accessibilityState={{ selected: active }}
       onPress={onPress}
       style={({ pressed }) => [styles.optionCard, active && styles.optionCardActive, pressed && styles.optionCardPressed]}>
-      {icon === 'G' ? (
-        <View style={styles.gcashBadge}>
-          <Text style={styles.gcashBadgeText}>G</Text>
-        </View>
+      {methodKey === 'gcash' ? (
+        renderIcon()
       ) : (
-        <View style={styles.optionIconCircle}>
-          <Text style={styles.optionIconText}>{icon}</Text>
-        </View>
+        <View style={[styles.optionIconCircle, active && styles.optionIconCircleActive]}>{renderIcon()}</View>
       )}
       <View style={styles.optionTextBlock}>
         <Text style={styles.optionLabel}>{label}</Text>
@@ -260,8 +434,9 @@ export default function BuyerCheckoutScreen() {
     }
   }, [items, placing, deliveryMethod, address, paymentMethod, notes, openAddressModal]);
 
-  const addressLocality = address ? [address.barangay, address.city_municipality].filter(Boolean).join(', ') : '';
-  const addressRegion = address ? [address.province, address.region, address.country].filter(Boolean).join(', ') : '';
+  const fullAddress = address
+    ? [address.barangay, address.city_municipality, address.province, address.region, address.country].filter(Boolean).join(', ')
+    : '';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -270,44 +445,66 @@ export default function BuyerCheckoutScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.titleBlock}>
           <Text style={styles.titleText}>Delivery Information</Text>
-          <Text style={styles.subtitleText}>Fill up the form, choose a payment method, and place your order.</Text>
+          <Text style={styles.subtitleText}>Review your order, delivery details, and payment</Text>
         </View>
 
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
         {error ? <Text style={styles.loadError}>{error}</Text> : null}
 
+        {/* DELIVERY INFORMATION CARD */}
         <View style={styles.card}>
-          <View style={styles.addressRow}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarEmoji}>👤</Text>
+          <View style={styles.addressHeaderRow}>
+            <View style={styles.deliveryTitleRow}>
+              <MapPinIcon color={GREEN} size={16} />
+              <Text style={styles.deliverySectionTitle}>
+                {deliveryMethod === 'pickup' ? 'Pickup Location' : 'Delivery Information'}
+              </Text>
             </View>
-            <View style={styles.addressTextBlock}>
-              <View style={styles.addressHeaderRow}>
-                <Text style={styles.addressName}>{address ? address.full_name : 'Delivery Information'}</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Edit delivery address" onPress={openAddressModal}>
-                  <Text style={styles.editLink}>{address ? 'Edit ›' : 'Add ›'}</Text>
-                </Pressable>
-              </View>
-              {address ? (
-                <Text style={styles.addressText}>
-                  {addressLocality}
-                  {'\n'}
-                  {addressRegion}
-                  {'\n'}
-                  {address.mobile_number}
-                </Text>
-              ) : (
-                <Text style={styles.addressText}>No delivery information has been added.</Text>
-              )}
-            </View>
+            {deliveryMethod === 'delivery' ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={address ? 'Edit delivery address' : 'Add delivery address'}
+                onPress={openAddressModal}
+                hitSlop={8}>
+                <Text style={styles.editLink}>{address ? 'Edit ›' : 'Add ›'}</Text>
+              </Pressable>
+            ) : null}
           </View>
+
+          {deliveryMethod === 'pickup' ? (
+            <View>
+              <Text style={styles.deliveryName}>JToledo Trading Farm</Text>
+              <Text style={styles.deliveryAddress}>Tagaytay City, Cavite</Text>
+            </View>
+          ) : address ? (
+            <View>
+              <Text style={styles.deliveryName}>{address.full_name}</Text>
+              <Text style={styles.deliveryAddress}>{fullAddress}</Text>
+            </View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add delivery address"
+              onPress={openAddressModal}>
+              <Text style={styles.deliveryEmptyText}>No delivery address added. Tap to add.</Text>
+            </Pressable>
+          )}
         </View>
 
+        {/* ORDER SUMMARY */}
         <View style={styles.card}>
           <View style={styles.summaryHeaderRow}>
-            <Text style={styles.summaryHeaderIcon}>📋</Text>
             <Text style={styles.summaryHeaderTitle}>Order Summary</Text>
+            {itemCount > 0 ? (
+              <View style={styles.cardBadge}>
+                <Text style={styles.cardBadgeText}>
+                  {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                </Text>
+              </View>
+            ) : null}
           </View>
+
+          <View style={styles.cardDivider} />
 
           {cartLoading ? (
             <ActivityIndicator style={styles.loader} color={GREEN} />
@@ -329,94 +526,122 @@ export default function BuyerCheckoutScreen() {
               </View>
             ))
           )}
+        </View>
 
-          <View style={styles.summaryDivider} />
+        {/* DELIVERY METHOD */}
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Select Delivery Method</Text>
+          {DELIVERY_METHODS.map((method) => (
+            <OptionCard
+              key={method.key}
+              methodKey={method.key}
+              label={method.label}
+              sub={method.sub}
+              active={deliveryMethod === method.key}
+              onPress={() => setDeliveryMethod(method.key)}
+            />
+          ))}
 
+          <View style={styles.notesLabelRow}>
+            <PencilIcon color={GREEN} size={12} />
+            <Text style={styles.notesLabel}>Order Instructions (Optional)</Text>
+          </View>
+          <TextInput
+            style={styles.notesInput}
+            value={notes}
+            onChangeText={setNotes}
+            maxLength={1000}
+            multiline
+            placeholder="Add delivery notes, landmarks, or handling requests…"
+            placeholderTextColor="#9AA79C"
+          />
+        </View>
+
+        {/* PAYMENT METHOD */}
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Select Payment Method</Text>
+          {PAYMENT_METHODS.map((method) => (
+            <OptionCard
+              key={method.key}
+              methodKey={method.key}
+              label={method.label}
+              sub={method.sub}
+              active={paymentMethod === method.key}
+              onPress={() => setPaymentMethod(method.key)}
+            />
+          ))}
+
+          {paymentMethod === 'bank' ? (
+            <View style={styles.bankDetailsCard}>
+              <View style={styles.bankDetailRow}>
+                <Text style={styles.bankDetailLabel}>Account Name</Text>
+                <Text style={styles.bankDetailValue}>Joseph Toledo</Text>
+              </View>
+              <View style={styles.bankDetailRow}>
+                <Text style={styles.bankDetailLabel}>Bank Name</Text>
+                <Text style={styles.bankDetailValue}>BDO</Text>
+              </View>
+              <View style={styles.bankDetailRow}>
+                <Text style={styles.bankDetailLabel}>Account Number</Text>
+                <Text style={styles.bankDetailValue}>J090037738346</Text>
+              </View>
+            </View>
+          ) : null}
+        </View>
+
+        {/* COST BREAKDOWN */}
+        <View style={styles.card}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal ({itemCount} items)</Text>
             <Text style={styles.summaryValue}>₱{subtotal.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery Fee</Text>
-            <Text style={styles.summaryValue}>₱{deliveryFee.toFixed(2)}</Text>
+            <Text style={[styles.summaryValue, deliveryMethod === 'pickup' && { color: GREEN, fontWeight: '800' }]}>
+              {deliveryMethod === 'pickup' ? 'FREE (Pickup)' : `₱${deliveryFee.toFixed(2)}`}
+            </Text>
           </View>
-
           <View style={styles.summaryTotalRow}>
             <Text style={styles.summaryTotalLabel}>Total</Text>
             <Text style={styles.summaryTotalValue}>₱{total.toFixed(2)}</Text>
           </View>
         </View>
 
-        <Text style={styles.sectionLabel}>Select Delivery Method</Text>
-        {DELIVERY_METHODS.map((method) => (
-          <OptionCard
-            key={method.key}
-            icon={method.icon}
-            label={method.label}
-            sub={method.sub}
-            active={deliveryMethod === method.key}
-            onPress={() => setDeliveryMethod(method.key)}
-          />
-        ))}
-
-        <TextInput
-          style={styles.notesInput}
-          value={notes}
-          onChangeText={setNotes}
-          maxLength={1000}
-          multiline
-          placeholder="Delivery instructions or order notes (optional)"
-          placeholderTextColor="#9AA79C"
-        />
-
-        <Text style={styles.sectionLabel}>Select Payment Method</Text>
-        {PAYMENT_METHODS.map((method) => (
-          <OptionCard
-            key={method.key}
-            icon={method.icon}
-            label={method.label}
-            sub={method.sub}
-            active={paymentMethod === method.key}
-            onPress={() => setPaymentMethod(method.key)}
-          />
-        ))}
-
-        {paymentMethod === 'bank' ? (
-          <View style={styles.bankDetailsCard}>
-            <View style={styles.bankDetailRow}>
-              <Text style={styles.bankDetailLabel}>Account Name</Text>
-              <Text style={styles.bankDetailValue}>Joseph Toledo</Text>
-            </View>
-            <View style={styles.bankDetailRow}>
-              <Text style={styles.bankDetailLabel}>Bank Name</Text>
-              <Text style={styles.bankDetailValue}>BDO</Text>
-            </View>
-            <View style={styles.bankDetailRow}>
-              <Text style={styles.bankDetailLabel}>Account Number</Text>
-              <Text style={styles.bankDetailValue}>J090037738346</Text>
-            </View>
-          </View>
-        ) : null}
-
+        {/* PLACE ORDER ACTION BUTTON */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Place order now"
+          accessibilityLabel="Place order"
           disabled={cartLoading || placing || items.length === 0}
           onPress={placeOrder}
           style={({ pressed }) => [
             styles.placeOrderButton,
             (cartLoading || placing || items.length === 0) && styles.placeOrderButtonDisabled,
             pressed && !(cartLoading || placing || items.length === 0) && styles.placeOrderButtonPressed,
-            { marginTop: 6 },
+            { marginTop: 4, marginBottom: 12 },
           ]}>
-          <Text style={styles.placeOrderButtonText}>{placing ? 'Placing order…' : 'Place Order Now'}</Text>
+          <LockIcon color="#ffffff" size={15} />
+          <Text style={styles.placeOrderButtonText}>{placing ? 'Placing order…' : 'Place Order'}</Text>
         </Pressable>
       </ScrollView>
 
+      {/* ADDRESS MODAL */}
       <Modal visible={addressModalOpen} animationType="slide" transparent onRequestClose={() => setAddressModalOpen(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Delivery Information</Text>
+            <View style={styles.modalHandleBar} />
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Delivery Information</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                hitSlop={8}
+                onPress={() => setAddressModalOpen(false)}
+                style={styles.modalCloseButton}>
+                <CloseIcon color="#556658" size={14} />
+              </Pressable>
+            </View>
+            <Text style={styles.modalSubtitle}>Enter recipient and address details for your order.</Text>
+
             <ScrollView showsVerticalScrollIndicator={false}>
               {ADDRESS_FIELDS.map((field) => (
                 <View key={field.key} style={styles.fieldBlock}>
