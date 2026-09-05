@@ -129,7 +129,7 @@ export default function BuyerPurchaseHistoryScreen() {
       </ScrollView>
       </View>
 
-      <BuyerBottomNavigation activeTab="orders" />
+      <BuyerBottomNavigation activeTab="account" />
     </SafeAreaView>
   );
 }

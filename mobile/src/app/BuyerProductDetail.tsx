@@ -198,7 +198,7 @@ export default function BuyerProductDetailScreen() {
         </View>
       </ScrollView>
 
-      <BuyerBottomNavigation activeTab="home" />
+      <BuyerBottomNavigation activeTab="order" />
     </SafeAreaView>
   );
 }
