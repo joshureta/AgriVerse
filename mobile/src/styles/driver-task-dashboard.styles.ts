@@ -12,8 +12,6 @@ export const styles = StyleSheet.create({
   mainBodyContainer: {
     flex: 1,
     backgroundColor: BG_COLOR,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     overflow: 'hidden',
   },
   center: {
@@ -23,16 +21,13 @@ export const styles = StyleSheet.create({
     backgroundColor: BG_COLOR,
   },
   scrollContent: {
-    paddingTop: 20,
     paddingBottom: 110,
   },
-
-  // Top Greeting Section
-  greeting: {
-    color: '#134B24',
-    fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 14,
+  contentInset: {
+    paddingHorizontal: 18,
+  },
+  contentInsetCompact: {
+    paddingHorizontal: 14,
   },
 
   // Farm Hero Card with Embedded Weather & Status Pill

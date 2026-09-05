@@ -17,6 +17,10 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  cardFlushTop: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+  },
   backgroundImage: {
     position: 'absolute',
     top: 0,

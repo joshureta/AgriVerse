@@ -1,4 +1,6 @@
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, Pressable, Text, View } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
 import { styles } from '@/styles/components/worker-header.styles';
@@ -31,23 +33,62 @@ function BellIcon() {
   );
 }
 
-export function WorkerHeader() {
+export function WorkerHeader({
+  extendUnderStatusBar = false,
+  height,
+  transparent = false,
+  overlay = false,
+  logoSource = require('@/assets/images/toledo-trading-logo.png'),
+  logoSize,
+  logoPosition = 'center',
+  blurred = false,
+}: {
+  extendUnderStatusBar?: boolean;
+  height?: number;
+  transparent?: boolean;
+  overlay?: boolean;
+  logoSource?: ImageSourcePropType;
+  logoSize?: number;
+  logoPosition?: 'left' | 'center';
+  blurred?: boolean;
+}) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.header}>
-      <View style={styles.zone} />
+    <View style={[
+      styles.headerWrap,
+      extendUnderStatusBar && { paddingTop: insets.top },
+      transparent && styles.transparent,
+      overlay && styles.overlay,
+    ]}>
+      {blurred ? <BlurView intensity={55} tint="dark" style={styles.blurBackground} /> : null}
+      {blurred ? <View pointerEvents="none" style={styles.blurTint} /> : null}
+      <View style={[styles.header, height ? { height } : undefined, transparent && styles.transparent]}>
+        <View style={styles.zone}>
+          {logoPosition === 'left' ? (
+            <Image
+              accessibilityLabel="Toledo Trading"
+              source={logoSource}
+              style={[styles.logo, logoSize ? { width: logoSize, height: logoSize } : undefined]}
+            />
+          ) : null}
+        </View>
 
-      <View style={[styles.zone, styles.zoneCenter]}>
-        <Image
-          accessibilityLabel="Toledo Trading"
-          source={require('@/assets/images/toledo-trading-logo.png')}
-          style={styles.logo}
-        />
-      </View>
+        <View style={[styles.zone, styles.zoneCenter]}>
+          {logoPosition === 'center' ? (
+            <Image
+              accessibilityLabel="Toledo Trading"
+              source={logoSource}
+              style={[styles.logo, logoSize ? { width: logoSize, height: logoSize } : undefined]}
+            />
+          ) : null}
+        </View>
 
-      <View style={[styles.zone, styles.zoneEnd]}>
-        <Pressable accessibilityLabel="Notifications" accessibilityRole="button" hitSlop={12}>
-          <BellIcon />
-        </Pressable>
+        <View style={[styles.zone, styles.zoneEnd]}>
+          <Pressable accessibilityLabel="Notifications" accessibilityRole="button" hitSlop={12}>
+            <BellIcon />
+          </Pressable>
+        </View>
       </View>
     </View>
   );

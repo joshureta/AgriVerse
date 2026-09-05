@@ -1,13 +1,40 @@
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
+  headerWrap: {
+    backgroundColor: '#176D34',
+    zIndex: 10,
+  },
+  transparent: {
+    backgroundColor: 'transparent',
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    left: 0,
+  },
+  blurBackground: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  blurTint: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(20, 72, 35, 0.42)',
+  },
   header: {
     height: 64,
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#176D34',
-    zIndex: 10,
   },
   zone: {
     flex: 1,

@@ -48,6 +48,18 @@ export function WeatherVectorIcon({
   isNight?: boolean;
   size?: number;
 }) {
+  const source = isNight
+    ? require('@/assets/images/weather-icon-night.png')
+    : condition === 'sunny'
+      ? require('@/assets/images/weather-icon-sunny.png')
+      : condition === 'rainy' || condition === 'snowy'
+        ? require('@/assets/images/weather-icon-rainy.png')
+        : condition === 'stormy'
+          ? require('@/assets/images/weather-icon-stormy.png')
+          : require('@/assets/images/weather-icon-cloudy.png');
+
+  return <Image source={source} style={{ width: size, height: size }} resizeMode="contain" />;
+
   // Clear Night: Crescent Moon
   if (isNight && (condition === 'sunny' || condition === 'cloudy' || condition === 'overcast')) {
     return (
@@ -138,7 +150,7 @@ type WeatherTheme = {
 function getTheme(condition: WeatherCondition, isNight: boolean): WeatherTheme {
   if (isNight) {
     return {
-      bgImage: require('@/assets/images/weather-bg-night.png'),
+      bgImage: require('@/assets/images/weather-real-night.png'),
       borderColor: '#2E1065',
       textColor: '#FFFFFF',
       subTextColor: '#94A3B8',
@@ -159,7 +171,7 @@ function getTheme(condition: WeatherCondition, isNight: boolean): WeatherTheme {
 
   if (condition === 'sunny') {
     return {
-      bgImage: require('@/assets/images/weather-bg-sunny.png'),
+      bgImage: require('@/assets/images/weather-real-sunny.png'),
       borderColor: '#FDE047',
       textColor: '#0F2D18',
       subTextColor: '#475569',
@@ -180,7 +192,7 @@ function getTheme(condition: WeatherCondition, isNight: boolean): WeatherTheme {
 
   if (condition === 'rainy') {
     return {
-      bgImage: require('@/assets/images/weather-bg-rainy.png'),
+      bgImage: require('@/assets/images/weather-real-rainy.png'),
       borderColor: '#7DD3FC',
       textColor: '#082F49',
       subTextColor: '#0369A1',
@@ -201,7 +213,7 @@ function getTheme(condition: WeatherCondition, isNight: boolean): WeatherTheme {
 
   if (condition === 'stormy') {
     return {
-      bgImage: require('@/assets/images/weather-bg-thunderstorm.png'),
+      bgImage: require('@/assets/images/weather-real-stormy.png'),
       borderColor: '#334155',
       textColor: '#F8FAFC',
       subTextColor: '#CBD5E1',
@@ -222,7 +234,7 @@ function getTheme(condition: WeatherCondition, isNight: boolean): WeatherTheme {
 
   // Default: Cloudy / Overcast
   return {
-    bgImage: require('@/assets/images/weather-bg-cloudy.png'),
+    bgImage: require('@/assets/images/weather-real-cloudy.png'),
     borderColor: '#CBD5E1',
     textColor: '#0F172A',
     subTextColor: '#334155',
@@ -248,9 +260,13 @@ function getTheme(condition: WeatherCondition, isNight: boolean): WeatherTheme {
 export function ApiWeatherBanner({
   weather,
   loading = false,
+  flushTop = false,
+  topContentInset = 0,
 }: {
   weather: WeatherSnapshot | null;
   loading?: boolean;
+  flushTop?: boolean;
+  topContentInset?: number;
 }) {
   const currentTemp = weather?.temp ?? 28;
   const highTemp = weather?.highTemp ?? currentTemp + 3;
@@ -284,6 +300,7 @@ export function ApiWeatherBanner({
       <View
         style={[
           styles.card,
+          flushTop && styles.cardFlushTop,
           {
             borderColor: theme.borderColor,
             alignItems: 'center',
@@ -301,11 +318,11 @@ export function ApiWeatherBanner({
   }
 
   return (
-    <View style={[styles.card, { borderColor: theme.borderColor }]}>
+    <View style={[styles.card, flushTop && styles.cardFlushTop, { borderColor: theme.borderColor }]}>
       {/* Background Weather Image */}
       <Image source={theme.bgImage} style={styles.backgroundImage} resizeMode="cover" />
 
-      <View style={styles.cardInner}>
+      <View style={[styles.cardInner, topContentInset > 0 && { paddingTop: topContentInset }]}>
         {/* Top Location & Vector Weather Icon */}
         <View style={styles.topRow}>
           <View style={[styles.locationBadge, { backgroundColor: theme.locBg }]}>

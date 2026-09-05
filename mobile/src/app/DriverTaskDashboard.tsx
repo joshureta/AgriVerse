@@ -6,12 +6,12 @@ import {
   Image,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiWeatherBanner } from '@/components/api-weather-banner';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
@@ -140,6 +140,7 @@ export default function DriverTaskDashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
+  const [navbarBlurred, setNavbarBlurred] = useState(false);
 
   const loadTasks = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -173,18 +174,29 @@ export default function DriverTaskDashboardScreen() {
   const dashboard = summary;
   const pendingOrders = orders.filter((o) => o.delivery_assignment_status === 'assigned');
   const previewOrders = pendingOrders.slice(0, 3);
-  const horizontalPadding = width < 360 ? 14 : 18;
+  const contentInset = width < 360 ? styles.contentInsetCompact : styles.contentInset;
 
   if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
   if (!profile) return <Redirect href="/login" />;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <WorkerHeader />
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+      <WorkerHeader
+        extendUnderStatusBar
+        height={72}
+        transparent
+        overlay
+        logoSource={require('@/assets/images/driver-dashboard-logo-green.png')}
+        logoSize={48}
+        logoPosition="left"
+        blurred={navbarBlurred}
+      />
 
       <View style={styles.mainBodyContainer}>
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
+          contentContainerStyle={styles.scrollContent}
+          onScroll={(event) => setNavbarBlurred(event.nativeEvent.contentOffset.y > 12)}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -196,95 +208,94 @@ export default function DriverTaskDashboardScreen() {
             />
           }>
           
-          {/* Top Greeting */}
-          <Text style={styles.greeting}>Good Day, {profile?.full_name || 'Driver'}!</Text>
-
           {/* API Weather Banner Card */}
-          <ApiWeatherBanner weather={weather} />
+          <ApiWeatherBanner weather={weather} flushTop topContentInset={92} />
 
-          {/* 4 Metric Status Cards (Horizontal 1-Row Grid) */}
-          <View style={styles.metricsRow}>
-            <MetricCard
-              color="#0F3E22"
-              label="Total Tasks"
-              value={dashboard.total}
-              onPress={() => router.push('/DriverTaskPending')}
-            />
-            <MetricCard
-              color="#237C3B"
-              label="Pending"
-              value={dashboard.pending}
-              onPress={() => router.push('/DriverTaskPending')}
-            />
-            <MetricCard
-              color="#D99026"
-              label="Active"
-              value={dashboard.active}
-              onPress={() => router.push('/DriverTaskActive')}
-            />
-            <MetricCard
-              color="#0F7D40"
-              label="Completed"
-              value={dashboard.completed}
-              onPress={() => router.push('/DriverTaskCompleted')}
-            />
-          </View>
-
-          {/* Equipment Status Section */}
-          <View style={styles.equipmentSection}>
-            <Text style={styles.equipmentHeading}>Equipment Status</Text>
-            <View style={styles.equipmentRow}>
-              <EquipmentCard
-                label="Available"
+          <View style={contentInset}>
+            {/* 4 Metric Status Cards (Horizontal 1-Row Grid) */}
+            <View style={styles.metricsRow}>
+              <MetricCard
+                color="#0F3E22"
+                label="Total Tasks"
+                value={dashboard.total}
                 onPress={() => router.push('/DriverTaskPending')}
               />
-              <EquipmentCard
-                label="On Transit"
-                isTransit={true}
+              <MetricCard
+                color="#237C3B"
+                label="Pending"
+                value={dashboard.pending}
+                onPress={() => router.push('/DriverTaskPending')}
+              />
+              <MetricCard
+                color="#D99026"
+                label="Active"
+                value={dashboard.active}
                 onPress={() => router.push('/DriverTaskActive')}
               />
-              <EquipmentCard
-                label="Available"
-                onPress={() => router.push('/DriverTaskPending')}
+              <MetricCard
+                color="#0F7D40"
+                label="Completed"
+                value={dashboard.completed}
+                onPress={() => router.push('/DriverTaskCompleted')}
               />
             </View>
+
+            {/* Equipment Status Section */}
+            <View style={styles.equipmentSection}>
+              <Text style={styles.equipmentHeading}>Equipment Status</Text>
+              <View style={styles.equipmentRow}>
+                <EquipmentCard
+                  label="Available"
+                  onPress={() => router.push('/DriverTaskPending')}
+                />
+                <EquipmentCard
+                  label="On Transit"
+                  isTransit={true}
+                  onPress={() => router.push('/DriverTaskActive')}
+                />
+                <EquipmentCard
+                  label="Available"
+                  onPress={() => router.push('/DriverTaskPending')}
+                />
+              </View>
+            </View>
+
+            {/* Today's Deliveries Section Header */}
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleWrap}>
+                <ClipboardDocumentIcon />
+                <Text style={styles.sectionTitle}>Today’s Deliveries</Text>
+              </View>
+              <Pressable onPress={() => router.push('/DriverTaskPending')}>
+                <Text style={styles.sectionLink}>View All ({dashboard.total}) ›</Text>
+              </Pressable>
+            </View>
+
+            {/* Error Banner */}
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Deliveries List */}
+            {loading ? (
+              <ActivityIndicator style={{ marginTop: 20 }} color={GREEN} />
+            ) : previewOrders.length > 0 ? (
+              previewOrders.map((order) => (
+                <DeliveryDashboardCard
+                  key={order.id}
+                  order={order}
+                  onPress={() => router.push('/DriverTaskPending')}
+                />
+              ))
+            ) : (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyTitle}>No pending deliveries</Text>
+                <Text style={styles.emptySubtitle}>All assigned dispatches have been completed.</Text>
+              </View>
+            )}
           </View>
-
-          {/* Today's Deliveries Section Header */}
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleWrap}>
-              <ClipboardDocumentIcon />
-              <Text style={styles.sectionTitle}>Today’s Deliveries</Text>
-            </View>
-            <Pressable onPress={() => router.push('/DriverTaskPending')}>
-              <Text style={styles.sectionLink}>View All ({dashboard.total}) ›</Text>
-            </Pressable>
-          </View>
-
-          {/* Error Banner */}
-          {error ? (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Deliveries List */}
-          {loading ? (
-            <ActivityIndicator style={{ marginTop: 20 }} color={GREEN} />
-          ) : previewOrders.length > 0 ? (
-            previewOrders.map((order) => (
-              <DeliveryDashboardCard
-                key={order.id}
-                order={order}
-                onPress={() => router.push('/DriverTaskPending')}
-              />
-            ))
-          ) : (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No pending deliveries</Text>
-              <Text style={styles.emptySubtitle}>All assigned dispatches have been completed.</Text>
-            </View>
-          )}
         </ScrollView>
       </View>
 
