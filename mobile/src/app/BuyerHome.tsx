@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ImageBackground, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
@@ -26,21 +27,96 @@ function sizeBadge(sizeName: string) {
   return sizeName.trim().charAt(0).toUpperCase() || '?';
 }
 
-function CheckIcon() {
-  return <Text style={styles.stepCheck}>✓</Text>;
+function PackingIcon({ color }: { color: string }) {
+  return (
+    <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="m3.3 7 8.7 5 8.7-5M12 22V12"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
 }
 
-function StepCircle({ state }: { state: 'done' | 'current' | 'pending' }) {
-  if (state === 'done') {
-    return (
-      <View style={[styles.stepCircle, styles.stepCircleDone]}>
-        <CheckIcon />
-      </View>
-    );
-  }
+function TransitTruckIcon({ color }: { color: string }) {
   return (
-    <View style={[styles.stepCircle, state === 'current' ? styles.stepCircleCurrent : styles.stepCirclePending]}>
-      <View style={[styles.stepIconDot, state === 'current' && styles.stepIconDotCurrent]} />
+    <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M15 18H9M19 18h2a1 1 0 0 0 1-1v-5.5a1.5 1.5 0 0 0-.44-1.06L18.5 7.38A1.5 1.5 0 0 0 17.44 7H14v11h1"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx={7} cy={18} r={2} stroke={color} strokeWidth={2} />
+      <Circle cx={17} cy={18} r={2} stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+function DeliveredBadgeIcon({ color }: { color: string }) {
+  return (
+    <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M22 11.08V12a10 10 0 1 1-5.93-9.14"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="m9 11 3 3L22 4"
+        stroke={color}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function StepCircle({ state, stepKey }: { state: 'done' | 'current' | 'pending'; stepKey: string }) {
+  const iconColor = state === 'done' ? '#ffffff' : state === 'current' ? GREEN : '#8B9B8E';
+
+  const renderIcon = () => {
+    switch (stepKey) {
+      case 'confirmed':
+        return <PackingIcon color={iconColor} />;
+      case 'transit':
+        return <TransitTruckIcon color={iconColor} />;
+      case 'delivered':
+        return <DeliveredBadgeIcon color={iconColor} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <View
+      style={[
+        styles.stepCircle,
+        state === 'done' && styles.stepCircleDone,
+        state === 'current' && styles.stepCircleCurrent,
+        state === 'pending' && styles.stepCirclePending,
+      ]}>
+      {renderIcon()}
     </View>
   );
 }
@@ -59,7 +135,7 @@ function OrderStatusStepper({ stage, confirmedDate }: { stage: number; confirmed
         return (
           <View key={step.key} style={{ flexDirection: 'row', alignItems: 'flex-start', flex: index < steps.length - 1 ? 1 : undefined }}>
             <View style={styles.stepColumn}>
-              <StepCircle state={state} />
+              <StepCircle state={state} stepKey={step.key} />
               <Text style={[styles.stepLabel, state === 'pending' && styles.stepLabelPending]}>{step.label}</Text>
               {step.date ? <Text style={styles.stepDate}>{step.date}</Text> : null}
             </View>
@@ -76,11 +152,22 @@ function OrderStatusStepper({ stage, confirmedDate }: { stage: number; confirmed
 function CalendarBadge() {
   return (
     <View style={styles.estimateCalendar}>
-      <View style={styles.estimateCalendarGrid}>
-        {[0, 1, 2, 3].map((dot) => (
-          <View key={dot} style={styles.estimateCalendarDot} />
-        ))}
-      </View>
+      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+          stroke="#ffffff"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"
+          stroke="#ffffff"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
     </View>
   );
 }
@@ -108,7 +195,22 @@ function ProductCard({ product }: { product: PineappleProduct }) {
 function LeafBadge() {
   return (
     <View style={styles.farmIconCircle}>
-      <Text style={{ fontSize: 13 }}>🌿</Text>
+      <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"
+          stroke={GREEN}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"
+          stroke={GREEN}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
     </View>
   );
 }
@@ -116,7 +218,24 @@ function LeafBadge() {
 function DeliveryBadge() {
   return (
     <View style={styles.farmIconCircle}>
-      <Text style={{ fontSize: 13 }}>🚚</Text>
+      <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"
+          stroke={GREEN}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M15 18H9M19 18h2a1 1 0 0 0 1-1v-5.5a1.5 1.5 0 0 0-.44-1.06L18.5 7.38A1.5 1.5 0 0 0 17.44 7H14v11h1"
+          stroke={GREEN}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Circle cx={7} cy={18} r={2} stroke={GREEN} strokeWidth={2} />
+        <Circle cx={17} cy={18} r={2} stroke={GREEN} strokeWidth={2} />
+      </Svg>
     </View>
   );
 }
@@ -124,7 +243,16 @@ function DeliveryBadge() {
 function QualityBadge() {
   return (
     <View style={styles.farmIconCircle}>
-      <Text style={{ fontSize: 13 }}>🏅</Text>
+      <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+        <Circle cx={12} cy={8} r={6} stroke={GREEN} strokeWidth={2} />
+        <Path
+          d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"
+          stroke={GREEN}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
     </View>
   );
 }
@@ -132,7 +260,15 @@ function QualityBadge() {
 function TrustedBadge() {
   return (
     <View style={styles.farmIconCircle}>
-      <Text style={{ fontSize: 13 }}>🤝</Text>
+      <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"
+          stroke={GREEN}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
     </View>
   );
 }

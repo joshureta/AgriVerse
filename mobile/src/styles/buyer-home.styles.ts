@@ -165,9 +165,9 @@ export const styles = StyleSheet.create({
     borderTopWidth: 2,
   },
   stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -180,26 +180,12 @@ export const styles = StyleSheet.create({
     elevation: 2,
   },
   stepCircleCurrent: {
-    backgroundColor: '#E1ECE0',
+    backgroundColor: '#EAF5EA',
     borderWidth: 2,
     borderColor: GREEN,
   },
   stepCirclePending: {
     backgroundColor: '#EDF2EC',
-  },
-  stepCheck: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  stepIconDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#9AA79C',
-  },
-  stepIconDotCurrent: {
-    backgroundColor: GREEN,
   },
   stepLabel: {
     marginTop: 8,

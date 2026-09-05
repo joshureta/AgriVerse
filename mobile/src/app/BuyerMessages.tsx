@@ -24,6 +24,28 @@ import {
   setBuyerTyping,
 } from '@/lib/buyer-messages';
 import { GREEN, styles } from '@/styles/buyer-messages.styles';
+import Svg, { Path } from 'react-native-svg';
+
+function SendIcon() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="m22 2-7 20-4-9-9-4Z"
+        stroke="#FFFFFF"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M22 2 11 13"
+        stroke="#FFFFFF"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 function formatTime(value: string | null) {
   if (!value) return '';
@@ -345,7 +367,7 @@ export default function BuyerMessagesScreen() {
               disabled={sending || !draft.trim()}
               onPress={() => handleSend()}
               style={[styles.sendButton, (sending || !draft.trim()) && styles.sendButtonDisabled]}>
-              {sending ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={{ color: '#FFFFFF', fontSize: 16 }}>➤</Text>}
+              {sending ? <ActivityIndicator color="#FFFFFF" size="small" /> : <SendIcon />}
             </Pressable>
           </View>
         </View>

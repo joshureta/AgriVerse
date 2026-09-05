@@ -11,9 +11,15 @@ const UNREAD_POLL_INTERVAL_MS = 20000;
 
 function BackIcon() {
   return (
-    <View style={styles.backButton}>
-      <View style={styles.backChevron} />
-    </View>
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M15 18l-6-6 6-6"
+        stroke="#ffffff"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
   );
 }
 
@@ -24,6 +30,13 @@ function ChatIcon() {
         d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"
         stroke="#ffffff"
         strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M8 12h.01M12 12h.01M16 12h.01"
+        stroke="#ffffff"
+        strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
