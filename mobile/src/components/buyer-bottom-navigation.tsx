@@ -1,7 +1,9 @@
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import { buyerCartQuantity, readBuyerCart, subscribeToCartChanges } from '@/lib/buyer-marketplace';
 import {
   ACTIVE_ICON_COLOR,
   INACTIVE_ICON_COLOR,
@@ -96,11 +98,46 @@ function AccountIcon({ active }: { active: boolean }) {
 
 export function BuyerBottomNavigation({ activeTab }: { activeTab: BuyerTab }) {
   const normalizedTab = activeTab === 'orders' ? 'order' : activeTab;
-  const items: { key: 'home' | 'order' | 'cart' | 'account'; label: string; onPress: () => void; icon: (active: boolean) => React.ReactNode }[] = [
-    { key: 'home', label: 'Home', onPress: () => router.push('/BuyerHome' as never), icon: (active) => <HomeIcon active={active} /> },
-    { key: 'order', label: 'Order', onPress: () => router.push('/BuyerProductDetail' as never), icon: (active) => <OrderIcon active={active} /> },
-    { key: 'cart', label: 'Cart', onPress: () => router.push('/BuyerCart' as never), icon: (active) => <CartIcon active={active} /> },
-    { key: 'account', label: 'Account', onPress: () => router.push('/BuyerAccount' as never), icon: (active) => <AccountIcon active={active} /> },
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const updateCount = async () => {
+      const savedItems = await readBuyerCart();
+      if (active) setCartCount(buyerCartQuantity(savedItems));
+    };
+    updateCount();
+    const unsubscribe = subscribeToCartChanges(updateCount);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const items: {
+    key: 'home' | 'order' | 'cart' | 'account';
+    label: string;
+    onPress: () => void;
+    renderIcon: (active: boolean) => React.ReactNode;
+  }[] = [
+    { key: 'home', label: 'Home', onPress: () => router.push('/BuyerHome' as never), renderIcon: (active) => <HomeIcon active={active} /> },
+    { key: 'order', label: 'Order', onPress: () => router.push('/BuyerProductDetail' as never), renderIcon: (active) => <OrderIcon active={active} /> },
+    {
+      key: 'cart',
+      label: 'Cart',
+      onPress: () => router.push('/BuyerCart' as never),
+      renderIcon: (active) => (
+        <View style={{ position: 'relative' }}>
+          <CartIcon active={active} />
+          {cartCount > 0 ? (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+            </View>
+          ) : null}
+        </View>
+      ),
+    },
+    { key: 'account', label: 'Account', onPress: () => router.push('/BuyerAccount' as never), renderIcon: (active) => <AccountIcon active={active} /> },
   ];
 
   return (
@@ -116,7 +153,7 @@ export function BuyerBottomNavigation({ activeTab }: { activeTab: BuyerTab }) {
               key={item.key}
               onPress={item.onPress}
               style={({ pressed }) => [styles.button, active && styles.activeButton, pressed && styles.pressedButton]}>
-              {item.icon(active)}
+              {item.renderIcon(active)}
               <Text style={active ? styles.activeLabel : styles.label}>{item.label}</Text>
             </Pressable>
           );

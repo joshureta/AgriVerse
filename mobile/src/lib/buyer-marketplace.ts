@@ -216,8 +216,23 @@ export function buyerCartQuantity(items: CartItem[]): number {
   return items.reduce((total, item) => total + Math.max(0, Number(item.quantity) || 0), 0);
 }
 
+type CartListener = () => void;
+const cartListeners = new Set<CartListener>();
+
+export function subscribeToCartChanges(listener: CartListener): () => void {
+  cartListeners.add(listener);
+  return () => {
+    cartListeners.delete(listener);
+  };
+}
+
 export async function writeBuyerCart(items: CartItem[]): Promise<void> {
   await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+  cartListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {}
+  });
 }
 
 export type ReconciledCartItem = {

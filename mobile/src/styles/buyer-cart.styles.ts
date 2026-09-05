@@ -19,28 +19,12 @@ export const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 18,
+    paddingTop: 16,
     paddingBottom: 28,
   },
 
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  titleIcon: {
-    fontSize: 20,
-  },
-  titleText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: DARK_GREEN,
-    letterSpacing: -0.3,
-  },
-
   loader: {
-    marginTop: 18,
+    marginTop: 24,
   },
   loadError: {
     color: '#a33d35',
@@ -57,46 +41,89 @@ export const styles = StyleSheet.create({
     borderColor: SAGE_BORDER,
     borderRadius: 12,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 14,
   },
 
-  // Cart item card
-  itemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 18,
+  // Section Card
+  sectionCard: {
+    borderRadius: 20,
     backgroundColor: '#ffffff',
-    marginBottom: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: CARD_BORDER,
+    marginBottom: 14,
     shadowColor: '#0B2E16',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F4EE',
+    marginBottom: 10,
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: DARK_GREEN,
+    letterSpacing: -0.2,
+  },
+  clearAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#FDF2F0',
+  },
+  clearAllText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B4463A',
+  },
+
+  // Cart item row
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+  },
+  itemRowBorderTop: {
+    borderTopWidth: 1,
+    borderTopColor: '#F0F4F0',
+  },
   itemIconBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 14,
+    width: 52,
+    height: 52,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F7FAF5',
+    backgroundColor: '#FFFBEA',
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: '#F6E5A8',
   },
   itemImage: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
     resizeMode: 'contain',
   },
   itemInfo: {
     flex: 1,
     marginLeft: 12,
   },
+  itemHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
   itemName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: DARK_GREEN,
   },
@@ -106,94 +133,74 @@ export const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '500',
   },
-
-  qtyRow: {
+  trashButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#FDF2F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  itemPrice: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: GREEN,
+  },
+
+  // Quantity controls
+  qtyControlBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F7F1',
+    borderRadius: 8,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: '#DCECDC',
   },
   qtyButton: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F0F4EE',
-    borderWidth: 1,
-    borderColor: '#E2EBE0',
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 1,
+    elevation: 1,
   },
   qtyButtonDisabled: {
     opacity: 0.35,
   },
-  qtyButtonText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: DARK_GREEN,
-    lineHeight: 16,
-  },
   qtyValue: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
     color: DARK_GREEN,
-    minWidth: 18,
+    minWidth: 24,
     textAlign: 'center',
   },
 
-  itemRight: {
-    alignItems: 'flex-end',
-    gap: 12,
-  },
-  itemPrice: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: GREEN,
-  },
-  trashButton: {
-    padding: 4,
-  },
-  trashIcon: {
-    fontSize: 16,
-  },
-
-  // Remove all + total row
-  utilityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingHorizontal: 4,
-  },
-  removeAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  removeAllText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#B4463A',
-  },
-  itemsTotalText: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: DARK_GREEN,
-  },
-
-  // Add more pineapples
+  // Add more pineapples link card
   addMoreCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 18,
+    padding: 12,
+    borderRadius: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: CARD_BORDER,
-    marginBottom: 16,
+    marginBottom: 14,
     shadowColor: '#0B2E16',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowRadius: 4,
     elevation: 1,
   },
   addMorePressed: {
@@ -201,31 +208,28 @@ export const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   addMoreIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: SAGE_BG,
     borderWidth: 1,
     borderColor: SAGE_BORDER,
   },
-  addMoreEmoji: {
-    fontSize: 17,
-  },
   addMoreTextBlock: {
     flex: 1,
     marginLeft: 12,
   },
   addMoreTitle: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
     color: DARK_GREEN,
   },
   addMoreSubtitle: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: TEXT_MUTED,
-    marginTop: 2,
+    marginTop: 1,
   },
   addMoreChevron: {
     fontSize: 18,
@@ -233,79 +237,53 @@ export const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  // Order summary
-  summaryCard: {
-    padding: 18,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    shadowColor: '#0B2E16',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
+  // Order summary card
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   summaryLabel: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: '#556658',
     fontWeight: '500',
   },
   summaryValue: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     color: DARK_GREEN,
   },
   summaryDivider: {
     height: 1,
     backgroundColor: '#EDF2EC',
-    marginVertical: 8,
+    borderStyle: 'dashed',
+    marginVertical: 6,
   },
   summaryTotalLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: DARK_GREEN,
   },
   summaryTotalValue: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '900',
     color: GREEN,
-  },
-
-  // Empty state
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 44,
-    gap: 8,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: TEXT_MUTED,
-    fontWeight: '600',
   },
 
   // Check out button
   checkoutButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 15,
-    borderRadius: 26,
+    paddingVertical: 14,
+    borderRadius: 14,
     backgroundColor: GREEN,
+    marginTop: 8,
     shadowColor: GREEN,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 3,
   },
   checkoutButtonDisabled: {
     backgroundColor: '#B5C4B2',
@@ -317,9 +295,83 @@ export const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   checkoutButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#ffffff',
     letterSpacing: 0.4,
+  },
+  addMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: GREEN,
+    marginTop: 9,
+  },
+  addMoreButtonPressed: {
+    backgroundColor: '#F3F8F4',
+    transform: [{ scale: 0.98 }],
+  },
+  addMoreButtonText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: GREEN,
+    letterSpacing: 0.3,
+    marginLeft: 6,
+  },
+
+  // Empty state card
+  emptyStateCard: {
+    alignItems: 'center',
+    paddingVertical: 44,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    marginVertical: 12,
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#EAF5EA',
+    borderWidth: 2,
+    borderColor: '#CDE5CF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: DARK_GREEN,
+  },
+  emptySubtitle: {
+    fontSize: 12,
+    color: TEXT_MUTED,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 17,
+  },
+  emptyBrowseButton: {
+    marginTop: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: GREEN,
+    shadowColor: GREEN,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  emptyBrowseButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });
