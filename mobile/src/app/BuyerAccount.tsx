@@ -30,7 +30,7 @@ export default function BuyerAccountScreen() {
       if (router.canDismiss()) {
         router.dismissAll();
       }
-      router.replace('/login');
+      router.replace({ pathname: '/authentication', params: { mode: 'login' } });
     } catch (caught) {
       Alert.alert(
         'Unable to sign out',
