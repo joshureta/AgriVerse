@@ -1,7 +1,7 @@
 import { styles } from '@/styles/signup.styles';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ImageBackground,
@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ConvexDomeCap } from '@/components/convex-dome-cap';
 import { useAuth } from '@/context/auth-context';
 import { publicApiRequest } from '@/lib/api';
 import { postAuthenticationRoute } from '@/lib/mobile-routing';
@@ -62,9 +63,23 @@ function ChoiceModal({ title, items, visible, onClose, onSelect }: { title: stri
   </Modal>;
 }
 
-export default function SignUpScreen({ embedded = false, onSignIn }: { embedded?: boolean; onSignIn?: () => void }) {
+export default function SignUpScreen({
+  embedded = false,
+  onSignIn,
+  onStepChange,
+}: {
+  embedded?: boolean;
+  onSignIn?: () => void;
+  onStepChange?: (step: number) => void;
+}) {
   const { signIn } = useAuth();
   const [step, setStep] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    onStepChange?.(step);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+  }, [step, onStepChange]);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -175,44 +190,85 @@ export default function SignUpScreen({ embedded = false, onSignIn }: { embedded?
         <View style={styles.backgroundTint} />
       </ImageBackground>
     ) : null}
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      enabled={!embedded}
+      style={styles.flex}>
+      <View style={[styles.cardContainer, embedded && styles.embeddedCardContainer]}>
+        {!embedded ? (
+          <View style={styles.domeCap}>
+            <ConvexDomeCap color="#ffffd8" height={34} />
+          </View>
+        ) : null}
         <View style={[styles.card, embedded && styles.embeddedCard]}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Complete three quick steps to get started.</Text>
-          <View accessibilityLabel={`Step ${step + 1} of 3: ${steps[step]}`} style={styles.stepper}>{steps.map((label, index) => <View key={label} style={styles.stepItem}><View style={[styles.stepCircle, index <= step && styles.stepCircleActive]}><Text style={[styles.stepNumber, index <= step && styles.stepNumberActive]}>{index < step ? '✓' : index + 1}</Text></View><Text style={[styles.stepLabel, index === step && styles.stepLabelActive]}>{label}</Text>{index < 2 ? <View style={[styles.stepLine, index < step && styles.stepLineActive]} /> : null}</View>)}</View>
+          {/* FIXED HEADER: Remains intact and does not scroll */}
+          <View style={[styles.fixedHeader, embedded && styles.embeddedFixedHeader]}>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Complete three quick steps to get started.</Text>
+            <View accessibilityLabel={`Step ${step + 1} of 3: ${steps[step]}`} style={styles.stepper}>
+              {steps.map((label, index) => (
+                <View key={label} style={styles.stepItem}>
+                  <View style={[styles.stepCircle, index <= step && styles.stepCircleActive]}>
+                    <Text style={[styles.stepNumber, index <= step && styles.stepNumberActive]}>
+                      {index < step ? '✓' : index + 1}
+                    </Text>
+                  </View>
+                  <Text style={[styles.stepLabel, index === step && styles.stepLabelActive]}>{label}</Text>
+                  {index < 2 ? <View style={[styles.stepLine, index < step && styles.stepLineActive]} /> : null}
+                </View>
+              ))}
+            </View>
+            <Text style={styles.sectionTitle}>
+              {step === 0 ? 'Personal information' : step === 1 ? 'Security' : 'Location'}
+            </Text>
+          </View>
 
-          {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+          {/* SCROLLABLE AREA: Starts below the section title divider line */}
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollArea}
+            contentContainerStyle={[styles.scrollContent, embedded && styles.embeddedScrollContent]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}>
+            {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
 
-          {step === 0 ? <View><Text style={styles.sectionTitle}>Personal information</Text>
-            <FormField autoCapitalize="words" autoComplete="name" label="Full name" onChangeText={setFullName} placeholder="Enter your full name" value={fullName} />
-            <FormField autoCapitalize="none" autoComplete="email" keyboardType="email-address" label="Email address" onChangeText={setEmail} placeholder="you@example.com" value={email} />
-            <FormField autoComplete="tel" keyboardType="phone-pad" label="Mobile number" maxLength={30} onChangeText={setMobileNumber} placeholder="+63 900 000 0000" value={mobileNumber} />
-            <ChoiceField label="Farm worker category" onPress={() => setChoice({ title: 'Select worker category', items: workerCategories, select: (item) => { setWorkerCategory(item.code as WorkerCategory); setChoice(null); } })} placeholder="Select worker category" value={workerCategories.find((item) => item.code === workerCategory)?.name} />
-          </View> : null}
+            {step === 0 ? (
+              <View>
+                <FormField autoCapitalize="words" autoComplete="name" label="Full name" onChangeText={setFullName} placeholder="Enter your full name" value={fullName} />
+                <FormField autoCapitalize="none" autoComplete="email" keyboardType="email-address" label="Email address" onChangeText={setEmail} placeholder="you@example.com" value={email} />
+                <FormField autoComplete="tel" keyboardType="phone-pad" label="Mobile number" maxLength={30} onChangeText={setMobileNumber} placeholder="+63 900 000 0000" value={mobileNumber} />
+                <ChoiceField label="Farm worker category" onPress={() => setChoice({ title: 'Select worker category', items: workerCategories, select: (item) => { setWorkerCategory(item.code as WorkerCategory); setChoice(null); } })} placeholder="Select worker category" value={workerCategories.find((item) => item.code === workerCategory)?.name} />
+              </View>
+            ) : null}
 
-          {step === 1 ? <View><Text style={styles.sectionTitle}>Security</Text>
-            <View style={styles.field}><Text style={styles.label}>Password</Text><View style={styles.passwordRow}><TextInput autoCapitalize="none" autoComplete="new-password" onChangeText={setPassword} placeholder="Create a strong password" placeholderTextColor="#879080" secureTextEntry={!showPassword} style={styles.passwordInput} value={password} /><Pressable onPress={() => setShowPassword((visible) => !visible)} style={styles.showButton}><Text style={styles.showText}>{showPassword ? 'Hide' : 'Show'}</Text></Pressable></View></View>
-            <FormField autoCapitalize="none" autoComplete="new-password" label="Confirm password" onChangeText={setConfirmPassword} placeholder="Repeat password" secureTextEntry={!showPassword} value={confirmPassword} />
-            <View style={styles.strengthBars}>{passwordChecks.map((check) => <View key={check.label} style={[styles.strengthBar, check.met && styles.strengthBarMet]} />)}</View>
-            <Text style={styles.strengthText}>Password strength: {['Not set', 'Weak', 'Fair', 'Good', 'Strong'][passwordScore]}</Text>
-            {passwordChecks.map((check) => <Text key={check.label} style={[styles.requirement, check.met && styles.requirementMet]}>{check.met ? '✓' : '○'} {check.label}</Text>)}
-          </View> : null}
+            {step === 1 ? (
+              <View>
+                <View style={styles.field}><Text style={styles.label}>Password</Text><View style={styles.passwordRow}><TextInput autoCapitalize="none" autoComplete="new-password" onChangeText={setPassword} placeholder="Create a strong password" placeholderTextColor="#879080" secureTextEntry={!showPassword} style={styles.passwordInput} value={password} /><Pressable onPress={() => setShowPassword((visible) => !visible)} style={styles.showButton}><Text style={styles.showText}>{showPassword ? 'Hide' : 'Show'}</Text></Pressable></View></View>
+                <FormField autoCapitalize="none" autoComplete="new-password" label="Confirm password" onChangeText={setConfirmPassword} placeholder="Repeat password" secureTextEntry={!showPassword} value={confirmPassword} />
+                <View style={styles.strengthBars}>{passwordChecks.map((check) => <View key={check.label} style={[styles.strengthBar, check.met && styles.strengthBarMet]} />)}</View>
+                <Text style={styles.strengthText}>Password strength: {['Not set', 'Weak', 'Fair', 'Good', 'Strong'][passwordScore]}</Text>
+                {passwordChecks.map((check) => <Text key={check.label} style={[styles.requirement, check.met && styles.requirementMet]}>{check.met ? '✓' : '○'} {check.label}</Text>)}
+              </View>
+            ) : null}
 
-          {step === 2 ? <View><Text style={styles.sectionTitle}>Location</Text>
-            <ChoiceField disabled label="Country" onPress={() => undefined} placeholder="Philippines" value="Philippines" />
-            <ChoiceField disabled={loadingAddress} label="Region" onPress={() => setChoice({ title: 'Select region', items: regions, select: selectRegion })} placeholder={loadingAddress && !regions.length ? 'Loading regions…' : 'Select region'} value={region?.name} />
-            <ChoiceField disabled={!region || loadingAddress || provinceNotApplicable} label="Province" onPress={() => setChoice({ title: 'Select province', items: provinces, select: selectProvince })} placeholder={provinceNotApplicable ? 'Not applicable' : 'Select province'} value={provinceNotApplicable ? 'Not applicable' : province?.name} />
-            <ChoiceField disabled={!region || (!provinceNotApplicable && !province) || loadingAddress} label="City / Municipality" onPress={() => setChoice({ title: 'Select city or municipality', items: cities, select: selectCity })} placeholder="Select city or municipality" value={city?.name} />
-            <ChoiceField disabled={!city || loadingAddress} label="Barangay" onPress={() => setChoice({ title: 'Select barangay', items: barangays, select: (item) => { setBarangay(item as PsgcItem); setChoice(null); } })} placeholder="Select barangay" value={barangay?.name} />
-            {loadingAddress ? <ActivityIndicator color="#19713a" style={styles.addressLoader} /> : null}
-            <Pressable onPress={() => setTermsAccepted((accepted) => !accepted)} style={styles.consent}><View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}><Text style={styles.checkmark}>{termsAccepted ? '✓' : ''}</Text></View><Text style={styles.consentText}>I agree to the <Text style={styles.consentStrong}>Terms of Service</Text> and <Text style={styles.consentStrong}>Privacy Policy</Text>.</Text></Pressable>
-          </View> : null}
+            {step === 2 ? (
+              <View>
+                <ChoiceField disabled label="Country" onPress={() => undefined} placeholder="Philippines" value="Philippines" />
+                <ChoiceField disabled={loadingAddress} label="Region" onPress={() => setChoice({ title: 'Select region', items: regions, select: selectRegion })} placeholder={loadingAddress && !regions.length ? 'Loading regions…' : 'Select region'} value={region?.name} />
+                <ChoiceField disabled={!region || loadingAddress || provinceNotApplicable} label="Province" onPress={() => setChoice({ title: 'Select province', items: provinces, select: selectProvince })} placeholder={provinceNotApplicable ? 'Not applicable' : 'Select province'} value={provinceNotApplicable ? 'Not applicable' : province?.name} />
+                <ChoiceField disabled={!region || (!provinceNotApplicable && !province) || loadingAddress} label="City / Municipality" onPress={() => setChoice({ title: 'Select city or municipality', items: cities, select: selectCity })} placeholder="Select city or municipality" value={city?.name} />
+                <ChoiceField disabled={!city || loadingAddress} label="Barangay" onPress={() => setChoice({ title: 'Select barangay', items: barangays, select: (item) => { setBarangay(item as PsgcItem); setChoice(null); } })} placeholder="Select barangay" value={barangay?.name} />
+                {loadingAddress ? <ActivityIndicator color="#19713a" style={styles.addressLoader} /> : null}
+                <Pressable onPress={() => setTermsAccepted((accepted) => !accepted)} style={styles.consent}><View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}><Text style={styles.checkmark}>{termsAccepted ? '✓' : ''}</Text></View><Text style={styles.consentText}>I agree to the <Text style={styles.consentStrong}>Terms of Service</Text> and <Text style={styles.consentStrong}>Privacy Policy</Text>.</Text></Pressable>
+              </View>
+            ) : null}
 
-          <View style={styles.actions}>{step > 0 ? <Pressable disabled={submitting} onPress={() => { setError(''); setStep((current) => current - 1); }} style={styles.backButton}><Text style={styles.backButtonText}>Back</Text></Pressable> : null}<Pressable disabled={submitting} onPress={step === 2 ? submit : next} style={[styles.continueButton, submitting && styles.buttonDisabled]}>{submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.continueButtonText}>{step === 2 ? 'Create Account' : 'Continue'}</Text>}</Pressable></View>
-          <View style={styles.signInRow}><Text style={styles.signInPrompt}>Already have an account? </Text><Pressable hitSlop={10} onPress={onSignIn ?? (() => router.replace('/login'))}><Text style={styles.signInLink}>Sign in</Text></Pressable></View>
+            <View style={styles.actions}>{step > 0 ? <Pressable disabled={submitting} onPress={() => { setError(''); setStep((current) => current - 1); }} style={styles.backButton}><Text style={styles.backButtonText}>Back</Text></Pressable> : null}<Pressable disabled={submitting} onPress={step === 2 ? submit : next} style={[styles.continueButton, submitting && styles.buttonDisabled]}>{submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.continueButtonText}>{step === 2 ? 'Create Account' : 'Continue'}</Text>}</Pressable></View>
+            <View style={styles.signInRow}><Text style={styles.signInPrompt}>Already have an account? </Text><Pressable hitSlop={10} onPress={onSignIn ?? (() => router.replace('/login'))}><Text style={styles.signInLink}>Sign in</Text></Pressable></View>
+          </ScrollView>
         </View>
-      </ScrollView>
+      </View>
     </KeyboardAvoidingView>
     <ChoiceModal items={choice?.items ?? []} onClose={() => setChoice(null)} onSelect={(item) => choice?.select(item)} title={choice?.title ?? ''} visible={Boolean(choice)} />
   </SafeAreaView>;
