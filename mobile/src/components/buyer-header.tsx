@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
@@ -5,15 +6,21 @@ import Svg, { Path } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { loadBuyerUnreadCount } from '@/lib/buyer-messages';
-import { styles } from '@/styles/components/buyer-header.styles';
+import { HEADER_GRADIENT, styles } from '@/styles/components/buyer-header.styles';
 
 const UNREAD_POLL_INTERVAL_MS = 20000;
 
 function BackIcon() {
   return (
-    <View style={styles.backButton}>
-      <View style={styles.backChevron} />
-    </View>
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M15 18l-6-6 6-6"
+        stroke="#ffffff"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
   );
 }
 
@@ -24,6 +31,13 @@ function ChatIcon() {
         d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"
         stroke="#ffffff"
         strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M8 12h.01M12 12h.01M16 12h.01"
+        stroke="#ffffff"
+        strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -104,7 +118,7 @@ function HeaderIcons({ hasNotice }: { hasNotice?: boolean }) {
 
 export function BuyerHeader({ hasNotice = true, showBack = false }: { hasNotice?: boolean; showBack?: boolean }) {
   return (
-    <View style={styles.header}>
+    <LinearGradient colors={HEADER_GRADIENT} style={styles.header}>
       <View style={styles.zone}>
         {showBack ? (
           <Pressable accessibilityLabel="Go back" accessibilityRole="button" hitSlop={10} onPress={() => router.back()}>
@@ -124,6 +138,6 @@ export function BuyerHeader({ hasNotice = true, showBack = false }: { hasNotice?
       <View style={[styles.zone, styles.zoneEnd]}>
         <HeaderIcons hasNotice={hasNotice} />
       </View>
-    </View>
+    </LinearGradient>
   );
 }

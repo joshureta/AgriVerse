@@ -265,41 +265,201 @@ export const styles = StyleSheet.create({
     elevation: 0,
   },
 
-  // Customer reviews
+  // Customer reviews section
+  reviewsSection: {
+    marginTop: 34,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E2ECE3',
+  },
+  reviewsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  reviewsTitleGroup: {
+    flex: 1,
+  },
+  reviewsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   reviewsTitle: {
     fontSize: 15,
     fontWeight: '800',
     color: DARK_GREEN,
-    marginTop: 26,
+  },
+  reviewsCountBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 8,
+    backgroundColor: '#EDF4EE',
+  },
+  reviewsCountText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: GREEN,
+  },
+  reviewsSubtitle: {
+    fontSize: 10.5,
+    color: '#6A7D6F',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  arrowButton: {
+    padding: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  arrowButtonPressed: {
+    opacity: 0.6,
   },
 
+  // Rating scoreboard
+  scoreboardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAF7',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E1ECE2',
+    padding: 12,
+    marginBottom: 12,
+  },
+  scoreColumn: {
+    alignItems: 'center',
+    paddingRight: 14,
+    borderRightWidth: 1,
+    borderRightColor: '#E3EBE4',
+    minWidth: 80,
+  },
+  scoreBig: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: GREEN,
+  },
+  scoreStarsRow: {
+    flexDirection: 'row',
+    gap: 2,
+    marginVertical: 2,
+  },
+  scoreCountText: {
+    fontSize: 9.5,
+    color: '#6A7D6F',
+    fontWeight: '600',
+  },
+  scoreBreakdown: {
+    flex: 1,
+    paddingLeft: 12,
+    gap: 4,
+  },
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  barLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#556658',
+    width: 18,
+    textAlign: 'right',
+  },
+  barTrack: {
+    flex: 1,
+    height: 5,
+    backgroundColor: '#E5EDE7',
+    borderRadius: 2.5,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    backgroundColor: '#F59E0B',
+    borderRadius: 2.5,
+  },
+  barValue: {
+    fontSize: 9.5,
+    color: '#8A9C8E',
+    width: 14,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+
+  // Review card
   reviewCard: {
-    marginTop: 14,
-    padding: 14,
+    marginBottom: 10,
+    padding: 12,
     borderRadius: 14,
     backgroundColor: '#FAFCF9',
     borderWidth: 1,
     borderColor: CARD_BORDER,
   },
-  reviewHeaderRow: {
+  reviewCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  reviewerName: {
-    fontSize: 13,
+  reviewerMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  avatarCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E4F2E7',
+    borderWidth: 1,
+    borderColor: '#C3DFCA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 10.5,
     fontWeight: '800',
     color: DARK_GREEN,
   },
-  reviewDate: {
-    fontSize: 10.5,
+  reviewerDetails: {
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  reviewerName: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: DARK_GREEN,
+  },
+  verifiedBadge: {
+    backgroundColor: '#EBF6EE',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  verifiedText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: GREEN,
+  },
+  reviewSubInfo: {
+    fontSize: 10,
     color: '#8A9C8E',
+    marginTop: 1,
     fontWeight: '500',
   },
+  reviewStarsRow: {
+    flexDirection: 'row',
+    gap: 1.5,
+  },
   reviewComment: {
-    fontSize: 12,
-    color: '#556658',
-    lineHeight: 17.5,
-    marginTop: 6,
+    fontSize: 11.5,
+    color: '#4A5B4D',
+    lineHeight: 16.5,
   },
 });

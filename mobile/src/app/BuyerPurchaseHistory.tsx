@@ -1,11 +1,33 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
 import { BuyerOrder, BuyerOrderStatus, loadBuyerOrders } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-purchase-history.styles';
+
+function ReceiptIcon({ color = GREEN, size = 36 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M8 7h8M8 11h8M8 15h4"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 const STATUS_LABELS: Record<BuyerOrderStatus, string> = {
   pending: 'Pending',
@@ -101,7 +123,7 @@ export default function BuyerPurchaseHistoryScreen() {
           <Text style={styles.loadError}>{error}</Text>
         ) : orders.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🧾</Text>
+            <ReceiptIcon size={48} color="#8B9B8E" />
             <Text style={styles.emptyText}>You have no past orders yet.</Text>
           </View>
         ) : (
@@ -129,7 +151,7 @@ export default function BuyerPurchaseHistoryScreen() {
       </ScrollView>
       </View>
 
-      <BuyerBottomNavigation activeTab="orders" />
+      <BuyerBottomNavigation activeTab="account" />
     </SafeAreaView>
   );
 }

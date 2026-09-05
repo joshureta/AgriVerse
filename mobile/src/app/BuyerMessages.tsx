@@ -24,6 +24,65 @@ import {
   setBuyerTyping,
 } from '@/lib/buyer-messages';
 import { GREEN, styles } from '@/styles/buyer-messages.styles';
+import Svg, { Circle, Path } from 'react-native-svg';
+
+function SendIcon() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="m22 2-7 20-4-9-9-4Z"
+        stroke="#FFFFFF"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M22 2 11 13"
+        stroke="#FFFFFF"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function PlantIcon({ color = GREEN, size = 18 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 22V12M12 12C12 7 7 4 2 5c0 5 3 10 10 10ZM12 12c0-5 5-8 10-7 0 5-3 10-10 10Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function SparklesIcon({ color = GREEN, size = 22 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="m12 3 1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function ClockIcon({ color = '#8B9B8E', size = 12 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={10} stroke={color} strokeWidth={2} />
+      <Path d="M12 6v6l4 2" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 function formatTime(value: string | null) {
   if (!value) return '';
@@ -42,10 +101,10 @@ function formatDateSeparator(value: string | null) {
 }
 
 const QUICK_SUGGESTIONS = [
-  '📦 What is the status of my order?',
-  '🍍 How fresh are the pineapples upon delivery?',
-  '🚚 When will my order arrive?',
-  '💳 What payment options do you support?',
+  'What is the status of my order?',
+  'How fresh are the pineapples upon delivery?',
+  'When will my order arrive?',
+  'What payment options do you support?',
 ];
 
 function TypingDot({ delay }: { delay: number }) {
@@ -201,7 +260,7 @@ export default function BuyerMessagesScreen() {
         <View style={styles.messengerHeader}>
           <View style={styles.avatarWrapper}>
             <View style={styles.avatarCircle}>
-              <Text style={styles.avatarEmoji}>🌱</Text>
+              <PlantIcon color="#ffffff" size={18} />
             </View>
             <View style={[styles.statusDot, supportOnline && styles.statusDotOnline]} />
           </View>
@@ -233,7 +292,7 @@ export default function BuyerMessagesScreen() {
             ) : messages.length === 0 ? (
               <View style={styles.emptyState}>
                 <View style={styles.emptyIconWrap}>
-                  <Text style={styles.emptyIconText}>✨</Text>
+                  <SparklesIcon color={GREEN} size={26} />
                 </View>
                 <Text style={styles.emptyTitle}>Welcome to JToledo Farm</Text>
                 <Text style={styles.emptyText}>
@@ -273,7 +332,7 @@ export default function BuyerMessagesScreen() {
                     <View style={[styles.messageRow, isBuyer ? styles.messageRowBuyer : styles.messageRowFarm]}>
                       {!isBuyer && (
                         <View style={styles.messageAvatar}>
-                          <Text style={styles.messageAvatarText}>🌱</Text>
+                          <PlantIcon color="#ffffff" size={14} />
                         </View>
                       )}
 
@@ -283,7 +342,7 @@ export default function BuyerMessagesScreen() {
                           <Text style={[styles.bubbleText, isBuyer && styles.bubbleTextBuyer]}>{message.body}</Text>
                         </View>
                         <View style={[styles.messageMeta, isBuyer && styles.messageMetaBuyer]}>
-                          <Text style={styles.metaTimeText}>🕒 {formatTime(message.created_at)}</Text>
+                          <Text style={styles.metaTimeText}>{formatTime(message.created_at)}</Text>
                           {isLastBuyerMessage && (
                             <Text style={[styles.readReceiptText, message.read_at && styles.readReceiptSeen]}>
                               {message.read_at ? '✓✓ Seen' : '✓✓ Delivered'}
@@ -300,7 +359,7 @@ export default function BuyerMessagesScreen() {
             {!loading && supportTyping && (
               <View style={styles.typingRow}>
                 <View style={styles.messageAvatar}>
-                  <Text style={styles.messageAvatarText}>🌱</Text>
+                  <PlantIcon color="#ffffff" size={14} />
                 </View>
                 <View style={styles.typingBubble}>
                   <TypingDot delay={0} />
@@ -345,7 +404,7 @@ export default function BuyerMessagesScreen() {
               disabled={sending || !draft.trim()}
               onPress={() => handleSend()}
               style={[styles.sendButton, (sending || !draft.trim()) && styles.sendButtonDisabled]}>
-              {sending ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={{ color: '#FFFFFF', fontSize: 16 }}>➤</Text>}
+              {sending ? <ActivityIndicator color="#FFFFFF" size="small" /> : <SendIcon />}
             </Pressable>
           </View>
         </View>

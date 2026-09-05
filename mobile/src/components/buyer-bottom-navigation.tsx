@@ -1,71 +1,152 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
+import { buyerCartQuantity, readBuyerCart, subscribeToCartChanges } from '@/lib/buyer-marketplace';
 import {
   ACTIVE_ICON_COLOR,
+  GREEN_NAV_GRADIENT,
   INACTIVE_ICON_COLOR,
   styles,
 } from '@/styles/components/buyer-bottom-navigation.styles';
 
-type BuyerTab = 'home' | 'orders' | 'cart' | 'account';
+type BuyerTab = 'home' | 'order' | 'orders' | 'cart' | 'account';
 
 function HomeIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <View style={styles.homeIcon}>
-      <View style={[styles.homeRoof, { borderBottomColor: color }]} />
-      <View style={[styles.homeBody, { backgroundColor: color }]} />
-    </View>
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3 9.5 12 3l9 6.5V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9.5Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M9 22V12h6v10"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
   );
 }
 
-function OrdersIcon({ active }: { active: boolean }) {
+function OrderIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <View style={styles.boxIcon}>
-      <View style={[styles.boxBody, { borderColor: color }]} />
-      <View style={[styles.boxLid, { backgroundColor: color }]} />
-    </View>
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M3 6h18"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M16 10a4 4 0 0 1-8 0"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
   );
 }
 
 function CartIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <View style={styles.cartIcon}>
-      <View style={[styles.cartHandle, { borderColor: color }]} />
-      <View style={[styles.cartBasket, { borderColor: color }]} />
-      <View style={styles.cartWheels}>
-        <View style={[styles.cartWheel, { backgroundColor: color }]} />
-        <View style={[styles.cartWheel, { backgroundColor: color }]} />
-      </View>
-    </View>
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Circle cx={8} cy={21} r={1} stroke={color} strokeWidth={2} fill={active ? color : 'none'} />
+      <Circle cx={19} cy={21} r={1} stroke={color} strokeWidth={2} fill={active ? color : 'none'} />
+      <Path
+        d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
   );
 }
 
 function AccountIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <View style={styles.profileIcon}>
-      <View style={[styles.profileHead, { borderColor: color }]} />
-      <View style={[styles.profileBody, { borderColor: color }]} />
-    </View>
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx={12} cy={7} r={4} stroke={color} strokeWidth={2} />
+    </Svg>
   );
 }
 
 export function BuyerBottomNavigation({ activeTab }: { activeTab: BuyerTab }) {
-  const items: { key: BuyerTab; label: string; onPress: () => void; icon: (active: boolean) => React.ReactNode }[] = [
-    { key: 'home', label: 'Home', onPress: () => router.push('/BuyerHome' as never), icon: (active) => <HomeIcon active={active} /> },
-    { key: 'orders', label: 'Orders', onPress: () => router.push('/BuyerPurchaseHistory' as never), icon: (active) => <OrdersIcon active={active} /> },
-    { key: 'cart', label: 'Cart', onPress: () => router.push('/BuyerCart' as never), icon: (active) => <CartIcon active={active} /> },
-    { key: 'account', label: 'Account', onPress: () => router.push('/BuyerAccount' as never), icon: (active) => <AccountIcon active={active} /> },
+  const normalizedTab = activeTab === 'orders' ? 'order' : activeTab;
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const updateCount = async () => {
+      const savedItems = await readBuyerCart();
+      if (active) setCartCount(buyerCartQuantity(savedItems));
+    };
+    updateCount();
+    const unsubscribe = subscribeToCartChanges(updateCount);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const items: {
+    key: 'home' | 'order' | 'cart' | 'account';
+    label: string;
+    onPress: () => void;
+    renderIcon: (active: boolean) => React.ReactNode;
+  }[] = [
+    { key: 'home', label: 'Home', onPress: () => router.push('/BuyerHome' as never), renderIcon: (active) => <HomeIcon active={active} /> },
+    { key: 'order', label: 'Order', onPress: () => router.push('/BuyerProductDetail' as never), renderIcon: (active) => <OrderIcon active={active} /> },
+    {
+      key: 'cart',
+      label: 'Cart',
+      onPress: () => router.push('/BuyerCart' as never),
+      renderIcon: (active) => (
+        <View style={{ position: 'relative' }}>
+          <CartIcon active={active} />
+          {cartCount > 0 ? (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+            </View>
+          ) : null}
+        </View>
+      ),
+    },
+    { key: 'account', label: 'Account', onPress: () => router.push('/BuyerAccount' as never), renderIcon: (active) => <AccountIcon active={active} /> },
   ];
 
   return (
     <View style={styles.navigationArea}>
-      <View style={styles.navigation}>
+      <LinearGradient colors={GREEN_NAV_GRADIENT} style={styles.navigation}>
         {items.map((item) => {
-          const active = activeTab === item.key;
+          const active = normalizedTab === item.key;
           return (
             <Pressable
               accessibilityLabel={`Go to ${item.label}`}
@@ -74,12 +155,12 @@ export function BuyerBottomNavigation({ activeTab }: { activeTab: BuyerTab }) {
               key={item.key}
               onPress={item.onPress}
               style={({ pressed }) => [styles.button, active && styles.activeButton, pressed && styles.pressedButton]}>
-              {item.icon(active)}
+              {item.renderIcon(active)}
               <Text style={active ? styles.activeLabel : styles.label}>{item.label}</Text>
             </Pressable>
           );
         })}
-      </View>
+      </LinearGradient>
     </View>
   );
 }
