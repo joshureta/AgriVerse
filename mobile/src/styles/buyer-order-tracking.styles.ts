@@ -4,7 +4,7 @@ export const GREEN = '#176D34';
 export const DARK_GREEN = '#10351D';
 export const SAGE_BG = '#EDF5EB';
 export const SAGE_BORDER = '#D8E5D5';
-export const CARD_BORDER = '#E5EDE2';
+export const CARD_BORDER = '#E3EBE4';
 export const TEXT_MUTED = '#637567';
 
 export const styles = StyleSheet.create({
@@ -14,119 +14,280 @@ export const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 18,
+    paddingTop: 16,
     paddingBottom: 28,
   },
 
   card: {
-    padding: 18,
+    padding: 16,
     borderRadius: 20,
     backgroundColor: '#ffffff',
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: CARD_BORDER,
     shadowColor: '#0B2E16',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
 
-  // Order confirmed header
-  confirmedRow: {
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: DARK_GREEN,
+    letterSpacing: -0.2,
+  },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: '#EAF5EA',
+    borderWidth: 1,
+    borderColor: '#CDE5CF',
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: GREEN,
+  },
+
+  // Vertical route layout
+  verticalRouteBox: {
+    backgroundColor: '#F6FAF6',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#DCECDC',
+    marginBottom: 16,
+  },
+  routeItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
   },
-  confirmedCheckCircle: {
+  originIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: GREEN,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+    shadowColor: GREEN,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  destinationIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: GREEN,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  verticalConnectorLine: {
+    width: 2,
+    height: 20,
+    backgroundColor: 'rgba(23, 109, 52, 0.25)',
+    marginLeft: 13,
+    marginVertical: 4,
+  },
+  routeItemContent: {
+    flex: 1,
+  },
+  routeItemHeader: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#4E6A56',
+    letterSpacing: 0.6,
+  },
+  routeItemTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: DARK_GREEN,
+    marginTop: 1,
+  },
+  routeItemSubtitle: {
+    fontSize: 11,
+    color: '#5E7464',
+    marginTop: 1,
+    lineHeight: 15,
+  },
+
+  // Stepper with continuous connecting track line
+  stepperContainer: {
+    position: 'relative',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  stepperLineBackground: {
+    position: 'absolute',
+    top: 18,
+    left: '12%',
+    right: '12%',
+    height: 2,
+    flexDirection: 'row',
+    zIndex: 0,
+  },
+  stepperLineSegment: {
+    flex: 1,
+    height: 2,
+  },
+  stepperLineSegmentDone: {
+    backgroundColor: GREEN,
+  },
+  stepperLineSegmentPending: {
+    backgroundColor: '#D6DED4',
+  },
+  stepperNodesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    position: 'relative',
+    zIndex: 1,
+  },
+  stepColumn: {
+    alignItems: 'center',
+    width: 76,
+  },
+  stepCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: SAGE_BG,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: SAGE_BORDER,
+    borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  confirmedCheck: {
-    color: GREEN,
-    fontSize: 16,
-    fontWeight: '900',
+  stepCircleDone: {
+    backgroundColor: GREEN,
+    borderColor: GREEN,
+    shadowColor: GREEN,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  confirmedTitle: {
-    fontSize: 16,
+  stepCircleCurrent: {
+    backgroundColor: '#EAF5EA',
+    borderWidth: 2,
+    borderColor: GREEN,
+  },
+  stepCirclePending: {
+    backgroundColor: '#F1F5F0',
+    borderWidth: 1,
+    borderColor: '#D4DFD2',
+  },
+  stepLabel: {
+    marginTop: 8,
+    fontSize: 10,
     fontWeight: '800',
     color: DARK_GREEN,
+    textAlign: 'center',
   },
-  confirmedSubtitle: {
-    fontSize: 11.5,
-    color: TEXT_MUTED,
+  stepLabelPending: {
+    color: '#8B9B8E',
+    fontWeight: '600',
+  },
+  stepDate: {
     marginTop: 2,
+    fontSize: 8.5,
+    color: TEXT_MUTED,
+    textAlign: 'center',
   },
 
-  estimateStrip: {
+  // Order Details card rows
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginTop: 14,
-    marginBottom: 16,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: SAGE_BG,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: '#F8FAF7',
     borderWidth: 1,
-    borderColor: SAGE_BORDER,
+    borderColor: '#E9EFE8',
+    marginBottom: 8,
+    gap: 12,
   },
-  estimateCalendar: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: GREEN,
+  detailIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#EAF5EA',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  estimateCalendarDot: {
-    width: 3.5,
-    height: 3.5,
-    borderRadius: 2,
-    backgroundColor: '#ffffff',
-    margin: 1.5,
+  detailContent: {
+    flex: 1,
   },
-  estimateCalendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 14,
-    justifyContent: 'space-between',
-  },
-  estimateLabel: {
-    fontSize: 11,
-    color: '#4E6A56',
-    fontWeight: '600',
-  },
-  estimateDate: {
-    fontSize: 13.5,
-    color: DARK_GREEN,
+  detailLabel: {
+    fontSize: 9.5,
     fontWeight: '800',
+    color: '#4E6A56',
+    letterSpacing: 0.5,
+  },
+  detailValue: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: DARK_GREEN,
     marginTop: 1,
   },
 
+  // Order Items card
+  countBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    backgroundColor: '#F0F4F0',
+  },
+  countBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#556658',
+  },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    paddingVertical: 10,
+  },
+  itemRowBorderTop: {
+    borderTopWidth: 1,
+    borderTopColor: '#F0F4F0',
   },
   itemIconBox: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F7FAF5',
+    backgroundColor: '#FFFBEA',
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: '#F6E5A8',
   },
   itemImage: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     resizeMode: 'contain',
   },
   itemInfo: {
@@ -146,170 +307,52 @@ export const styles = StyleSheet.create({
   itemPrice: {
     fontSize: 13,
     fontWeight: '800',
-    color: GREEN,
+    color: DARK_GREEN,
     marginLeft: 8,
   },
 
-  divider: {
-    height: 1,
-    backgroundColor: '#EDF2EC',
-    marginVertical: 12,
-  },
-
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  addressPin: {
-    fontSize: 14,
-    marginTop: 1,
-  },
-  addressText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#556658',
-    lineHeight: 17,
-  },
-
-  // Delivery progress
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: DARK_GREEN,
-    marginBottom: 16,
-  },
-
-  routeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  routeLine: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    top: 24,
-    borderTopWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#C7D3C4',
-  },
-  routePillFrom: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: SAGE_BG,
-    borderWidth: 1,
-    borderColor: SAGE_BORDER,
-  },
-  routePillTo: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: DARK_GREEN,
-  },
-  routePillLabel: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: DARK_GREEN,
-  },
-  routePillLabelLight: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  routePillSub: {
-    fontSize: 10,
-    color: '#4E6A56',
-    marginTop: 2,
-  },
-  routePillSubLight: {
-    fontSize: 10,
-    color: '#D9E9D3',
-    marginTop: 2,
-  },
-  routeTruckCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: GREEN,
-    marginHorizontal: -8,
-    zIndex: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  routeTruckIcon: {
-    fontSize: 16,
-  },
-
-  stepperRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 24,
-  },
-  stepColumn: {
-    alignItems: 'center',
-    width: 80,
-  },
-  stepConnector: {
-    flex: 1,
-    height: 2,
-    marginTop: 16,
-    borderStyle: 'dashed',
-    borderTopWidth: 2,
-  },
-  stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepCircleDone: {
-    backgroundColor: GREEN,
-    shadowColor: GREEN,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  stepCirclePending: {
-    backgroundColor: '#EDF2EC',
-  },
-  stepCheckText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  stepIconText: {
-    fontSize: 14,
-  },
-  stepLabel: {
+  // Financial summary inside items card
+  financialSummary: {
     marginTop: 8,
-    fontSize: 10.5,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#EDF2EC',
+    gap: 6,
+  },
+  summaryLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 11.5,
+    color: TEXT_MUTED,
+  },
+  summaryValue: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: DARK_GREEN,
+  },
+  totalLine: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E2EBE0',
+    borderStyle: 'dashed',
+    marginTop: 2,
+  },
+  totalLabel: {
+    fontSize: 13,
     fontWeight: '800',
     color: DARK_GREEN,
-    textAlign: 'center',
   },
-  stepLabelPending: {
-    color: '#8B9B8E',
-    fontWeight: '600',
-  },
-  stepDate: {
-    marginTop: 3,
-    fontSize: 9,
-    color: TEXT_MUTED,
-    textAlign: 'center',
+  totalValue: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: GREEN,
   },
 
   cancelledText: {
-    marginTop: 18,
+    marginTop: 14,
     padding: 12,
     borderRadius: 12,
     backgroundColor: '#FBE9E7',
@@ -338,7 +381,7 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: TEXT_MUTED,
     lineHeight: 17,
-    marginTop: 10,
+    marginTop: 6,
     marginBottom: 4,
   },
   actionRow: {

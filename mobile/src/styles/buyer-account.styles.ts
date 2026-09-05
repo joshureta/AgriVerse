@@ -104,15 +104,9 @@ export const styles = StyleSheet.create({
 
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+    alignItems: 'center',
+    gap: 14,
     marginBottom: 16,
-  },
-  infoIcon: {
-    fontSize: 16,
-    width: 20,
-    textAlign: 'center',
-    marginTop: 1,
   },
   infoNameText: {
     fontSize: 16,
