@@ -111,7 +111,7 @@ export const styles = StyleSheet.create({
   forecastHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: 6,
     paddingBottom: 4,
     borderBottomWidth: 1,
@@ -127,11 +127,40 @@ export const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
+  forecastViewAll: {
+    color: '#C8EBFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
   forecastScrollList: {
-    maxHeight: 145,
+    maxHeight: 132,
   },
   forecastScrollContent: {
-    paddingRight: 2,
+    paddingRight: 4,
+  },
+  forecastDay: {
+    width: 82,
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 5,
+  },
+  forecastDayDivider: {
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  forecastDayLabel: {
+    width: '100%',
+    color: '#F4F8FC',
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  forecastIconCircle: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   forecastRow: {
     flexDirection: 'row',
@@ -152,7 +181,13 @@ export const styles = StyleSheet.create({
     gap: 1,
   },
   rainChanceText: {
-    fontSize: 9,
+    color: '#1680C5',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  forecastTempRange: {
+    color: '#F4F8FC',
+    fontSize: 11,
     fontWeight: '800',
   },
   tempLow: {

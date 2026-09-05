@@ -361,80 +361,41 @@ export function ApiWeatherBanner({
         <View
           style={[
             styles.forecastSection,
-            { backgroundColor: theme.forecastBg, borderColor: theme.forecastBorder },
+            { backgroundColor: 'rgba(6, 28, 47, 0.78)', borderColor: 'rgba(255, 255, 255, 0.18)' },
           ]}>
           {/* Header (No Scrollable text) */}
-          <View style={[styles.forecastHeader, { borderColor: theme.forecastHeaderBorder }]}>
+          <View style={[styles.forecastHeader, { borderColor: 'rgba(255, 255, 255, 0.18)' }]}>
             <View style={styles.forecastTitleRow}>
-              <CalendarIcon size={13} color={theme.forecastTitleColor} />
-              <Text style={[styles.forecastTitleText, { color: theme.forecastTitleColor }]}>
+              <CalendarIcon size={13} color="#D6F1FF" />
+              <Text style={[styles.forecastTitleText, { color: '#F7FBFF' }]}>
                 5-Day Forecast
               </Text>
             </View>
+            <Text style={styles.forecastViewAll}>View all ›</Text>
           </View>
 
-          {/* Scrollable 5-Day List */}
+          {/* Horizontal five-day forecast */}
           <ScrollView
-            nestedScrollEnabled
-            showsVerticalScrollIndicator={false}
+            horizontal
+            showsHorizontalScrollIndicator={false}
             style={styles.forecastScrollList}
             contentContainerStyle={styles.forecastScrollContent}>
             {forecastDays.map((item, idx) => {
               const hasRain = (item.rainChance ?? 0) > 0;
-              const barWidthPercent: DimensionValue = `${Math.min(
-                100,
-                Math.max(30, ((item.highTemp - item.lowTemp) / 15) * 100)
-              )}%`;
 
               return (
                 <View
                   key={idx}
                   style={[
-                    styles.forecastRow,
-                    {
-                      borderColor: theme.rowBorder,
-                      borderBottomWidth: idx === forecastDays.length - 1 ? 0 : 1,
-                    },
+                    styles.forecastDay,
+                    idx < forecastDays.length - 1 && styles.forecastDayDivider,
                   ]}>
-                  {/* Day */}
-                  <Text style={[styles.dayCol, { color: theme.textColor }]}>{item.day}</Text>
-
-                  {/* Vector Icon + Rain Chance */}
-                  <View style={styles.iconCol}>
-                    <WeatherVectorIcon condition={item.condition} size={15} />
-                    {hasRain ? (
-                      <Text
-                        style={[
-                          styles.rainChanceText,
-                          { color: isNight ? '#38BDF8' : '#0284C7' },
-                        ]}>
-                        {item.rainChance}%
-                      </Text>
-                    ) : null}
+                  <Text numberOfLines={1} style={styles.forecastDayLabel}>{item.day}</Text>
+                  <View style={styles.forecastIconCircle}>
+                    <WeatherVectorIcon condition={item.condition} size={25} />
                   </View>
-
-                  {/* Low Temp */}
-                  <Text style={[styles.tempLow, { color: theme.subTextColor }]}>
-                    {item.lowTemp}°
-                  </Text>
-
-                  {/* Temperature Range Bar */}
-                  <View style={[styles.tempBarWrap, { backgroundColor: theme.barBg }]}>
-                    <View
-                      style={[
-                        styles.tempBarFill,
-                        {
-                          width: barWidthPercent,
-                          backgroundColor: theme.barFillColor,
-                        },
-                      ]}
-                    />
-                  </View>
-
-                  {/* High Temp */}
-                  <Text style={[styles.tempHigh, { color: theme.textColor }]}>
-                    {item.highTemp}°
-                  </Text>
+                  <Text style={styles.rainChanceText}>{hasRain ? `${item.rainChance}%` : '—'}</Text>
+                  <Text style={styles.forecastTempRange}>{item.lowTemp}° / {item.highTemp}°</Text>
                 </View>
               );
             })}
