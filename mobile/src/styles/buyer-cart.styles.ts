@@ -15,9 +15,6 @@ export const styles = StyleSheet.create({
   },
   mainBodyContainer: {
     flex: 1,
-    overflow: 'hidden',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     backgroundColor: '#F3F7F1',
   },
   scrollContent: {

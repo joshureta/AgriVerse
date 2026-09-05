@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   header: {
-    height: 66,
+    height: 72,
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
@@ -15,8 +15,8 @@ export const styles = StyleSheet.create({
     elevation: 4,
   },
   logo: {
-    width: 36,
-    height: 36,
+    width: 48,
+    height: 48,
     resizeMode: 'contain',
   },
   actions: {

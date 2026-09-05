@@ -134,12 +134,12 @@ export const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: '#E3EBE4',
     shadowColor: '#0B2E16',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -147,7 +147,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    fontSize: 16.5,
+    fontSize: 16,
     fontWeight: '800',
     color: DARK_GREEN,
     letterSpacing: -0.2,
@@ -159,23 +159,41 @@ export const styles = StyleSheet.create({
   },
 
   // ----------------------------------------------------
-  // Order Status Stepper
+  // Order Status Stepper with Track Lines
   // ----------------------------------------------------
-  stepperRow: {
+  stepperContainer: {
+    position: 'relative',
+    marginTop: 18,
+    marginBottom: 4,
+  },
+  stepperLineBackground: {
+    position: 'absolute',
+    top: 17,
+    left: '12%',
+    right: '12%',
+    height: 2,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 20,
+    zIndex: 0,
+  },
+  stepperLineSegment: {
+    flex: 1,
+    height: 2,
+  },
+  stepperLineSegmentDone: {
+    backgroundColor: GREEN,
+  },
+  stepperLineSegmentPending: {
+    backgroundColor: '#D6DED4',
+  },
+  stepperNodesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    position: 'relative',
+    zIndex: 1,
   },
   stepColumn: {
     alignItems: 'center',
-    width: 86,
-  },
-  stepConnector: {
-    flex: 1,
-    height: 2,
-    marginTop: 16,
-    borderStyle: 'dashed',
-    borderTopWidth: 2,
+    width: 76,
   },
   stepCircle: {
     width: 34,
@@ -183,14 +201,23 @@ export const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
   stepCircleDone: {
     backgroundColor: GREEN,
+    borderColor: GREEN,
     shadowColor: GREEN,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   stepCircleCurrent: {
     backgroundColor: '#EAF5EA',
@@ -198,23 +225,24 @@ export const styles = StyleSheet.create({
     borderColor: GREEN,
   },
   stepCirclePending: {
-    backgroundColor: '#EDF2EC',
+    backgroundColor: '#F1F5F0',
+    borderWidth: 1,
+    borderColor: '#D4DFD2',
   },
   stepLabel: {
     marginTop: 8,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     color: DARK_GREEN,
     textAlign: 'center',
-    lineHeight: 14,
   },
   stepLabelPending: {
     color: '#8B9B8E',
     fontWeight: '600',
   },
   stepDate: {
-    marginTop: 3,
-    fontSize: 9.5,
+    marginTop: 2,
+    fontSize: 8.5,
     color: TEXT_MUTED,
     textAlign: 'center',
   },

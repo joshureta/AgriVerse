@@ -92,11 +92,34 @@ function DeliveredBadgeIcon({ color }: { color: string }) {
   );
 }
 
+function ReceiptIcon({ color = GREEN, size = 16 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M8 7h8M8 11h8M8 15h4"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function StepCircle({ state, stepKey }: { state: 'done' | 'current' | 'pending'; stepKey: string }) {
   const iconColor = state === 'done' ? '#ffffff' : state === 'current' ? GREEN : '#8B9B8E';
 
   const renderIcon = () => {
     switch (stepKey) {
+      case 'placed':
+        return <ReceiptIcon color={iconColor} size={15} />;
       case 'confirmed':
         return <PackingIcon color={iconColor} />;
       case 'transit':
@@ -122,29 +145,45 @@ function StepCircle({ state, stepKey }: { state: 'done' | 'current' | 'pending';
 }
 
 function OrderStatusStepper({ stage, confirmedDate }: { stage: number; confirmedDate: string }) {
-  const steps: { key: string; label: string; date?: string }[] = [
-    { key: 'confirmed', label: 'Order Confirmed & Packing', date: confirmedDate },
+  const steps = [
+    { key: 'placed', label: 'Placed', date: confirmedDate },
+    { key: 'confirmed', label: 'Packing' },
     { key: 'transit', label: 'In Transit' },
     { key: 'delivered', label: 'Delivered' },
   ];
 
   return (
-    <View style={styles.stepperRow}>
-      {steps.map((step, index) => {
-        const state = index < stage ? 'done' : index === stage ? 'current' : 'pending';
-        return (
-          <View key={step.key} style={{ flexDirection: 'row', alignItems: 'flex-start', flex: index < steps.length - 1 ? 1 : undefined }}>
-            <View style={styles.stepColumn}>
+    <View style={styles.stepperContainer}>
+      {/* Background connecting track line segments */}
+      <View style={styles.stepperLineBackground}>
+        {steps.map((_, index) => {
+          if (index === steps.length - 1) return null;
+          const isDone = index < stage;
+          return (
+            <View
+              key={index}
+              style={[
+                styles.stepperLineSegment,
+                isDone ? styles.stepperLineSegmentDone : styles.stepperLineSegmentPending,
+              ]}
+            />
+          );
+        })}
+      </View>
+
+      {/* Stepper nodes row */}
+      <View style={styles.stepperNodesRow}>
+        {steps.map((step, index) => {
+          const state: 'done' | 'current' | 'pending' = index < stage ? 'done' : index === stage ? 'current' : 'pending';
+          return (
+            <View key={step.key} style={styles.stepColumn}>
               <StepCircle state={state} stepKey={step.key} />
-              <Text style={[styles.stepLabel, state === 'pending' && styles.stepLabelPending]}>{step.label}</Text>
+              <Text style={[styles.stepLabel, state !== 'done' && styles.stepLabelPending]}>{step.label}</Text>
               {step.date ? <Text style={styles.stepDate}>{step.date}</Text> : null}
             </View>
-            {index < steps.length - 1 ? (
-              <View style={[styles.stepConnector, { borderTopColor: index < stage ? GREEN : '#D6DED4' }]} />
-            ) : null}
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
     </View>
   );
 }
