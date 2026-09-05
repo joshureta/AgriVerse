@@ -1,5 +1,7 @@
 import { StyleSheet } from 'react-native';
 
+export const HEADER_GRADIENT = ['#479237', '#1F5F2B'] as const;
+
 export const styles = StyleSheet.create({
   header: {
     height: 72,
@@ -7,7 +9,6 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#176D34',
     shadowColor: '#125829',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,

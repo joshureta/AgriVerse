@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 
 export const GREEN_NAV_BG = '#176D34';
+export const GREEN_NAV_GRADIENT = ['#479237', '#1F5F2B'] as const;
 export const ACTIVE_PILL_BG = 'rgba(255, 255, 255, 0.22)';
 export const ACTIVE_ICON_COLOR = '#FFFFFF';
 export const INACTIVE_ICON_COLOR = 'rgba(255, 255, 255, 0.65)';
@@ -20,7 +21,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 7,
     borderRadius: 35,
-    backgroundColor: GREEN_NAV_BG,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
     elevation: 14,

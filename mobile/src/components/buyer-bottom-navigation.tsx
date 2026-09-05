@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -6,6 +7,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { buyerCartQuantity, readBuyerCart, subscribeToCartChanges } from '@/lib/buyer-marketplace';
 import {
   ACTIVE_ICON_COLOR,
+  GREEN_NAV_GRADIENT,
   INACTIVE_ICON_COLOR,
   styles,
 } from '@/styles/components/buyer-bottom-navigation.styles';
@@ -142,7 +144,7 @@ export function BuyerBottomNavigation({ activeTab }: { activeTab: BuyerTab }) {
 
   return (
     <View style={styles.navigationArea}>
-      <View style={styles.navigation}>
+      <LinearGradient colors={GREEN_NAV_GRADIENT} style={styles.navigation}>
         {items.map((item) => {
           const active = normalizedTab === item.key;
           return (
@@ -158,7 +160,7 @@ export function BuyerBottomNavigation({ activeTab }: { activeTab: BuyerTab }) {
             </Pressable>
           );
         })}
-      </View>
+      </LinearGradient>
     </View>
   );
 }

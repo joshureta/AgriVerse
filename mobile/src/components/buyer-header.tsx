@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
@@ -5,7 +6,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { loadBuyerUnreadCount } from '@/lib/buyer-messages';
-import { styles } from '@/styles/components/buyer-header.styles';
+import { HEADER_GRADIENT, styles } from '@/styles/components/buyer-header.styles';
 
 const UNREAD_POLL_INTERVAL_MS = 20000;
 
@@ -117,7 +118,7 @@ function HeaderIcons({ hasNotice }: { hasNotice?: boolean }) {
 
 export function BuyerHeader({ hasNotice = true, showBack = false }: { hasNotice?: boolean; showBack?: boolean }) {
   return (
-    <View style={styles.header}>
+    <LinearGradient colors={HEADER_GRADIENT} style={styles.header}>
       <View style={styles.zone}>
         {showBack ? (
           <Pressable accessibilityLabel="Go back" accessibilityRole="button" hitSlop={10} onPress={() => router.back()}>
@@ -137,6 +138,6 @@ export function BuyerHeader({ hasNotice = true, showBack = false }: { hasNotice?
       <View style={[styles.zone, styles.zoneEnd]}>
         <HeaderIcons hasNotice={hasNotice} />
       </View>
-    </View>
+    </LinearGradient>
   );
 }
