@@ -1,34 +1,86 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
 import { CartItem, PineappleProduct, loadPineappleProducts, readBuyerCart, writeBuyerCart } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-product-detail.styles';
 
-// No backend exists for reviews yet — web's own reviews are a hardcoded
-// array too (see web/src/pages/Buyer/BuyerOrders.jsx), so these stay static.
-const REVIEWS = [
+interface ReviewItem {
+  id: string;
+  name: string;
+  initials: string;
+  rating: number;
+  date: string;
+  size: string;
+  verified: boolean;
+  comment: string;
+}
+
+const REVIEWS: ReviewItem[] = [
   {
-    key: '1',
+    id: '1',
     name: 'Maria Santos',
+    initials: 'MS',
+    rating: 5,
     date: '2 days ago',
-    comment: "Sweetest pineapples I've had! Delivered fresh and right on time.",
+    size: 'Medium Size',
+    verified: true,
+    comment: "Sweetest pineapples I've had! Delivered fresh, naturally sweet, and right on time for our store.",
   },
   {
-    key: '2',
+    id: '2',
     name: 'Carlos Reyes',
+    initials: 'CR',
+    rating: 4,
     date: '1 week ago',
-    comment: 'Great quality and size, though a couple pieces were slightly bruised.',
+    size: 'Large Size',
+    verified: true,
+    comment: 'Great quality and generous size. Perfectly sweet and firm leaves. Will definitely reorder again.',
   },
   {
-    key: '3',
+    id: '3',
     name: 'Ana Lim',
+    initials: 'AL',
+    rating: 5,
     date: '2 weeks ago',
-    comment: 'Perfectly ripe and juicy. Will definitely order again from this farm.',
+    size: 'Small Size',
+    verified: true,
+    comment: 'Perfect ripeness and fragrance. Used them for fresh fruit shakes and the natural flavor was incredible.',
   },
-] as const;
+  {
+    id: '4',
+    name: 'Juan Dela Cruz',
+    initials: 'JD',
+    rating: 5,
+    date: '3 weeks ago',
+    size: 'Medium Size',
+    verified: true,
+    comment: 'Ordered 2 crates for wholesale. Super sweet and fresh from Tagaytay. Packed very securely.',
+  },
+  {
+    id: '5',
+    name: 'Angela Reyes',
+    initials: 'AR',
+    rating: 5,
+    date: '1 month ago',
+    size: 'Large Size',
+    verified: true,
+    comment: 'Very fragrant and juicy with low acidity. Everyone loved it during our family gathering.',
+  },
+  {
+    id: '6',
+    name: 'Kevin Lopez',
+    initials: 'KL',
+    rating: 4,
+    date: '1 month ago',
+    size: 'Large Size',
+    verified: true,
+    comment: 'Good flavor and fair farm price. The fruit inside was intact and very fresh on arrival.',
+  },
+];
 
 // Same copy for every size — this listing is for bulk/wholesale ordering,
 // so the pitch doesn't change when the buyer switches sizes.
@@ -39,12 +91,66 @@ function sizeBadge(sizeName: string) {
   return sizeName.trim().charAt(0).toUpperCase() || '?';
 }
 
-function ReviewCard({ review }: { review: (typeof REVIEWS)[number] }) {
+function StarIcon({ filled = true, size = 11 }: { filled?: boolean; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? '#F59E0B' : '#E2E8F0'}>
+      <Path
+        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+        stroke={filled ? '#F59E0B' : '#CBD5E1'}
+        strokeWidth={1}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function ChevronRightIcon({ expanded = false, size = 20 }: { expanded?: boolean; size?: number }) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      style={{ transform: [{ rotate: expanded ? '90deg' : '0deg' }] }}>
+      <Path
+        d="M9 18l6-6-6-6"
+        stroke="#176D34"
+        strokeWidth={2.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function ReviewCard({ review }: { review: ReviewItem }) {
   return (
     <View style={styles.reviewCard}>
-      <View style={styles.reviewHeaderRow}>
-        <Text style={styles.reviewerName}>{review.name}</Text>
-        <Text style={styles.reviewDate}>{review.date}</Text>
+      <View style={styles.reviewCardHeader}>
+        <View style={styles.reviewerMeta}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>{review.initials}</Text>
+          </View>
+          <View style={styles.reviewerDetails}>
+            <View style={styles.nameRow}>
+              <Text style={styles.reviewerName}>{review.name}</Text>
+              {review.verified ? (
+                <View style={styles.verifiedBadge}>
+                  <Text style={styles.verifiedText}>✓ Verified</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.reviewSubInfo}>
+              {review.date} • {review.size}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.reviewStarsRow}>
+          {[1, 2, 3, 4, 5].map((s) => (
+            <StarIcon key={s} filled={s <= review.rating} size={11} />
+          ))}
+        </View>
       </View>
       <Text style={styles.reviewComment}>{review.comment}</Text>
     </View>
@@ -60,6 +166,7 @@ export default function BuyerProductDetailScreen() {
   const [selectedId, setSelectedId] = useState<number | null>(id ? Number(id) : null);
   const [quantity, setQuantity] = useState(1);
   const [cartNotice, setCartNotice] = useState('');
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -190,11 +297,72 @@ export default function BuyerProductDetailScreen() {
             </>
           )}
 
-          <Text style={styles.reviewsTitle}>Customer Reviews</Text>
+          {/* CUSTOMER REVIEWS SECTION */}
+          <View style={styles.reviewsSection}>
+            <View style={styles.reviewsHeaderRow}>
+              <View style={styles.reviewsTitleGroup}>
+                <View style={styles.reviewsTitleRow}>
+                  <Text style={styles.reviewsTitle}>Customer Reviews</Text>
+                  <View style={styles.reviewsCountBadge}>
+                    <Text style={styles.reviewsCountText}>({REVIEWS.length})</Text>
+                  </View>
+                </View>
+                <Text style={styles.reviewsSubtitle}>Verified purchases from Tagaytay farm</Text>
+              </View>
 
-          {REVIEWS.map((review) => (
-            <ReviewCard key={review.key} review={review} />
-          ))}
+              {/* Clean arrow button: no text, no border line */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={showAllReviews ? 'Show fewer reviews' : 'View all reviews'}
+                hitSlop={12}
+                onPress={() => setShowAllReviews((prev) => !prev)}
+                style={({ pressed }) => [styles.arrowButton, pressed && styles.arrowButtonPressed]}>
+                <ChevronRightIcon expanded={showAllReviews} />
+              </Pressable>
+            </View>
+
+            {/* RATING SUMMARY SCOREBOARD */}
+            <View style={styles.scoreboardCard}>
+              <View style={styles.scoreColumn}>
+                <Text style={styles.scoreBig}>4.9</Text>
+                <View style={styles.scoreStarsRow}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <StarIcon key={s} filled={true} size={11} />
+                  ))}
+                </View>
+                <Text style={styles.scoreCountText}>18 reviews</Text>
+              </View>
+
+              <View style={styles.scoreBreakdown}>
+                <View style={styles.barRow}>
+                  <Text style={styles.barLabel}>5★</Text>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFill, { width: '88%' }]} />
+                  </View>
+                  <Text style={styles.barValue}>16</Text>
+                </View>
+                <View style={styles.barRow}>
+                  <Text style={styles.barLabel}>4★</Text>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFill, { width: '12%' }]} />
+                  </View>
+                  <Text style={styles.barValue}>2</Text>
+                </View>
+                <View style={styles.barRow}>
+                  <Text style={styles.barLabel}>3★</Text>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFill, { width: '0%' }]} />
+                  </View>
+                  <Text style={styles.barValue}>0</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* REVIEWS LIST */}
+            {(showAllReviews ? REVIEWS : REVIEWS.slice(0, 3)).map((review) => (
+              <ReviewCard key={review.id} review={review} />
+            ))}
+          </View>
         </View>
       </ScrollView>
 
