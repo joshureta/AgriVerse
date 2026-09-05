@@ -52,7 +52,9 @@ export default function WorkerProfileScreen() {
     );
   }
 
-  if (!profile) return <Redirect href="/login" />;
+  if (!profile) {
+    return <Redirect href={{ pathname: '/authentication', params: { mode: 'login' } }} />;
+  }
 
   const isDriver = profile.worker_category === 'driver';
   const address = [
@@ -71,7 +73,7 @@ export default function WorkerProfileScreen() {
     setSigningOut(true);
     try {
       await signOut();
-      router.replace('/login');
+      router.replace({ pathname: '/authentication', params: { mode: 'login' } });
     } catch (caught) {
       Alert.alert(
         'Unable to sign out',

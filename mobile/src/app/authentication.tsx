@@ -1,4 +1,5 @@
 import { styles } from '@/styles/authentication.styles';
+import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -21,9 +22,10 @@ import { ConvexDomeCap } from '@/components/convex-dome-cap';
 type AuthChoice = 'login' | 'signup';
 
 export default function AuthenticationScreen() {
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
   const { height } = useWindowDimensions();
   const panelHeight = Math.max(350, Math.min(height * 0.49, 430));
-  const [choice, setChoice] = useState<AuthChoice | null>(null);
+  const [choice, setChoice] = useState<AuthChoice | null>(mode === 'login' ? 'login' : null);
   const [signUpStep, setSignUpStep] = useState(0);
   const keyboardOffset = useRef(new Animated.Value(0)).current;
   const [keyboardActive, setKeyboardActive] = useState(false);
