@@ -1,77 +1,64 @@
 import {
   ACTIVE_ICON_COLOR,
-  ACTIVE_PILL_BG,
-  GREEN_NAV_BG,
   INACTIVE_ICON_COLOR,
   styles,
 } from '@/styles/components/worker-bottom-navigation.styles';
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 
 type WorkerTab = 'home' | 'tasks' | 'schedule' | 'profile';
 
 function HomeIcon({ active }: { active: boolean }) {
-  const houseColor = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
-  const doorCutoutBg = active ? ACTIVE_PILL_BG : GREEN_NAV_BG;
-
   return (
-    <View style={styles.homeIconWrapper}>
-      <View style={styles.homeRoofStack}>
-        <View style={[styles.homeRoofTriangle, { borderBottomColor: houseColor }]} />
-      </View>
-      <View style={[styles.homeHouseBody, { backgroundColor: houseColor }]}>
-        <View style={[styles.homeDoorCutout, { backgroundColor: doorCutoutBg }]} />
-      </View>
-    </View>
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z" stroke={active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M9 21v-7h6v7" stroke={active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
   );
 }
 
 function TasksIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <View style={[styles.clipboard, { borderColor: color, backgroundColor: 'transparent' }]}>
-      <View style={[styles.clipClip, { borderColor: color, backgroundColor: active ? ACTIVE_PILL_BG : GREEN_NAV_BG }]} />
-      <Text style={[styles.clipCheckText, { color }]}>✓</Text>
-    </View>
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path d="M9 4h6v3H9zM6 6H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-1" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="m8 14 2 2 5-5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function DeliveryIcon({ active }: { active: boolean }) {
+  const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path d="M3 5h11v11H3V5Zm11 5h3l3 3v3h-6v-6Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx={6.5} cy={18} r={1.5} stroke={color} strokeWidth={2} />
+      <Circle cx={16.5} cy={18} r={1.5} stroke={color} strokeWidth={2} />
+    </Svg>
   );
 }
 
 function CalendarIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <View style={styles.calendarWrapper}>
-      <View style={[styles.calendarRingLeft, { backgroundColor: color }]} />
-      <View style={[styles.calendarRingRight, { backgroundColor: color }]} />
-      <View style={[styles.calendarBox, { borderColor: color, backgroundColor: 'transparent' }]}>
-        <View style={[styles.calendarHeaderLine, { backgroundColor: color }]} />
-        <View style={styles.calendarGridRow}>
-          <View style={[styles.calendarGridDot, { backgroundColor: color }]} />
-          <View style={[styles.calendarGridDot, { backgroundColor: color }]} />
-          <View style={[styles.calendarGridDot, { backgroundColor: color }]} />
-        </View>
-      </View>
-    </View>
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path d="M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M8 2v4m8-4v4M3 10h18" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8 14h.01M12 14h.01M16 14h.01" stroke={color} strokeWidth={2.5} strokeLinecap="round" />
+    </Svg>
   );
 }
 
 function ProfileIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <View style={styles.profileIcon}>
-      {active ? (
-        <>
-          <View style={[styles.profileHeadFilled, { backgroundColor: color }]} />
-          <View style={[styles.profileBodyFilled, { backgroundColor: color }]} />
-        </>
-      ) : (
-        <>
-          <View style={[styles.profileHead, { borderColor: color, backgroundColor: 'transparent' }]} />
-          <View style={[styles.profileBody, { borderColor: color, backgroundColor: 'transparent' }]} />
-        </>
-      )}
-    </View>
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={8} r={4} stroke={color} strokeWidth={2} />
+      <Path d="M4 21a8 8 0 0 1 16 0" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
   );
 }
 
@@ -83,7 +70,7 @@ export function WorkerBottomNavigation({ activeTab }: { activeTab: WorkerTab }) 
 
   const items: { key: WorkerTab; label: string; route: string; icon: (active: boolean) => React.ReactNode }[] = [
     { key: 'home', label: 'Home', route: homeRoute, icon: (a) => <HomeIcon active={a} /> },
-    { key: 'tasks', label: 'Tasks', route: tasksRoute, icon: (a) => <TasksIcon active={a} /> },
+    { key: 'tasks', label: profile?.worker_category === 'driver' ? 'Deliveries' : 'Tasks', route: tasksRoute, icon: (a) => profile?.worker_category === 'driver' ? <DeliveryIcon active={a} /> : <TasksIcon active={a} /> },
     { key: 'schedule', label: 'Schedule', route: scheduleRoute, icon: (a) => <CalendarIcon active={a} /> },
     { key: 'profile', label: 'Profile', route: '/WorkerProfile', icon: (a) => <ProfileIcon active={a} /> },
   ];
