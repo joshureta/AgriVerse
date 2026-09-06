@@ -1,123 +1,35 @@
 import { StyleSheet } from 'react-native';
 
 const DARK_GREEN = '#134B24';
-const ACCENT_GREEN = '#1E6B37';
+const GREEN = '#176D34';
 
 export const styles = StyleSheet.create({
-  weekNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    marginBottom: 14,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-  },
-  navButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EAF1E4',
-  },
-  navArrow: {
-    color: DARK_GREEN,
-    fontSize: 20,
-    fontWeight: '800',
-    lineHeight: 22,
-  },
-  weekLabelWrap: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  weekLabel: {
-    color: DARK_GREEN,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  gridCard: {
-    backgroundColor: '#F3F5EE',
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingLeft: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-  },
-  gridContent: {
-    paddingRight: 12,
-  },
-  dayColumn: {
-    width: 96,
-    marginRight: 10,
-  },
-  dayHeader: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  dayHeaderToday: {
-    backgroundColor: DARK_GREEN,
-  },
-  dayHeaderSelected: {
-    backgroundColor: '#DCE9D3',
-  },
-  dayLabel: {
-    color: ACCENT_GREEN,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  dayLabelToday: {
-    color: '#FFFFFF',
-  },
-  dayNumber: {
-    color: DARK_GREEN,
-    fontSize: 15,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  dayNumberToday: {
-    color: '#FFFFFF',
-  },
-  dayEvents: {
-    gap: 10,
-  },
-  eventCard: {
-    minHeight: 92,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  eventTime: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  eventBody: {
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  eventTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  eventSubtitle: {
-    fontSize: 9,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 3,
-  },
+  weekNav: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  navButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DCE8DE' },
+  navArrow: { color: DARK_GREEN, fontSize: 24, fontWeight: '700', lineHeight: 27 },
+  weekLabelWrap: { flex: 1, alignItems: 'center' },
+  weekLabel: { color: DARK_GREEN, fontSize: 14, fontWeight: '800' },
+  weekStrip: { flexDirection: 'row', justifyContent: 'space-between', padding: 8, marginHorizontal: -2, marginBottom: 18, borderRadius: 16, backgroundColor: '#EAF3E8' },
+  dayHeader: { width: '13.2%', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 12 },
+  dayHeaderActive: { backgroundColor: GREEN },
+  dayLabel: { color: '#637766', fontSize: 10, fontWeight: '700' },
+  dayLabelActive: { color: '#FFFFFF' },
+  dayNumber: { color: DARK_GREEN, fontSize: 16, fontWeight: '800', marginTop: 4 },
+  dayNumberActive: { color: '#FFFFFF' },
+  scheduleList: { gap: 14 },
+  dayGroup: { padding: 16, borderWidth: 1, borderColor: '#E0EAE1', borderRadius: 16, backgroundColor: '#FFFFFF' },
+  dayGroupTitle: { color: '#2D3A30', fontSize: 16, fontWeight: '800', marginBottom: 12 },
+  dayGroupTitleToday: { color: GREEN },
+  dayGroupRows: { gap: 2 },
+  deliveryRow: { flexDirection: 'row', minHeight: 58 },
+  deliveryTimeline: { width: 3, marginRight: 12, borderRadius: 2, backgroundColor: '#61A773' },
+  deliveryContent: { flex: 1, flexDirection: 'row', paddingVertical: 8 },
+  deliveryTimeBlock: { width: 88, paddingRight: 8 },
+  deliveryTime: { color: DARK_GREEN, fontSize: 12, fontWeight: '800' },
+  deliveryEndTime: { color: '#6A7B6E', fontSize: 11, fontWeight: '600', marginTop: 3 },
+  deliveryDetails: { flex: 1 },
+  deliveryTitle: { color: '#203324', fontSize: 13, fontWeight: '800' },
+  deliverySubtitle: { color: '#637766', fontSize: 11, lineHeight: 16, marginTop: 3 },
+  weekEmpty: { alignItems: 'center', paddingVertical: 26 },
+  weekEmptyText: { color: '#637766', fontSize: 12, fontWeight: '600' },
 });

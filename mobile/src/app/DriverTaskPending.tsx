@@ -8,16 +8,14 @@ import {
   SafeAreaView,
   ScrollView,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
-import {
-  DRIVER_TASK_TABS,
-  WorkerTaskSegmentedTabs,
-} from '@/components/worker-task-segmented-tabs';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import {
@@ -29,6 +27,18 @@ import {
   formatDeliveryWindow,
   formatPeso,
 } from '@/lib/driver-deliveries';
+
+function TruckIcon({ size = 22, color = GREEN }: { size?: number; color?: string }) {
+  return <Svg width={size} height={size} viewBox="0 0 24 24" fill="none"><Path d="M3 5h11v11H3V5Zm11 5h3l3 3v3h-6v-6Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /><Circle cx={6.5} cy={18} r={1.5} stroke={color} strokeWidth={2} /><Circle cx={16.5} cy={18} r={1.5} stroke={color} strokeWidth={2} /></Svg>;
+}
+
+function SearchIcon() {
+  return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>;
+}
+
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Path d={expanded ? 'm6 15 6-6 6 6' : 'm6 9 6 6 6-6'} stroke="#64748B" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></Svg>;
+}
 
 function VehicleSelector({
   vehicles,
@@ -52,7 +62,7 @@ function VehicleSelector({
           numberOfLines={1}
           style={[styles.vehicleSelectText, !selected && styles.vehiclePlaceholder]}>
           {selected
-            ? `🚛 ${selected.vehicle_name} · ${selected.plate_number}`
+            ? `${selected.vehicle_name} · ${selected.plate_number}`
             : 'Choose an available vehicle'}
         </Text>
         <Text style={{ fontSize: 11, color: GREEN }}>▾</Text>
@@ -68,7 +78,7 @@ function VehicleSelector({
                   styles.vehicleOptionItem,
                   selectedId === vehicle.id && styles.vehicleOptionItemSelected,
                 ]}>
-                <Text style={styles.vehicleOptionName}>🚛 {vehicle.vehicle_name}</Text>
+                <Text style={styles.vehicleOptionName}>{vehicle.vehicle_name}</Text>
                 <Text style={styles.vehicleOptionPlate}>Plate: {vehicle.plate_number}</Text>
               </Pressable>
             ))
@@ -115,7 +125,7 @@ function PendingDeliveryCard({
       <Pressable onPress={onExpand} style={styles.cardHeaderRow}>
         <View style={styles.cardHeaderLeft}>
           <View style={styles.categorySquircle}>
-            <Text style={styles.categoryIconText}>🚚</Text>
+            <TruckIcon />
           </View>
           <View style={[styles.priorityPill, styles.priorityPill_order]}>
             <Text style={[styles.priorityText, styles.priorityText_order]}>{orderNumber}</Text>
@@ -123,11 +133,7 @@ function PendingDeliveryCard({
         </View>
 
         <View style={styles.cardHeaderRight}>
-          <View style={styles.durationRow}>
-            <Text style={styles.durationClock}>🕒</Text>
-            <Text style={styles.durationText}>Window</Text>
-          </View>
-          <Text style={styles.chevron}>{expanded ? '▲' : '▼'}</Text>
+          <ChevronIcon expanded={expanded} />
         </View>
       </Pressable>
 
@@ -163,9 +169,9 @@ function PendingDeliveryCard({
             </Text>
           </View>
 
-          {/* Delivery Window Box */}
+          {/* Delivery Schedule Box */}
           <View style={styles.detailBox}>
-            <Text style={styles.detailLabel}>DELIVERY WINDOW</Text>
+            <Text style={styles.detailLabel}>DELIVERY SCHEDULE</Text>
             <Text style={styles.detailValue}>
               {formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}
             </Text>
@@ -219,6 +225,7 @@ export default function DriverTaskPending() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadDeliveries = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -283,6 +290,12 @@ export default function DriverTaskPending() {
   }
   if (!profile) return <Redirect href="/login" />;
   const horizontalPadding = width < 360 ? 14 : 20;
+  const filteredOrders = orders.filter((order) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    const searchable = `${order.order_number} ${order.delivery_full_name} ${formatDeliveryAddress(order)}`;
+    return searchable.toLowerCase().includes(query);
+  });
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -298,17 +311,45 @@ export default function DriverTaskPending() {
               refreshing={refreshing}
             />
           }>
-          {/* Section Title */}
           <View style={styles.titleRow}>
-            <Text style={styles.sectionTitle}>Today’s Tasks</Text>
+            <Text style={styles.sectionTitle}>My Deliveries</Text>
           </View>
 
-          {/* Segmented 3-Tab Filter Bar */}
-          <WorkerTaskSegmentedTabs
-            activeTab="pending"
-            tabs={DRIVER_TASK_TABS}
-            onTabChange={(_, route) => router.replace(route as any)}
-          />
+          <View style={styles.deliveryToolbar}>
+            <View style={styles.deliverySearch}>
+              <SearchIcon />
+              <TextInput
+                accessibilityLabel="Search deliveries"
+                onChangeText={setSearchQuery}
+                placeholder="Search deliveries"
+                placeholderTextColor="#94A3B8"
+                style={styles.deliverySearchInput}
+                value={searchQuery}
+              />
+            </View>
+          </View>
+
+          <View style={styles.deliveryStatusTabs}>
+            {[
+              { label: 'Pending', route: '/DriverTaskPending' },
+              { label: 'Active', route: '/DriverTaskActive' },
+              { label: 'Completed', route: '/DriverTaskCompleted' },
+            ].map((tab) => {
+              const active = tab.label === 'Pending';
+              return (
+                <Pressable
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  key={tab.label}
+                  onPress={() => router.replace(tab.route as any)}
+                  style={[styles.deliveryStatusTab, active && styles.deliveryStatusTabActive]}>
+                  <Text style={[styles.deliveryStatusTabText, active && styles.deliveryStatusTabTextActive]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           {/* Error Banner */}
           {error ? (
@@ -324,8 +365,8 @@ export default function DriverTaskPending() {
               <ActivityIndicator color={GREEN} />
               <Text style={styles.loadingText}>Loading assigned deliveries...</Text>
             </View>
-          ) : orders.length ? (
-            orders.map((order) => (
+          ) : filteredOrders.length ? (
+            filteredOrders.map((order) => (
               <PendingDeliveryCard
                 key={order.id}
                 order={order}
@@ -352,8 +393,12 @@ export default function DriverTaskPending() {
               <View style={styles.emptyCheckCircle}>
                 <Text style={styles.emptyCheckText}>✓</Text>
               </View>
-              <Text style={styles.emptyTitle}>No pending deliveries</Text>
-              <Text style={styles.emptyText}>Pull down to check for newly assigned orders.</Text>
+              <Text style={styles.emptyTitle}>
+                {searchQuery ? 'No matching deliveries' : 'No pending deliveries'}
+              </Text>
+              <Text style={styles.emptyText}>
+                {searchQuery ? 'Try another search term.' : 'Pull down to check for newly assigned orders.'}
+              </Text>
             </View>
           )}
         </ScrollView>

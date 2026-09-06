@@ -78,7 +78,6 @@ export default function DriverScheduleScreen() {
           showsVerticalScrollIndicator={false}>
           <View style={styles.titleBlock}>
             <Text style={styles.title}>My Schedule</Text>
-            <Text style={styles.subtitle}>Your assigned deliveries this week</Text>
           </View>
 
           {error ? (
@@ -96,10 +95,19 @@ export default function DriverScheduleScreen() {
           ) : events.length > 0 ? (
             <ScheduleCalendar
               events={events}
-              onNextWeek={() => setWeekStart((current) => addDays(current, 7))}
-              onPrevWeek={() => setWeekStart((current) => addDays(current, -7))}
+              onNextWeek={() => {
+                setWeekStart((current) => addDays(current, 7));
+                setSelectedDate(null);
+              }}
+              onPrevWeek={() => {
+                setWeekStart((current) => addDays(current, -7));
+                setSelectedDate(null);
+              }}
               onSelectDate={setSelectedDate}
-              onToday={() => setWeekStart(startOfWeek(new Date()))}
+              onToday={() => {
+                setWeekStart(startOfWeek(new Date()));
+                setSelectedDate(new Date());
+              }}
               selectedDate={selectedDate}
               today={today}
               weekStart={weekStart}

@@ -8,17 +8,15 @@ import {
   SafeAreaView,
   ScrollView,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { TaskCompletionBlurTarget } from '@/components/task-completion-blur-target';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
-import {
-  DRIVER_TASK_TABS,
-  WorkerTaskSegmentedTabs,
-} from '@/components/worker-task-segmented-tabs';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import {
@@ -30,6 +28,10 @@ import {
   formatPeso,
   isActiveDelivery,
 } from '@/lib/driver-deliveries';
+
+function SearchIcon() {
+  return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>;
+}
 
 function ActiveDeliveryCard({
   order,
@@ -94,7 +96,7 @@ function ActiveDeliveryCard({
         </View>
 
         <View style={styles.activeDataRow}>
-          <Text style={styles.activeRowKey}>Window:</Text>
+          <Text style={styles.activeRowKey}>Schedule:</Text>
           <Text numberOfLines={1} style={styles.activeRowVal}>
             {formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}
           </Text>
@@ -143,6 +145,7 @@ export default function DriverTaskActiveScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadDeliveries = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -202,6 +205,13 @@ export default function DriverTaskActiveScreen() {
   }
   if (!profile) return <Redirect href="/login" />;
   const horizontalPadding = width < 360 ? 14 : 20;
+  const filteredOrders = orders.filter((order) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return `${order.order_number} ${order.delivery_full_name} ${formatDeliveryAddress(order)}`
+      .toLowerCase()
+      .includes(query);
+  });
 
   return (
     <TaskCompletionBlurTarget>
@@ -218,17 +228,22 @@ export default function DriverTaskActiveScreen() {
                 onRefresh={() => loadDeliveries(true)}
               />
             }>
-            {/* Section Title */}
             <View style={styles.titleRow}>
-              <Text style={styles.sectionTitle}>Today’s Tasks</Text>
+              <Text style={styles.sectionTitle}>My Deliveries</Text>
             </View>
 
-            {/* Segmented 3-Tab Filter Bar */}
-            <WorkerTaskSegmentedTabs
-              activeTab="in_progress"
-              tabs={DRIVER_TASK_TABS}
-              onTabChange={(_, route) => router.replace(route as any)}
-            />
+            <View style={styles.deliveryToolbar}>
+              <View style={styles.deliverySearch}>
+                <SearchIcon />
+                <TextInput accessibilityLabel="Search deliveries" onChangeText={setSearchQuery} placeholder="Search deliveries" placeholderTextColor="#94A3B8" style={styles.deliverySearchInput} value={searchQuery} />
+              </View>
+            </View>
+            <View style={styles.deliveryStatusTabs}>
+              {[{ label: 'Pending', route: '/DriverTaskPending' }, { label: 'Active', route: '/DriverTaskActive' }, { label: 'Completed', route: '/DriverTaskCompleted' }].map((tab) => {
+                const active = tab.label === 'Active';
+                return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[styles.deliveryStatusTab, active && styles.deliveryStatusTabActive]}><Text style={[styles.deliveryStatusTabText, active && styles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>;
+              })}
+            </View>
 
             {/* Error Box */}
             {error ? (
@@ -244,8 +259,8 @@ export default function DriverTaskActiveScreen() {
                 <ActivityIndicator color={GREEN} />
                 <Text style={styles.loadingText}>Loading active deliveries...</Text>
               </View>
-            ) : orders.length ? (
-              orders.map((order) => (
+            ) : filteredOrders.length ? (
+              filteredOrders.map((order) => (
                 <ActiveDeliveryCard
                   key={order.id}
                   order={order}
@@ -258,8 +273,8 @@ export default function DriverTaskActiveScreen() {
                 <View style={styles.emptyCheckCircle}>
                   <Text style={styles.emptyCheckText}>✓</Text>
                 </View>
-                <Text style={styles.emptyTitle}>No active deliveries</Text>
-                <Text style={styles.emptyText}>Accept a pending delivery to see it here.</Text>
+                <Text style={styles.emptyTitle}>{searchQuery ? 'No matching deliveries' : 'No active deliveries'}</Text>
+                <Text style={styles.emptyText}>{searchQuery ? 'Try another search term.' : 'Accept a pending delivery to see it here.'}</Text>
               </View>
             )}
           </ScrollView>

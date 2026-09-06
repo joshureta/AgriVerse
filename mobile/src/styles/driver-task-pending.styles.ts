@@ -38,6 +38,55 @@ export const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
   },
+  deliveryToolbar: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 14,
+  },
+  deliverySearch: {
+    flex: 1,
+    height: 48,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#DCE8DE',
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+  },
+  deliverySearchInput: {
+    flex: 1,
+    padding: 0,
+    color: '#173E23',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  deliveryStatusTabs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2EBE3',
+  },
+  deliveryStatusTab: {
+    paddingHorizontal: 4,
+    paddingVertical: 10,
+  },
+  deliveryStatusTabActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: GREEN,
+  },
+  deliveryStatusTabText: {
+    color: '#708074',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  deliveryStatusTabTextActive: {
+    color: GREEN,
+    fontWeight: '800',
+  },
 
   // Segmented 3-tab pill container
   filters: {
@@ -91,8 +140,7 @@ export const styles = StyleSheet.create({
     elevation: 2,
   },
   taskCardExpanded: {
-    borderColor: '#A5D6A7',
-    borderWidth: 1.5,
+    borderColor: '#B9D9C0',
   },
 
   // Top header row of the card
@@ -205,23 +253,18 @@ export const styles = StyleSheet.create({
   detailGrid: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 8,
+    marginBottom: 0,
   },
   detailBoxSmall: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E7EEE8',
   },
   detailBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 8,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E7EEE8',
   },
   detailLabel: {
     fontSize: 9.5,
@@ -240,23 +283,17 @@ export const styles = StyleSheet.create({
 
   // Vehicle Picker Field
   vehiclePickerBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 8,
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E7EEE8',
   },
   vehicleSelectControl: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 0,
+    paddingVertical: 8,
     marginTop: 4,
   },
   vehicleSelectText: {
@@ -272,8 +309,8 @@ export const styles = StyleSheet.create({
     marginTop: 6,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 6,
+    borderColor: '#DCE8DE',
+    borderRadius: 10,
     overflow: 'hidden',
   },
   vehicleOptionItem: {
@@ -346,26 +383,26 @@ export const styles = StyleSheet.create({
   activeDataTable: {
     marginTop: 10,
     marginBottom: 12,
-    gap: 8,
   },
   activeDataRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingBottom: 6,
+    alignItems: 'flex-start',
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#E7EEE8',
   },
   activeRowKey: {
+    width: '34%',
     fontSize: 13,
     fontWeight: '600',
     color: '#64748B',
   },
   activeRowVal: {
+    flex: 1,
     fontSize: 13,
     fontWeight: '800',
     color: '#111827',
-    textAlign: 'right',
-    maxWidth: '65%',
+    textAlign: 'left',
   },
   markCompletedBtn: {
     height: 46,
@@ -392,12 +429,25 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+  },
+  completedStatusContent: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginRight: 10,
   },
   completedText: {
     color: '#176D34',
     fontSize: 13,
     fontWeight: '800',
+  },
+  completedOrderNumber: {
+    color: '#3D744B',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
   },
 
   // States
