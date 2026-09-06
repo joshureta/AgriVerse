@@ -131,7 +131,7 @@ export default function DriverTaskCompletionScreen() {
 
   return <SafeAreaView style={styles.safeArea}>
     <BlurView blurTarget={taskCompletionBlurTargetRef} blurMethod="dimezisBlurViewSdk31Plus" blurReductionFactor={2} intensity={60} pointerEvents="none" style={styles.blurBackdrop} tint="extraLight" />
-    <WorkerHeader />
+    <WorkerHeader logoPosition="left" logoSize={48} logoSource={require('@/assets/images/driver-dashboard-logo-green.png')} />
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
       <ScrollView contentContainerStyle={[styles.page, { paddingHorizontal: pagePadding }]} keyboardShouldPersistTaps="handled">
         {loading ? <View style={styles.loadingCard}><ActivityIndicator color={GREEN} /><Text style={styles.loadingText}>Loading delivery…</Text></View> : order ? (

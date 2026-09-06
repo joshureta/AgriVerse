@@ -299,7 +299,7 @@ export default function DriverTaskPending() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <WorkerHeader />
+      <WorkerHeader logoPosition="left" logoSize={48} logoSource={require('@/assets/images/driver-dashboard-logo-green.png')} />
 
       <View style={styles.mainBodyContainer}>
         <ScrollView
