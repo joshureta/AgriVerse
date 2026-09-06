@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 import { ApiWeatherBanner } from '@/components/api-weather-banner';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
@@ -29,14 +30,21 @@ import { loadWeather, type WeatherSnapshot } from '@/lib/weather';
 
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
-function ClipboardDocumentIcon() {
+function TruckIcon({ size = 21, color = GREEN }: { size?: number; color?: string }) {
   return (
-    <View style={styles.clipboardIconWrap}>
-      <View style={styles.clipboardTopClip} />
-      <View style={styles.clipboardLine} />
-      <View style={styles.clipboardLine} />
-      <View style={styles.clipboardLineShort} />
-    </View>
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M3 6h11v10H3V6Zm11 4h3l3 3v3h-6v-6Z" stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M6.5 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm10 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" stroke={color} strokeWidth={1.9} />
+    </Svg>
+  );
+}
+
+function LocationPinIcon({ size = 14, color = GREEN }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 21s7-5.5 7-12a7 7 0 1 0-14 0c0 6.5 7 12 7 12Z" stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke={color} strokeWidth={1.9} />
+    </Svg>
   );
 }
 
@@ -103,8 +111,8 @@ function DeliveryDashboardCard({
   return (
     <View style={styles.taskCard}>
       {/* Left: Squircle Vehicle Icon */}
-      <View style={[styles.categorySquircle, { backgroundColor: '#DCFCE7' }]}>
-        <Text style={styles.categoryIcon}>🚚</Text>
+      <View style={[styles.categorySquircle, { backgroundColor: '#EEF3EF' }]}>
+        <TruckIcon size={27} />
       </View>
 
       {/* Center: Stacked Badges */}
@@ -113,10 +121,10 @@ function DeliveryDashboardCard({
           <Text style={[styles.priorityText, styles.priorityText_order]}>{orderNumber}</Text>
         </View>
 
-        <View style={styles.durationPill}>
-          <Text style={styles.durationClockIcon}>📍</Text>
-          <Text numberOfLines={1} style={styles.durationPillText}>
-            {route}
+        <View style={styles.deliveryRoutePill}>
+          <LocationPinIcon />
+          <Text numberOfLines={1} style={styles.deliveryRouteText}>
+            {route.replace('->', '→')}
           </Text>
         </View>
       </View>
@@ -171,7 +179,6 @@ export default function DriverTaskDashboardScreen() {
     }
   }, [loadTasks, profile]);
 
-  const [equipmentFilter, setEquipmentFilter] = useState<'all' | 'available' | 'transit'>('all');
   const dashboard = summary;
   const pendingOrders = orders.filter((o) => o.delivery_assignment_status === 'assigned');
   const previewOrders = pendingOrders.slice(0, 3);
@@ -182,12 +189,7 @@ export default function DriverTaskDashboardScreen() {
     { id: '2', name: 'Delivery Truck B', meta: 'Silang ➔ Tagaytay', status: 'transit' as const },
     { id: '3', name: 'Farm Utility Pickup', meta: 'Plate: AGV-1024', status: 'available' as const },
   ];
-  const availableCount = fleetItems.filter((e) => e.status === 'available').length;
-  const transitCount = fleetItems.filter((e) => e.status === 'transit').length;
-  const displayedEquipment =
-    equipmentFilter === 'all'
-      ? fleetItems
-      : fleetItems.filter((e) => e.status === equipmentFilter);
+  const displayedEquipment = fleetItems;
 
   if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
   if (!profile) return <Redirect href="/login" />;
@@ -225,29 +227,24 @@ export default function DriverTaskDashboardScreen() {
           <ApiWeatherBanner weather={weather} flushTop topContentInset={92} />
 
           <View style={contentInset}>
+            <View style={styles.overviewStack}>
             {/* COMBINED TASK & EQUIPMENT DASHBOARD CARD (Mobile Theme) */}
             <View style={styles.combinedCard}>
               {/* Section Header */}
               <View style={styles.combinedHeaderRow}>
-                <View style={styles.combinedTitleBlock}>
-                  <View style={styles.combinedTitleWrap}>
-                    <Text style={styles.combinedIcon}>▦</Text>
-                    <Text style={styles.combinedHeaderTitle}>Task Overview</Text>
-                  </View>
-                  <Text style={styles.combinedSubtitle}>Your delivery activity at a glance</Text>
-                </View>
+                <Text style={styles.combinedHeaderTitle}>Delivery Overview</Text>
                 <View style={styles.todayBadge}>
                   <Text style={styles.todayBadgeText}>Today</Text>
                 </View>
               </View>
 
-              {/* 4-Column Stats Row: Total Tasks | Pending | In Progress | Completed */}
+              {/* 4-Column Stats Row: Total | Pending | Active | Completed Deliveries */}
               <View style={styles.statsFourCol}>
                 <Pressable
                   style={styles.statCol}
                   onPress={() => router.push('/DriverTaskPending')}>
                   <Text style={[styles.statNumber, styles.statNumberTotal]}>{dashboard.total}</Text>
-                  <Text style={[styles.statLabel, styles.statLabelTotal]}>Total{'\n'}Tasks</Text>
+                  <Text style={[styles.statLabel, styles.statLabelTotal]}>Total{'\n'}Deliveries</Text>
                 </Pressable>
 
                 <View style={styles.colDivider} />
@@ -256,7 +253,7 @@ export default function DriverTaskDashboardScreen() {
                   style={styles.statCol}
                   onPress={() => router.push('/DriverTaskPending')}>
                   <Text style={styles.statNumber}>{String(dashboard.pending).padStart(2, '0')}</Text>
-                  <Text style={styles.statLabel}>Tasks{'\n'}Pending</Text>
+                  <Text style={styles.statLabel}>Pending{'\n'}Deliveries</Text>
                 </Pressable>
 
                 <View style={styles.colDivider} />
@@ -265,7 +262,7 @@ export default function DriverTaskDashboardScreen() {
                   style={styles.statCol}
                   onPress={() => router.push('/DriverTaskActive')}>
                   <Text style={styles.statNumber}>{String(dashboard.active).padStart(2, '0')}</Text>
-                  <Text style={styles.statLabel}>Tasks{'\n'}In Progress</Text>
+                  <Text style={styles.statLabel}>Active{'\n'}Deliveries</Text>
                 </Pressable>
 
                 <View style={styles.colDivider} />
@@ -274,7 +271,7 @@ export default function DriverTaskDashboardScreen() {
                   style={styles.statCol}
                   onPress={() => router.push('/DriverTaskCompleted')}>
                   <Text style={styles.statNumber}>{String(dashboard.completed).padStart(2, '0')}</Text>
-                  <Text style={styles.statLabel}>Tasks{'\n'}Completed</Text>
+                  <Text style={styles.statLabel}>Completed{'\n'}Deliveries</Text>
                 </Pressable>
               </View>
 
@@ -284,37 +281,8 @@ export default function DriverTaskDashboardScreen() {
               <View style={styles.nestedEquipmentCard}>
                 <View style={styles.nestedEquipmentHeader}>
                   <View style={styles.nestedEquipmentTitleWrap}>
-                    <Text style={styles.nestedEquipmentIcon}>🚚</Text>
                     <Text style={styles.nestedEquipmentHeading}>Equipment Status</Text>
                   </View>
-                  <View style={styles.fleetActiveBadge}>
-                    <Text style={styles.fleetActiveText}>Fleet Active</Text>
-                  </View>
-                </View>
-
-                {/* Filter Pills */}
-                <View style={styles.filterPillsRow}>
-                  <Pressable
-                    onPress={() => setEquipmentFilter('all')}
-                    style={[styles.filterPill, equipmentFilter === 'all' && styles.filterPillActive]}>
-                    <Text style={[styles.filterPillText, equipmentFilter === 'all' && styles.filterPillTextActive]}>
-                      All: {fleetItems.length}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setEquipmentFilter('available')}
-                    style={[styles.filterPill, equipmentFilter === 'available' && styles.filterPillActive]}>
-                    <Text style={[styles.filterPillText, equipmentFilter === 'available' && styles.filterPillTextActive]}>
-                      Available: {availableCount}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setEquipmentFilter('transit')}
-                    style={[styles.filterPill, equipmentFilter === 'transit' && styles.filterPillActive]}>
-                    <Text style={[styles.filterPillText, equipmentFilter === 'transit' && styles.filterPillTextActive]}>
-                      On Transit: {transitCount}
-                    </Text>
-                  </Pressable>
                 </View>
 
                 {/* Equipment Unit Items */}
@@ -326,7 +294,7 @@ export default function DriverTaskDashboardScreen() {
                       style={({ pressed }) => [styles.equipmentItemRow, pressed && { opacity: 0.9 }]}>
                       <View style={styles.equipmentItemLeft}>
                         <View style={styles.equipmentIconSquare}>
-                          <Image source={require('@/assets/images/driver-equipment.png')} style={styles.equipmentItemThumb} />
+                          <TruckIcon />
                         </View>
                         <View>
                           <Text style={styles.equipmentItemName}>{item.name}</Text>
@@ -350,11 +318,11 @@ export default function DriverTaskDashboardScreen() {
                   ))}
                 </View>
               </View>
+            </View>
 
             {/* Today's Deliveries Section Header */}
             <View style={styles.sectionHeaderRow}>
               <View style={styles.sectionTitleWrap}>
-                <ClipboardDocumentIcon />
                 <Text style={styles.sectionTitle}>Today’s Deliveries</Text>
               </View>
               <Pressable onPress={() => router.push('/DriverTaskPending')}>
