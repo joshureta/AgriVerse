@@ -27,13 +27,6 @@ export const styles = StyleSheet.create({
     paddingBottom: 110,
   },
 
-  // Top Greeting Section
-  greeting: {
-    color: '#134B24',
-    fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 14,
-  },
 
   // Farm Hero Card with Embedded Weather & Status Pill
   farmHeroWrapper: {
@@ -117,12 +110,12 @@ export const styles = StyleSheet.create({
   metricsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 22,
+    marginBottom: 20,
   },
   metricCard: {
     flex: 1,
     height: 78,
-    borderRadius: 16,
+    borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 2,
     alignItems: 'center',
@@ -242,9 +235,14 @@ export const styles = StyleSheet.create({
   },
   taskCenterColumn: {
     flex: 1,
-    paddingHorizontal: 12,
+    paddingRight: 12,
     justifyContent: 'center',
     gap: 6,
+  },
+  taskCategory: {
+    color: '#173E23',
+    fontSize: 14,
+    fontWeight: '800',
   },
   priorityPill: {
     alignSelf: 'flex-start',
@@ -274,22 +272,8 @@ export const styles = StyleSheet.create({
   priorityText_low: {
     color: '#166534',
   },
-  durationPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#5A626A',
-    paddingHorizontal: 10,
-    paddingVertical: 3.5,
-    borderRadius: 14,
-  },
-  durationClockIcon: {
-    fontSize: 11,
-    color: '#FFFFFF',
-  },
   durationPillText: {
-    color: '#FFFFFF',
+    color: '#637766',
     fontSize: 11.5,
     fontWeight: '600',
   },

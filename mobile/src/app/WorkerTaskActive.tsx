@@ -19,7 +19,7 @@ import { TaskCompletionBlurTarget } from '@/components/task-completion-blur-targ
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 
-type TaskStatus = 'pending' | 'in_progress' | 'completed';
+type TaskStatus = 'pending' | 'in_progress' | 'awaiting_approval' | 'completed';
 type WorkerTaskRecord = {
   id: number;
   category: string;
@@ -27,6 +27,7 @@ type WorkerTaskRecord = {
   priority: 'high' | 'medium' | 'low';
   status: TaskStatus;
   description: string | null;
+  harvest_rejection_reason?: string | null;
 };
 
 const GREEN = '#176d34';
@@ -68,6 +69,13 @@ function ActiveTaskCard({
       <Text style={styles.taskTitle}>
         {task.category} - {task.description || `Active task in ${task.field}`}
       </Text>
+
+      {task.harvest_rejection_reason ? (
+        <View style={styles.rejectionBanner}>
+          <Text style={styles.rejectionBannerTitle}>⚠ Sent back for changes</Text>
+          <Text style={styles.rejectionBannerText}>{task.harvest_rejection_reason}</Text>
+        </View>
+      ) : null}
 
       {/* Divider */}
       <View style={styles.divider} />
@@ -137,13 +145,13 @@ export default function WorkerTaskActiveScreen() {
   return (
     <TaskCompletionBlurTarget>
       <SafeAreaView style={styles.safeArea}>
-        <WorkerHeader />
+        <WorkerHeader logoPosition="left" logoSize={42} />
 
         <View style={styles.mainBodyContainer}>
           <ScrollView
             contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
             refreshControl={<RefreshControl colors={[GREEN]} refreshing={refreshing} onRefresh={() => loadTasks(true)} />}>
-            <Text style={styles.pageTitle}>Today’s Tasks</Text>
+            <Text style={styles.pageTitle}>My Tasks</Text>
             <WorkerTaskSegmentedTabs
               activeTab="in_progress"
               onTabChange={(_tab, route) => router.replace(route as any)}

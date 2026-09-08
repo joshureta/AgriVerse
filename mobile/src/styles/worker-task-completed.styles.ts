@@ -134,6 +134,35 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
 
+  // Awaiting-approval variant (harvesting tasks pending admin review)
+  taskHeaderBannerPending: {
+    backgroundColor: '#FEF3C7',
+  },
+  checkCirclePending: {
+    backgroundColor: '#D97706',
+    shadowColor: '#D97706',
+  },
+  checkCheckPending: {
+    fontSize: 15,
+  },
+  awaitingApprovalPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginHorizontal: 16,
+    marginTop: 12,
+  },
+  awaitingApprovalPillText: {
+    color: '#92400E',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+
   // Card Body
   taskBody: {
     paddingHorizontal: 16,

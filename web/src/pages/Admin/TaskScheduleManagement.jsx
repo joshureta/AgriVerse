@@ -252,6 +252,9 @@ export default function TaskScheduleManagement() {
   const [readyOrders, setReadyOrders] = useState([])
   const [disputeOrders, setDisputeOrders] = useState([])
   const [disputeResolutionNotes, setDisputeResolutionNotes] = useState('')
+  const [harvestApprovalForm, setHarvestApprovalForm] = useState({ harvest_small_count: '0', harvest_medium_count: '0', harvest_large_count: '0', harvest_damaged_count: '0' })
+  const [harvestRejectionReason, setHarvestRejectionReason] = useState('')
+  const [harvestApprovalCount, setHarvestApprovalCount] = useState(0)
   const [refreshKey, setRefreshKey] = useState(0)
   const filterRef = useRef(null)
   const statusLabels = useMemo(
@@ -333,6 +336,63 @@ export default function TaskScheduleManagement() {
   useEffect(() => {
     if (workView === 'disputes') loadDisputeOrders()
   }, [loadDisputeOrders, refreshKey, workView])
+
+  const loadHarvestApprovalCount = useCallback(async () => {
+    try {
+      const data = await apiRequest('/api/admin/tasks/harvest-approvals/count')
+      setHarvestApprovalCount(data.count || 0)
+    } catch {
+      // Non-critical — just skip showing the count this refresh.
+    }
+  }, [])
+
+  useEffect(() => { loadHarvestApprovalCount() }, [loadHarvestApprovalCount, refreshKey])
+
+  function openReviewHarvest(task) {
+    setError('')
+    setHarvestApprovalForm({
+      harvest_small_count: String(task.harvest_small_count ?? 0),
+      harvest_medium_count: String(task.harvest_medium_count ?? 0),
+      harvest_large_count: String(task.harvest_large_count ?? 0),
+      harvest_damaged_count: String(task.harvest_damaged_count ?? 0),
+    })
+    setHarvestRejectionReason('')
+    setModal({ mode: 'review-harvest', task })
+  }
+
+  async function approveHarvest() {
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/tasks/${modal.task.id}/approve-harvest`, {
+        method: 'POST',
+        body: JSON.stringify(harvestApprovalForm),
+      })
+      setModal(null)
+      setRefreshKey((key) => key + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function rejectHarvest() {
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/tasks/${modal.task.id}/reject-harvest`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: harvestRejectionReason.trim() }),
+      })
+      setModal(null)
+      setRefreshKey((key) => key + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function resolveDispute(resolution) {
     setSaving(true)
@@ -634,6 +694,12 @@ export default function TaskScheduleManagement() {
             </div>
           </header>
 
+          {harvestApprovalCount > 0 && (
+            <div className="harvest-approval-banner" role="status">
+              🍍 {harvestApprovalCount} harvest report{harvestApprovalCount === 1 ? '' : 's'} awaiting review
+            </div>
+          )}
+
           <section className="task-summary-grid" aria-label="Task summary">
             <SummaryCard label="Total Task" value={summary.total} icon={<img src={totalTaskIcon} alt="" />} />
             <SummaryCard label="In Progress" value={summary.inProgress} icon={<img src={progressTaskIcon} alt="" />} />
@@ -684,8 +750,8 @@ export default function TaskScheduleManagement() {
                 }</thead>
                 <tbody>{loading && workView !== 'deliveries' ? <tr><td className="tasks-empty" colSpan="7">Loading work assignments…</td></tr> : <>
                   {workView !== 'deliveries' && !isDriverStatusFilter && tasks.map((task) => workView === 'crop'
-                    ? <tr key={`task-${task.id}`}><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-priority priority-${task.priority}`}>{task.priority_label}</span></td><td><span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></div></td></tr>
-                    : <tr key={`task-${task.id}`}><td><span className="task-work-type is-crop">Crop Task</span></td><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></div></td></tr>)}
+                    ? <tr key={`task-${task.id}`}><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-priority priority-${task.priority}`}>{task.priority_label}</span></td><td><span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span></td><td><div className="task-actions">{task.status === 'awaiting_approval' ? <button type="button" onClick={() => openReviewHarvest(task)}>Review</button> : <><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></>}</div></td></tr>
+                    : <tr key={`task-${task.id}`}><td><span className="task-work-type is-crop">Crop Task</span></td><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span></td><td><div className="task-actions">{task.status === 'awaiting_approval' ? <button type="button" onClick={() => openReviewHarvest(task)}>Review</button> : <><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></>}</div></td></tr>)}
                   {workView !== 'crop' && paginatedDeliveryOrders.map((order) => workView === 'deliveries'
                     ? <tr key={`delivery-${order.id}`}><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{[order.delivery_barangay, order.delivery_city_municipality, order.delivery_province, order.delivery_region].filter(Boolean).join(', ')}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td><span className={`task-status status-${order.delivery_assignment_status || 'assigned'}`}>{(order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}>View</button>{order.order_status === 'ready_for_delivery' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>
                     : <tr key={`delivery-${order.id}`}><td><span className="task-work-type is-delivery">Delivery</span></td><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong></td><td>{deliveryAddressSummary(order)}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td><span className={`task-status status-${order.delivery_assignment_status || 'assigned'}`}>{(order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span></td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}>View</button>{order.order_status === 'ready_for_delivery' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>)}
@@ -865,6 +931,69 @@ export default function TaskScheduleManagement() {
               </button>
               <button type="button" className="is-secondary" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveDispute('escalated')}>
                 {saving ? 'Saving…' : 'Escalate'}
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>}
+
+      {modal?.mode === 'review-harvest' && <div className="task-modal-backdrop">
+        <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="review-harvest-title">
+          <TaskModalHeader title="Review Harvest Report" tag="Harvest approval" onClose={() => setModal(null)} />
+          <div className="task-reference-body task-view-body">
+            <div className="task-view-grid">
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Field</span>
+                <strong className="task-view-tile-value">{modal.task.field}</strong>
+              </div>
+              <div className="task-view-tile">
+                <span className="task-view-tile-label">Farm Worker</span>
+                <strong className="task-view-tile-value">{modal.task.assigned_worker?.full_name || 'Unassigned worker'}</strong>
+              </div>
+              <div className="task-view-tile task-view-tile-full">
+                <span className="task-view-tile-label">Finished</span>
+                <strong className="task-view-tile-value">{formatSchedule(modal.task.completed_at)}</strong>
+              </div>
+            </div>
+            {modal.task.harvest_proof_image_url && (
+              <section className="task-view-description">
+                <span>Worker's Proof Photo</span>
+                <img className="dispute-proof-photo" src={modal.task.harvest_proof_image_url} alt="Harvest proof submitted by the worker" />
+              </section>
+            )}
+            {modal.task.completion_notes && (
+              <section className="task-view-description">
+                <span>Worker's Notes</span>
+                <p>{modal.task.completion_notes}</p>
+              </section>
+            )}
+            <section className="task-view-description">
+              <span>Reported Counts (editable before approving)</span>
+              <div className="harvest-approval-counts">
+                <label><span>Small</span><input type="number" min="0" value={harvestApprovalForm.harvest_small_count} onChange={(event) => setHarvestApprovalForm({ ...harvestApprovalForm, harvest_small_count: event.target.value })} /></label>
+                <label><span>Medium</span><input type="number" min="0" value={harvestApprovalForm.harvest_medium_count} onChange={(event) => setHarvestApprovalForm({ ...harvestApprovalForm, harvest_medium_count: event.target.value })} /></label>
+                <label><span>Large</span><input type="number" min="0" value={harvestApprovalForm.harvest_large_count} onChange={(event) => setHarvestApprovalForm({ ...harvestApprovalForm, harvest_large_count: event.target.value })} /></label>
+                <label><span>Damaged</span><input type="number" min="0" value={harvestApprovalForm.harvest_damaged_count} onChange={(event) => setHarvestApprovalForm({ ...harvestApprovalForm, harvest_damaged_count: event.target.value })} /></label>
+              </div>
+            </section>
+            <section className="task-view-description">
+              <span>Rejection Reason (required only to reject)</span>
+              <textarea
+                className="dispute-resolution-notes"
+                value={harvestRejectionReason}
+                onChange={(event) => setHarvestRejectionReason(event.target.value)}
+                rows={3}
+                maxLength={1000}
+                placeholder="Explain what needs to be corrected…"
+              />
+            </section>
+            {error && <div className="tasks-error" role="alert">{error}</div>}
+            <div className="dispute-resolve-actions">
+              <button type="button" className="is-primary" disabled={saving} onClick={approveHarvest}>
+                {saving ? 'Saving…' : 'Approve & Add to Inventory'}
+              </button>
+              <button type="button" className="is-secondary" disabled={saving || !harvestRejectionReason.trim()} onClick={rejectHarvest}>
+                {saving ? 'Saving…' : 'Reject'}
               </button>
             </div>
           </div>

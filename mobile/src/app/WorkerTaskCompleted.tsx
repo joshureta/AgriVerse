@@ -22,7 +22,7 @@ type WorkerTaskRecord = {
   id: number;
   category: string;
   field: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  status: 'pending' | 'in_progress' | 'awaiting_approval' | 'completed';
   description: string | null;
   completed_at: string | null;
   completion_notes: string | null;
@@ -43,18 +43,27 @@ function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
   const formattedTime = task.completed_at
     ? new Date(task.completed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : '11:30 AM';
+  const isAwaitingApproval = task.status === 'awaiting_approval';
 
   return (
     <View style={styles.taskCard}>
-      {/* Top Header Banner (Mint Green Tint) */}
-      <View style={styles.taskHeaderBanner}>
-        <View style={styles.checkCircle}>
-          <Text style={styles.checkCheck}>✓</Text>
+      {/* Top Header Banner (Mint Green Tint, or amber while awaiting admin approval) */}
+      <View style={[styles.taskHeaderBanner, isAwaitingApproval && styles.taskHeaderBannerPending]}>
+        <View style={[styles.checkCircle, isAwaitingApproval && styles.checkCirclePending]}>
+          <Text style={[styles.checkCheck, isAwaitingApproval && styles.checkCheckPending]}>
+            {isAwaitingApproval ? '⏳' : '✓'}
+          </Text>
         </View>
         <Text style={styles.taskBannerTitle}>
           {task.category} - {task.description || `Completed task in ${task.field}`}
         </Text>
       </View>
+
+      {isAwaitingApproval && (
+        <View style={styles.awaitingApprovalPill}>
+          <Text style={styles.awaitingApprovalPillText}>Awaiting Approval</Text>
+        </View>
+      )}
 
       {/* Card Body */}
       <View style={styles.taskBody}>
@@ -114,13 +123,13 @@ export default function WorkerTaskCompletedScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <WorkerHeader />
+      <WorkerHeader logoPosition="left" logoSize={42} />
 
       <View style={styles.mainBodyContainer}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
           refreshControl={<RefreshControl colors={[GREEN]} refreshing={refreshing} onRefresh={() => loadTasks(true)} />}>
-          <Text style={styles.pageTitle}>Today’s Tasks</Text>
+          <Text style={styles.pageTitle}>My Tasks</Text>
           <WorkerTaskSegmentedTabs
             activeTab="completed"
             onTabChange={(_tab, route) => router.replace(route as any)}

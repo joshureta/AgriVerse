@@ -1,17 +1,16 @@
-import { GREEN, styles } from '@/styles/worker-task-dashboard.styles';
+import { GREEN, styles } from '@/styles/driver-task-dashboard.styles';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiWeatherBanner } from '@/components/api-weather-banner';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
@@ -20,7 +19,7 @@ import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import { loadWeather, type WeatherSnapshot } from '@/lib/weather';
 
-type TaskStatus = 'pending' | 'in_progress' | 'completed';
+type TaskStatus = 'pending' | 'in_progress' | 'awaiting_approval' | 'completed';
 type WorkerTask = {
   id: number;
   category: string;
@@ -33,33 +32,12 @@ type WorkerTask = {
 };
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
-const categoryThemes: Record<string, { icon: string; bg: string; color: string }> = {
-  Planting: { icon: '🌱', bg: '#FDF2E9', color: '#9A3412' },
-  Irrigation: { icon: '💧', bg: '#E0F2FE', color: '#0369A1' },
-  Fertilizer: { icon: '🌿', bg: '#DCFCE7', color: '#15803D' },
-  Fertilizing: { icon: '🌿', bg: '#DCFCE7', color: '#15803D' },
-  'Crop Inspection': { icon: '🔎', bg: '#F3E8FF', color: '#7E22CE' },
-  'Pests & Disease Control': { icon: '🔎', bg: '#FEE2E2', color: '#B91C1C' },
-  Harvesting: { icon: '🍍', bg: '#FEF3C7', color: '#B45309' },
-};
-
 function formatPriorityLabel(priority?: string) {
   if (!priority) return 'Medium Priority';
   const lower = priority.toLowerCase();
   if (lower === 'high') return 'High Priority';
   if (lower === 'low') return 'Low Priority';
   return 'Medium Priority';
-}
-
-function ClipboardDocumentIcon() {
-  return (
-    <View style={styles.clipboardIconWrap}>
-      <View style={styles.clipboardTopClip} />
-      <View style={styles.clipboardLine} />
-      <View style={styles.clipboardLine} />
-      <View style={styles.clipboardLineShort} />
-    </View>
-  );
 }
 
 function MetricCard({
@@ -88,27 +66,14 @@ function TaskDashboardCard({
   task: WorkerTask;
   onStart: () => void;
 }) {
-  const theme = categoryThemes[task.category] || { icon: '🌾', bg: '#F1F5F9', color: '#475569' };
-  const priorityKey = task.priority || 'medium';
-
   return (
     <View style={styles.taskCard}>
-      {/* Left: Squircle Category Container */}
-      <View style={[styles.categorySquircle, { backgroundColor: theme.bg }]}>
-        <Text style={styles.categoryIcon}>{theme.icon}</Text>
-      </View>
-
-      {/* Center: Stacked Badges */}
       <View style={styles.taskCenterColumn}>
-        <View style={[styles.priorityPill, styles[`priority_${priorityKey}`]]}>
-          <Text style={[styles.priorityText, styles[`priorityText_${priorityKey}`]]}>
-            {formatPriorityLabel(task.priority)}
-          </Text>
+        <View style={[styles.priorityPill, styles.priorityPill_order]}>
+          <Text style={[styles.priorityText, styles.priorityText_order]}>{task.category}</Text>
         </View>
-
-        <View style={styles.durationPill}>
-          <Text style={styles.durationClockIcon}>🕒</Text>
-          <Text style={styles.durationPillText}>Duration</Text>
+        <View style={styles.deliveryRoutePill}>
+          <Text numberOfLines={1} style={styles.deliveryRouteText}>{task.field || task.description || 'Assigned field task'}</Text>
         </View>
       </View>
 
@@ -116,7 +81,7 @@ function TaskDashboardCard({
       <Pressable
         onPress={onStart}
         style={({ pressed }) => [styles.startTaskBtn, pressed && styles.startTaskBtnPressed]}>
-        <Text style={styles.startTaskBtnText}>Start Task</Text>
+        <Text style={styles.startTaskBtnText}>Start</Text>
       </Pressable>
     </View>
   );
@@ -131,6 +96,7 @@ export default function WorkerTaskDashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
+  const [navbarBlurred, setNavbarBlurred] = useState(false);
 
   const loadTasks = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -159,18 +125,20 @@ export default function WorkerTaskDashboardScreen() {
   const dashboard = summary;
   const pendingTasks = tasks.filter((t) => t.status === 'pending');
   const previewTasks = pendingTasks.slice(0, 3);
-  const horizontalPadding = width < 360 ? 14 : 18;
+  const contentInset = width < 360 ? styles.contentInsetCompact : styles.contentInset;
 
   if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
   if (!profile) return <Redirect href="/login" />;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <WorkerHeader />
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+      <WorkerHeader extendUnderStatusBar height={72} transparent overlay logoPosition="left" logoSize={42} blurred={navbarBlurred} />
 
       <View style={styles.mainBodyContainer}>
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
+          contentContainerStyle={styles.scrollContent}
+          onScroll={(event) => setNavbarBlurred(event.nativeEvent.contentOffset.y > 12)}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -182,55 +150,44 @@ export default function WorkerTaskDashboardScreen() {
             />
           }>
           
-          {/* Top Greeting */}
-          <Text style={styles.greeting}>Good Day, {profile?.full_name || 'Worker'}!</Text>
+          <ApiWeatherBanner weather={weather} flushTop topContentInset={92} />
 
-          {/* API Weather Banner Card */}
-          <ApiWeatherBanner weather={weather} />
-
-          {/* 4 Metric Status Cards (Horizontal 1-Row Grid) */}
-          <View style={styles.metricsRow}>
-            <MetricCard
-              color="#0F3E22"
-              label="Total Tasks"
-              value={dashboard.total}
-              onPress={() => router.push('/WorkerTaskPending')}
-            />
-            <MetricCard
-              color="#237C3B"
-              label="Pending"
-              value={dashboard.pending}
-              onPress={() => router.push('/WorkerTaskPending')}
-            />
-            <MetricCard
-              color="#D99026"
-              label="Active"
-              value={dashboard.active}
-              onPress={() => router.push('/WorkerTaskActive')}
-            />
-            <MetricCard
-              color="#0F7D40"
-              label="Completed"
-              value={dashboard.completed}
-              onPress={() => router.push('/WorkerTaskCompleted')}
-            />
+          <View style={contentInset}>
+          <View style={styles.overviewStack}>
+            <View style={styles.combinedCard}>
+              <View style={styles.combinedHeaderRow}>
+                <Text style={styles.combinedHeaderTitle}>Task Overview</Text>
+                <View style={styles.todayBadge}><Text style={styles.todayBadgeText}>Today</Text></View>
+              </View>
+              <View style={styles.statsFourCol}>
+                {[
+                  ['Total', dashboard.total, '/WorkerTaskPending'],
+                  ['Pending', dashboard.pending, '/WorkerTaskPending'],
+                  ['Active', dashboard.active, '/WorkerTaskActive'],
+                  ['Completed', dashboard.completed, '/WorkerTaskCompleted'],
+                ].map(([label, value, route]) => <Pressable key={String(label)} onPress={() => router.push(route as any)} style={styles.statCol}><Text style={styles.statNumber}>{value}</Text><Text style={styles.statLabel}>{label}{'\n'}Tasks</Text></Pressable>)}
+              </View>
+            </View>
+            <View style={styles.nestedEquipmentCard}>
+              <View style={styles.nestedEquipmentHeader}><Text style={styles.nestedEquipmentHeading}>Equipment Status</Text></View>
+              <View style={styles.equipmentList}>
+                {['Field tools', 'Irrigation kit', 'Safety equipment'].map((item) => <View key={item} style={styles.equipmentItemRow}><View style={styles.equipmentItemLeft}><View style={styles.equipmentIconSquare}><Text style={styles.equipmentItemName}>E</Text></View><Text style={styles.equipmentItemName}>{item}</Text></View><View style={[styles.equipmentStatusTag, styles.statusTag_available]}><Text style={[styles.statusTagText, styles.statusTagText_available]}>Available</Text></View></View>)}
+              </View>
+            </View>
           </View>
 
           {/* Today's Tasks Section Header */}
           <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleWrap}>
-              <ClipboardDocumentIcon />
-              <Text style={styles.sectionTitle}>Today’s Tasks</Text>
-            </View>
+            <Text style={styles.sectionTitle}>Today’s Tasks</Text>
             <Pressable onPress={() => router.push('/WorkerTaskPending')}>
               <Text style={styles.sectionLink}>View All ({dashboard.total}) ›</Text>
             </Pressable>
           </View>
 
-          {error ? <Text style={styles.loadError}>{error}</Text> : null}
+          {error ? <View style={styles.errorBanner}><Text style={styles.errorText}>{error}</Text></View> : null}
           
           {loading ? (
-            <ActivityIndicator style={styles.loader} color={GREEN} />
+            <ActivityIndicator style={{ marginVertical: 20 }} color={GREEN} />
           ) : previewTasks.length > 0 ? (
             previewTasks.map((task) => (
               <TaskDashboardCard
@@ -240,10 +197,11 @@ export default function WorkerTaskDashboardScreen() {
               />
             ))
           ) : (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>No tasks scheduled for today.</Text>
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptySubtitle}>No tasks scheduled for today.</Text>
             </View>
           )}
+          </View>
 
         </ScrollView>
       </View>

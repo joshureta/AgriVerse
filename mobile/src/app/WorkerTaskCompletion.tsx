@@ -51,6 +51,12 @@ function ClockIcon() {
   return <View style={styles.clock}><View style={styles.clockHour} /><View style={styles.clockMinute} /></View>;
 }
 
+function parseHarvestCount(value: string): number | null {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  return Number(trimmed);
+}
+
 export default function WorkerTaskCompletionScreen() {
   const { width } = useWindowDimensions();
   const { taskId } = useLocalSearchParams<{ taskId?: string }>();
@@ -58,7 +64,13 @@ export default function WorkerTaskCompletionScreen() {
   const [task, setTask] = useState<WorkerTask | null>(null);
   const [timeFinished, setTimeFinished] = useState(formatCurrentTime);
   const [insights, setInsights] = useState('');
-  
+
+  // Harvest counts (Harvesting tasks only)
+  const [smallCount, setSmallCount] = useState('');
+  const [mediumCount, setMediumCount] = useState('');
+  const [largeCount, setLargeCount] = useState('');
+  const [damagedCount, setDamagedCount] = useState('');
+
   // Photo states (Gallery selection only)
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
@@ -128,6 +140,7 @@ export default function WorkerTaskCompletionScreen() {
 
   async function submitCompletion() {
     if (!task) return;
+    const isHarvesting = task.category === 'Harvesting';
     const completedAt = parseFinishTime(timeFinished);
     if (!completedAt) {
       setError('Enter the finish time in the format 9:30 AM.');
@@ -142,6 +155,24 @@ export default function WorkerTaskCompletionScreen() {
       return;
     }
 
+    let harvestFields: Record<string, number> = {};
+    if (isHarvesting) {
+      const small = parseHarvestCount(smallCount);
+      const medium = parseHarvestCount(mediumCount);
+      const large = parseHarvestCount(largeCount);
+      const damaged = parseHarvestCount(damagedCount);
+      if (small === null || medium === null || large === null || damaged === null) {
+        setError('Enter Small, Medium, Large, and Damaged counts as whole numbers (0 or more).');
+        return;
+      }
+      harvestFields = {
+        harvest_small_count: small,
+        harvest_medium_count: medium,
+        harvest_large_count: large,
+        harvest_damaged_count: damaged,
+      };
+    }
+
     setSubmitting(true);
     setError('');
     try {
@@ -153,6 +184,7 @@ export default function WorkerTaskCompletionScreen() {
           image: photoBase64 ? `data:${photoMime};base64,${photoBase64}` : null,
           image_mime: photoMime,
           image_name: photoName || `${task.category} Proof Photo`,
+          ...harvestFields,
         }),
       });
       router.replace('/WorkerTaskCompleted');
@@ -221,6 +253,69 @@ export default function WorkerTaskCompletionScreen() {
                   <Text style={styles.description}>{task.description || 'No description provided.'}</Text>
                 </View>
 
+                {task.category === 'Harvesting' && (
+                  <View style={[styles.fieldGroup, styles.harvestGroup]}>
+                    <Text style={styles.label}>Harvest Counts</Text>
+                    <View style={styles.harvestRow}>
+                      <View style={styles.harvestField}>
+                        <Text style={styles.harvestFieldLabel}>Small</Text>
+                        <TextInput
+                          accessibilityLabel="Small pineapple count"
+                          keyboardType="number-pad"
+                          maxLength={5}
+                          onChangeText={setSmallCount}
+                          placeholder="0"
+                          placeholderTextColor="#9ca3af"
+                          style={styles.harvestInput}
+                          value={smallCount}
+                        />
+                      </View>
+                      <View style={styles.harvestField}>
+                        <Text style={styles.harvestFieldLabel}>Medium</Text>
+                        <TextInput
+                          accessibilityLabel="Medium pineapple count"
+                          keyboardType="number-pad"
+                          maxLength={5}
+                          onChangeText={setMediumCount}
+                          placeholder="0"
+                          placeholderTextColor="#9ca3af"
+                          style={styles.harvestInput}
+                          value={mediumCount}
+                        />
+                      </View>
+                      <View style={styles.harvestField}>
+                        <Text style={styles.harvestFieldLabel}>Large</Text>
+                        <TextInput
+                          accessibilityLabel="Large pineapple count"
+                          keyboardType="number-pad"
+                          maxLength={5}
+                          onChangeText={setLargeCount}
+                          placeholder="0"
+                          placeholderTextColor="#9ca3af"
+                          style={styles.harvestInput}
+                          value={largeCount}
+                        />
+                      </View>
+                      <View style={styles.harvestField}>
+                        <Text style={[styles.harvestFieldLabel, styles.harvestFieldLabelDamaged]}>Damaged</Text>
+                        <TextInput
+                          accessibilityLabel="Damaged or rejected pineapple count"
+                          keyboardType="number-pad"
+                          maxLength={5}
+                          onChangeText={setDamagedCount}
+                          placeholder="0"
+                          placeholderTextColor="#9ca3af"
+                          style={styles.harvestInput}
+                          value={damagedCount}
+                        />
+                      </View>
+                    </View>
+                    <Text style={styles.harvestHint}>
+                      This will be sent to your admin for approval before it's added to inventory.
+                    </Text>
+                  </View>
+                )}
+
                 {/* Proof of Work / Photo Inspection Group (Below Description) */}
                 <View style={[styles.fieldGroup, styles.photoGroup]}>
                   <Text style={styles.label}>
@@ -283,7 +378,9 @@ export default function WorkerTaskCompletionScreen() {
                   {submitting ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
-                    <Text style={styles.submitText}>{workAllowed ? 'Complete Task' : 'Work unavailable'}</Text>
+                    <Text style={styles.submitText}>
+                      {!workAllowed ? 'Work unavailable' : task.category === 'Harvesting' ? 'Submit for Approval' : 'Complete Task'}
+                    </Text>
                   )}
                 </Pressable>
               </View>

@@ -57,7 +57,7 @@
 .tasks-table th:nth-child(1) { width: 17%; }.tasks-table th:nth-child(2) { width: 17%; }.tasks-table th:nth-child(3) { width: 11%; }.tasks-table th:nth-child(4) { width: 19%; }.tasks-table th:nth-child(5) { width: 11%; }.tasks-table th:nth-child(6) { width: 13%; }.tasks-table th:nth-child(7) { width: 12%; }
 .task-settings-table { min-width: 620px; }.task-settings-table th:nth-child(1) { width: 24%; }.task-settings-table th:nth-child(2) { width: 42%; }.task-settings-table th:nth-child(3) { width: 14%; }.task-settings-table th:nth-child(4) { width: 20%; }
 .field-settings-table th:nth-child(1) { width: 48%; }.field-settings-table th:nth-child(2) { width: 20%; }.field-settings-table th:nth-child(3) { width: 32%; }
-.task-priority, .task-status { font-size: 9px; font-weight: 900; text-transform: uppercase; }.priority-high { color: #f2332d; }.priority-medium { color: #2920c9; }.priority-low { color: #efb51f; }.status-in_progress, .status-out_for_delivery { color: #2589e8; }.status-completed, .status-delivered { color: #17aa2f; }.status-pending, .status-preparing { color: #9ca39e; }
+.task-priority, .task-status { font-size: 9px; font-weight: 900; text-transform: uppercase; }.priority-high { color: #f2332d; }.priority-medium { color: #2920c9; }.priority-low { color: #efb51f; }.status-in_progress, .status-out_for_delivery { color: #2589e8; }.status-completed, .status-delivered { color: #17aa2f; }.status-pending, .status-preparing { color: #9ca39e; }.status-awaiting_approval { color: #b45309; }
 .task-actions { display: flex; justify-content: center; gap: 6px; }
 .task-actions button { min-width: 40px; height: 27px; border: 0; border-radius: 6px; padding: 0 8px; color: #fff; background: #19743a; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }.task-actions .task-edit { min-width: 31px; padding: 0; font-size: 16px; }.task-actions .task-archive { background: #7bae39; }
 .tasks-empty { height: 180px !important; color: #6f7f73 !important; }
@@ -106,11 +106,17 @@
 .task-status-badge.status-completed, .task-status-badge.status-delivered { color: #027a48; background: #ecfdf3; }
 .task-status-badge.status-in_progress, .task-status-badge.status-out_for_delivery { color: #175cd3; background: #eff8ff; }
 .task-status-badge.status-pending, .task-status-badge.status-preparing, .task-status-badge.status-assigned { color: #475467; background: #f2f4f7; }
+.task-status-badge.status-awaiting_approval { color: #92400e; background: #fef3c7; }
 .task-view-description { display: grid; gap: 6px; margin-top: 14px; }
 .task-view-description > span { color: #657e6a; font-size: 10px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .task-view-description p { min-height: auto; margin: 0; border: none; padding: 0; color: #26382a; background: transparent; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
 .dispute-proof-photo { width: 100%; max-width: 320px; margin-top: 6px; border: 1px solid #d4ded2; border-radius: 10px; }
 .dispute-resolution-notes { width: 100%; box-sizing: border-box; border: 1px solid #b8cfba; border-radius: 8px; padding: 10px 12px; color: #26342a; background: #f7f9f5; font: inherit; font-size: 13px; resize: vertical; }
+.harvest-approval-counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 4px; }
+.harvest-approval-counts label { display: flex; flex-direction: column; gap: 4px; }
+.harvest-approval-counts label span { color: #657e6a; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.harvest-approval-counts input { box-sizing: border-box; border: 1px solid #b8cfba; border-radius: 8px; padding: 8px 10px; color: #173822; background: #f7f9f5; font: inherit; font-size: 13px; font-weight: 700; text-align: center; }
+.harvest-approval-banner { display: flex; align-items: center; gap: 8px; margin: 4px 0 14px; padding: 10px 14px; border-radius: 10px; border: 1px solid #f3dfa0; background: #fff8e6; color: #8a6d1d; font-size: 13px; font-weight: 700; }
 .dispute-resolve-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; border-top: 1px solid #e4ebe1; padding-top: 18px; }
 .dispute-resolve-actions button { min-width: 130px; min-height: 40px; border: 0; border-radius: 8px; padding: 0 18px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: all .15s ease; }
 .dispute-resolve-actions button:disabled { cursor: not-allowed; opacity: .55; }

@@ -63,7 +63,7 @@ export default function DriverScheduleScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <WorkerHeader logoPosition="left" logoSize={48} logoSource={require('@/assets/images/driver-dashboard-logo-green.png')} />
+      <WorkerHeader logoPosition="left" logoSize={48} logoSource={require('@/assets/images/driver-dashboard-emblem.png')} />
 
       <View style={styles.mainBodyContainer}>
         <ScrollView

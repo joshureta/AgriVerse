@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   ScrollView,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -18,6 +19,8 @@ import { WorkerHeader } from '@/components/worker-header';
 import { WorkerTaskSegmentedTabs } from '@/components/worker-task-segmented-tabs';
 import { apiRequest } from '@/lib/api';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
+import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
 type WorkerTaskRecord = {
@@ -37,6 +40,8 @@ const filters: { label: string; value: TaskStatus }[] = [
   { label: 'Active', value: 'in_progress' },
   { label: 'Completed', value: 'completed' },
 ];
+
+function SearchIcon() { return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>; }
 
 const categoryThemes: Record<string, { icon: string; bg: string; color: string }> = {
   Planting: { icon: '🌱', bg: '#FDF2E9', color: '#9A3412' },
@@ -164,6 +169,7 @@ export default function WorkerTaskPending() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadTasks = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -185,7 +191,7 @@ export default function WorkerTaskPending() {
     if (profile) loadTasks();
   }, [loadTasks, profile]);
 
-  const visibleTasks = tasks.filter((task) => task.status === filter);
+  const visibleTasks = tasks.filter((task) => task.status === filter).filter((task) => `${task.category} ${task.field} ${task.description || ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase()));
   const workAllowed = canWorkCropTaskNow();
 
   async function updateTaskStatus(task: WorkerTaskRecord, status: TaskStatus) {
@@ -214,7 +220,7 @@ export default function WorkerTaskPending() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <WorkerHeader />
+      <WorkerHeader logoPosition="left" logoSize={42} />
 
       <View style={styles.mainBodyContainer}>
         <ScrollView
@@ -222,20 +228,12 @@ export default function WorkerTaskPending() {
           refreshControl={<RefreshControl colors={['#237c31']} onRefresh={() => loadTasks(true)} refreshing={refreshing} />}>
           <View style={styles.titleRow}>
             <View>
-              <Text style={styles.sectionTitle}>Today&apos;s Tasks</Text>
+              <Text style={styles.sectionTitle}>My Tasks</Text>
             </View>
           </View>
 
-          <WorkerTaskSegmentedTabs
-            activeTab={filter}
-            onTabChange={(tabValue, route) => {
-              if (tabValue === 'pending') {
-                setFilter('pending');
-              } else {
-                router.replace(route as any);
-              }
-            }}
-          />
+          <View style={deliveryStyles.deliveryToolbar}><View style={deliveryStyles.deliverySearch}><SearchIcon /><TextInput accessibilityLabel="Search tasks" onChangeText={setSearchQuery} placeholder="Search tasks" placeholderTextColor="#94A3B8" style={deliveryStyles.deliverySearchInput} value={searchQuery} /></View></View>
+          <View style={deliveryStyles.deliveryStatusTabs}>{[{ label: 'Pending', route: '/WorkerTaskPending' }, { label: 'Active', route: '/WorkerTaskActive' }, { label: 'Completed', route: '/WorkerTaskCompleted' }].map((tab) => { const active = tab.label === 'Pending'; return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[deliveryStyles.deliveryStatusTab, active && deliveryStyles.deliveryStatusTabActive]}><Text style={[deliveryStyles.deliveryStatusTabText, active && deliveryStyles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>; })}</View>
 
           {error ? <Pressable onPress={() => loadTasks()} style={styles.errorBox}><Text style={styles.errorText}>{error}</Text><Text style={styles.retry}>Tap to retry</Text></Pressable> : null}
 

@@ -201,7 +201,7 @@ export default function DriverTaskDashboardScreen() {
         height={72}
         transparent
         overlay
-        logoSource={require('@/assets/images/driver-dashboard-logo-green.png')}
+        logoSource={require('@/assets/images/driver-dashboard-emblem.png')}
         logoSize={48}
         logoPosition="left"
         blurred={navbarBlurred}

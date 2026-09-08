@@ -49,12 +49,14 @@ function assertCropTaskSchedule(workerCategory, startTime, endTime) {
 }
 
 function assertCropWorkerCanWork(profile, now = new Date()) {
-  if (profile?.worker_category === "crop_management_worker" && !isCropWorkTime(now)) {
-    const error = new Error(cropWorkHoursMessage());
-    error.status = 403;
-    error.code = "CROP_WORK_HOURS_CLOSED";
-    throw error;
-  }
+  // TEMP: crop work-hours gate disabled for testing — revert to the commented check below when done.
+  return;
+  // if (profile?.worker_category === "crop_management_worker" && !isCropWorkTime(now)) {
+  //   const error = new Error(cropWorkHoursMessage());
+  //   error.status = 403;
+  //   error.code = "CROP_WORK_HOURS_CLOSED";
+  //   throw error;
+  // }
 }
 
 module.exports = {

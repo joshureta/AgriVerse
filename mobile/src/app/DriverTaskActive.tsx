@@ -216,7 +216,7 @@ export default function DriverTaskActiveScreen() {
   return (
     <TaskCompletionBlurTarget>
       <SafeAreaView style={styles.safeArea}>
-        <WorkerHeader logoPosition="left" logoSize={48} logoSource={require('@/assets/images/driver-dashboard-logo-green.png')} />
+        <WorkerHeader logoPosition="left" logoSize={48} logoSource={require('@/assets/images/driver-dashboard-emblem.png')} />
 
         <View style={styles.mainBodyContainer}>
           <ScrollView
@@ -232,18 +232,8 @@ export default function DriverTaskActiveScreen() {
               <Text style={styles.sectionTitle}>My Deliveries</Text>
             </View>
 
-            <View style={styles.deliveryToolbar}>
-              <View style={styles.deliverySearch}>
-                <SearchIcon />
-                <TextInput accessibilityLabel="Search deliveries" onChangeText={setSearchQuery} placeholder="Search deliveries" placeholderTextColor="#94A3B8" style={styles.deliverySearchInput} value={searchQuery} />
-              </View>
-            </View>
-            <View style={styles.deliveryStatusTabs}>
-              {[{ label: 'Pending', route: '/DriverTaskPending' }, { label: 'Active', route: '/DriverTaskActive' }, { label: 'Completed', route: '/DriverTaskCompleted' }].map((tab) => {
-                const active = tab.label === 'Active';
-                return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[styles.deliveryStatusTab, active && styles.deliveryStatusTabActive]}><Text style={[styles.deliveryStatusTabText, active && styles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>;
-              })}
-            </View>
+            <View style={styles.deliveryToolbar}><View style={styles.deliverySearch}><SearchIcon /><TextInput accessibilityLabel="Search deliveries" onChangeText={setSearchQuery} placeholder="Search deliveries" placeholderTextColor="#94A3B8" style={styles.deliverySearchInput} value={searchQuery} /></View></View>
+            <View style={styles.deliveryStatusTabs}>{[{ label: 'Pending', route: '/DriverTaskPending' }, { label: 'Active', route: '/DriverTaskActive' }, { label: 'Completed', route: '/DriverTaskCompleted' }].map((tab) => { const active = tab.label === 'Active'; return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[styles.deliveryStatusTab, active && styles.deliveryStatusTabActive]}><Text style={[styles.deliveryStatusTabText, active && styles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>; })}</View>
 
             {/* Error Box */}
             {error ? (

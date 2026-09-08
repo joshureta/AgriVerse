@@ -83,6 +83,25 @@ export const styles = StyleSheet.create({
   descriptionGroup: { minHeight: 85 },
   description: { color: '#334155', fontSize: 14, lineHeight: 20, fontWeight: '600', marginTop: 4 },
 
+  // Harvest Counts Group (Harvesting tasks only)
+  harvestGroup: { minHeight: 105, paddingBottom: 10 },
+  harvestRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  harvestField: { flex: 1 },
+  harvestFieldLabel: { color: '#475569', fontSize: 10, fontWeight: '700', marginBottom: 4, textAlign: 'center' },
+  harvestFieldLabelDamaged: { color: '#DC2626' },
+  harvestInput: {
+    height: 38,
+    borderWidth: 1,
+    borderColor: '#D8DADD',
+    borderRadius: 8,
+    color: '#1E293B',
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+  harvestHint: { color: '#8b928b', fontSize: 10.5, lineHeight: 14, marginTop: 8 },
+
   // Photo Proof Group
   photoGroup: {
     minHeight: 125,

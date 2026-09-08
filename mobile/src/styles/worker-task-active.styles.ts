@@ -172,6 +172,29 @@ export const styles = StyleSheet.create({
     zIndex: 2,
   },
 
+  // Rejection notice (harvest sent back for changes)
+  rejectionBanner: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+    zIndex: 2,
+  },
+  rejectionBannerTitle: {
+    color: '#B91C1C',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+  rejectionBannerText: {
+    color: '#7F1D1D',
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+
   // Divider
   divider: {
     height: 1,

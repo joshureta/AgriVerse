@@ -31,6 +31,7 @@ function PhoneIcon() { return <Svg width={17} height={17} viewBox="0 0 24 24" fi
 function MailIcon() { return <Svg width={17} height={17} viewBox="0 0 24 24" fill="none"><Path d="M4 5h16v14H4zM4 7l8 6 8-6" stroke={GREEN} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></Svg>; }
 function MapIcon() { return <Svg width={17} height={17} viewBox="0 0 24 24" fill="none"><Path d="M12 22s8-6.5 8-12a8 8 0 1 0-16 0c0 5.5 8 12 8 12Z" stroke={GREEN} strokeWidth={2} /><Circle cx={12} cy={10} r={2.5} stroke={GREEN} strokeWidth={2} /></Svg>; }
 function TruckIcon() { return <Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Path d="M3 5h11v11H3V5Zm11 5h3l3 3v3h-6v-6Z" stroke={GREEN} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /><Circle cx={6.5} cy={18} r={1.5} stroke={GREEN} strokeWidth={2} /><Circle cx={16.5} cy={18} r={1.5} stroke={GREEN} strokeWidth={2} /></Svg>; }
+function LeafIcon() { return <Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Path d="M20 4C11 4 5 8 5 15c0 2.5 1.8 4 4.2 4C16 19 20 11 20 4ZM4 20c3-4 7-6 12-8" stroke={GREEN} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></Svg>; }
 function LogoutIcon() { return <Svg width={17} height={17} viewBox="0 0 24 24" fill="none"><Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9" stroke="#B4463A" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" /></Svg>; }
 
 export default function WorkerProfileScreen() {
@@ -81,9 +82,9 @@ export default function WorkerProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <WorkerHeader
-        logoPosition={profile.worker_category === 'driver' ? 'left' : 'center'}
-        logoSize={profile.worker_category === 'driver' ? 48 : undefined}
-        logoSource={profile.worker_category === 'driver' ? require('@/assets/images/driver-dashboard-logo-green.png') : require('@/assets/images/toledo-trading-logo.png')}
+        logoPosition="left"
+        logoSize={profile.worker_category === 'driver' ? 48 : 42}
+        logoSource={profile.worker_category === 'driver' ? require('@/assets/images/driver-dashboard-emblem.png') : require('@/assets/images/toledo-trading-logo.png')}
       />
       <View style={[styles.mainBodyContainer, { borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' }]}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -100,7 +101,7 @@ export default function WorkerProfileScreen() {
               <View style={styles.heroDetails}>
                 <Text numberOfLines={1} style={styles.heroName}>{name}</Text>
                 <Text numberOfLines={1} style={styles.heroEmail}>{email}</Text>
-                <View style={styles.heroBadgeRow}><View style={styles.verifiedChip}><ShieldIcon size={9} /><Text style={styles.verifiedChipText}>Verified Driver</Text></View></View>
+                <View style={styles.heroBadgeRow}><View style={styles.verifiedChip}><ShieldIcon size={9} /><Text style={styles.verifiedChipText}>{profile.worker_category === 'driver' ? 'Verified Driver' : 'Verified Crop Worker'}</Text></View></View>
               </View>
             </View>
           </View>
@@ -120,7 +121,7 @@ export default function WorkerProfileScreen() {
             <Text style={styles.detailsSectionTitle}>Account Information</Text>
             <View style={styles.detailRow}><View style={styles.detailIconBox}><MailIcon /></View><View style={styles.detailTextBlock}><Text style={styles.detailLabel}>Email Address</Text><Text style={styles.detailValue}>{email}</Text></View></View>
             <View style={styles.detailRow}><View style={styles.detailIconBox}><PhoneIcon /></View><View style={styles.detailTextBlock}><Text style={styles.detailLabel}>Mobile Phone</Text><Text style={styles.detailValue}>{phone}</Text></View></View>
-            <View style={styles.detailRow}><View style={styles.detailIconBox}><TruckIcon /></View><View style={styles.detailTextBlock}><Text style={styles.detailLabel}>Role</Text><Text style={styles.detailValue}>Delivery Driver</Text></View></View>
+            <View style={styles.detailRow}><View style={styles.detailIconBox}>{profile.worker_category === 'driver' ? <TruckIcon /> : <LeafIcon />}</View><View style={styles.detailTextBlock}><Text style={styles.detailLabel}>Role</Text><Text style={styles.detailValue}>{profile.worker_category === 'driver' ? 'Delivery Driver' : 'Crop Management Worker'}</Text></View></View>
             <View style={[styles.detailRow, { alignItems: 'flex-start' }]}><View style={[styles.detailIconBox, { marginTop: 2 }]}><MapIcon /></View><View style={styles.detailTextBlock}><Text style={styles.detailLabel}>Base Address</Text><Text style={[styles.detailValue, { lineHeight: 18 }]}>{address}</Text></View></View>
           </View>
 

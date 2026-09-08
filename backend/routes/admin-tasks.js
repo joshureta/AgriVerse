@@ -7,6 +7,10 @@ const router = express.Router();
 const taskSelect = [
   "id, task_name, description, estimated_duration_minutes, created_at, updated_at",
   "assigned_worker_id, category_id, field_id, priority_id, status_id",
+  "started_at, completed_at, completion_notes",
+  "harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count",
+  "harvest_proof_image_url, harvest_proof_image_name",
+  "harvest_rejection_reason, harvest_rejected_at, approved_at",
   "assigned_worker:profiles!tasks_assigned_worker_id_fkey(id, full_name, worker_category)",
   "category:task_categories!tasks_category_id_fkey(id, category_name, status)",
   "field:farm_fields!tasks_field_id_fkey(id, field_name, status)",
@@ -121,6 +125,9 @@ async function readTaskBody(body) {
   const field = await ensureActive("farm_fields", body.field_id, "Field", "id, field_name");
   const priority = await ensureActive("task_priorities", body.priority_id, "Priority", "id, code");
   const taskStatus = await ensureActive("task_statuses", body.status_id, "Status", "id, code");
+  if (category.category_name === "Harvesting" && ["completed", "awaiting_approval"].includes(taskStatus.code)) {
+    throw httpError(400, "Harvesting tasks can only be completed through the harvest review flow (Approve/Reject), not edited directly.");
+  }
   const worker = await ensureFarmWorker(assignedWorkerId);
 
   const scheduleDate = readDate(body.schedule_date);
@@ -276,6 +283,83 @@ router.patch("/:id", async (req, res, next) => {
   } catch (error) {
     return next(error);
   }
+});
+
+async function syncScheduleStatus(taskId, code) {
+  const statusId = await lookupIdByCode("schedule_statuses", code);
+  const { error } = await getSupabase().from("schedules").update({ status_id: statusId }).eq("task_id", taskId);
+  if (error) throw error;
+}
+
+function readHarvestCount(value, label) {
+  const count = Number(value);
+  if (!Number.isInteger(count) || count < 0) throw httpError(400, `${label} must be a whole number 0 or greater`);
+  return count;
+}
+
+function readHarvestCounts(body) {
+  return {
+    small: readHarvestCount(body.harvest_small_count, "Small count"),
+    medium: readHarvestCount(body.harvest_medium_count, "Medium count"),
+    large: readHarvestCount(body.harvest_large_count, "Large count"),
+    damaged: readHarvestCount(body.harvest_damaged_count, "Damaged/rejected count"),
+  };
+}
+
+function readRejectionReason(value) {
+  const reason = String(value || "").trim();
+  if (!reason || reason.length > 1000) throw httpError(400, "A rejection reason is required and must not exceed 1000 characters");
+  return reason;
+}
+
+router.get("/harvest-approvals/count", async (req, res, next) => {
+  try {
+    const awaitingId = await lookupIdByCode("task_statuses", "awaiting_approval");
+    const { count, error } = await getSupabase().from("tasks")
+      .select("id", { count: "exact", head: true }).eq("status_id", awaitingId);
+    if (error) throw error;
+    return res.json({ count: count || 0 });
+  } catch (error) { return next(error); }
+});
+
+router.post("/:id/approve-harvest", async (req, res, next) => {
+  try {
+    const id = readTaskId(req.params.id);
+    const counts = readHarvestCounts(req.body);
+    const { error } = await getSupabase().rpc("approve_harvest_task", {
+      p_task_id: id,
+      p_admin_id: req.user.id,
+      p_small_count: counts.small,
+      p_medium_count: counts.medium,
+      p_large_count: counts.large,
+      p_damaged_count: counts.damaged,
+    });
+    if (error) {
+      if (/not awaiting approval|not a harvesting task|not found/i.test(error.message || "")) {
+        throw httpError(409, error.message);
+      }
+      throw error;
+    }
+    await syncScheduleStatus(id, "completed");
+    return res.json({ task: await fetchTask(id) });
+  } catch (error) { return next(error); }
+});
+
+router.post("/:id/reject-harvest", async (req, res, next) => {
+  try {
+    const id = readTaskId(req.params.id);
+    const reason = readRejectionReason(req.body.reason);
+    const awaitingId = await lookupIdByCode("task_statuses", "awaiting_approval");
+    const inProgressId = await lookupIdByCode("task_statuses", "in_progress");
+    const { data, error } = await getSupabase().from("tasks").update({
+      status_id: inProgressId,
+      harvest_rejection_reason: reason,
+      harvest_rejected_at: new Date().toISOString(),
+    }).eq("id", id).eq("status_id", awaitingId).select("id").maybeSingle();
+    if (error) throwDatabaseError(error);
+    if (!data) throw httpError(409, "Task is not awaiting approval");
+    return res.json({ task: await fetchTask(id) });
+  } catch (error) { return next(error); }
 });
 
 module.exports = router;

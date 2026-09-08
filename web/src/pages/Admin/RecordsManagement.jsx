@@ -97,7 +97,6 @@ const APPLICATION_METHODS = ['Foliar Spray', 'Soil Application', 'Fertigation']
 const CROP_CONDITIONS = ['Healthy', 'Mild nutrient stress', 'Recovering', 'Healthy']
 const PEST_OBSERVATIONS = ['None observed', 'Mealybug wilt (early stage)', 'Minor leaf spot', 'None observed']
 const RECOMMENDED_ACTIONS = ['Continue routine monitoring', 'Apply targeted pesticide next visit', 'Improve field drainage', 'Continue routine monitoring']
-const GRADES = ['Grade A', 'Grade B', 'Grade A', 'Grade C']
 const MAINTENANCE_TYPES = ['Sucker Removal', 'Leaf Pruning', 'Mulching', 'Staking / Support']
 const POST_HARVEST_PROCESSES = ['Sorting & Grading', 'Washing', 'Packing', 'Cold Storage']
 const INSIGHT_NOTES = [
@@ -128,14 +127,19 @@ const FERTILIZATION_SAMPLES = [
 function mockCropCondition(task) { return pick(task.id, CROP_CONDITIONS) }
 function mockPestObserved(task) { return pick(task.id + 1, PEST_OBSERVATIONS) }
 function mockRecommendedAction(task) { return pick(task.id + 2, RECOMMENDED_ACTIONS) }
-function mockGrade(task) { return pick(task.id, GRADES) }
 function mockMaintenanceType(task) { return pick(task.id, MAINTENANCE_TYPES) }
 function mockPlantsCovered(task) { return 40 + (Math.abs(task.id * 11) % 260) }
 function mockProcessType(task) { return pick(task.id, POST_HARVEST_PROCESSES) }
 function mockQuantityProcessed(task) { return `${20 + (Math.abs(task.id * 13) % 180)} pcs` }
-function mockHarvestSizes(task) {
-  const base = 10 + (Math.abs(task.id * 7) % 40)
-  return { small: base, medium: base + 12, large: Math.max(0, base - 4), damaged: Math.abs(task.id) % 5 }
+// Real harvest counts, reported by the worker and approved by admin (worker-tasks.js / admin-tasks.js).
+function harvestCounts(task) {
+  const orDash = (value) => (value === null || value === undefined ? '—' : value)
+  return {
+    small: orDash(task.harvest_small_count),
+    medium: orDash(task.harvest_medium_count),
+    large: orDash(task.harvest_large_count),
+    damaged: orDash(task.harvest_damaged_count),
+  }
 }
 function mockInsight(task) { return pick(task.id, INSIGHT_NOTES) }
 function mockDeliveryInsight(order) { return pick(order.id, DELIVERY_INSIGHTS) }
@@ -160,7 +164,7 @@ function recordRow(task, kind) {
   if (kind === 'fertilization') return [task.field, worker, date, mockFertilizerType(task), mockQuantityApplied(task), mockApplicationMethod(task), mockInsight(task)]
   if (kind === 'irrigation') return [task.field, worker, date, mockInsight(task)]
   if (kind === 'inspection') return [task.field, worker, date, mockCropCondition(task), mockPestObserved(task), mockRecommendedAction(task), mockInsight(task)]
-  if (kind === 'harvesting') { const sizes = mockHarvestSizes(task); return [task.field, worker, date, sizes.small, sizes.medium, sizes.large, sizes.damaged, mockGrade(task), mockInsight(task)] }
+  if (kind === 'harvesting') { const sizes = harvestCounts(task); return [task.field, worker, date, sizes.small, sizes.medium, sizes.large, sizes.damaged, mockInsight(task)] }
   if (kind === 'weeding') return [task.field, worker, date, mockInsight(task)]
   if (kind === 'maintenance') return [task.field, worker, date, mockMaintenanceType(task), mockPlantsCovered(task), mockInsight(task)]
   if (kind === 'postharvest') return [task.field, worker, date, mockProcessType(task), mockQuantityProcessed(task), mockInsight(task)]
@@ -172,7 +176,7 @@ const RECORD_COLUMNS = {
   fertilization: ['FIELD', 'FARM WORKER', 'APPLICATION DATE', 'FERTILIZER TYPE', 'QUANTITY APPLIED', 'METHOD', 'INSIGHTS', 'ACTIONS'],
   irrigation: ['FIELD', 'FARM WORKER', 'DATE & TIME', 'INSIGHTS', 'ACTIONS'],
   inspection: ['FIELD', 'ASSIGNED INSPECTOR', 'INSPECTION DATE', 'CROP CONDITION', 'PEST/DISEASE OBSERVED', 'RECOMMENDED ACTION', 'INSIGHTS', 'ACTIONS'],
-  harvesting: ['FIELD', 'FARM WORKER', 'HARVEST DATE', 'SMALL', 'MEDIUM', 'LARGE', 'DAMAGED', 'GRADE', 'INSIGHTS', 'ACTIONS'],
+  harvesting: ['FIELD', 'FARM WORKER', 'HARVEST DATE', 'SMALL', 'MEDIUM', 'LARGE', 'DAMAGED', 'INSIGHTS', 'ACTIONS'],
   weeding: ['FIELD', 'FARM WORKER', 'DATE & TIME', 'INSIGHTS', 'ACTIONS'],
   maintenance: ['FIELD', 'FARM WORKER', 'MAINTENANCE DATE', 'MAINTENANCE TYPE', 'PLANTS COVERED', 'INSIGHTS', 'ACTIONS'],
   postharvest: ['FIELD', 'FARM WORKER', 'PROCESS DATE', 'PROCESS TYPE', 'QUANTITY PROCESSED', 'INSIGHTS', 'ACTIONS'],
@@ -353,7 +357,7 @@ export default function RecordsManagement() {
             {error && <div className="tasks-error" role="alert">{error}</div>}
             {!error && (
               <div className="tasks-error" role="status" style={{ color: '#8a6d1d', background: '#fff8e6', borderTopColor: '#f3dfa0' }}>
-                Preview mode: Field/worker/dates are real. The category-specific columns (plant counts, fertilizer, inspection notes, harvest sizes, grade, insights) are mock sample data — this data isn't captured by the app yet.
+                Preview mode: Field/worker/dates are real, and Harvesting's Small/Medium/Large/Damaged counts are real once a worker reports and admin approves them. Other category-specific columns (plant counts, fertilizer, inspection notes, insights) are still mock sample data — this data isn't captured by the app yet.
               </div>
             )}
 
@@ -432,7 +436,7 @@ export default function RecordsManagement() {
               {modal.kind === 'planting' && <div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Number of Plants</span><strong className="task-view-tile-value">{mockNumberOfPlants(modal.task)}</strong></div>}
               {modal.kind === 'fertilization' && <><div className="task-view-tile"><span className="task-view-tile-label">Fertilizer Type</span><strong className="task-view-tile-value">{mockFertilizerType(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Quantity Applied</span><strong className="task-view-tile-value">{mockQuantityApplied(modal.task)}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Application Method</span><strong className="task-view-tile-value">{mockApplicationMethod(modal.task)}</strong></div></>}
               {modal.kind === 'inspection' && <><div className="task-view-tile"><span className="task-view-tile-label">Crop Condition</span><strong className="task-view-tile-value">{mockCropCondition(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Pest/Disease Observed</span><strong className="task-view-tile-value">{mockPestObserved(modal.task)}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Recommended Action</span><strong className="task-view-tile-value">{mockRecommendedAction(modal.task)}</strong></div></>}
-              {modal.kind === 'harvesting' && <><div className="task-view-tile"><span className="task-view-tile-label">Small / Medium / Large</span><strong className="task-view-tile-value">{mockHarvestSizes(modal.task).small} / {mockHarvestSizes(modal.task).medium} / {mockHarvestSizes(modal.task).large}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Damaged / Grade</span><strong className="task-view-tile-value">{mockHarvestSizes(modal.task).damaged} damaged · Grade {mockGrade(modal.task)}</strong></div></>}
+              {modal.kind === 'harvesting' && <><div className="task-view-tile"><span className="task-view-tile-label">Small / Medium / Large</span><strong className="task-view-tile-value">{harvestCounts(modal.task).small} / {harvestCounts(modal.task).medium} / {harvestCounts(modal.task).large}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Damaged</span><strong className="task-view-tile-value">{harvestCounts(modal.task).damaged} damaged</strong></div></>}
               {modal.kind === 'maintenance' && <><div className="task-view-tile"><span className="task-view-tile-label">Maintenance Type</span><strong className="task-view-tile-value">{mockMaintenanceType(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Plants Covered</span><strong className="task-view-tile-value">{mockPlantsCovered(modal.task)}</strong></div></>}
               {modal.kind === 'postharvest' && <><div className="task-view-tile"><span className="task-view-tile-label">Process Type</span><strong className="task-view-tile-value">{mockProcessType(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Quantity Processed</span><strong className="task-view-tile-value">{mockQuantityProcessed(modal.task)}</strong></div></>}
               <div className="task-view-tile">
