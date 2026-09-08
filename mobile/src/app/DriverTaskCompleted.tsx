@@ -3,6 +3,7 @@ import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -51,17 +52,10 @@ function CompletedDeliveryCard({
     <View style={styles.taskCard}>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={onToggle} style={styles.completedBanner}>
         <View style={styles.completedStatusContent}>
-          <View
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 9,
-              backgroundColor: GREEN,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-            <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900' }}>✓</Text>
-          </View>
+          <Image
+            source={require('@/assets/images/delivery-produce-icon.png')}
+            style={styles.deliveryProductIconSmall}
+          />
           <View style={{ flex: 1 }}>
             <Text numberOfLines={1} style={styles.completedText}>Delivered Successfully</Text>
             <Text numberOfLines={1} style={styles.completedOrderNumber}>

@@ -3,6 +3,7 @@ import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -125,7 +126,10 @@ function PendingDeliveryCard({
       <Pressable onPress={onExpand} style={styles.cardHeaderRow}>
         <View style={styles.cardHeaderLeft}>
           <View style={styles.categorySquircle}>
-            <TruckIcon />
+            <Image
+              source={require('@/assets/images/delivery-produce-icon.png')}
+              style={styles.deliveryProductIcon}
+            />
           </View>
           <View style={[styles.priorityPill, styles.priorityPill_order]}>
             <Text style={[styles.priorityText, styles.priorityText_order]}>{orderNumber}</Text>

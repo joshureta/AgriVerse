@@ -172,6 +172,21 @@ export const styles = StyleSheet.create({
   categoryIconText: {
     fontSize: 20,
   },
+  deliveryProductIcon: {
+    width: 34,
+    height: 34,
+    resizeMode: 'contain',
+  },
+  deliveryProductIconSmall: {
+    width: 28,
+    height: 28,
+    resizeMode: 'contain',
+  },
+  deliveryHeadingWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
 
   // Priority / Order Pills
   priorityPill: {

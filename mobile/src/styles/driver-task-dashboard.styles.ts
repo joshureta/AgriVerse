@@ -539,6 +539,11 @@ export const styles = StyleSheet.create({
   categoryIcon: {
     fontSize: 26,
   },
+  deliveryProductIcon: {
+    width: 46,
+    height: 46,
+    resizeMode: 'contain',
+  },
   taskCenterColumn: {
     flex: 1,
     paddingHorizontal: 12,

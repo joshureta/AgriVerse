@@ -3,6 +3,7 @@ import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -54,7 +55,13 @@ function ActiveDeliveryCard({
     <View style={styles.taskCard}>
       {/* Top Header Row with Active label & Radar Badge */}
       <View style={styles.cardHeaderRow}>
-        <Text style={{ fontSize: 14, fontWeight: '800', color: GREEN }}>Active Delivery</Text>
+        <View style={styles.deliveryHeadingWithIcon}>
+          <Image
+            source={require('@/assets/images/delivery-produce-icon.png')}
+            style={styles.deliveryProductIconSmall}
+          />
+          <Text style={{ fontSize: 14, fontWeight: '800', color: GREEN }}>Active Delivery</Text>
+        </View>
         <View style={styles.radarPulseBox}>
           <Text style={styles.radarBadgeText}>{badgeLabel}</Text>
         </View>

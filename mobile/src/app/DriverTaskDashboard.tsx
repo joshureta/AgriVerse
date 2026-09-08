@@ -112,7 +112,10 @@ function DeliveryDashboardCard({
     <View style={styles.taskCard}>
       {/* Left: Squircle Vehicle Icon */}
       <View style={[styles.categorySquircle, { backgroundColor: '#EEF3EF' }]}>
-        <TruckIcon size={27} />
+        <Image
+          source={require('@/assets/images/delivery-produce-icon.png')}
+          style={styles.deliveryProductIcon}
+        />
       </View>
 
       {/* Center: Stacked Badges */}
@@ -294,7 +297,10 @@ export default function DriverTaskDashboardScreen() {
                       style={({ pressed }) => [styles.equipmentItemRow, pressed && { opacity: 0.9 }]}>
                       <View style={styles.equipmentItemLeft}>
                         <View style={styles.equipmentIconSquare}>
-                          <TruckIcon />
+                          <Image
+                            source={require('@/assets/images/driver-equipment.png')}
+                            style={styles.equipmentItemThumb}
+                          />
                         </View>
                         <View>
                           <Text style={styles.equipmentItemName}>{item.name}</Text>
