@@ -3,12 +3,17 @@ import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
+  LayoutAnimation,
+  Modal,
+  Platform,
   Pressable,
   RefreshControl,
   SafeAreaView,
   ScrollView,
   Text,
   TextInput,
+  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -29,68 +34,153 @@ type WorkerTaskRecord = {
   description: string | null;
   completed_at: string | null;
   completion_notes: string | null;
+  harvest_proof_image_url?: string | null;
+  harvest_small_count?: number | null;
+  harvest_medium_count?: number | null;
+  harvest_large_count?: number | null;
+  harvest_damaged_count?: number | null;
 };
 
 const GREEN = '#176d34';
 function SearchIcon() { return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>; }
-const taskIcons: Record<string, string> = {
-  Planting: '🌱',
-  Irrigation: '💧',
-  Fertilizer: '🌿',
-  Fertilizing: '🌿',
-  'Crop Inspection': '🔎',
-  'Pests & Disease Control': '🔎',
-  Harvesting: '🍍',
-};
 
 function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
+  const [expanded, setExpanded] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+
   const formattedTime = task.completed_at
     ? new Date(task.completed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : '11:30 AM';
   const isAwaitingApproval = task.status === 'awaiting_approval';
+  const isHarvesting = task.category === 'Harvesting' || isAwaitingApproval;
+
+  const statusIcon = isAwaitingApproval ? '⏳' : '✓';
+  const statusText = isAwaitingApproval
+    ? 'Harvesting • Awaiting Approval'
+    : 'Completed';
+
+  const hasHarvestCounts =
+    isHarvesting &&
+    (task.harvest_small_count != null ||
+      task.harvest_medium_count != null ||
+      task.harvest_large_count != null ||
+      task.harvest_damaged_count != null);
+
+  const toggleExpand = () => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded((prev) => !prev);
+  };
 
   return (
     <View style={styles.taskCard}>
-      {/* Top Header Banner (Mint Green Tint, or amber while awaiting admin approval) */}
-      <View style={[styles.taskHeaderBanner, isAwaitingApproval && styles.taskHeaderBannerPending]}>
-        <View style={[styles.checkCircle, isAwaitingApproval && styles.checkCirclePending]}>
-          <Text style={[styles.checkCheck, isAwaitingApproval && styles.checkCheckPending]}>
-            {isAwaitingApproval ? '⏳' : '✓'}
+      {/* Tappable main card area */}
+      <Pressable onPress={toggleExpand} style={styles.cardMainContent}>
+        {/* Status-colored bold font and bigger icon */}
+        <View style={styles.statusKickerRow}>
+          <Text style={isAwaitingApproval ? styles.statusIconHarvesting : styles.statusIconCompleted}>
+            {statusIcon}
+          </Text>
+          <Text style={isAwaitingApproval ? styles.statusKickerHarvesting : styles.statusKickerCompleted}>
+            {statusText}
           </Text>
         </View>
-        <Text style={styles.taskBannerTitle}>
+
+        {/* Task Title */}
+        <Text style={styles.taskTitle}>
           {task.category} - {task.description || `Completed task in ${task.field}`}
         </Text>
-      </View>
 
-      {isAwaitingApproval && (
-        <View style={styles.awaitingApprovalPill}>
-          <Text style={styles.awaitingApprovalPillText}>Awaiting Approval</Text>
-        </View>
-      )}
-
-      {/* Card Body */}
-      <View style={styles.taskBody}>
-        {/* Finished time row */}
-        <View style={styles.infoRow}>
-          <Text style={styles.clockIcon}>🕒</Text>
+        {/* Option 1 Clean Typography (No icons) */}
+        <View style={styles.taskMeta}>
           <Text style={styles.finishedText}>Finished at {formattedTime}</Text>
-        </View>
-
-        {/* Photo proof row */}
-        <View style={styles.infoRow}>
-          <View style={styles.photoProofThumbnail}>
-            <Text style={styles.photoProofFallback}>🖼️</Text>
-          </View>
-          <Text style={styles.photoProofText}>Photo proof</Text>
-        </View>
-
-        {/* Field location row */}
-        <View style={styles.infoRow}>
-          <Text style={styles.pinIcon}>📍</Text>
           <Text style={styles.fieldText}>Field: {task.field}</Text>
         </View>
-      </View>
+      </Pressable>
+
+      {/* Expandable Drawer ("see more" reveals Insights, Photo Proof, Harvest Counts) */}
+      {expanded ? (
+        <View style={styles.expandedDrawer}>
+          {/* Harvest Counts (if applicable) */}
+          {hasHarvestCounts ? (
+            <View style={styles.countsGrid}>
+              <View style={styles.countBox}>
+                <Text style={styles.countBoxLabel}>Small</Text>
+                <Text style={styles.countBoxValue}>{task.harvest_small_count ?? 0}</Text>
+              </View>
+              <View style={styles.countBox}>
+                <Text style={styles.countBoxLabel}>Medium</Text>
+                <Text style={styles.countBoxValue}>{task.harvest_medium_count ?? 0}</Text>
+              </View>
+              <View style={styles.countBox}>
+                <Text style={styles.countBoxLabel}>Large</Text>
+                <Text style={styles.countBoxValue}>{task.harvest_large_count ?? 0}</Text>
+              </View>
+              <View style={styles.countBox}>
+                <Text style={styles.countBoxLabel}>Damaged</Text>
+                <Text style={styles.countBoxValue}>{task.harvest_damaged_count ?? 0}</Text>
+              </View>
+            </View>
+          ) : null}
+
+          {/* Insights */}
+          <View style={styles.insightsContainer}>
+            <Text style={styles.sectionHeaderLabel}>Worker Insights</Text>
+            {task.completion_notes?.trim() ? (
+              <Text style={styles.insightsText}>{task.completion_notes.trim()}</Text>
+            ) : (
+              <Text style={styles.noInsightsText}>No additional insights logged for this task.</Text>
+            )}
+          </View>
+
+          {/* Photo Proof */}
+          <View style={styles.photoProofSection}>
+            <Text style={styles.sectionHeaderLabel}>Photo Proof</Text>
+            {task.harvest_proof_image_url ? (
+              <Pressable onPress={() => setModalVisible(true)} style={styles.photoProofContainer}>
+                <Image
+                  source={{ uri: task.harvest_proof_image_url }}
+                  style={styles.photoProofImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.photoProofOverlay}>
+                  <Text style={styles.photoProofOverlayText}>Tap to view full</Text>
+                </View>
+              </Pressable>
+            ) : (
+              <View style={styles.noPhotoContainer}>
+                <Text style={styles.noPhotoText}>No photo proof uploaded</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      ) : null}
+
+      {/* Faded "see more" / "see less" Toggle Button */}
+      <Pressable
+        onPress={toggleExpand}
+        style={({ pressed }) => [styles.seeMoreButton, pressed && styles.seeMoreButtonPressed]}>
+        <Text style={styles.seeMoreText}>{expanded ? 'see less' : 'see more'}</Text>
+        <Text style={styles.seeMoreChevron}>{expanded ? '⌃' : '⌄'}</Text>
+      </Pressable>
+
+      {/* Full-Screen Image Modal */}
+      {task.harvest_proof_image_url ? (
+        <Modal animationType="fade" onRequestClose={() => setModalVisible(false)} transparent visible={modalVisible}>
+          <Pressable onPress={() => setModalVisible(false)} style={styles.modalBackdrop}>
+            <Pressable onPress={() => setModalVisible(false)} style={styles.modalCloseButton}>
+              <Text style={styles.modalCloseText}>×</Text>
+            </Pressable>
+            <Image
+              source={{ uri: task.harvest_proof_image_url }}
+              style={styles.modalImage}
+              resizeMode="contain"
+            />
+          </Pressable>
+        </Modal>
+      ) : null}
     </View>
   );
 }

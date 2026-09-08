@@ -178,7 +178,7 @@ export default function DriverTaskActiveScreen() {
     const action = activeDeliveryAction(order.delivery_assignment_status);
     if (!action) return;
     if (action.nextStatus === 'delivered') {
-      router.push({ pathname: '/DriverTaskCompletion', params: { orderId: String(order.id) } });
+      router.push({ pathname: '/DriverTaskCompletion', params: { orderId: String(order.id), order: JSON.stringify(order) } });
       return;
     }
     setBusyId(order.id);

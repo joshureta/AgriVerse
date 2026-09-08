@@ -1,11 +1,12 @@
-import { styles } from '@/styles/worker-task-completion.styles';
-import { BlurView } from 'expo-blur';
+import { GREEN, styles } from '@/styles/worker-task-completion.styles';
 import * as ImagePicker from 'expo-image-picker';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -14,12 +15,11 @@ import {
   ScrollView,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
-import { taskCompletionBlurTargetRef } from '@/components/task-completion-blur-target';
 import { apiRequest } from '@/lib/api';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
 
@@ -31,24 +31,56 @@ type WorkerTask = {
   description: string | null;
 };
 
-const GREEN = '#176d34';
+const categoryIcons: Record<string, string> = {
+  Harvesting: '🍍',
+  Monitoring: '🌱',
+  Fertilizing: '🧪',
+  Pruning: '✂️',
+  Weeding: '🌿',
+  Planting: '🌱',
+  Watering: '💧',
+};
 
-function formatCurrentTime() {
-  return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+function CameraSvg({ color = '#176D34', size = 22 }: { color?: string; size?: number }) {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Path
+        d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 3H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z"
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <Circle cx="12" cy="13" r="4" stroke={color} strokeWidth="2" />
+    </Svg>
+  );
 }
 
-function parseFinishTime(value: string) {
-  const match = value.trim().match(/^(1[0-2]|0?[1-9]):([0-5]\d)\s*(AM|PM)$/i);
-  if (!match) return null;
-  let hour = Number(match[1]) % 12;
-  if (match[3].toUpperCase() === 'PM') hour += 12;
-  const date = new Date();
-  date.setHours(hour, Number(match[2]), 0, 0);
-  return date;
-}
-
-function ClockIcon() {
-  return <View style={styles.clock}><View style={styles.clockHour} /><View style={styles.clockMinute} /></View>;
+function GallerySvg({ color = '#FFFFFF', size = 15 }: { color?: string; size?: number }) {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Rect
+        height="18"
+        rx="2"
+        ry="2"
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        width="18"
+        x="3"
+        y="3"
+      />
+      <Circle cx="8.5" cy="8.5" fill={color} r="1.5" />
+      <Path
+        d="M21 15L16 10L5 21"
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </Svg>
+  );
 }
 
 function parseHarvestCount(value: string): number | null {
@@ -57,29 +89,85 @@ function parseHarvestCount(value: string): number | null {
   return Number(trimmed);
 }
 
+function parsePassedTask(value?: string): WorkerTask | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed.id === 'number') return parsed as WorkerTask;
+  } catch {
+    // Ignore malformed/missing param and fall back to fetching.
+  }
+  return null;
+}
+
 export default function WorkerTaskCompletionScreen() {
-  const { width } = useWindowDimensions();
-  const { taskId } = useLocalSearchParams<{ taskId?: string }>();
+  const { taskId, task: taskParam } = useLocalSearchParams<{ taskId?: string; task?: string }>();
+  const passedTask = parsePassedTask(taskParam);
   const { loading: authLoading, profile } = useAuth();
-  const [task, setTask] = useState<WorkerTask | null>(null);
-  const [timeFinished, setTimeFinished] = useState(formatCurrentTime);
+  const [task, setTask] = useState<WorkerTask | null>(passedTask);
   const [insights, setInsights] = useState('');
 
-  // Harvest counts (Harvesting tasks only)
+  // Harvest counts (Harvesting tasks only - 2x2 grid)
   const [smallCount, setSmallCount] = useState('');
   const [mediumCount, setMediumCount] = useState('');
   const [largeCount, setLargeCount] = useState('');
   const [damagedCount, setDamagedCount] = useState('');
 
-  // Photo states (Gallery selection only)
+  // Photo states
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [photoMime, setPhotoMime] = useState<string>('image/jpeg');
   const [photoName, setPhotoName] = useState<string>('');
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!passedTask);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Slide-up and Backdrop Fade Animations
+  const slideAnim = useRef(new Animated.Value(600)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const handleClose = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 600,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      router.back();
+    });
+  }, [fadeAnim, slideAnim]);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        damping: 24,
+        stiffness: 240,
+        mass: 0.7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [handleClose]);
 
   const loadTask = useCallback(async () => {
     if (!taskId || !/^\d+$/.test(taskId)) {
@@ -100,7 +188,12 @@ export default function WorkerTaskCompletionScreen() {
     }
   }, [taskId]);
 
-  useEffect(() => { if (profile) loadTask(); }, [loadTask, profile]);
+  useEffect(() => {
+    // Task data was already loaded on the active-tasks screen and handed off via
+    // params, so the sheet can render its content immediately instead of showing
+    // a loading state and re-fetching what we already have.
+    if (profile && !passedTask) loadTask();
+  }, [loadTask, profile, passedTask]);
 
   async function handlePickImage() {
     setError('');
@@ -141,11 +234,6 @@ export default function WorkerTaskCompletionScreen() {
   async function submitCompletion() {
     if (!task) return;
     const isHarvesting = task.category === 'Harvesting';
-    const completedAt = parseFinishTime(timeFinished);
-    if (!completedAt) {
-      setError('Enter the finish time in the format 9:30 AM.');
-      return;
-    }
     if (!photoUri) {
       setError('A photo of the completed work is required as proof of completion.');
       return;
@@ -179,7 +267,7 @@ export default function WorkerTaskCompletionScreen() {
       await apiRequest(`/api/worker/tasks/${task.id}/complete`, {
         method: 'POST',
         body: JSON.stringify({
-          completed_at: completedAt.toISOString(),
+          completed_at: new Date().toISOString(),
           completion_notes: insights.trim() || null,
           image: photoBase64 ? `data:${photoMime};base64,${photoBase64}` : null,
           image_mime: photoMime,
@@ -195,208 +283,270 @@ export default function WorkerTaskCompletionScreen() {
     }
   }
 
-  if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
+  if (authLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={GREEN} size="large" />
+      </View>
+    );
+  }
   if (!profile) return <Redirect href="/login" />;
 
-  const pagePadding = width < 360 ? 14 : 25;
   const workAllowed = canWorkCropTaskNow();
+  const isHarvesting = task?.category === 'Harvesting';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <BlurView
-        blurTarget={taskCompletionBlurTargetRef}
-        blurMethod="dimezisBlurViewSdk31Plus"
-        blurReductionFactor={2}
-        intensity={60}
-        pointerEvents="none"
-        style={styles.blurBackdrop}
-        tint="extraLight"
-      />
+    <SafeAreaView style={styles.container}>
+      {/* Dimmed backdrop - taps dismiss smoothly without heavy blur */}
+      <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+        <Pressable onPress={handleClose} style={styles.backdropPressable} />
+      </Animated.View>
+
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        <ScrollView contentContainerStyle={[styles.page, { paddingHorizontal: pagePadding }]} keyboardShouldPersistTaps="handled">
-          {loading ? (
-            <View style={styles.loadingCard}><ActivityIndicator color={GREEN} /><Text style={styles.loadingText}>Loading task…</Text></View>
-          ) : task ? (
-            <View style={styles.formCard}>
-              <View style={styles.categoryHeader}>
-                <View style={styles.categoryIcon}><Text style={styles.categoryEmoji}>🌱</Text></View>
-                <Text style={styles.categoryTitle}>{task.category}</Text>
+        <View style={styles.flex}>
+          {/* Spacer to push sheet to the bottom */}
+          <Pressable onPress={handleClose} style={styles.flex} />
+
+          {/* Slide-Up Bottom Sheet */}
+          <Animated.View
+            style={[
+              styles.bottomSheet,
+              {
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}>
+            {loading ? (
+              <View style={styles.loadingCard}>
+                <ActivityIndicator color={GREEN} />
+                <Text style={styles.loadingText}>Loading task…</Text>
               </View>
-
-              <View style={styles.formBody}>
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.label}>Field</Text>
-                  <Text style={styles.readonlyStrong}>{task.field}</Text>
+            ) : task ? (
+              <ScrollView
+                bounces={false}
+                contentContainerStyle={styles.sheetContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}>
+                {/* Header: Title & Close Button */}
+                <View style={styles.sheetHeaderRow}>
+                  <Text style={styles.sheetTitle}>
+                    {isHarvesting ? 'Submit Harvest' : 'Complete Task'}
+                  </Text>
+                  <Pressable
+                    accessibilityLabel="Close"
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={handleClose}
+                    style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}>
+                    <Text style={styles.closeButtonText}>✕</Text>
+                  </Pressable>
                 </View>
 
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.label}>Time Finished</Text>
-                  <View style={styles.timeRow}>
-                    <ClockIcon />
-                    <TextInput
-                      accessibilityLabel="Time finished"
-                      autoCapitalize="characters"
-                      maxLength={8}
-                      onChangeText={setTimeFinished}
-                      placeholder="9:30 AM"
-                      placeholderTextColor="#8b928b"
-                      selectTextOnFocus
-                      style={styles.timeInput}
-                      value={timeFinished}
-                    />
-                    <Text style={styles.chevron}>⌄</Text>
+                {/* Category & Location Badges */}
+                <View style={styles.categoryRow}>
+                  <View style={[styles.categoryBadge, isHarvesting && styles.categoryBadgeHarvesting]}>
+                    <Text style={[styles.categoryBadgeText, isHarvesting && styles.categoryBadgeTextHarvesting]}>
+                      {categoryIcons[task.category] || '🌱'} {task.category}
+                    </Text>
                   </View>
+                  {task.field ? (
+                    <View style={styles.fieldBadge}>
+                      <Text style={styles.fieldBadgeText}>📍 {task.field}</Text>
+                    </View>
+                  ) : null}
                 </View>
 
-                <View style={[styles.fieldGroup, styles.descriptionGroup]}>
-                  <Text style={styles.label}>Description</Text>
-                  <Text style={styles.description}>{task.description || 'No description provided.'}</Text>
-                </View>
+                {/* Standard Task Objective Box (For Non-Harvesting Tasks) */}
+                {!isHarvesting && (
+                  <View style={styles.standardObjectiveBox}>
+                    <Text style={styles.standardObjectiveLabel}>Task Objective</Text>
+                    <Text style={styles.standardObjectiveText}>
+                      {task.description || `${task.category} task in ${task.field}.`}
+                    </Text>
+                  </View>
+                )}
 
-                {task.category === 'Harvesting' && (
-                  <View style={[styles.fieldGroup, styles.harvestGroup]}>
-                    <Text style={styles.label}>Harvest Counts</Text>
-                    <View style={styles.harvestRow}>
-                      <View style={styles.harvestField}>
-                        <Text style={styles.harvestFieldLabel}>Small</Text>
+                {/* 2x2 Harvest Counts Grid (Harvesting Tasks Only) */}
+                {isHarvesting && (
+                  <View style={styles.harvestGrid}>
+                    {/* Row 1: Small & Medium */}
+                    <View style={styles.harvestGridRow}>
+                      <View style={styles.harvestGridItem}>
+                        <Text style={styles.harvestItemLabel}>Small</Text>
                         <TextInput
                           accessibilityLabel="Small pineapple count"
                           keyboardType="number-pad"
                           maxLength={5}
                           onChangeText={setSmallCount}
                           placeholder="0"
-                          placeholderTextColor="#9ca3af"
-                          style={styles.harvestInput}
+                          placeholderTextColor="#94A3B8"
+                          selectTextOnFocus
+                          style={styles.harvestItemInput}
                           value={smallCount}
                         />
                       </View>
-                      <View style={styles.harvestField}>
-                        <Text style={styles.harvestFieldLabel}>Medium</Text>
+                      <View style={styles.harvestGridItem}>
+                        <Text style={styles.harvestItemLabel}>Medium</Text>
                         <TextInput
                           accessibilityLabel="Medium pineapple count"
                           keyboardType="number-pad"
                           maxLength={5}
                           onChangeText={setMediumCount}
                           placeholder="0"
-                          placeholderTextColor="#9ca3af"
-                          style={styles.harvestInput}
+                          placeholderTextColor="#94A3B8"
+                          selectTextOnFocus
+                          style={styles.harvestItemInput}
                           value={mediumCount}
                         />
                       </View>
-                      <View style={styles.harvestField}>
-                        <Text style={styles.harvestFieldLabel}>Large</Text>
+                    </View>
+
+                    {/* Row 2: Large & Damaged */}
+                    <View style={styles.harvestGridRow}>
+                      <View style={styles.harvestGridItem}>
+                        <Text style={styles.harvestItemLabel}>Large</Text>
                         <TextInput
                           accessibilityLabel="Large pineapple count"
                           keyboardType="number-pad"
                           maxLength={5}
                           onChangeText={setLargeCount}
                           placeholder="0"
-                          placeholderTextColor="#9ca3af"
-                          style={styles.harvestInput}
+                          placeholderTextColor="#94A3B8"
+                          selectTextOnFocus
+                          style={styles.harvestItemInput}
                           value={largeCount}
                         />
                       </View>
-                      <View style={styles.harvestField}>
-                        <Text style={[styles.harvestFieldLabel, styles.harvestFieldLabelDamaged]}>Damaged</Text>
+                      <View style={styles.harvestGridItem}>
+                        <Text style={styles.harvestItemLabel}>Damaged</Text>
                         <TextInput
-                          accessibilityLabel="Damaged or rejected pineapple count"
+                          accessibilityLabel="Damaged pineapple count"
                           keyboardType="number-pad"
                           maxLength={5}
                           onChangeText={setDamagedCount}
                           placeholder="0"
-                          placeholderTextColor="#9ca3af"
-                          style={styles.harvestInput}
+                          placeholderTextColor="#94A3B8"
+                          selectTextOnFocus
+                          style={styles.harvestItemInput}
                           value={damagedCount}
                         />
                       </View>
                     </View>
-                    <Text style={styles.harvestHint}>
-                      This will be sent to your admin for approval before it's added to inventory.
-                    </Text>
                   </View>
                 )}
 
-                {/* Proof of Work / Photo Inspection Group (Below Description) */}
-                <View style={[styles.fieldGroup, styles.photoGroup]}>
-                  <Text style={styles.label}>
-                    Proof of Work <Text style={styles.photoRequiredBadge}>* (Photo Required)</Text>
-                  </Text>
-
-                  {!photoUri ? (
-                    <View style={styles.photoUploadBox}>
-                      <Text style={styles.photoUploadIcon}>📸</Text>
-                      <Text style={styles.photoUploadPrompt}>
-                        Select a photo of the completed crop work from your device
-                      </Text>
-                      <Pressable onPress={handlePickImage} style={styles.choosePhotoButton}>
-                        <Text style={styles.choosePhotoButtonText}>🖼️ Choose Photo from Gallery</Text>
+                {/* Photo Proof Section */}
+                <View style={styles.photoSection}>
+                  <Text style={styles.photoProofKicker}>PHOTO PROOF</Text>
+                  <View style={styles.photoProofContainer}>
+                    {photoUri ? (
+                      <View style={styles.photoImageWrapper}>
+                        <Image source={{ uri: photoUri }} style={styles.photoImage} />
+                        <View style={styles.photoButtonsOverlay}>
+                          <Pressable
+                            accessibilityLabel="Change photo"
+                            accessibilityRole="button"
+                            onPress={handlePickImage}
+                            style={({ pressed }) => [
+                              styles.photoActionButton,
+                              pressed && styles.photoActionButtonPressed,
+                            ]}>
+                            <Text style={styles.changeButtonText}>Change</Text>
+                          </Pressable>
+                          <Pressable
+                            accessibilityLabel="Remove photo"
+                            accessibilityRole="button"
+                            onPress={handleRemovePhoto}
+                            style={({ pressed }) => [
+                              styles.photoActionButton,
+                              pressed && styles.photoActionButtonPressed,
+                            ]}>
+                            <Text style={styles.removeButtonText}>Remove</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ) : (
+                      <Pressable
+                        accessibilityLabel="Select photo proof from gallery"
+                        accessibilityRole="button"
+                        onPress={handlePickImage}
+                        style={({ pressed }) => [
+                          styles.photoEmptyDropzone,
+                          pressed && styles.photoEmptyDropzonePressed,
+                        ]}>
+                        <View style={styles.photoEmptyIconCircle}>
+                          <CameraSvg color={GREEN} size={22} />
+                        </View>
+                        <Text style={styles.photoEmptyPrompt}>
+                          Select a photo of the completed crop work
+                        </Text>
+                        <View style={styles.photoEmptySelectButton}>
+                          <GallerySvg color="#FFFFFF" size={14} />
+                          <Text style={styles.photoEmptySelectButtonText}>
+                            Choose Photo from Gallery
+                          </Text>
+                        </View>
                       </Pressable>
-                    </View>
-                  ) : (
-                    <View>
-                      <View style={styles.photoPreviewContainer}>
-                        <Image source={{ uri: photoUri }} style={styles.photoPreviewImage} />
-                      </View>
-                      <View style={styles.photoBadgeRow}>
-                        <View style={styles.photoBadge}>
-                          <Text style={styles.photoBadgeText}>✓ Photo attached</Text>
-                        </View>
-                        <View style={styles.photoActionsRow}>
-                          <Pressable onPress={handlePickImage} style={styles.changePhotoButton}>
-                            <Text style={styles.changePhotoText}>🖼️ Change Photo</Text>
-                          </Pressable>
-                          <Pressable onPress={handleRemovePhoto} style={styles.removePhotoButton}>
-                            <Text style={styles.removePhotoText}>✕ Remove</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    </View>
-                  )}
+                    )}
+                  </View>
                 </View>
 
-                <View style={[styles.fieldGroup, styles.insightsGroup]}>
-                  <Text style={styles.label}>Insights (Optional)</Text>
+                {/* Insights Section */}
+                <View style={styles.insightsSection}>
+                  <Text style={styles.insightsLabel}>Insights</Text>
                   <TextInput
                     accessibilityLabel="Completion insights"
                     maxLength={2000}
                     multiline
                     onChangeText={setInsights}
-                    placeholder="Optional agronomic notes or observations..."
-                    placeholderTextColor="#9ca3af"
+                    placeholder="Typed agronomic notes / added observations..."
+                    placeholderTextColor="#94A3B8"
                     style={styles.insightsInput}
                     textAlignVertical="top"
                     value={insights}
                   />
                 </View>
 
-                {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
+                {/* Errors */}
+                {error ? (
+                  <Text accessibilityRole="alert" style={styles.errorText}>
+                    {error}
+                  </Text>
+                ) : null}
                 {!workAllowed ? <Text style={styles.errorText}>{CROP_WORK_HOURS_LABEL}</Text> : null}
+
+                {/* Submit Action Button */}
                 <Pressable
+                  accessibilityRole="button"
                   disabled={submitting || !workAllowed}
                   onPress={submitCompletion}
-                  style={({ pressed }) => [styles.submitButton, (pressed || submitting || !workAllowed) && styles.submitButtonPressed]}>
+                  style={({ pressed }) => [
+                    styles.submitButton,
+                    (pressed || submitting || !workAllowed) && styles.submitButtonPressed,
+                  ]}>
                   {submitting ? (
-                    <ActivityIndicator color="#fff" size="small" />
+                    <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <Text style={styles.submitText}>
-                      {!workAllowed ? 'Work unavailable' : task.category === 'Harvesting' ? 'Submit for Approval' : 'Complete Task'}
+                      {!workAllowed
+                        ? 'Work unavailable'
+                        : isHarvesting
+                        ? 'Submit for Approval'
+                        : 'Complete Task'}
                     </Text>
                   )}
                 </Pressable>
+              </ScrollView>
+            ) : (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>{error}</Text>
+                <Pressable onPress={handleClose}>
+                  <Text style={styles.backText}>Return to active tasks</Text>
+                </Pressable>
               </View>
-            </View>
-          ) : (
-            <View style={styles.errorCard}>
-              <Text style={styles.errorText}>{error}</Text>
-              <Pressable onPress={() => router.replace('/WorkerTaskActive')}>
-                <Text style={styles.backText}>Return to active tasks</Text>
-              </Pressable>
-            </View>
-          )}
-        </ScrollView>
+            )}
+          </Animated.View>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-
-

@@ -81,7 +81,7 @@ export default function WelcomeScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Get started with AgriVerse"
-            onPress={() => router.push('/authentication')}
+            onPress={() => router.push('/authentication?mode=login')}
             style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}>
             <BlurView intensity={35} tint="light" style={styles.startButtonBlur}>
               <Text style={styles.startButtonText}>Get Started</Text>

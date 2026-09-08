@@ -48,11 +48,11 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="WorkerTaskCompletion"
-            options={{ contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
+            options={{ animation: 'none', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
           />
           <Stack.Screen
             name="DriverTaskCompletion"
-            options={{ contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
+            options={{ animation: 'none', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
           />
         </Stack>
       </OnboardingGuard>

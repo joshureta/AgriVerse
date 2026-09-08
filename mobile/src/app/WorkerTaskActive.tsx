@@ -167,7 +167,7 @@ export default function WorkerTaskActiveScreen() {
               filteredTasks.map((task) => (
                 <ActiveTaskCard
                   key={task.id}
-                  onComplete={() => router.push({ pathname: '/WorkerTaskCompletion', params: { taskId: String(task.id) } })}
+                  onComplete={() => router.push({ pathname: '/WorkerTaskCompletion', params: { taskId: String(task.id), task: JSON.stringify(task) } })}
                   task={task}
                 />
               ))

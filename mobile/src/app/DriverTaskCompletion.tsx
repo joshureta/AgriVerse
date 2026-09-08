@@ -1,11 +1,12 @@
-import { styles } from '@/styles/driver-task-completion.styles';
-import { BlurView } from 'expo-blur';
+import { GREEN, styles } from '@/styles/driver-task-completion.styles';
 import * as ImagePicker from 'expo-image-picker';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -14,54 +15,163 @@ import {
   ScrollView,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
-import { WorkerHeader } from '@/components/worker-header';
-import { taskCompletionBlurTargetRef } from '@/components/task-completion-blur-target';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
-import { DriverOrder, DriverOrdersResponse, formatDeliveryAddress, formatDeliveryWindow, formatPeso } from '@/lib/driver-deliveries';
+import {
+  DriverOrder,
+  DriverOrdersResponse,
+  formatDeliveryAddress,
+  formatDeliveryWindow,
+  formatPeso,
+} from '@/lib/driver-deliveries';
 
-const GREEN = '#176d34';
-const vehicleImage = require('@/assets/images/driver-equipment.png');
+function CameraSvg({ color = '#176D34', size = 20 }: { color?: string; size?: number }) {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Path
+        d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 3H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z"
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <Circle cx="12" cy="13" r="4" stroke={color} strokeWidth="2" />
+    </Svg>
+  );
+}
 
-function ConfirmationField({ label, value }: { label: string; value: string }) {
-  return <View style={styles.fieldGroup}><Text style={styles.label}>{label}</Text><Text style={styles.readonlyStrong}>{value}</Text></View>;
+function GallerySvg({ color = '#FFFFFF', size = 14 }: { color?: string; size?: number }) {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Rect
+        height="18"
+        rx="2"
+        ry="2"
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        width="18"
+        x="3"
+        y="3"
+      />
+      <Circle cx="8.5" cy="8.5" fill={color} r="1.5" />
+      <Path
+        d="M21 15L16 10L5 21"
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </Svg>
+  );
+}
+
+function parsePassedOrder(value?: string): DriverOrder | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed.id === 'number') return parsed as DriverOrder;
+  } catch {
+    // Ignore malformed/missing param and fall back to fetching.
+  }
+  return null;
 }
 
 export default function DriverTaskCompletionScreen() {
-  const { width } = useWindowDimensions();
-  const { orderId } = useLocalSearchParams<{ orderId?: string }>();
+  const { orderId, order: orderParam } = useLocalSearchParams<{ orderId?: string; order?: string }>();
+  const passedOrder = parsePassedOrder(orderParam);
   const { loading: authLoading, profile } = useAuth();
-  const [order, setOrder] = useState<DriverOrder | null>(null);
+  const [order, setOrder] = useState<DriverOrder | null>(passedOrder);
   const [notes, setNotes] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [photoMime, setPhotoMime] = useState<string>('image/jpeg');
   const [photoName, setPhotoName] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!passedOrder);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Slide-up bottom sheet animations
+  const slideAnim = useRef(new Animated.Value(600)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const handleClose = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 600,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      router.back();
+    });
+  }, [fadeAnim, slideAnim]);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        damping: 24,
+        stiffness: 240,
+        mass: 0.7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [handleClose]);
+
   const loadOrder = useCallback(async () => {
-    if (!orderId || !/^\d+$/.test(orderId)) { setError('A valid delivery order is required.'); setLoading(false); return; }
-    setLoading(true); setError('');
+    if (!orderId || !/^\d+$/.test(orderId)) {
+      setError('A valid delivery order is required.');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError('');
     try {
       const response = await apiRequest<DriverOrdersResponse>('/api/driver/orders');
       const selectedOrder = (response.orders ?? []).find((item) => item.id === Number(orderId));
       if (!selectedOrder) throw new Error('This assigned delivery could not be found.');
-      if (selectedOrder.delivery_assignment_status !== 'out_for_delivery') throw new Error('This delivery is not ready to be completed.');
+      if (selectedOrder.delivery_assignment_status !== 'out_for_delivery') {
+        throw new Error('This delivery is not ready to be completed.');
+      }
       setOrder(selectedOrder);
     } catch (caught) {
       setOrder(null);
       setError(caught instanceof Error ? caught.message : 'Could not load this delivery.');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, [orderId]);
 
-  useEffect(() => { if (profile) loadOrder(); }, [loadOrder, profile]);
+  useEffect(() => {
+    // Order data was already loaded on the active-deliveries screen and handed off
+    // via params, so the sheet can render its content immediately instead of showing
+    // a loading state and re-fetching what we already have.
+    if (profile && !passedOrder) loadOrder();
+  }, [loadOrder, profile, passedOrder]);
 
   async function handlePickImage() {
     setError('');
@@ -107,7 +217,8 @@ export default function DriverTaskCompletionScreen() {
       setError('Notes must not exceed 2000 characters.');
       return;
     }
-    setSubmitting(true); setError('');
+    setSubmitting(true);
+    setError('');
     try {
       await apiRequest(`/api/driver/orders/${order.id}/complete`, {
         method: 'POST',
@@ -121,86 +232,232 @@ export default function DriverTaskCompletionScreen() {
       router.replace('/DriverTaskCompleted');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not complete this delivery.');
-    } finally { setSubmitting(false); }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
+  if (authLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={GREEN} size="large" />
+      </View>
+    );
+  }
   if (!profile) return <Redirect href="/login" />;
-  const pagePadding = width < 360 ? 14 : 25;
-  const vehicle = order?.vehicle ? `${order.vehicle.vehicle_name} · ${order.vehicle.plate_number}` : 'Not recorded';
 
-  return <SafeAreaView style={styles.safeArea}>
-    <BlurView blurTarget={taskCompletionBlurTargetRef} blurMethod="dimezisBlurViewSdk31Plus" blurReductionFactor={2} intensity={60} pointerEvents="none" style={styles.blurBackdrop} tint="extraLight" />
-    <WorkerHeader logoPosition="left" logoSize={48} logoSource={require('@/assets/images/driver-dashboard-emblem.png')} />
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-      <ScrollView contentContainerStyle={[styles.page, { paddingHorizontal: pagePadding }]} keyboardShouldPersistTaps="handled">
-        {loading ? <View style={styles.loadingCard}><ActivityIndicator color={GREEN} /><Text style={styles.loadingText}>Loading delivery…</Text></View> : order ? (
-          <View style={styles.formCard}>
-            <View style={styles.categoryHeader}><View style={styles.categoryIcon}><Image source={vehicleImage} style={styles.categoryImage} /></View><View><Text style={styles.categoryTitle}>Complete Delivery</Text><Text style={styles.categorySubtitle}>{order.order_number}</Text></View></View>
-            <View style={styles.formBody}>
-              <Text style={styles.confirmationText}>Take a photo showing the order was delivered. This marks the order delivered, releases the vehicle, and lets the customer confirm receipt.</Text>
-              <ConfirmationField label="RECEIVER" value={order.delivery_full_name || 'Not provided'} />
-              <ConfirmationField label="CONTACT NUMBER" value={order.delivery_mobile_number || 'Not provided'} />
-              <ConfirmationField label="DELIVERY LOCATION" value={formatDeliveryAddress(order)} />
-              <ConfirmationField label="DELIVERY WINDOW" value={formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)} />
-              <ConfirmationField label="PAYMENT" value={`${order.payment_method} · ${formatPeso(order.total_amount)}`} />
-              <ConfirmationField label="VEHICLE" value={vehicle} />
+  const vehicle = order?.vehicle
+    ? `${order.vehicle.vehicle_name} · ${order.vehicle.plate_number}`
+    : 'Vehicle not recorded';
+  const deliveryWindow = order
+    ? formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)
+    : '';
 
-              <View style={[styles.fieldGroup, styles.photoGroup]}>
-                <Text style={styles.label}>
-                  Delivery Proof <Text style={styles.photoRequiredBadge}>* (Photo Required)</Text>
-                </Text>
-                {!photoUri ? (
-                  <View style={styles.photoUploadBox}>
-                    <Text style={styles.photoUploadIcon}>📸</Text>
-                    <Text style={styles.photoUploadPrompt}>Select a photo showing the order was delivered</Text>
-                    <Pressable onPress={handlePickImage} style={styles.choosePhotoButton}>
-                      <Text style={styles.choosePhotoButtonText}>🖼️ Choose Photo from Gallery</Text>
-                    </Pressable>
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Dimmed backdrop - taps dismiss smoothly without heavy blur */}
+      <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+        <Pressable onPress={handleClose} style={styles.backdropPressable} />
+      </Animated.View>
+
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+        <View style={styles.flex}>
+          {/* Spacer to push sheet to the bottom */}
+          <Pressable onPress={handleClose} style={styles.flex} />
+
+          {/* Slide-Up Bottom Sheet */}
+          <Animated.View
+            style={[
+              styles.bottomSheet,
+              {
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}>
+            {loading ? (
+              <View style={styles.loadingCard}>
+                <ActivityIndicator color={GREEN} />
+                <Text style={styles.loadingText}>Loading delivery…</Text>
+              </View>
+            ) : order ? (
+              <ScrollView
+                bounces={false}
+                contentContainerStyle={styles.sheetContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}>
+                {/* Header: Title & Close Button */}
+                <View style={styles.sheetHeaderRow}>
+                  <Text style={styles.sheetTitle}>Complete Delivery</Text>
+                  <Pressable
+                    accessibilityLabel="Close"
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={handleClose}
+                    style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}>
+                    <Text style={styles.closeButtonText}>✕</Text>
+                  </Pressable>
+                </View>
+
+                {/* Badges Row */}
+                <View style={styles.badgesRow}>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusBadgeText}>🚚 Out for Delivery</Text>
                   </View>
-                ) : (
-                  <View>
-                    <View style={styles.photoPreviewContainer}>
-                      <Image source={{ uri: photoUri }} style={styles.photoPreviewImage} />
+                  <View style={styles.orderBadge}>
+                    <Text style={styles.orderBadgeText}>{order.order_number}</Text>
+                  </View>
+                </View>
+
+                {/* Consolidated Delivery Information Card */}
+                <View style={styles.deliveryInfoCard}>
+                  {/* Receiver & Contact */}
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoColLeft}>
+                      <Text style={styles.fieldKicker}>Receiver</Text>
+                      <Text style={styles.receiverName}>{order.delivery_full_name || 'Not provided'}</Text>
                     </View>
-                    <View style={styles.photoBadgeRow}>
-                      <View style={styles.photoBadge}><Text style={styles.photoBadgeText}>✓ Photo attached</Text></View>
-                      <View style={styles.photoActionsRow}>
-                        <Pressable onPress={handlePickImage} style={styles.changePhotoButton}><Text style={styles.changePhotoText}>🖼️ Change Photo</Text></Pressable>
-                        <Pressable onPress={handleRemovePhoto} style={styles.removePhotoButton}><Text style={styles.removePhotoText}>✕ Remove</Text></Pressable>
+                    <View style={styles.infoColRight}>
+                      <Text style={styles.fieldKicker}>Phone</Text>
+                      <Text style={styles.phoneNumber}>{order.delivery_mobile_number || 'N/A'}</Text>
+                    </View>
+                  </View>
+
+                  {/* Drop-off Address */}
+                  <View style={styles.addressDivider}>
+                    <Text style={styles.fieldKicker}>Drop-off Location</Text>
+                    <Text style={styles.addressText}>{formatDeliveryAddress(order)}</Text>
+                  </View>
+
+                  {/* Metadata Chips Row: Payment, Vehicle, Window */}
+                  <View style={styles.chipsRow}>
+                    <View style={styles.metaChip}>
+                      <Text style={styles.metaChipText}>💳 {order.payment_method} · {formatPeso(order.total_amount)}</Text>
+                    </View>
+                    <View style={styles.metaChip}>
+                      <Text style={styles.metaChipText}>🚛 {vehicle}</Text>
+                    </View>
+                    {deliveryWindow ? (
+                      <View style={styles.metaChip}>
+                        <Text style={styles.metaChipText}>⏱️ {deliveryWindow}</Text>
                       </View>
+                    ) : null}
+                  </View>
+                </View>
+
+                {/* Proof of Delivery Photo Section */}
+                <View style={styles.photoSection}>
+                  <View style={styles.photoHeaderRow}>
+                    <Text style={styles.photoProofKicker}>Delivery Proof</Text>
+                    <View style={styles.photoRequiredTag}>
+                      <Text style={styles.photoRequiredText}>Photo Required</Text>
                     </View>
                   </View>
-                )}
-              </View>
 
-              <View style={[styles.fieldGroup, styles.notesGroup]}>
-                <Text style={styles.label}>Notes (Optional)</Text>
-                <TextInput
-                  accessibilityLabel="Delivery notes"
-                  maxLength={2000}
-                  multiline
-                  onChangeText={setNotes}
-                  placeholder="Any details about the drop-off..."
-                  placeholderTextColor="#9ca3af"
-                  style={styles.notesInput}
-                  textAlignVertical="top"
-                  value={notes}
-                />
-              </View>
+                  <View style={styles.photoProofContainer}>
+                    {photoUri ? (
+                      <View style={styles.photoImageWrapper}>
+                        <Image source={{ uri: photoUri }} style={styles.photoImage} />
+                        <View style={styles.photoAttachedBadge}>
+                          <Text style={styles.photoAttachedBadgeText}>✓ Photo attached</Text>
+                        </View>
+                        <View style={styles.photoButtonsOverlay}>
+                          <Pressable
+                            accessibilityLabel="Change photo"
+                            accessibilityRole="button"
+                            onPress={handlePickImage}
+                            style={({ pressed }) => [
+                              styles.photoActionButton,
+                              pressed && styles.photoActionButtonPressed,
+                            ]}>
+                            <Text style={styles.changeButtonText}>Change</Text>
+                          </Pressable>
+                          <Pressable
+                            accessibilityLabel="Remove photo"
+                            accessibilityRole="button"
+                            onPress={handleRemovePhoto}
+                            style={({ pressed }) => [
+                              styles.photoActionButton,
+                              pressed && styles.photoActionButtonPressed,
+                            ]}>
+                            <Text style={styles.removeButtonText}>Remove</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ) : (
+                      <Pressable
+                        accessibilityLabel="Select photo proof from gallery"
+                        accessibilityRole="button"
+                        onPress={handlePickImage}
+                        style={({ pressed }) => [
+                          styles.photoEmptyDropzone,
+                          pressed && styles.photoEmptyDropzonePressed,
+                        ]}>
+                        <View style={styles.photoEmptyIconCircle}>
+                          <CameraSvg color={GREEN} size={20} />
+                        </View>
+                        <Text style={styles.photoEmptyPrompt}>
+                          Select a photo showing the delivered parcel
+                        </Text>
+                        <View style={styles.photoEmptySelectButton}>
+                          <GallerySvg color="#FFFFFF" size={13} />
+                          <Text style={styles.photoEmptySelectButtonText}>
+                            Choose Photo from Gallery
+                          </Text>
+                        </View>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
 
-              {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
-              <View style={styles.actions}>
-                <Pressable disabled={submitting} onPress={() => router.replace('/DriverTaskActive')} style={styles.cancelButton}><Text style={styles.cancelText}>Back</Text></Pressable>
-                <Pressable disabled={submitting} onPress={submitProof} style={({ pressed }) => [styles.submitButton, (pressed || submitting) && styles.submitButtonPressed]}>
-                  {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Submit Delivery Proof</Text>}
+                {/* Delivery Notes */}
+                <View style={styles.notesSection}>
+                  <Text style={styles.notesLabel}>Notes (Optional)</Text>
+                  <TextInput
+                    accessibilityLabel="Delivery notes"
+                    maxLength={2000}
+                    multiline
+                    onChangeText={setNotes}
+                    placeholder="Any details about the drop-off (e.g. left with guard, gate)..."
+                    placeholderTextColor="#94A3B8"
+                    style={styles.notesInput}
+                    textAlignVertical="top"
+                    value={notes}
+                  />
+                </View>
+
+                {/* Error Banner */}
+                {error ? (
+                  <Text accessibilityRole="alert" style={styles.errorText}>
+                    {error}
+                  </Text>
+                ) : null}
+
+                {/* Submit Action Button */}
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={submitting}
+                  onPress={submitProof}
+                  style={({ pressed }) => [
+                    styles.submitButton,
+                    (pressed || submitting) && styles.submitButtonPressed,
+                  ]}>
+                  {submitting ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.submitText}>Submit Delivery Proof</Text>
+                  )}
+                </Pressable>
+              </ScrollView>
+            ) : (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>{error}</Text>
+                <Pressable onPress={handleClose}>
+                  <Text style={styles.backText}>Return to active deliveries</Text>
                 </Pressable>
               </View>
-            </View>
-          </View>
-        ) : <View style={styles.errorCard}><Text style={styles.errorText}>{error}</Text><Pressable onPress={() => router.replace('/DriverTaskActive')}><Text style={styles.backText}>Return to active deliveries</Text></Pressable></View>}
-      </ScrollView>
-    </KeyboardAvoidingView>
-    <WorkerBottomNavigation activeTab="tasks" />
-  </SafeAreaView>;
+            )}
+          </Animated.View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }

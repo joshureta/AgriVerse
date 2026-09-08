@@ -13,7 +13,7 @@ const statuses = new Set(["pending", "in_progress", "awaiting_approval", "comple
 const taskSelect = [
   "id, task_name, assigned_worker_id, description, estimated_duration_minutes, started_at, completed_at, completion_notes, created_at, updated_at",
   "harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count",
-  "harvest_rejection_reason, harvest_rejected_at, approved_at",
+  "harvest_rejection_reason, harvest_rejected_at, approved_at, harvest_proof_image_url",
   "category:task_categories!tasks_category_id_fkey(id, category_name)",
   "field:farm_fields!tasks_field_id_fkey(id, field_name)",
   "priority:task_priorities!tasks_priority_id_fkey(id, priority_name, code)",

@@ -84,137 +84,243 @@ export const styles = StyleSheet.create({
     marginTop: 40,
   },
 
-  // Completed Task Card
+  // Completed Task Card (Bannerless)
   taskCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 2,
     overflow: 'hidden',
   },
-
-  // Top Header Banner (Mint Green Tint)
-  taskHeaderBanner: {
-    backgroundColor: '#D6E8D6',
+  cardMainContent: {
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
+  },
+  statusKickerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 7,
+    marginBottom: 6,
   },
-  checkCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: GREEN,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: GREEN,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  checkCheck: {
-    color: '#FFFFFF',
+  statusIconCompleted: {
+    color: '#176D34',
     fontSize: 18,
     fontWeight: '900',
   },
-  taskBannerTitle: {
+  statusIconHarvesting: {
+    color: '#D97706',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  statusKickerCompleted: {
+    color: '#176D34',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  statusKickerHarvesting: {
+    color: '#D97706',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  taskTitle: {
     color: '#111827',
     fontSize: 16,
-    fontWeight: '800',
     lineHeight: 22,
-    flex: 1,
-  },
-
-  // Awaiting-approval variant (harvesting tasks pending admin review)
-  taskHeaderBannerPending: {
-    backgroundColor: '#FEF3C7',
-  },
-  checkCirclePending: {
-    backgroundColor: '#D97706',
-    shadowColor: '#D97706',
-  },
-  checkCheckPending: {
-    fontSize: 15,
-  },
-  awaitingApprovalPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginHorizontal: 16,
-    marginTop: 12,
-  },
-  awaitingApprovalPillText: {
-    color: '#92400E',
-    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.3,
   },
-
-  // Card Body
-  taskBody: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  clockIcon: {
-    fontSize: 16,
-    color: '#374151',
+  taskMeta: {
+    marginTop: 8,
+    gap: 3,
   },
   finishedText: {
-    color: '#1F2937',
-    fontSize: 14,
+    color: '#374151',
+    fontSize: 13,
     fontWeight: '600',
   },
-  photoProofThumbnail: {
-    width: 42,
-    height: 42,
-    borderRadius: 8,
-    backgroundColor: '#263228',
+  fieldText: {
+    color: '#6B7280',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // "see more" / "see less" Toggle Button
+  seeMoreButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  seeMoreButtonPressed: {
+    backgroundColor: '#F8FAFC',
+  },
+  seeMoreText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  seeMoreChevron: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  // Expandable Drawer Container
+  expandedDrawer: {
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    gap: 12,
+  },
+
+  // Harvest counts (if applicable)
+  countsGrid: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
+  },
+  countBox: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  countBoxLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  countBoxValue: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginTop: 1,
+  },
+
+  // Insights Section
+  insightsContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 11,
+    marginTop: 8,
+  },
+  sectionHeaderLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  insightsText: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: '#334155',
+    fontWeight: '500',
+  },
+  noInsightsText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#94A3B8',
+  },
+
+  // Photo Proof Section
+  photoProofSection: {
+    marginTop: 2,
+  },
+  photoProofContainer: {
+    width: '100%',
+    height: 160,
+    borderRadius: 11,
+    backgroundColor: '#1E293B',
     overflow: 'hidden',
+    marginTop: 4,
+    position: 'relative',
   },
   photoProofImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
-  photoProofFallback: {
+  photoProofOverlay: {
+    position: 'absolute',
+    bottom: 6,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  photoProofOverlayText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 10,
+    fontWeight: '600',
   },
-  photoProofText: {
-    color: '#1F2937',
-    fontSize: 14,
+  noPhotoContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#CBD5E1',
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  noPhotoText: {
+    fontSize: 12,
+    color: '#94A3B8',
     fontWeight: '500',
   },
-  pinIcon: {
-    fontSize: 16,
-    color: '#4B5563',
+
+  // Full Screen Photo Modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  fieldText: {
-    color: '#374151',
-    fontSize: 14,
-    fontWeight: '500',
+  modalCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  modalImage: {
+    width: '92%',
+    height: '75%',
+    borderRadius: 12,
   },
 
   // Empty State
@@ -222,6 +328,20 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 56,
     paddingHorizontal: 20,
+  },
+  checkCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EAF4D9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  checkCheck: {
+    color: GREEN,
+    fontSize: 22,
+    fontWeight: '900',
   },
   emptyCheck: {
     width: 56,
