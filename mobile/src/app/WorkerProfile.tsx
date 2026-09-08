@@ -83,8 +83,8 @@ export default function WorkerProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <WorkerHeader
         logoPosition="left"
-        logoSize={profile.worker_category === 'driver' ? 48 : 42}
-        logoSource={profile.worker_category === 'driver' ? require('@/assets/images/driver-dashboard-emblem.png') : require('@/assets/images/toledo-trading-logo.png')}
+        logoSize={48}
+        logoSource={require('@/assets/images/driver-dashboard-emblem.png')}
       />
       <View style={[styles.mainBodyContainer, { borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' }]}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>

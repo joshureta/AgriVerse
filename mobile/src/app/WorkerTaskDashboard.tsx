@@ -132,7 +132,7 @@ export default function WorkerTaskDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-      <WorkerHeader extendUnderStatusBar height={72} transparent overlay logoPosition="left" logoSize={42} blurred={navbarBlurred} />
+      <WorkerHeader extendUnderStatusBar height={72} transparent overlay logoPosition="left" logoSize={48} logoSource={require('@/assets/images/driver-dashboard-emblem.png')} blurred={navbarBlurred} />
 
       <View style={styles.mainBodyContainer}>
         <ScrollView
@@ -166,12 +166,6 @@ export default function WorkerTaskDashboardScreen() {
                   ['Active', dashboard.active, '/WorkerTaskActive'],
                   ['Completed', dashboard.completed, '/WorkerTaskCompleted'],
                 ].map(([label, value, route]) => <Pressable key={String(label)} onPress={() => router.push(route as any)} style={styles.statCol}><Text style={styles.statNumber}>{value}</Text><Text style={styles.statLabel}>{label}{'\n'}Tasks</Text></Pressable>)}
-              </View>
-            </View>
-            <View style={styles.nestedEquipmentCard}>
-              <View style={styles.nestedEquipmentHeader}><Text style={styles.nestedEquipmentHeading}>Equipment Status</Text></View>
-              <View style={styles.equipmentList}>
-                {['Field tools', 'Irrigation kit', 'Safety equipment'].map((item) => <View key={item} style={styles.equipmentItemRow}><View style={styles.equipmentItemLeft}><View style={styles.equipmentIconSquare}><Text style={styles.equipmentItemName}>E</Text></View><Text style={styles.equipmentItemName}>{item}</Text></View><View style={[styles.equipmentStatusTag, styles.statusTag_available]}><Text style={[styles.statusTagText, styles.statusTagText_available]}>Available</Text></View></View>)}
               </View>
             </View>
           </View>

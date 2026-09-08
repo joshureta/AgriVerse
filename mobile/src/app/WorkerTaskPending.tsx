@@ -220,7 +220,7 @@ export default function WorkerTaskPending() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <WorkerHeader logoPosition="left" logoSize={42} />
+      <WorkerHeader logoPosition="left" logoSize={48} logoSource={require('@/assets/images/driver-dashboard-emblem.png')} />
 
       <View style={styles.mainBodyContainer}>
         <ScrollView

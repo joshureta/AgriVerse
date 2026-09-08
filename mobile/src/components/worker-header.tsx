@@ -3,7 +3,13 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
+import { useAuth } from '@/context/auth-context';
 import { styles } from '@/styles/components/worker-header.styles';
+
+function getInitials(name?: string | null) {
+  const parts = name?.trim().split(/\s+/).filter(Boolean) ?? [];
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
+}
 
 function BellIcon() {
   return (
@@ -53,6 +59,7 @@ export function WorkerHeader({
   blurred?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const { profile } = useAuth();
 
   return (
     <View style={[
@@ -88,6 +95,13 @@ export function WorkerHeader({
           <Pressable accessibilityLabel="Notifications" accessibilityRole="button" hitSlop={12}>
             <BellIcon />
           </Pressable>
+          <View
+            accessible
+            accessibilityLabel={`${profile?.full_name || 'User'} profile`}
+            style={styles.profileAvatar}
+          >
+            <Text style={styles.profileAvatarText}>{getInitials(profile?.full_name)}</Text>
+          </View>
         </View>
       </View>
     </View>

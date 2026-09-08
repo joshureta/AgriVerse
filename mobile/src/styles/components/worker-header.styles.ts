@@ -46,6 +46,7 @@ export const styles = StyleSheet.create({
   },
   zoneEnd: {
     justifyContent: 'flex-end',
+    gap: 8,
   },
   logo: {
     width: 36,
@@ -83,5 +84,21 @@ export const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '900',
     lineHeight: 11,
+  },
+  profileAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4A9D65',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  profileAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
 });

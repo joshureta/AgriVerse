@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   ScrollView,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -18,6 +19,8 @@ import { WorkerTaskSegmentedTabs } from '@/components/worker-task-segmented-tabs
 import { TaskCompletionBlurTarget } from '@/components/task-completion-blur-target';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 type TaskStatus = 'pending' | 'in_progress' | 'awaiting_approval' | 'completed';
 type WorkerTaskRecord = {
@@ -31,6 +34,7 @@ type WorkerTaskRecord = {
 };
 
 const GREEN = '#176d34';
+function SearchIcon() { return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>; }
 const taskIcons: Record<string, string> = {
   Planting: '🌱',
   Fertilizing: '🌿',
@@ -117,6 +121,7 @@ export default function WorkerTaskActiveScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadTasks = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -141,26 +146,25 @@ export default function WorkerTaskActiveScreen() {
   if (!profile) return <Redirect href="/login" />;
 
   const horizontalPadding = width < 360 ? 14 : 24;
+  const filteredTasks = tasks.filter((task) => `${task.category} ${task.field} ${task.description || ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase()));
 
   return (
     <TaskCompletionBlurTarget>
       <SafeAreaView style={styles.safeArea}>
-        <WorkerHeader logoPosition="left" logoSize={42} />
+        <WorkerHeader logoPosition="left" logoSize={48} logoSource={require('@/assets/images/driver-dashboard-emblem.png')} />
 
         <View style={styles.mainBodyContainer}>
           <ScrollView
             contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
             refreshControl={<RefreshControl colors={[GREEN]} refreshing={refreshing} onRefresh={() => loadTasks(true)} />}>
             <Text style={styles.pageTitle}>My Tasks</Text>
-            <WorkerTaskSegmentedTabs
-              activeTab="in_progress"
-              onTabChange={(_tab, route) => router.replace(route as any)}
-            />
+            <View style={deliveryStyles.deliveryToolbar}><View style={deliveryStyles.deliverySearch}><SearchIcon /><TextInput accessibilityLabel="Search tasks" onChangeText={setSearchQuery} placeholder="Search tasks" placeholderTextColor="#94A3B8" style={deliveryStyles.deliverySearchInput} value={searchQuery} /></View></View>
+            <View style={deliveryStyles.deliveryStatusTabs}>{[{ label: 'Pending', route: '/WorkerTaskPending' }, { label: 'Active', route: '/WorkerTaskActive' }, { label: 'Completed', route: '/WorkerTaskCompleted' }].map((tab) => { const active = tab.label === 'Active'; return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[deliveryStyles.deliveryStatusTab, active && deliveryStyles.deliveryStatusTabActive]}><Text style={[deliveryStyles.deliveryStatusTabText, active && deliveryStyles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>; })}</View>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
             {loading ? (
               <ActivityIndicator color={GREEN} style={styles.loader} />
-            ) : tasks.length ? (
-              tasks.map((task) => (
+            ) : filteredTasks.length ? (
+              filteredTasks.map((task) => (
                 <ActiveTaskCard
                   key={task.id}
                   onComplete={() => router.push({ pathname: '/WorkerTaskCompletion', params: { taskId: String(task.id) } })}
