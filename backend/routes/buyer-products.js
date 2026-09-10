@@ -75,4 +75,33 @@ router.get("/pineapples", async (req, res, next) => {
   }
 });
 
+router.get("/reviews", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase()
+      .from("buyer_orders")
+      .select("id, buyer_rating, buyer_rating_comment, buyer_rated_at, items:buyer_order_items!buyer_order_items_order_id_fkey(product_name, weight_label), buyer:profiles!buyer_orders_buyer_id_fkey(full_name)")
+      .not("buyer_rating", "is", null)
+      .eq("order_status", "completed")
+      .order("buyer_rated_at", { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    const reviews = (data || []).map((order) => {
+      const name = String(order.buyer?.full_name || "Verified buyer").trim();
+      const parts = name.split(/\s+/).filter(Boolean);
+      const displayName = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0] || "Verified buyer";
+      return {
+        id: order.id,
+        name: displayName,
+        rating: order.buyer_rating,
+        text: order.buyer_rating_comment || "Verified purchase",
+        date: order.buyer_rated_at,
+        productSize: order.items?.[0]?.weight_label || "Pineapple",
+      };
+    });
+    return res.json({ reviews });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 module.exports = router;

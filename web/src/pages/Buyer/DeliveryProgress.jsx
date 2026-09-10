@@ -21,6 +21,7 @@ import {
   loadBuyerOrders,
   readBuyerCart,
   readFileAsBase64,
+  rateBuyerOrder,
   reportBuyerOrderDispute,
 } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
@@ -54,6 +55,8 @@ const DISPUTE_CATEGORY_OPTIONS = [
   { value: 'missing_item', label: 'Missing item', description: 'An item from the order was not included' },
   { value: 'wrong_quantity', label: 'Wrong quantity', description: 'You received fewer items than ordered' },
 ]
+
+const disputeCategoryLabels = Object.fromEntries(DISPUTE_CATEGORY_OPTIONS.map((option) => [option.value, option.label]))
 
 const ORDER_FILTERS = [
   { id: 'all', label: 'All' },
@@ -147,6 +150,7 @@ export default function DeliveryProgress() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [confirming, setConfirming] = useState(false)
+  const [confirmingOrderId, setConfirmingOrderId] = useState(null)
   const [disputing, setDisputing] = useState(false)
   const [disputeFormOpen, setDisputeFormOpen] = useState(false)
   const [disputeCategory, setDisputeCategory] = useState('')
@@ -235,6 +239,23 @@ export default function DeliveryProgress() {
     } finally {
       setConfirming(false)
     }
+  }
+
+  async function handleListConfirmReceipt(order) {
+    setConfirmingOrderId(order.id); setReceiptError('')
+    try { const updated = await confirmBuyerOrderReceipt(order.id); setOrders((current) => current.map((item) => item.id === updated.id ? updated : item)) }
+    catch (requestError) { setReceiptError(requestError.message) }
+    finally { setConfirmingOrderId(null) }
+  }
+
+  async function handleRateOrder(order) {
+    const value = window.prompt('Rate this order from 1 to 5 stars')
+    if (value == null) return
+    const rating = Number(value)
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) { setReceiptError('Please choose a whole-number rating from 1 to 5.'); return }
+    const comment = window.prompt('Add a comment (optional)') || ''
+    try { const updated = await rateBuyerOrder(order.id, rating, comment); setOrders((current) => current.map((item) => item.id === updated.id ? updated : item)) }
+    catch (requestError) { setReceiptError(requestError.message) }
   }
 
   async function handleSubmitDispute(event) {
@@ -336,7 +357,7 @@ export default function DeliveryProgress() {
               </label>
             </header>
             <div className="history-list">
-              <div className="history-list-head" aria-hidden="true"><span>Order</span><span>Items</span><span>Total</span><span>Status</span><span /></div>
+              <div className="history-list-head" aria-hidden="true"><span>Order</span><span>Items</span><span>Total</span><span>Status</span><span>Actions</span></div>
               {visibleOrders.length === 0 && (
                 <div className="history-search-empty">
                   <Search aria-hidden="true" />
@@ -345,7 +366,14 @@ export default function DeliveryProgress() {
                 </div>
               )}
               {visibleOrders.map((order) => (
-                <button className="history-order" type="button" key={order.id} onClick={() => { setSelectedOrderId(order.id); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+                <article
+                  className="history-order"
+                  key={order.id}
+                  role="button"
+                  tabIndex="0"
+                  onClick={() => { setSelectedOrderId(order.id); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                  onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedOrderId(order.id); window.scrollTo({ top: 0, behavior: 'smooth' }) } }}
+                >
                   <div className="history-copy">
                     <small>{order.order_number}</small>
                     <time>{formatDate(order.created_at)}</time>
@@ -353,8 +381,13 @@ export default function DeliveryProgress() {
                   <p className="history-items">{orderItemsText(order)}</p>
                   <div className="history-payment"><strong>PHP {Number(order.total_amount || 0).toLocaleString()}</strong><small>{String(order.delivery_method || 'Delivery').replaceAll('_', ' ')}</small></div>
                   <span className={`history-status is-${order.order_status}`}>{statusLabels[order.order_status] || order.order_status}</span>
-                  <span className="history-view-order">View details <ChevronRight aria-hidden="true" /></span>
-                </button>
+                  <div className="history-order-actions">
+                    {(order.order_status === 'delivered' || order.order_status === 'completed') && <button type="button" onClick={(event) => { event.stopPropagation(); window.location.href = `/buyer/return-request?order=${order.id}` }}>Return/Refund</button>}
+                    {order.order_status === 'delivered' && <button type="button" className="is-primary" disabled={confirmingOrderId === order.id} onClick={(event) => { event.stopPropagation(); handleListConfirmReceipt(order) }}>{confirmingOrderId === order.id ? 'Confirming…' : 'Order Received'}</button>}
+                    {order.order_status === 'completed' && <button type="button" className="is-primary" onClick={(event) => { event.stopPropagation(); handleRateOrder(order) }}>{order.buyer_rating ? 'Update rating' : 'Rate'}</button>}
+                    {!['delivered', 'completed'].includes(order.order_status) && <span className="history-view-order">View details <ChevronRight aria-hidden="true" /></span>}
+                  </div>
+                </article>
               ))}
             </div>
           </section>
@@ -505,20 +538,6 @@ export default function DeliveryProgress() {
             </section>
           )}
 
-          {selectedOrder.delivery_dispute_status === 'open' && (
-            <section className="delivery-card delivery-dispute-pending" aria-labelledby="delivery-dispute-pending-title">
-              <h2 id="delivery-dispute-pending-title">We're reviewing your report</h2>
-              <p>{selectedOrder.delivery_dispute_reason}</p>
-            </section>
-          )}
-
-          {selectedOrder.delivery_dispute_status === 'resolved' && selectedOrder.delivery_dispute_resolution_notes && (
-            <section className="delivery-card delivery-dispute-pending" aria-labelledby="delivery-dispute-resolved-title">
-              <h2 id="delivery-dispute-resolved-title">Update on your report</h2>
-              <p>{selectedOrder.delivery_dispute_resolution_notes}</p>
-            </section>
-          )}
-
           <div className="delivery-summary-grid">
             <section className="delivery-card order-details" aria-labelledby="order-details-title">
               <h2 id="order-details-title">Order Details</h2>
@@ -549,6 +568,27 @@ export default function DeliveryProgress() {
               <h2 id="delivery-proof-title">Delivery Photo</h2>
               <img src={selectedOrder.delivery_proof_image_url} alt="Proof of delivery submitted by the driver" />
               {selectedOrder.delivery_proof_notes && <p>{selectedOrder.delivery_proof_notes}</p>}
+            </section>
+          )}
+
+          {selectedOrder.delivery_dispute_status && (
+            <section className={`delivery-card delivery-return-status is-${selectedOrder.delivery_dispute_status}`} aria-labelledby="delivery-return-status-title">
+              <header className="delivery-return-status-head">
+                <span className="delivery-return-status-icon"><PackageOpen aria-hidden="true" /></span>
+                <div>
+                  <h2 id="delivery-return-status-title">{selectedOrder.delivery_dispute_status === 'open' ? 'We’re reviewing your return request' : 'Update on your return request'}</h2>
+                  <p>{selectedOrder.delivery_dispute_status === 'open' ? 'We’ll review your report and evidence within 1–2 business days.' : selectedOrder.delivery_dispute_resolution_notes || 'Your request has been resolved.'}</p>
+                </div>
+                <span className={`delivery-return-status-pill is-${selectedOrder.delivery_dispute_status}`}>{selectedOrder.delivery_dispute_status === 'open' ? 'Under review' : 'Resolved'}</span>
+              </header>
+              <div className="delivery-return-summary">
+                <div className="delivery-return-details">
+                  <p><span>Reported issue</span><strong>{disputeCategoryLabels[selectedOrder.delivery_dispute_category] || 'Delivery issue'}</strong></p>
+                  <p><span>Affected item</span><strong>{selectedOrder.items.find((item) => item.id === selectedOrder.delivery_dispute_item_id)?.product_name || 'Order item'}{selectedOrder.delivery_dispute_affected_quantity ? ` · ${selectedOrder.delivery_dispute_affected_quantity} affected` : ''}</strong></p>
+                  {selectedOrder.refund_amount != null && <p><span>Refund amount</span><strong>PHP {Number(selectedOrder.refund_amount).toLocaleString()}</strong></p>}
+                </div>
+                {selectedOrder.delivery_dispute_reason && <p className="delivery-return-note"><span>Buyer note</span>{selectedOrder.delivery_dispute_reason}</p>}
+              </div>
             </section>
           )}
 

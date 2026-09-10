@@ -680,17 +680,26 @@ export default function BuyerOrderTrackingScreen() {
           </View>
         ) : null}
 
-        {order.delivery_dispute_status === 'open' ? (
-          <View style={[styles.card, styles.pendingReviewCard]}>
-            <Text style={styles.pendingReviewTitle}>We're reviewing your report</Text>
-            <Text style={styles.confirmationText}>{order.delivery_dispute_reason}</Text>
-          </View>
-        ) : null}
-
-        {order.delivery_dispute_status === 'resolved' && order.delivery_dispute_resolution_notes ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Update on your report</Text>
-            <Text style={styles.confirmationText}>{order.delivery_dispute_resolution_notes}</Text>
+        {order.delivery_dispute_status ? (
+          <View style={[styles.card, styles.returnStatusCard]}>
+            <View style={styles.returnStatusHead}>
+              <View style={styles.returnStatusIcon}><Text>↻</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.returnStatusTitle}>{order.delivery_dispute_status === 'open' ? 'We’re reviewing your return request' : 'Update on your return request'}</Text>
+                <Text style={styles.returnStatusCopy}>{order.delivery_dispute_status === 'open' ? 'We’ll review your report and evidence within 1–2 business days.' : order.delivery_dispute_resolution_notes || 'Your return request has been resolved.'}</Text>
+              </View>
+            </View>
+            <View style={styles.returnSteps}>
+              <Text style={styles.returnStepDone}>1  Report submitted</Text>
+              <Text style={order.delivery_dispute_status === 'resolved' ? styles.returnStepDone : styles.returnStepCurrent}>2  Decision</Text>
+              <Text style={order.delivery_dispute_resolution === 'refunded' ? styles.returnStepDone : styles.returnStep}>3  Refund</Text>
+            </View>
+            <View style={styles.returnFacts}>
+              <View style={styles.returnFact}><Text style={styles.returnFactLabel}>Reported issue</Text><Text style={styles.returnFactValue}>{DISPUTE_CATEGORY_OPTIONS.find((option) => option.value === order.delivery_dispute_category)?.label || 'Delivery issue'}</Text></View>
+              <View style={styles.returnFact}><Text style={styles.returnFactLabel}>Affected item</Text><Text style={styles.returnFactValue}>{order.items.find((item) => item.id === order.delivery_dispute_item_id)?.product_name || 'Order item'}{order.delivery_dispute_affected_quantity ? ` · ${order.delivery_dispute_affected_quantity} affected` : ''}</Text></View>
+              {order.refund_amount != null ? <View style={styles.returnFact}><Text style={styles.returnFactLabel}>Refund amount</Text><Text style={styles.returnFactValue}>₱{Number(order.refund_amount).toFixed(2)}</Text></View> : null}
+            </View>
+            {order.delivery_dispute_reason ? <Text style={styles.returnReason}>{order.delivery_dispute_reason}</Text> : null}
           </View>
         ) : null}
       </ScrollView>

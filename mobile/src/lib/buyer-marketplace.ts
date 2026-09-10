@@ -73,8 +73,13 @@ export type BuyerOrder = {
   delivery_dispute_status: DeliveryDisputeStatus;
   delivery_dispute_reason: string | null;
   delivery_dispute_created_at: string | null;
-  delivery_dispute_resolution: 'completed' | 'escalated' | null;
+  delivery_dispute_resolution: 'completed' | 'escalated' | 'refunded' | 'dismissed' | null;
   delivery_dispute_resolution_notes: string | null;
+  delivery_dispute_category: DisputeCategory | null;
+  delivery_dispute_item_id: number | null;
+  delivery_dispute_affected_quantity: number | null;
+  delivery_dispute_photo_urls: string[] | null;
+  refund_amount: number | null;
   completed_at: string | null;
   completed_via: 'buyer_confirmed' | 'auto_timeout' | 'dispute_resolved' | null;
   buyer_rating: number | null;

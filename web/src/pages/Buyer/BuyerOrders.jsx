@@ -15,7 +15,7 @@ import {
 import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import { useAuth } from '../../hooks/useAuth.js'
-import { loadPineappleProducts, readBuyerCart, writeBuyerCart } from '../../services/buyerMarketplace.js'
+import { loadBuyerReviews, loadPineappleProducts, readBuyerCart, writeBuyerCart } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/shoppingCart.css'
 
@@ -57,7 +57,7 @@ export default function BuyerOrders() {
   const [error, setError] = useState('')
   const [stockNotice, setStockNotice] = useState('')
   const [cartNotice, setCartNotice] = useState('')
-  const [customerReviews, setCustomerReviews] = useState(reviews)
+  const [customerReviews, setCustomerReviews] = useState([])
   const [reviewIndex, setReviewIndex] = useState(0)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewRating, setReviewRating] = useState(0)
@@ -97,7 +97,7 @@ export default function BuyerOrders() {
     [filteredReviews],
   )
   const reviewAverage = useMemo(
-    () => customerReviews.reduce((total, review) => total + review.rating, 0) / customerReviews.length,
+    () => customerReviews.length ? customerReviews.reduce((total, review) => total + review.rating, 0) / customerReviews.length : 0,
     [customerReviews],
   )
   const ratingCounts = useMemo(
@@ -135,6 +135,14 @@ export default function BuyerOrders() {
   }, [])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
+
+  useEffect(() => {
+    let cancelled = false
+    loadBuyerReviews()
+      .then((loaded) => { if (!cancelled) setCustomerReviews(loaded.map((review) => ({ ...review, date: new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(review.date)), title: 'Verified purchase', helpful: 0, verified: true }))) })
+      .catch(() => { if (!cancelled) setCustomerReviews(reviews) })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -363,7 +371,7 @@ export default function BuyerOrders() {
                 {[5, 4, 3, 2, 1].map((rating) => (
                   <button type="button" className={reviewFilter === String(rating) ? 'is-active' : ''} key={rating} onClick={() => changeReviewFilter(reviewFilter === String(rating) ? 'all' : String(rating))}>
                     <span>{rating} star</span>
-                    <i><b style={{ width: `${(ratingCounts[rating] / customerReviews.length) * 100}%` }} /></i>
+                    <i><b style={{ width: `${(ratingCounts[rating] / Math.max(customerReviews.length, 1)) * 100}%` }} /></i>
                     <em>{ratingCounts[rating]}</em>
                   </button>
                 ))}

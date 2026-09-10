@@ -96,6 +96,7 @@ function App() {
     return <ProtectedRoute allowedRoles={['buyer']}><ReturnRequest /></ProtectedRoute>
   }
 
+
   if (path === '/buyer/checkout') {
     return (
       <ProtectedRoute allowedRoles={['buyer']}>

@@ -40,6 +40,14 @@ export async function loadPineappleProducts(retry = true) {
   }
 }
 
+export async function loadBuyerReviews() {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/buyer/products/reviews`, { headers: { Authorization: `Bearer ${token}` } })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load customer reviews')
+  return body.reviews || []
+}
+
 export async function placeBuyerOrder(order, retry = true) {
   const token = await readAccessToken()
   const controller = new AbortController()
@@ -223,6 +231,16 @@ export async function reportBuyerOrderDispute(orderId, { category, itemId, affec
   })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(body.error || 'Unable to submit this report')
+  return body.order
+}
+
+export async function rateBuyerOrder(orderId, rating, comment = '') {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/buyer/orders/${orderId}/rating`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ rating, comment }),
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to submit this rating')
   return body.order
 }
 
