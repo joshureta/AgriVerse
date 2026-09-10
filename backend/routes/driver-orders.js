@@ -136,4 +136,39 @@ router.post("/:id/complete", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.get("/disputes", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase().from("buyer_orders")
+      .select("id, order_number, delivery_full_name, delivery_dispute_reason, delivery_dispute_category, delivery_dispute_created_at, delivery_dispute_response")
+      .eq("assigned_driver_id", req.user.id)
+      .eq("delivery_dispute_status", "open")
+      .eq("delivery_dispute_responsible_role", "driver")
+      .order("delivery_dispute_created_at", { ascending: true });
+    if (error) throw error;
+    return res.json({ orders: data || [] });
+  } catch (error) { return next(error); }
+});
+
+router.post("/:id/dispute-response", async (req, res, next) => {
+  try {
+    const id = orderId(req.params.id);
+    const response = String(req.body.response || "").trim();
+    if (!response) throw httpError(400, "Describe what happened on your end");
+    if (response.length > 2000) throw httpError(400, "Response must not exceed 2000 characters");
+
+    const now = new Date().toISOString();
+    const { data, error } = await getSupabase().from("buyer_orders")
+      .update({ delivery_dispute_response: response, delivery_dispute_responder_id: req.user.id, delivery_dispute_response_at: now })
+      .eq("id", id)
+      .eq("assigned_driver_id", req.user.id)
+      .eq("delivery_dispute_status", "open")
+      .eq("delivery_dispute_responsible_role", "driver")
+      .select("id, order_number, delivery_dispute_response, delivery_dispute_response_at")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw httpError(409, "This dispute can no longer be responded to");
+    return res.json({ order: data });
+  } catch (error) { return next(error); }
+});
+
 module.exports = router;

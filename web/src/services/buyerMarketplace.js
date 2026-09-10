@@ -208,16 +208,32 @@ export async function confirmBuyerOrderReceipt(orderId) {
   return body.order
 }
 
-export async function reportBuyerOrderDispute(orderId, reason) {
+export async function reportBuyerOrderDispute(orderId, { category, itemId, affectedQuantity, reason, photos }) {
   const token = await readAccessToken()
   const response = await fetch(`${API_URL}/api/buyer/orders/${orderId}/dispute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({
+      category,
+      item_id: itemId,
+      affected_quantity: affectedQuantity,
+      reason,
+      photos,
+    }),
   })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(body.error || 'Unable to submit this report')
   return body.order
+}
+
+// Reads a File into a base64 string (no data: prefix) the backend upload helper expects.
+export function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result).replace(/^data:[^;]+;base64,/, ''))
+    reader.onerror = () => reject(new Error('Could not read that file'))
+    reader.readAsDataURL(file)
+  })
 }
 
 export function readBuyerCart() {

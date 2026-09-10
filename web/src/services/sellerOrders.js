@@ -52,3 +52,16 @@ export async function changeSellerOrderStatus(orderId, status, note = '') {
   })
   return body.order
 }
+
+export async function loadSellerDisputes() {
+  const body = await sellerRequest('/disputes')
+  return body.orders || []
+}
+
+export async function respondToSellerDispute(orderId, response) {
+  const body = await sellerRequest(`/${orderId}/dispute-response`, {
+    method: 'POST',
+    body: JSON.stringify({ response }),
+  })
+  return body.order
+}

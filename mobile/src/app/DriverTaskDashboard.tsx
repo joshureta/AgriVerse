@@ -26,6 +26,8 @@ import {
   formatDeliveryRoute,
   isActiveDelivery,
 } from '@/lib/driver-deliveries';
+
+type DriverDisputeOrder = { id: number; order_number: string; delivery_full_name: string; delivery_dispute_category: string };
 import { loadWeather, type WeatherSnapshot } from '@/lib/weather';
 
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
@@ -152,6 +154,7 @@ export default function DriverTaskDashboardScreen() {
   const [error, setError] = useState('');
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [navbarBlurred, setNavbarBlurred] = useState(false);
+  const [disputes, setDisputes] = useState<DriverDisputeOrder[]>([]);
 
   const loadTasks = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -179,6 +182,9 @@ export default function DriverTaskDashboardScreen() {
     if (profile) {
       loadTasks();
       loadWeather().then(setWeather);
+      apiRequest<{ orders: DriverDisputeOrder[] }>('/api/driver/orders/disputes')
+        .then((result) => setDisputes(result.orders ?? []))
+        .catch(() => setDisputes([]));
     }
   }, [loadTasks, profile]);
 
@@ -231,6 +237,28 @@ export default function DriverTaskDashboardScreen() {
 
           <View style={contentInset}>
             <View style={styles.overviewStack}>
+            {disputes.length > 0 && (
+              <View style={{
+                backgroundColor: '#FDF1D2',
+                borderWidth: 1,
+                borderColor: '#F0E2B8',
+                borderRadius: 14,
+                padding: 14,
+              }}>
+                <Text style={{ color: '#8A6A12', fontSize: 11, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                  ⚠ Response needed
+                </Text>
+                {disputes.map((dispute) => (
+                  <Pressable
+                    key={dispute.id}
+                    onPress={() => router.push({ pathname: '/DriverDisputeResponse', params: { id: String(dispute.id) } })}
+                    style={{ marginTop: 10, paddingTop: 10, borderTopWidth: disputes[0].id === dispute.id ? 0 : 1, borderTopColor: '#F0E2B8' }}>
+                    <Text style={{ color: '#5c470d', fontSize: 12.5, fontWeight: '700' }}>{dispute.order_number} · {dispute.delivery_full_name}</Text>
+                    <Text style={{ color: '#7a611c', fontSize: 11, marginTop: 2 }}>Buyer reported an issue — respond within 24 hours ›</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
             {/* COMBINED TASK & EQUIPMENT DASHBOARD CARD (Mobile Theme) */}
             <View style={styles.combinedCard}>
               {/* Section Header */}

@@ -29,6 +29,35 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
     letterSpacing: -0.3,
   },
+  filterScroll: {
+    marginHorizontal: -16,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E3E9E1',
+  },
+  filterTabs: {
+    gap: 0,
+    paddingHorizontal: 0,
+  },
+  filterTab: {
+    minHeight: 46,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+  },
+  filterTabActive: {
+    borderBottomColor: GREEN,
+  },
+  filterTabText: {
+    color: '#526255',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  filterTabTextActive: {
+    color: GREEN,
+    fontWeight: '800',
+  },
 
   loader: {
     marginTop: 18,

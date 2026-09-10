@@ -40,6 +40,28 @@ const STATUS_LABELS: Record<BuyerOrderStatus, string> = {
   cancelled: 'Cancelled',
 };
 
+const ORDER_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'to_pay', label: 'To Pay' },
+  { id: 'preparing', label: 'Preparing' },
+  { id: 'to_receive', label: 'To Receive' },
+  { id: 'completed', label: 'Completed' },
+  { id: 'cancelled', label: 'Cancelled' },
+  { id: 'returns', label: 'Returns & Refunds' },
+] as const;
+
+type OrderFilter = typeof ORDER_FILTERS[number]['id'];
+
+function matchesOrderFilter(order: BuyerOrder, filter: OrderFilter) {
+  if (filter === 'all') return true;
+  if (filter === 'to_pay') return order.payment_method === 'gcash' && !['paid', 'refunded'].includes(order.payment_status) && order.order_status !== 'cancelled';
+  if (filter === 'preparing') return ['confirmed', 'preparing', 'ready_for_delivery'].includes(order.order_status);
+  if (filter === 'to_receive') return ['out_for_delivery', 'delivered'].includes(order.order_status);
+  if (filter === 'completed') return order.order_status === 'completed';
+  if (filter === 'cancelled') return order.order_status === 'cancelled';
+  return order.payment_status === 'refunded' || Boolean(order.delivery_dispute_status);
+}
+
 type StatusVariant = 'pending' | 'active' | 'cancelled';
 
 function statusVariant(status: BuyerOrderStatus): StatusVariant {
@@ -91,6 +113,7 @@ export default function BuyerPurchaseHistoryScreen() {
   const [orders, setOrders] = useState<BuyerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeFilter, setActiveFilter] = useState<OrderFilter>('all');
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -109,6 +132,8 @@ export default function BuyerPurchaseHistoryScreen() {
     loadOrders();
   }, [loadOrders]);
 
+  const filteredOrders = orders.filter((order) => matchesOrderFilter(order, activeFilter));
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <BuyerHeader showBack />
@@ -116,6 +141,26 @@ export default function BuyerPurchaseHistoryScreen() {
       <View style={styles.mainBodyContainer}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.titleText}>My Purchases</Text>
+
+        <ScrollView
+          contentContainerStyle={styles.filterTabs}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}>
+          {ORDER_FILTERS.map((filter) => {
+            const active = activeFilter === filter.id;
+            return (
+              <Pressable
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                key={filter.id}
+                onPress={() => setActiveFilter(filter.id)}
+                style={[styles.filterTab, active && styles.filterTabActive]}>
+                <Text style={[styles.filterTabText, active && styles.filterTabTextActive]}>{filter.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
         {loading ? (
           <ActivityIndicator style={styles.loader} color={GREEN} />
@@ -126,8 +171,13 @@ export default function BuyerPurchaseHistoryScreen() {
             <ReceiptIcon size={48} color="#8B9B8E" />
             <Text style={styles.emptyText}>You have no past orders yet.</Text>
           </View>
+        ) : filteredOrders.length === 0 ? (
+          <View style={styles.emptyState}>
+            <ReceiptIcon size={44} color="#8B9B8E" />
+            <Text style={styles.emptyText}>No orders in this category yet.</Text>
+          </View>
         ) : (
-          orders.map((order) => (
+          filteredOrders.map((order) => (
             <Pressable
               key={order.id}
               accessibilityRole="button"

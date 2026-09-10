@@ -61,13 +61,41 @@ router.post("/:id/assign", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+const disputeSelect = [
+  "id, order_number, total_amount, payment_method, payment_status",
+  "delivery_full_name, delivery_mobile_number, delivery_city_municipality, delivery_barangay",
+  "delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at",
+  "delivery_dispute_reason, delivery_dispute_created_at, delivery_dispute_category, delivery_dispute_affected_quantity",
+  "delivery_dispute_photo_urls, delivery_dispute_responsible_role, delivery_dispute_responder_id, delivery_dispute_response, delivery_dispute_response_at",
+  "assigned_driver:profiles!buyer_orders_assigned_driver_id_fkey(id, full_name)",
+  "disputed_item:buyer_order_items!buyer_orders_delivery_dispute_item_id_fkey(id, product_name, quantity, unit_price)",
+].join(",");
+
 router.get("/disputes", async (req, res, next) => {
   try {
-    const { data, error } = await getSupabase().from("buyer_orders")
-      .select("id, order_number, total_amount, payment_method, delivery_full_name, delivery_mobile_number, delivery_city_municipality, delivery_barangay, delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at, delivery_dispute_reason, delivery_dispute_created_at, assigned_driver:profiles!buyer_orders_assigned_driver_id_fkey(id, full_name)")
+    const supabase = getSupabase();
+    const { data, error } = await supabase.from("buyer_orders")
+      .select(disputeSelect)
       .eq("delivery_dispute_status", "open").order("delivery_dispute_created_at", { ascending: true });
     if (error) throw error;
-    return res.json({ orders: data || [] });
+    const orders = data || [];
+
+    // The driver comes straight off the order, but there's no per-order seller
+    // column — so "who prepared this" is read off the status-history trail instead.
+    const sellerOrderIds = orders.filter((order) => order.delivery_dispute_responsible_role === "seller").map((order) => order.id);
+    const sellerByOrderId = {};
+    if (sellerOrderIds.length > 0) {
+      const { data: history, error: historyError } = await supabase.from("buyer_order_status_history")
+        .select("order_id, created_at, seller:profiles!buyer_order_status_history_changed_by_fkey(id, full_name)")
+        .in("order_id", sellerOrderIds).in("new_status", ["confirmed", "preparing"]).not("changed_by", "is", null)
+        .order("created_at", { ascending: true });
+      if (historyError) throw historyError;
+      for (const row of history || []) {
+        if (!sellerByOrderId[row.order_id] && row.seller) sellerByOrderId[row.order_id] = row.seller;
+      }
+    }
+
+    return res.json({ orders: orders.map((order) => ({ ...order, responsible_seller: sellerByOrderId[order.id] || null })) });
   } catch (error) { return next(error); }
 });
 
@@ -75,10 +103,17 @@ router.post("/:id/resolve-dispute", async (req, res, next) => {
   try {
     const id = orderId(req.params.id);
     const resolution = String(req.body.resolution || "").trim();
-    if (!["completed", "escalated"].includes(resolution)) throw httpError(400, "Select a valid resolution");
+    if (!["refunded", "dismissed"].includes(resolution)) throw httpError(400, "Select a valid resolution");
     const notes = String(req.body.notes || "").trim();
     if (!notes) throw httpError(400, "A resolution note is required");
     if (notes.length > 1000) throw httpError(400, "Resolution note must not exceed 1000 characters");
+
+    const supabase = getSupabase();
+    const { data: order, error: orderError } = await supabase.from("buyer_orders")
+      .select("id, payment_method, delivery_dispute_affected_quantity, disputed_item:buyer_order_items!buyer_orders_delivery_dispute_item_id_fkey(unit_price)")
+      .eq("id", id).eq("order_status", "delivered").eq("delivery_dispute_status", "open").maybeSingle();
+    if (orderError) throw orderError;
+    if (!order) throw httpError(409, "This dispute is no longer open");
 
     const now = new Date().toISOString();
     const update = {
@@ -87,23 +122,43 @@ router.post("/:id/resolve-dispute", async (req, res, next) => {
       delivery_dispute_resolved_by: req.user.id,
       delivery_dispute_resolved_at: now,
       delivery_dispute_resolution_notes: notes,
+      order_status: "completed",
+      completed_at: now,
+      completed_via: "dispute_resolved",
     };
-    if (resolution === "completed") {
-      update.order_status = "completed";
-      update.completed_at = now;
-      update.completed_via = "dispute_resolved";
+
+    if (resolution === "refunded") {
+      const defaultAmount = order.disputed_item ? Number(order.disputed_item.unit_price) * Number(order.delivery_dispute_affected_quantity || 0) : NaN;
+      const refundAmount = req.body.refund_amount != null && req.body.refund_amount !== "" ? Number(req.body.refund_amount) : defaultAmount;
+      if (!Number.isFinite(refundAmount) || refundAmount <= 0) throw httpError(400, "Enter a valid refund amount");
+
+      let refundReference;
+      if (order.payment_method === "gcash") {
+        // No PayMongo refund API call is wired up yet — this only records that a
+        // refund was approved, it does not move any money through PayMongo.
+        refundReference = "Recorded — GCash refund not yet automated, no money moved by this action";
+      } else {
+        refundReference = String(req.body.refund_reference || "").trim();
+        if (!refundReference) throw httpError(400, "Add a reference for the manual cash/bank transfer before confirming");
+        if (refundReference.length > 300) throw httpError(400, "Refund reference must not exceed 300 characters");
+      }
+
+      update.payment_status = "refunded";
+      update.refund_amount = refundAmount;
+      update.refund_reference = refundReference;
+      update.refunded_at = now;
     }
-    const { data, error } = await getSupabase().from("buyer_orders").update(update)
+
+    const { data, error } = await supabase.from("buyer_orders").update(update)
       .eq("id", id).eq("order_status", "delivered").eq("delivery_dispute_status", "open")
-      .select("id, order_number, order_status, delivery_dispute_status, delivery_dispute_resolution").maybeSingle();
+      .select("id, order_number, order_status, payment_status, delivery_dispute_status, delivery_dispute_resolution, refund_amount, refund_reference")
+      .maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "This dispute is no longer open");
 
-    if (resolution === "completed") {
-      await getSupabase().from("buyer_order_status_history").insert({
-        order_id: id, previous_status: "delivered", new_status: "completed", changed_by: req.user.id, note: notes,
-      });
-    }
+    await supabase.from("buyer_order_status_history").insert({
+      order_id: id, previous_status: "delivered", new_status: "completed", changed_by: req.user.id, note: notes,
+    });
     return res.json({ order: data });
   } catch (error) { return next(error); }
 });

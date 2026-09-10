@@ -252,6 +252,8 @@ export default function TaskScheduleManagement() {
   const [readyOrders, setReadyOrders] = useState([])
   const [disputeOrders, setDisputeOrders] = useState([])
   const [disputeResolutionNotes, setDisputeResolutionNotes] = useState('')
+  const [disputeRefundAmount, setDisputeRefundAmount] = useState('')
+  const [disputeRefundReference, setDisputeRefundReference] = useState('')
   const [harvestApprovalForm, setHarvestApprovalForm] = useState({ harvest_small_count: '0', harvest_medium_count: '0', harvest_large_count: '0', harvest_damaged_count: '0' })
   const [harvestRejectionReason, setHarvestRejectionReason] = useState('')
   const [harvestApprovalCount, setHarvestApprovalCount] = useState(0)
@@ -398,12 +400,19 @@ export default function TaskScheduleManagement() {
     setSaving(true)
     setError('')
     try {
+      const body = { resolution, notes: disputeResolutionNotes.trim() }
+      if (resolution === 'refunded') {
+        body.refund_amount = disputeRefundAmount.trim() || undefined
+        if (modal.order.payment_method !== 'gcash') body.refund_reference = disputeRefundReference.trim()
+      }
       await apiRequest(`/api/admin/deliveries/${modal.order.id}/resolve-dispute`, {
         method: 'POST',
-        body: JSON.stringify({ resolution, notes: disputeResolutionNotes.trim() }),
+        body: JSON.stringify(body),
       })
       setModal(null)
       setDisputeResolutionNotes('')
+      setDisputeRefundAmount('')
+      setDisputeRefundReference('')
       setRefreshKey((key) => key + 1)
     } catch (requestError) {
       setError(requestError.message)
@@ -730,10 +739,17 @@ export default function TaskScheduleManagement() {
             {workView === 'disputes' ? <>
             <div className="tasks-table-wrap">
               <table className="tasks-table">
-                <thead><tr><th>ORDER NUMBER</th><th>CUSTOMER</th><th>DRIVER</th><th>REPORTED</th><th>REASON</th><th>ACTIONS</th></tr></thead>
-                <tbody>{disputeOrders.length ? disputeOrders.map((order) => (
-                  <tr key={`dispute-${order.id}`}><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td>{formatSchedule(order.delivery_dispute_created_at)}</td><td>{order.delivery_dispute_reason}</td><td><div className="task-actions"><button type="button" onClick={() => { setDisputeResolutionNotes(''); setModal({ mode: 'review-dispute', order }) }}>Review</button></div></td></tr>
-                )) : <tr><td className="tasks-empty" colSpan="6">No open disputes.</td></tr>}</tbody>
+                <thead><tr><th>ORDER NUMBER</th><th>CUSTOMER</th><th>RESPONSIBLE</th><th>REPORTED</th><th>REASON</th><th>ACTIONS</th></tr></thead>
+                <tbody>{disputeOrders.length ? disputeOrders.map((order) => {
+                  const responsibleName = order.delivery_dispute_responsible_role === 'seller'
+                    ? (order.responsible_seller?.full_name || 'Seller (unidentified)')
+                    : (order.assigned_driver?.full_name || 'Unassigned driver')
+                  const responsibleLabel = order.delivery_dispute_responsible_role === 'seller' ? 'Seller' : 'Driver'
+                  const suggestedAmount = order.disputed_item ? (Number(order.disputed_item.unit_price) * Number(order.delivery_dispute_affected_quantity || 0)).toFixed(2) : ''
+                  return (
+                  <tr key={`dispute-${order.id}`}><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{responsibleLabel} · {responsibleName}</td><td>{formatSchedule(order.delivery_dispute_created_at)}</td><td>{order.delivery_dispute_reason}</td><td><div className="task-actions"><button type="button" onClick={() => { setDisputeResolutionNotes(''); setDisputeRefundAmount(suggestedAmount); setDisputeRefundReference(''); setModal({ mode: 'review-dispute', order }) }}>Review</button></div></td></tr>
+                  )
+                }) : <tr><td className="tasks-empty" colSpan="6">No open disputes.</td></tr>}</tbody>
               </table>
             </div>
             <footer className="task-pagination">
@@ -890,8 +906,12 @@ export default function TaskScheduleManagement() {
                 <strong className="task-view-tile-value">{modal.order.order_number}</strong>
               </div>
               <div className="task-view-tile">
-                <span className="task-view-tile-label">Driver</span>
-                <strong className="task-view-tile-value">{modal.order.assigned_driver?.full_name || 'Unassigned driver'}</strong>
+                <span className="task-view-tile-label">{modal.order.delivery_dispute_responsible_role === 'seller' ? 'Seller' : 'Driver'}</span>
+                <strong className="task-view-tile-value">
+                  {modal.order.delivery_dispute_responsible_role === 'seller'
+                    ? (modal.order.responsible_seller?.full_name || 'Seller (unidentified)')
+                    : (modal.order.assigned_driver?.full_name || 'Unassigned driver')}
+                </strong>
               </div>
               <div className="task-view-tile">
                 <span className="task-view-tile-label">Customer</span>
@@ -901,16 +921,64 @@ export default function TaskScheduleManagement() {
                 <span className="task-view-tile-label">Reported</span>
                 <strong className="task-view-tile-value">{formatSchedule(modal.order.delivery_dispute_created_at)}</strong>
               </div>
+              {modal.order.disputed_item && (
+                <div className="task-view-tile task-view-tile-full">
+                  <span className="task-view-tile-label">Affected Item</span>
+                  <strong className="task-view-tile-value">
+                    {modal.order.disputed_item.product_name} — {modal.order.delivery_dispute_affected_quantity} of {modal.order.disputed_item.quantity} flagged
+                    {' '}(₱{(Number(modal.order.disputed_item.unit_price) * Number(modal.order.delivery_dispute_affected_quantity || 0)).toFixed(2)})
+                  </strong>
+                </div>
+              )}
             </div>
             <section className="task-view-description">
               <span>Buyer's Report</span>
               <p>{modal.order.delivery_dispute_reason}</p>
             </section>
+            {Array.isArray(modal.order.delivery_dispute_photo_urls) && modal.order.delivery_dispute_photo_urls.length > 0 && (
+              <section className="task-view-description">
+                <span>Buyer's Photo Evidence</span>
+                <div className="dispute-evidence-grid">
+                  {modal.order.delivery_dispute_photo_urls.map((url) => (
+                    <img key={url} className="dispute-proof-photo" src={url} alt="Evidence submitted by the buyer" />
+                  ))}
+                </div>
+              </section>
+            )}
             {modal.order.delivery_proof_image_url && (
               <section className="task-view-description">
                 <span>Driver's Delivery Proof</span>
                 <img className="dispute-proof-photo" src={modal.order.delivery_proof_image_url} alt="Delivery proof submitted by the driver" />
                 {modal.order.delivery_proof_notes && <p>{modal.order.delivery_proof_notes}</p>}
+              </section>
+            )}
+            {modal.order.delivery_dispute_response && (
+              <section className="task-view-description">
+                <span>{modal.order.delivery_dispute_responsible_role === 'seller' ? "Seller's" : "Driver's"} Response</span>
+                <p>{modal.order.delivery_dispute_response}</p>
+              </section>
+            )}
+            <section className="task-view-description">
+              <span>Refund Amount {modal.order.payment_method !== 'gcash' ? '' : '(recorded only — no PayMongo refund is triggered yet)'}</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={disputeRefundAmount}
+                onChange={(event) => setDisputeRefundAmount(event.target.value)}
+                placeholder="0.00"
+              />
+            </section>
+            {modal.order.payment_method !== 'gcash' && (
+              <section className="task-view-description">
+                <span>Manual Transfer Reference (required for {modal.order.payment_method})</span>
+                <input
+                  type="text"
+                  value={disputeRefundReference}
+                  onChange={(event) => setDisputeRefundReference(event.target.value)}
+                  maxLength={300}
+                  placeholder="e.g. bank reference number, or how the cash was returned"
+                />
               </section>
             )}
             <section className="task-view-description">
@@ -926,11 +994,16 @@ export default function TaskScheduleManagement() {
             </section>
             {error && <div className="tasks-error" role="alert">{error}</div>}
             <div className="dispute-resolve-actions">
-              <button type="button" className="is-primary" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveDispute('completed')}>
-                {saving ? 'Saving…' : 'Mark Completed'}
+              <button
+                type="button"
+                className="is-primary"
+                disabled={saving || !disputeResolutionNotes.trim() || !disputeRefundAmount || (modal.order.payment_method !== 'gcash' && !disputeRefundReference.trim())}
+                onClick={() => resolveDispute('refunded')}
+              >
+                {saving ? 'Saving…' : 'Confirm Refund'}
               </button>
-              <button type="button" className="is-secondary" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveDispute('escalated')}>
-                {saving ? 'Saving…' : 'Escalate'}
+              <button type="button" className="is-secondary" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveDispute('dismissed')}>
+                {saving ? 'Saving…' : 'Dismiss'}
               </button>
             </div>
           </div>

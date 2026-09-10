@@ -111,6 +111,8 @@
 .task-view-description > span { color: #657e6a; font-size: 10px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .task-view-description p { min-height: auto; margin: 0; border: none; padding: 0; color: #26382a; background: transparent; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
 .dispute-proof-photo { width: 100%; max-width: 320px; margin-top: 6px; border: 1px solid #d4ded2; border-radius: 10px; }
+.dispute-evidence-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.dispute-evidence-grid .dispute-proof-photo { width: 150px; max-width: 150px; height: 150px; object-fit: cover; margin-top: 0; }
 .dispute-resolution-notes { width: 100%; box-sizing: border-box; border: 1px solid #b8cfba; border-radius: 8px; padding: 10px 12px; color: #26342a; background: #f7f9f5; font: inherit; font-size: 13px; resize: vertical; }
 .harvest-approval-counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 4px; }
 .harvest-approval-counts label { display: flex; flex-direction: column; gap: 4px; }

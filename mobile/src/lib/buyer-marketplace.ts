@@ -115,10 +115,26 @@ export async function confirmBuyerOrderReceipt(orderId: number): Promise<BuyerOr
   return order;
 }
 
-export async function reportBuyerOrderDispute(orderId: number, reason: string): Promise<BuyerOrder> {
+export type DisputeCategory = 'damaged' | 'spoiled_rotten' | 'wrong_item' | 'missing_item' | 'wrong_quantity';
+
+export type DisputeReport = {
+  category: DisputeCategory;
+  itemId: number;
+  affectedQuantity: number;
+  reason: string;
+  photos: { data: string; mime: string }[];
+};
+
+export async function reportBuyerOrderDispute(orderId: number, report: DisputeReport): Promise<BuyerOrder> {
   const { order } = await apiRequest<{ order: BuyerOrder }>(`/api/buyer/orders/${orderId}/dispute`, {
     method: 'POST',
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({
+      category: report.category,
+      item_id: report.itemId,
+      affected_quantity: report.affectedQuantity,
+      reason: report.reason,
+      photos: report.photos,
+    }),
   });
   return order;
 }

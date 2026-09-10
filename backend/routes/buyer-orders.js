@@ -2,6 +2,7 @@ const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { paymongoGet } = require("../lib/paymongo");
+const { uploadImage } = require("../lib/storage");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("buyer"));
@@ -14,8 +15,11 @@ const orderSelect = [
   "paymongo_payment_intent_id",
   "delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at",
   "buyer_confirmed_at, delivery_dispute_status, delivery_dispute_reason, delivery_dispute_created_at, delivery_dispute_resolution, delivery_dispute_resolution_notes",
+  "delivery_dispute_category, delivery_dispute_item_id, delivery_dispute_affected_quantity, delivery_dispute_photo_urls, delivery_dispute_responsible_role",
+  "delivery_dispute_responder_id, delivery_dispute_response, delivery_dispute_response_at",
+  "refund_amount, refund_reference, refunded_at",
   "completed_at, completed_via",
-  "items:buyer_order_items(id, pineapple_size_id, product_name, weight_label, quantity, unit_price, line_total)",
+  "items:buyer_order_items!buyer_order_items_order_id_fkey(id, pineapple_size_id, product_name, weight_label, quantity, unit_price, line_total)",
 ].join(",");
 
 // A delivered order auto-completes if the buyer never confirms or disputes it.
@@ -95,6 +99,7 @@ function serializeOrder(order) {
     subtotal: Number(order.subtotal),
     shipping_fee: Number(order.shipping_fee),
     total_amount: Number(order.total_amount),
+    refund_amount: order.refund_amount == null ? null : Number(order.refund_amount),
     items: (order.items || []).map((item) => ({
       ...item,
       unit_price: Number(item.unit_price),
@@ -102,6 +107,16 @@ function serializeOrder(order) {
     })),
   };
 }
+
+// Handling problems happened after pickup, so the driver has context to add.
+// Quality/fulfillment problems happened before dispatch, so the seller does instead.
+const DISPUTE_CATEGORIES = {
+  damaged: "driver",
+  wrong_item: "driver",
+  missing_item: "driver",
+  spoiled_rotten: "seller",
+  wrong_quantity: "seller",
+};
 
 const addressFields = ['full_name', 'mobile_number', 'country', 'region', 'province', 'city_municipality', 'barangay'];
 
@@ -281,14 +296,74 @@ router.post("/:id/dispute", async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid order ID");
+
+    const category = String(req.body.category || "").trim();
+    if (!Object.prototype.hasOwnProperty.call(DISPUTE_CATEGORIES, category)) {
+      throw httpError(400, "Select what happened to this order");
+    }
+    const responsibleRole = DISPUTE_CATEGORIES[category];
+
     const reason = String(req.body.reason || "").trim();
-    if (!reason) throw httpError(400, "Tell us what went wrong with this delivery");
-    if (reason.length > 1000) throw httpError(400, "Report must not exceed 1000 characters");
+    if (!reason) throw httpError(400, "Describe what went wrong with this delivery");
+    if (reason.length > 1000) throw httpError(400, "Description must not exceed 1000 characters");
+
+    const itemId = Number(req.body.item_id);
+    if (!Number.isSafeInteger(itemId) || itemId < 1) throw httpError(400, "Select which item this affects");
+
+    const affectedQuantity = Number(req.body.affected_quantity);
+    if (!Number.isSafeInteger(affectedQuantity) || affectedQuantity < 1) throw httpError(400, "Enter how many were affected");
+
+    const photos = Array.isArray(req.body.photos) ? req.body.photos.slice(0, 6) : [];
+    if (photos.length === 0) throw httpError(400, "At least one photo is required for this request");
+
+    const supabase = getSupabase();
+
+    const { data: item, error: itemError } = await supabase
+      .from("buyer_order_items")
+      .select("id, order_id, quantity")
+      .eq("id", itemId)
+      .eq("order_id", id)
+      .maybeSingle();
+    if (itemError) throw itemError;
+    if (!item) throw httpError(400, "That item isn't part of this order");
+    if (affectedQuantity > item.quantity) throw httpError(400, `Only ${item.quantity} were ordered — affected quantity can't be more than that`);
+
+    const { data: order, error: orderLookupError } = await supabase
+      .from("buyer_orders")
+      .select("id, order_number, order_status, delivery_dispute_status")
+      .eq("id", id)
+      .eq("buyer_id", req.user.id)
+      .maybeSingle();
+    if (orderLookupError) throw orderLookupError;
+    if (!order || order.order_status !== "delivered" || order.delivery_dispute_status) {
+      throw httpError(409, "This order cannot be reported right now");
+    }
+
+    const photoUrls = [];
+    for (const photo of photos) {
+      const rawImage = String(photo?.data || "").trim();
+      if (!rawImage) continue;
+      const mimeType = String(photo?.mime || "image/jpeg");
+      const base64Data = rawImage.replace(/^data:[^;]+;base64,/, "").trim();
+      if (!base64Data) continue;
+      const uploadResult = await uploadImage("dispute-evidence", base64Data, mimeType, order.order_number);
+      if (uploadResult?.imageUrl) photoUrls.push(uploadResult.imageUrl);
+    }
+    if (photoUrls.length === 0) throw httpError(502, "Could not upload the photo evidence, please try again");
 
     const now = new Date().toISOString();
-    const { data, error } = await getSupabase()
+    const { data, error } = await supabase
       .from("buyer_orders")
-      .update({ delivery_dispute_status: "open", delivery_dispute_reason: reason, delivery_dispute_created_at: now })
+      .update({
+        delivery_dispute_status: "open",
+        delivery_dispute_reason: reason,
+        delivery_dispute_created_at: now,
+        delivery_dispute_category: category,
+        delivery_dispute_item_id: itemId,
+        delivery_dispute_affected_quantity: affectedQuantity,
+        delivery_dispute_photo_urls: photoUrls,
+        delivery_dispute_responsible_role: responsibleRole,
+      })
       .eq("id", id)
       .eq("buyer_id", req.user.id)
       .eq("order_status", "delivered")

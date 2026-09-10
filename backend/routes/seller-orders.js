@@ -9,7 +9,7 @@ const orderSelect = [
   "subtotal, shipping_fee, total_amount, customer_note",
   "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
   "estimated_delivery_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
-  "items:buyer_order_items(id, product_name, weight_label, quantity, unit_price, line_total)",
+  "items:buyer_order_items!buyer_order_items_order_id_fkey(id, product_name, weight_label, quantity, unit_price, line_total)",
   "history:buyer_order_status_history(id, previous_status, new_status, note, created_at, changed_by)",
 ].join(",");
 
@@ -97,6 +97,43 @@ router.patch("/:id/status", async (req, res, next) => {
       throw error;
     }
     return res.json({ order: serializeOrder(data) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/disputes", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase().from("buyer_orders")
+      .select("id, order_number, delivery_full_name, delivery_dispute_reason, delivery_dispute_category, delivery_dispute_created_at, delivery_dispute_response")
+      .eq("delivery_dispute_status", "open")
+      .eq("delivery_dispute_responsible_role", "seller")
+      .order("delivery_dispute_created_at", { ascending: true });
+    if (error) throw error;
+    return res.json({ orders: data || [] });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/:id/dispute-response", async (req, res, next) => {
+  try {
+    const id = readOrderId(req.params.id);
+    const response = String(req.body.response || "").trim();
+    if (!response) throw httpError(400, "Describe what happened on your end");
+    if (response.length > 2000) throw httpError(400, "Response must not exceed 2000 characters");
+
+    const now = new Date().toISOString();
+    const { data, error } = await getSupabase().from("buyer_orders")
+      .update({ delivery_dispute_response: response, delivery_dispute_responder_id: req.user.id, delivery_dispute_response_at: now })
+      .eq("id", id)
+      .eq("delivery_dispute_status", "open")
+      .eq("delivery_dispute_responsible_role", "seller")
+      .select("id, order_number, delivery_dispute_response, delivery_dispute_response_at")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw httpError(409, "This dispute can no longer be responded to");
+    return res.json({ order: data });
   } catch (error) {
     return next(error);
   }

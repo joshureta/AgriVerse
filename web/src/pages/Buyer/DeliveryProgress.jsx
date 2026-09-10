@@ -20,6 +20,7 @@ import {
   loadBuyerOrder,
   loadBuyerOrders,
   readBuyerCart,
+  readFileAsBase64,
   reportBuyerOrderDispute,
 } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
@@ -45,6 +46,14 @@ const statusLabels = {
   completed: 'Completed',
   cancelled: 'Cancelled',
 }
+
+const DISPUTE_CATEGORY_OPTIONS = [
+  { value: 'damaged', label: 'Damaged', description: 'Crushed, bruised, or otherwise damaged' },
+  { value: 'spoiled_rotten', label: 'Spoiled / Rotten', description: 'Not fresh or no longer safe to use' },
+  { value: 'wrong_item', label: 'Wrong item', description: 'Different product or size than ordered' },
+  { value: 'missing_item', label: 'Missing item', description: 'An item from the order was not included' },
+  { value: 'wrong_quantity', label: 'Wrong quantity', description: 'You received fewer items than ordered' },
+]
 
 const ORDER_FILTERS = [
   { id: 'all', label: 'All' },
@@ -140,7 +149,11 @@ export default function DeliveryProgress() {
   const [confirming, setConfirming] = useState(false)
   const [disputing, setDisputing] = useState(false)
   const [disputeFormOpen, setDisputeFormOpen] = useState(false)
+  const [disputeCategory, setDisputeCategory] = useState('')
+  const [disputeItemId, setDisputeItemId] = useState('')
+  const [disputeAffectedQuantity, setDisputeAffectedQuantity] = useState('')
   const [disputeReason, setDisputeReason] = useState('')
+  const [disputePhotos, setDisputePhotos] = useState([])
   const [receiptError, setReceiptError] = useState('')
 
   const fetchOrders = useCallback(async () => {
@@ -202,7 +215,11 @@ export default function DeliveryProgress() {
 
   useEffect(() => {
     setDisputeFormOpen(false)
+    setDisputeCategory('')
+    setDisputeItemId('')
+    setDisputeAffectedQuantity('')
     setDisputeReason('')
+    setDisputePhotos([])
     setReceiptError('')
   }, [selectedOrderId])
 
@@ -222,14 +239,28 @@ export default function DeliveryProgress() {
 
   async function handleSubmitDispute(event) {
     event.preventDefault()
-    if (!selectedOrder) return
+    if (!selectedOrder || !disputeCategory || !disputeItemId || !disputeAffectedQuantity || disputePhotos.length === 0) return
     setDisputing(true)
     setReceiptError('')
     try {
-      const updatedOrder = await reportBuyerOrderDispute(selectedOrder.id, disputeReason.trim())
+      const encodedPhotos = await Promise.all(disputePhotos.map(async (file) => ({
+        data: await readFileAsBase64(file),
+        mime: file.type || 'image/jpeg',
+      })))
+      const updatedOrder = await reportBuyerOrderDispute(selectedOrder.id, {
+        category: disputeCategory,
+        itemId: Number(disputeItemId),
+        affectedQuantity: Number(disputeAffectedQuantity),
+        reason: disputeReason.trim(),
+        photos: encodedPhotos,
+      })
       setOrders((current) => current.map((order) => (order.id === updatedOrder.id ? updatedOrder : order)))
       setDisputeFormOpen(false)
+      setDisputeCategory('')
+      setDisputeItemId('')
+      setDisputeAffectedQuantity('')
       setDisputeReason('')
+      setDisputePhotos([])
     } catch (requestError) {
       setReceiptError(requestError.message)
     } finally {
@@ -378,30 +409,91 @@ export default function DeliveryProgress() {
           {selectedOrder.order_status === 'delivered' && selectedOrder.delivery_dispute_status !== 'open' && (
             <section className="delivery-card delivery-confirmation" aria-labelledby="delivery-confirmation-title">
               <h2 id="delivery-confirmation-title">Did you receive your order?</h2>
-              <p>Let us know so we can close out this order. If you don't respond in a few days, it will be marked completed automatically.</p>
+              <p>Confirm everything arrived as expected, or report a problem while the delivery details are still fresh.</p>
               {receiptError && <div className="delivery-message is-error" role="alert">{receiptError}</div>}
               {!disputeFormOpen ? (
                 <div className="delivery-confirmation-actions">
                   <button type="button" className="is-primary" onClick={handleConfirmReceipt} disabled={confirming || disputing}>
                     {confirming ? 'Confirming…' : 'Confirm Receipt'}
                   </button>
-                  <button type="button" className="is-secondary" onClick={() => setDisputeFormOpen(true)} disabled={confirming || disputing}>
-                    Report an Issue
+                  <button type="button" className="is-secondary" onClick={() => { window.location.href = `/buyer/return-request?order=${selectedOrder.id}` }} disabled={confirming || disputing}>
+                    Report a delivery issue
                   </button>
                 </div>
               ) : (
                 <form className="delivery-dispute-form" onSubmit={handleSubmitDispute}>
-                  <label htmlFor="delivery-dispute-reason">What went wrong?</label>
+                  <div className="delivery-dispute-intro">
+                    <span>STEP 1 OF 3</span>
+                    <h3>Tell us what went wrong</h3>
+                    <p>Choose the issue that best matches your delivery. We’ll ask the farm team to review your report and propose the appropriate return or refund resolution.</p>
+                  </div>
+                  <label htmlFor="delivery-dispute-category">What happened?</label>
+                  <div className="delivery-dispute-categories" role="group" aria-label="What happened">
+                    {DISPUTE_CATEGORY_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={disputeCategory === option.value ? 'is-selected' : ''}
+                        onClick={() => setDisputeCategory(option.value)}
+                      >
+                        <strong>{option.label}</strong><small>{option.description}</small>
+                      </button>
+                    ))}
+                  </div>
+
+                  <label htmlFor="delivery-dispute-item">STEP 2 — Which item is affected?</label>
+                  <select
+                    id="delivery-dispute-item"
+                    value={disputeItemId}
+                    onChange={(event) => { setDisputeItemId(event.target.value); setDisputeAffectedQuantity('') }}
+                    required
+                  >
+                    <option value="" disabled>Select an item</option>
+                    {selectedOrder.items.map((item) => (
+                      <option key={item.id} value={item.id}>{item.product_name} ({item.quantity} {item.weight_label})</option>
+                    ))}
+                  </select>
+
+                  <label htmlFor="delivery-dispute-quantity">How many were affected?</label>
+                  <input
+                    id="delivery-dispute-quantity"
+                    type="number"
+                    min="1"
+                    max={selectedOrder.items.find((item) => String(item.id) === String(disputeItemId))?.quantity || undefined}
+                    value={disputeAffectedQuantity}
+                    onChange={(event) => setDisputeAffectedQuantity(event.target.value)}
+                    disabled={!disputeItemId}
+                    required
+                  />
+
+                  <label htmlFor="delivery-dispute-reason">Describe the issue</label>
                   <textarea
                     id="delivery-dispute-reason"
                     value={disputeReason}
                     onChange={(event) => setDisputeReason(event.target.value)}
                     maxLength={1000}
                     rows={3}
+                    placeholder="For example: two pineapples arrived bruised and leaking."
                     required
                   />
+
+                  <label htmlFor="delivery-dispute-photos">STEP 3 — Add photo evidence (required)</label>
+                  <input
+                    id="delivery-dispute-photos"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(event) => setDisputePhotos(Array.from(event.target.files || []).slice(0, 6))}
+                    required
+                  />
+                  <p className="delivery-evidence-help">Add up to 6 clear photos showing the item, packaging, and any damage. {disputePhotos.length > 0 && `${disputePhotos.length} photo${disputePhotos.length === 1 ? '' : 's'} selected.`}</p>
+
                   <div className="delivery-confirmation-actions">
-                    <button type="submit" className="is-danger" disabled={disputing || !disputeReason.trim()}>
+                    <button
+                      type="submit"
+                      className="is-danger"
+                      disabled={disputing || !disputeCategory || !disputeItemId || !disputeAffectedQuantity || !disputeReason.trim() || disputePhotos.length === 0}
+                    >
                       {disputing ? 'Submitting…' : 'Submit Report'}
                     </button>
                     <button type="button" className="is-secondary" onClick={() => setDisputeFormOpen(false)} disabled={disputing}>
