@@ -43,7 +43,7 @@ const STATUS_LABELS: Record<BuyerOrderStatus, string> = {
 const ORDER_FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'to_pay', label: 'To Pay' },
-  { id: 'preparing', label: 'Preparing' },
+  { id: 'preparing', label: 'To Ship' },
   { id: 'to_receive', label: 'To Receive' },
   { id: 'completed', label: 'Completed' },
   { id: 'cancelled', label: 'Cancelled' },
@@ -52,14 +52,27 @@ const ORDER_FILTERS = [
 
 type OrderFilter = typeof ORDER_FILTERS[number]['id'];
 
+function isReturnOrRefund(order: BuyerOrder) {
+  return order.payment_status === 'refunded' || Boolean(order.delivery_dispute_status);
+}
+
+function needsPayment(order: BuyerOrder) {
+  return order.payment_method === 'gcash' && !['paid', 'refunded'].includes(order.payment_status) && order.order_status !== 'cancelled';
+}
+
 function matchesOrderFilter(order: BuyerOrder, filter: OrderFilter) {
   if (filter === 'all') return true;
-  if (filter === 'to_pay') return order.payment_method === 'gcash' && !['paid', 'refunded'].includes(order.payment_status) && order.order_status !== 'cancelled';
-  if (filter === 'preparing') return ['confirmed', 'preparing', 'ready_for_delivery'].includes(order.order_status);
+  if (filter === 'returns') return isReturnOrRefund(order);
+  // A disputed/refunded order belongs only in Returns & Refunds, regardless of its underlying order_status.
+  if (isReturnOrRefund(order)) return false;
+  if (filter === 'to_pay') return needsPayment(order);
+  // An order still awaiting payment belongs only in To Pay until it's settled, regardless of fulfillment progress.
+  if (needsPayment(order)) return false;
+  if (filter === 'preparing') return ['pending', 'confirmed', 'preparing', 'ready_for_delivery'].includes(order.order_status);
   if (filter === 'to_receive') return ['out_for_delivery', 'delivered'].includes(order.order_status);
   if (filter === 'completed') return order.order_status === 'completed';
   if (filter === 'cancelled') return order.order_status === 'cancelled';
-  return order.payment_status === 'refunded' || Boolean(order.delivery_dispute_status);
+  return true;
 }
 
 type StatusVariant = 'pending' | 'active' | 'cancelled';
@@ -216,21 +229,25 @@ export default function BuyerPurchaseHistoryScreen() {
                     <Text style={styles.deliveryNoticeText}>Delivered {order.delivered_at ? `on ${formatDate(order.delivered_at)}` : ''}</Text>
                     <Text style={styles.deliveryNoticeArrow}>›</Text>
                   </Pressable>
-                  <View style={styles.orderActions}>
-                    <Pressable onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })} style={styles.actionButton}>
-                      <Text style={styles.actionButtonText}>Return/Refund</Text>
-                    </Pressable>
-                    <Pressable disabled={confirmingOrderId === order.id} onPress={() => confirmReceipt(order)} style={[styles.actionButton, styles.actionButtonPrimary, confirmingOrderId === order.id && styles.actionButtonDisabled]}>
-                      <Text style={styles.actionButtonPrimaryText}>{confirmingOrderId === order.id ? 'Confirming…' : 'Order Received'}</Text>
-                    </Pressable>
-                  </View>
+                  {!order.delivery_dispute_status && (
+                    <View style={styles.orderActions}>
+                      <Pressable onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })} style={styles.actionButton}>
+                        <Text style={styles.actionButtonText}>Report an Issue</Text>
+                      </Pressable>
+                      <Pressable disabled={confirmingOrderId === order.id} onPress={() => confirmReceipt(order)} style={[styles.actionButton, styles.actionButtonPrimary, confirmingOrderId === order.id && styles.actionButtonDisabled]}>
+                        <Text style={styles.actionButtonPrimaryText}>{confirmingOrderId === order.id ? 'Confirming…' : 'Order Received'}</Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </>
               )}
               {order.order_status === 'completed' && (
                 <View style={styles.orderActions}>
-                  <Pressable onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })} style={styles.actionButton}>
-                    <Text style={styles.actionButtonText}>Return/Refund</Text>
-                  </Pressable>
+                  {!order.delivery_dispute_status && (
+                    <Pressable onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })} style={styles.actionButton}>
+                      <Text style={styles.actionButtonText}>Return/Refund</Text>
+                    </Pressable>
+                  )}
                   <Pressable onPress={() => router.push({ pathname: '/BuyerRateOrder', params: { id: String(order.id) } })} style={[styles.actionButton, styles.actionButtonPrimary]}>
                     <Text style={styles.actionButtonPrimaryText}>Rate</Text>
                   </Pressable>

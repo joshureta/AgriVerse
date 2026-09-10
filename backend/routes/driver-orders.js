@@ -117,7 +117,7 @@ router.post("/:id/complete", async (req, res, next) => {
     if (!uploadResult?.imageUrl) throw httpError(502, "Could not upload the delivery proof photo, please try again");
 
     const now = new Date().toISOString();
-    const { error } = await getSupabase().from("buyer_orders").update({
+    const update = {
       delivery_assignment_status: "delivered",
       order_status: "delivered",
       delivered_at: now,
@@ -125,7 +125,11 @@ router.post("/:id/complete", async (req, res, next) => {
       delivery_proof_image_storage_path: uploadResult.storagePath,
       delivery_proof_notes: notes || null,
       delivery_proof_submitted_at: now,
-    }).eq("id", id).eq("assigned_driver_id", req.user.id).eq("delivery_assignment_status", "out_for_delivery");
+    };
+    // Cash on delivery is collected by the driver at hand-off, so delivery is the payment event.
+    if (order.payment_method === "cash") update.payment_status = "paid";
+    const { error } = await getSupabase().from("buyer_orders").update(update)
+      .eq("id", id).eq("assigned_driver_id", req.user.id).eq("delivery_assignment_status", "out_for_delivery");
     if (error) throw error;
 
     if (order.assigned_vehicle_id) {

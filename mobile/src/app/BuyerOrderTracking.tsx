@@ -1,12 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import * as ImagePicker from 'expo-image-picker';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
-import { BuyerOrder, confirmBuyerOrderReceipt, DisputeCategory, loadBuyerOrder, reportBuyerOrderDispute } from '@/lib/buyer-marketplace';
+import { BuyerOrder, confirmBuyerOrderReceipt, DisputeCategory, loadBuyerOrder } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-order-tracking.styles';
 
 const DISPUTE_CATEGORY_OPTIONS: { value: DisputeCategory; label: string }[] = [
@@ -16,16 +15,6 @@ const DISPUTE_CATEGORY_OPTIONS: { value: DisputeCategory; label: string }[] = [
   { value: 'missing_item', label: 'Missing item' },
   { value: 'wrong_quantity', label: 'Wrong quantity' },
 ];
-
-const DISPUTE_CATEGORY_HELP: Record<DisputeCategory, string> = {
-  damaged: 'Crushed, bruised, or otherwise damaged',
-  spoiled_rotten: 'Not fresh or no longer safe to use',
-  wrong_item: 'Different product or size than ordered',
-  missing_item: 'An item from the order was not included',
-  wrong_quantity: 'You received fewer items than ordered',
-};
-
-type PickedPhoto = { uri: string; base64: string; mime: string };
 
 const STATUS_RANK: Record<BuyerOrder['order_status'], number> = {
   pending: 0,
@@ -298,13 +287,6 @@ export default function BuyerOrderTrackingScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
-  const [disputing, setDisputing] = useState(false);
-  const [disputeFormOpen, setDisputeFormOpen] = useState(false);
-  const [disputeCategory, setDisputeCategory] = useState<DisputeCategory | ''>('');
-  const [disputeItemId, setDisputeItemId] = useState<number | null>(null);
-  const [disputeAffectedQuantity, setDisputeAffectedQuantity] = useState('');
-  const [disputeReason, setDisputeReason] = useState('');
-  const [disputePhotos, setDisputePhotos] = useState<PickedPhoto[]>([]);
   const [actionError, setActionError] = useState('');
 
   const loadOrder = useCallback(async () => {
@@ -339,65 +321,6 @@ export default function BuyerOrderTrackingScreen() {
       setActionError(caught instanceof Error ? caught.message : 'Could not confirm this delivery.');
     } finally {
       setConfirming(false);
-    }
-  }
-
-  async function handlePickDisputePhoto() {
-    setActionError('');
-    if (disputePhotos.length >= 6) {
-      Alert.alert('Limit Reached', 'You can attach up to 6 photos.');
-      return;
-    }
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        setActionError('Photo gallery permission is required to select photos.');
-        Alert.alert('Permission Denied', 'Please enable gallery access in your device settings.');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: true });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        if (asset.base64) {
-          setDisputePhotos((current) => [...current, { uri: asset.uri, base64: asset.base64 as string, mime: asset.mimeType || 'image/jpeg' }]);
-        }
-      }
-    } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : 'Could not select photo from gallery.');
-    }
-  }
-
-  function handleRemoveDisputePhoto(uri: string) {
-    setDisputePhotos((current) => current.filter((photo) => photo.uri !== uri));
-  }
-
-  const disputeItem = order?.items.find((item) => item.id === disputeItemId) || null;
-  const canSubmitDispute = Boolean(
-    disputeCategory && disputeItemId && disputeAffectedQuantity.trim() && disputeReason.trim() && disputePhotos.length > 0,
-  );
-
-  async function handleSubmitDispute() {
-    if (!order || !canSubmitDispute || !disputeCategory || !disputeItemId) return;
-    setDisputing(true);
-    setActionError('');
-    try {
-      setOrder(await reportBuyerOrderDispute(order.id, {
-        category: disputeCategory,
-        itemId: disputeItemId,
-        affectedQuantity: Number(disputeAffectedQuantity),
-        reason: disputeReason.trim(),
-        photos: disputePhotos.map((photo) => ({ data: photo.base64, mime: photo.mime })),
-      }));
-      setDisputeFormOpen(false);
-      setDisputeCategory('');
-      setDisputeItemId(null);
-      setDisputeAffectedQuantity('');
-      setDisputeReason('');
-      setDisputePhotos([]);
-    } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : 'Could not submit this report.');
-    } finally {
-      setDisputing(false);
     }
   }
 
@@ -573,110 +496,20 @@ export default function BuyerOrderTrackingScreen() {
               Confirm everything arrived as expected, or report a problem while the delivery details are still fresh.
             </Text>
             {actionError ? <Text style={styles.actionErrorText}>{actionError}</Text> : null}
-            {!disputeFormOpen ? (
-              <View style={styles.actionRow}>
-                <Pressable
-                  disabled={confirming || disputing}
-                  onPress={handleConfirmReceipt}
-                  style={[styles.primaryButton, (confirming || disputing) && styles.buttonDisabled]}>
-                  {confirming ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={styles.primaryButtonText}>Confirm Receipt</Text>}
-                </Pressable>
-                <Pressable
-                  disabled={confirming || disputing}
-                  onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })}
-                  style={[styles.secondaryButton, (confirming || disputing) && styles.buttonDisabled]}>
-                  <Text style={styles.secondaryButtonText}>Report an issue</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <>
-                <View style={styles.disputeIntro}>
-                  <Text style={styles.disputeStep}>STEP 1 OF 3</Text>
-                  <Text style={styles.disputeIntroTitle}>Tell us what went wrong</Text>
-                  <Text style={styles.disputeIntroText}>Choose the issue that best matches your delivery. The farm team will review your report and propose the appropriate return or refund resolution.</Text>
-                </View>
-                <Text style={styles.disputeFieldLabel}>What happened?</Text>
-                <View style={styles.chipRow}>
-                  {DISPUTE_CATEGORY_OPTIONS.map((option) => (
-                    <Pressable
-                      key={option.value}
-                      onPress={() => setDisputeCategory(option.value)}
-                      style={[styles.chip, disputeCategory === option.value && styles.chipSelected]}>
-                      <Text style={[styles.chipText, disputeCategory === option.value && styles.chipTextSelected]}>{option.label}</Text>
-                      <Text style={[styles.chipHelpText, disputeCategory === option.value && styles.chipHelpTextSelected]}>{DISPUTE_CATEGORY_HELP[option.value]}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                <Text style={styles.disputeFieldLabel}>STEP 2 — Which item is affected?</Text>
-                <View style={styles.chipRow}>
-                  {order.items.map((item) => (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => { setDisputeItemId(item.id); setDisputeAffectedQuantity(''); }}
-                      style={[styles.chip, disputeItemId === item.id && styles.chipSelected]}>
-                      <Text style={[styles.chipText, disputeItemId === item.id && styles.chipTextSelected]}>
-                        {item.product_name} ({item.quantity})
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                <Text style={styles.disputeFieldLabel}>How many were affected?</Text>
-                <TextInput
-                  accessibilityLabel="Affected quantity"
-                  editable={Boolean(disputeItemId)}
-                  keyboardType="number-pad"
-                  onChangeText={setDisputeAffectedQuantity}
-                  placeholder={disputeItem ? `Up to ${disputeItem.quantity}` : 'Select an item first'}
-                  placeholderTextColor="#9ca3af"
-                  style={styles.quantityInput}
-                  value={disputeAffectedQuantity}
-                />
-
-                <Text style={styles.disputeFieldLabel}>Describe it</Text>
-                <TextInput
-                  accessibilityLabel="Describe what went wrong"
-                  maxLength={1000}
-                  multiline
-                  onChangeText={setDisputeReason}
-                  placeholder="What went wrong?"
-                  placeholderTextColor="#9ca3af"
-                  style={styles.disputeInput}
-                  value={disputeReason}
-                />
-
-                <Text style={styles.disputeFieldLabel}>STEP 3 — Add photo evidence (required)</Text>
-                <Pressable onPress={handlePickDisputePhoto} style={styles.addPhotoButton}>
-                  <Text style={styles.addPhotoButtonText}>+ Add Photo ({disputePhotos.length}/6)</Text>
-                </Pressable>
-                <Text style={styles.evidenceHelp}>Add clear photos of the item, packaging, and any damage.</Text>
-                {disputePhotos.length > 0 ? (
-                  <View style={styles.photoRow}>
-                    {disputePhotos.map((photo) => (
-                      <View key={photo.uri} style={styles.photoThumbWrap}>
-                        <Image source={{ uri: photo.uri }} style={styles.photoThumb} />
-                        <Pressable onPress={() => handleRemoveDisputePhoto(photo.uri)} style={styles.photoRemoveBadge}>
-                          <Text style={styles.photoRemoveBadgeText}>×</Text>
-                        </Pressable>
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-
-                <View style={styles.actionRow}>
-                  <Pressable
-                    disabled={disputing || !canSubmitDispute}
-                    onPress={handleSubmitDispute}
-                    style={[styles.dangerButton, (disputing || !canSubmitDispute) && styles.buttonDisabled]}>
-                    {disputing ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={styles.dangerButtonText}>Submit Report</Text>}
-                  </Pressable>
-                  <Pressable disabled={disputing} onPress={() => setDisputeFormOpen(false)} style={[styles.secondaryButton, disputing && styles.buttonDisabled]}>
-                    <Text style={styles.secondaryButtonText}>Cancel</Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
+            <View style={styles.actionRow}>
+              <Pressable
+                disabled={confirming}
+                onPress={handleConfirmReceipt}
+                style={[styles.primaryButton, confirming && styles.buttonDisabled]}>
+                {confirming ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={styles.primaryButtonText}>Confirm Receipt</Text>}
+              </Pressable>
+              <Pressable
+                disabled={confirming}
+                onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })}
+                style={[styles.secondaryButton, confirming && styles.buttonDisabled]}>
+                <Text style={styles.secondaryButtonText}>Report an issue</Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
 
