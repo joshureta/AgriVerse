@@ -18,6 +18,7 @@ const orderSelect = [
   "delivery_dispute_category, delivery_dispute_item_id, delivery_dispute_affected_quantity, delivery_dispute_photo_urls, delivery_dispute_responsible_role",
   "delivery_dispute_responder_id, delivery_dispute_response, delivery_dispute_response_at",
   "refund_amount, refund_reference, refunded_at",
+  "buyer_rating, buyer_rating_comment, buyer_rated_at",
   "completed_at, completed_via",
   "items:buyer_order_items!buyer_order_items_order_id_fkey(id, pineapple_size_id, product_name, weight_label, quantity, unit_price, line_total)",
 ].join(",");
@@ -335,7 +336,7 @@ router.post("/:id/dispute", async (req, res, next) => {
       .eq("buyer_id", req.user.id)
       .maybeSingle();
     if (orderLookupError) throw orderLookupError;
-    if (!order || order.order_status !== "delivered" || order.delivery_dispute_status) {
+    if (!order || !["delivered", "completed"].includes(order.order_status) || order.delivery_dispute_status) {
       throw httpError(409, "This order cannot be reported right now");
     }
 
@@ -366,12 +367,36 @@ router.post("/:id/dispute", async (req, res, next) => {
       })
       .eq("id", id)
       .eq("buyer_id", req.user.id)
-      .eq("order_status", "delivered")
+      .in("order_status", ["delivered", "completed"])
       .is("delivery_dispute_status", null)
       .select(orderSelect)
       .maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "This order cannot be reported right now");
+    return res.json({ order: serializeOrder(data) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/:id/rating", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid order ID");
+    const rating = Number(req.body.rating);
+    if (!Number.isSafeInteger(rating) || rating < 1 || rating > 5) throw httpError(400, "Choose a rating from 1 to 5");
+    const comment = String(req.body.comment || "").trim();
+    if (comment.length > 500) throw httpError(400, "Rating comment must not exceed 500 characters");
+    const { data, error } = await getSupabase()
+      .from("buyer_orders")
+      .update({ buyer_rating: rating, buyer_rating_comment: comment || null, buyer_rated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("buyer_id", req.user.id)
+      .eq("order_status", "completed")
+      .select(orderSelect)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw httpError(409, "Only completed orders can be rated");
     return res.json({ order: serializeOrder(data) });
   } catch (error) {
     return next(error);

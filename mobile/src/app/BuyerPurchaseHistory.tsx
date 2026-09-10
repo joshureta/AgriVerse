@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
-import { BuyerOrder, BuyerOrderStatus, loadBuyerOrders } from '@/lib/buyer-marketplace';
+import { BuyerOrder, BuyerOrderStatus, confirmBuyerOrderReceipt, loadBuyerOrders } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-purchase-history.styles';
 
 function ReceiptIcon({ color = GREEN, size = 36 }: { color?: string; size?: number }) {
@@ -114,6 +114,7 @@ export default function BuyerPurchaseHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeFilter, setActiveFilter] = useState<OrderFilter>('all');
+  const [confirmingOrderId, setConfirmingOrderId] = useState<number | null>(null);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -133,6 +134,18 @@ export default function BuyerPurchaseHistoryScreen() {
   }, [loadOrders]);
 
   const filteredOrders = orders.filter((order) => matchesOrderFilter(order, activeFilter));
+
+  async function confirmReceipt(order: BuyerOrder) {
+    setConfirmingOrderId(order.id);
+    try {
+      const updated = await confirmBuyerOrderReceipt(order.id);
+      setOrders((current) => current.map((item) => item.id === updated.id ? updated : item));
+    } catch (caught) {
+      Alert.alert('Could not confirm receipt', caught instanceof Error ? caught.message : 'Please try again.');
+    } finally {
+      setConfirmingOrderId(null);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -178,12 +191,13 @@ export default function BuyerPurchaseHistoryScreen() {
           </View>
         ) : (
           filteredOrders.map((order) => (
-            <Pressable
+            <View key={order.id} style={styles.orderCard}>
+              <Pressable
               key={order.id}
               accessibilityRole="button"
               accessibilityLabel={`View order ${order.order_number}`}
               onPress={() => router.push({ pathname: '/BuyerOrderTracking', params: { id: String(order.id) } })}
-              style={({ pressed }) => [styles.orderCard, pressed && styles.orderCardPressed]}>
+              style={({ pressed }) => [styles.orderCardMain, pressed && styles.orderCardPressed]}>
               <View style={styles.orderIconBox}>
                 <Image accessibilityIgnoresInvertColors source={require('@/assets/images/pineapple-product.png')} style={styles.orderImage} />
               </View>
@@ -195,7 +209,34 @@ export default function BuyerPurchaseHistoryScreen() {
                 <Text style={styles.orderTotal}>₱{order.total_amount.toFixed(2)}</Text>
               </View>
               <StatusBadge status={order.order_status} />
-            </Pressable>
+              </Pressable>
+              {order.order_status === 'delivered' && (
+                <>
+                  <Pressable onPress={() => router.push({ pathname: '/BuyerOrderTracking', params: { id: String(order.id) } })} style={styles.deliveryNotice}>
+                    <Text style={styles.deliveryNoticeText}>Delivered {order.delivered_at ? `on ${formatDate(order.delivered_at)}` : ''}</Text>
+                    <Text style={styles.deliveryNoticeArrow}>›</Text>
+                  </Pressable>
+                  <View style={styles.orderActions}>
+                    <Pressable onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })} style={styles.actionButton}>
+                      <Text style={styles.actionButtonText}>Return/Refund</Text>
+                    </Pressable>
+                    <Pressable disabled={confirmingOrderId === order.id} onPress={() => confirmReceipt(order)} style={[styles.actionButton, styles.actionButtonPrimary, confirmingOrderId === order.id && styles.actionButtonDisabled]}>
+                      <Text style={styles.actionButtonPrimaryText}>{confirmingOrderId === order.id ? 'Confirming…' : 'Order Received'}</Text>
+                    </Pressable>
+                  </View>
+                </>
+              )}
+              {order.order_status === 'completed' && (
+                <View style={styles.orderActions}>
+                  <Pressable onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })} style={styles.actionButton}>
+                    <Text style={styles.actionButtonText}>Return/Refund</Text>
+                  </Pressable>
+                  <Pressable onPress={() => router.push({ pathname: '/BuyerRateOrder', params: { id: String(order.id) } })} style={[styles.actionButton, styles.actionButtonPrimary]}>
+                    <Text style={styles.actionButtonPrimaryText}>Rate</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
           ))
         )}
       </ScrollView>

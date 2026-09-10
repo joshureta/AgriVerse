@@ -77,6 +77,9 @@ export type BuyerOrder = {
   delivery_dispute_resolution_notes: string | null;
   completed_at: string | null;
   completed_via: 'buyer_confirmed' | 'auto_timeout' | 'dispute_resolved' | null;
+  buyer_rating: number | null;
+  buyer_rating_comment: string | null;
+  buyer_rated_at: string | null;
   items: BuyerOrderItem[];
 };
 
@@ -135,6 +138,14 @@ export async function reportBuyerOrderDispute(orderId: number, report: DisputeRe
       reason: report.reason,
       photos: report.photos,
     }),
+  });
+  return order;
+}
+
+export async function rateBuyerOrder(orderId: number, rating: number, comment: string): Promise<BuyerOrder> {
+  const { order } = await apiRequest<{ order: BuyerOrder }>(`/api/buyer/orders/${orderId}/rating`, {
+    method: 'POST',
+    body: JSON.stringify({ rating, comment }),
   });
   return order;
 }
