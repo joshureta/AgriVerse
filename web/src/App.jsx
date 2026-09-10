@@ -16,6 +16,7 @@ import BuyerCheckout from './pages/Buyer/BuyerCheckout.jsx'
 import PaymentConfirmation from './pages/Buyer/PaymentConfirmation.jsx'
 import DeliveryProgress from './pages/Buyer/DeliveryProgress.jsx'
 import ReturnRequest from './pages/Buyer/ReturnRequest.jsx'
+import ReturnDetails from './pages/Buyer/ReturnDetails.jsx'
 import BuyerProfile from './pages/Buyer/BuyerProfile.jsx'
 import BuyerMessages from './pages/Buyer/BuyerMessages.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
@@ -94,6 +95,10 @@ function App() {
 
   if (path === '/buyer/return-request') {
     return <ProtectedRoute allowedRoles={['buyer']}><ReturnRequest /></ProtectedRoute>
+  }
+
+  if (path === '/buyer/return-details') {
+    return <ProtectedRoute allowedRoles={['buyer']}><ReturnDetails /></ProtectedRoute>
   }
 
 

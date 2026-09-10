@@ -34,8 +34,8 @@ export default function ReturnRequest() {
   const [error, setError] = useState('')
 
   const [category, setCategory] = useState('')
-  const [itemId, setItemId] = useState('')
-  const [quantity, setQuantity] = useState(1)
+  // Map of itemId -> affectedQuantity (number)
+  const [selectedItems, setSelectedItems] = useState({})
   const [reason, setReason] = useState('')
   const [resolution, setResolution] = useState('refund')
   const [photos, setPhotos] = useState([])
@@ -47,8 +47,12 @@ export default function ReturnRequest() {
       const loaded = await loadBuyerOrder(orderId)
       setOrder(loaded)
       if (loaded?.items && loaded.items.length > 0) {
-        setItemId(String(loaded.items[0].id))
-        setQuantity(loaded.items[0].quantity)
+        // Pre-select all items by default with their full quantity
+        const initialMap = {}
+        loaded.items.forEach((item) => {
+          initialMap[item.id] = item.quantity
+        })
+        setSelectedItems(initialMap)
       }
     } catch (caught) {
       setError(caught.message)
@@ -74,21 +78,38 @@ export default function ReturnRequest() {
     }
   }, [photos])
 
-  const affectedItem = useMemo(() => {
-    return order?.items?.find((item) => String(item.id) === itemId)
-  }, [order, itemId])
-
-  function handleItemChange(newItemId) {
-    setItemId(newItemId)
-    const selected = order?.items?.find((item) => String(item.id) === newItemId)
-    setQuantity(selected ? selected.quantity : 1)
+  function toggleItemSelection(item) {
+    setSelectedItems((prev) => {
+      const next = { ...prev }
+      if (next[item.id]) {
+        delete next[item.id]
+      } else {
+        next[item.id] = item.quantity
+      }
+      return next
+    })
   }
 
-  function adjustQuantity(delta) {
-    if (!affectedItem) return
-    const max = affectedItem.quantity
-    const next = Math.max(1, Math.min(max, Number(quantity) + delta))
-    setQuantity(next)
+  function adjustItemQuantity(item, delta) {
+    setSelectedItems((prev) => {
+      const current = prev[item.id] || 1
+      const nextQty = Math.max(1, Math.min(item.quantity, current + delta))
+      return { ...prev, [item.id]: nextQty }
+    })
+  }
+
+  function toggleSelectAll() {
+    if (!order?.items) return
+    const allSelected = order.items.every((it) => selectedItems[it.id] > 0)
+    if (allSelected) {
+      setSelectedItems({})
+    } else {
+      const allMap = {}
+      order.items.forEach((it) => {
+        allMap[it.id] = it.quantity
+      })
+      setSelectedItems(allMap)
+    }
   }
 
   function handlePhotoSelect(event) {
@@ -102,14 +123,28 @@ export default function ReturnRequest() {
     setPhotos((current) => current.filter((_, index) => index !== indexToRemove))
   }
 
-  const estimatedRefund = useMemo(() => {
-    if (!order || !affectedItem) return 0
-    const totalOrderItems = order.items.reduce((acc, it) => acc + (it.quantity || 1), 0) || 1
-    const unitPrice = Number(affectedItem.unit_price) || Math.round(Number(order.total_amount) / totalOrderItems)
-    return Math.min(Number(quantity) * unitPrice, Number(order.total_amount))
-  }, [order, affectedItem, quantity])
+  const selectedCount = useMemo(() => {
+    return Object.values(selectedItems).filter((q) => q > 0).length
+  }, [selectedItems])
 
-  const ready = Boolean(category && itemId && Number(quantity) > 0 && reason.trim() && photos.length > 0)
+  const totalAffectedQuantity = useMemo(() => {
+    return Object.values(selectedItems).reduce((sum, q) => sum + (Number(q) || 0), 0)
+  }, [selectedItems])
+
+  const estimatedRefund = useMemo(() => {
+    if (!order?.items) return 0
+    let total = 0
+    order.items.forEach((item) => {
+      const qty = selectedItems[item.id] || 0
+      if (qty > 0) {
+        const unitPrice = Number(item.unit_price) || 100
+        total += qty * unitPrice
+      }
+    })
+    return Math.min(total, Number(order.total_amount))
+  }, [order, selectedItems])
+
+  const ready = Boolean(category && selectedCount > 0 && reason.trim() && photos.length > 0)
 
   async function submit(event) {
     if (event) event.preventDefault()
@@ -119,15 +154,26 @@ export default function ReturnRequest() {
     setError('')
 
     try {
+      const selectedEntries = Object.entries(selectedItems).filter(([_, q]) => q > 0)
+      const [primaryItemId, primaryQuantity] = selectedEntries[0] || [order.items[0].id, 1]
+
+      const itemsBreakdown = selectedEntries
+        .map(([id, qty]) => {
+          const item = order.items.find((it) => String(it.id) === String(id))
+          return `${item?.product_name || 'Item'} (${qty} pcs)`
+        })
+        .join(', ')
+
       const resolutionPrefix = resolution === 'replacement'
-        ? '[Requested Resolution: Replacement Fruit]\n\n'
-        : '[Requested Resolution: Refund Only]\n\n'
-      const fullReason = `${resolutionPrefix}${reason.trim()}`.slice(0, 1000)
+        ? '[Requested Resolution: Replacement Fruit]\n'
+        : '[Requested Resolution: Refund Only]\n'
+      const itemsPrefix = `[Affected Items: ${itemsBreakdown}]\n\n`
+      const fullReason = `${resolutionPrefix}${itemsPrefix}${reason.trim()}`.slice(0, 1000)
 
       await reportBuyerOrderDispute(order.id, {
         category,
-        itemId: Number(itemId),
-        affectedQuantity: Number(quantity),
+        itemId: Number(primaryItemId),
+        affectedQuantity: Number(primaryQuantity),
         reason: fullReason,
         photos: await Promise.all(
           photos.map(async (file) => ({
@@ -215,77 +261,99 @@ export default function ReturnRequest() {
                   })}
                 </div>
 
-                {/* STEP 2: Affected Item & Quantity Stepper */}
+                {/* STEP 2: Affected Items & Quantity Stepper */}
                 <div style={{ marginTop: '24px' }}>
-                  <label htmlFor="return-item" style={{ display: 'block', margin: '0 0 8px', color: '#2c5330', fontSize: '12px', fontWeight: '750' }}>
-                    STEP 2 — Affected item
-                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ display: 'block', margin: 0, color: '#2c5330', fontSize: '12px', fontWeight: '750' }}>
+                      STEP 2 — Affected item(s)
+                    </label>
+                    {order.items.length > 1 && (
+                      <button
+                        type="button"
+                        className="return-items-select-all"
+                        onClick={toggleSelectAll}
+                      >
+                        {order.items.every((it) => selectedItems[it.id] > 0) ? 'Deselect All' : 'Select All Items'}
+                      </button>
+                    )}
+                  </div>
 
-                  {order.items.length > 1 && (
-                    <select
-                      id="return-item"
-                      value={itemId}
-                      onChange={(event) => handleItemChange(event.target.value)}
-                      required
-                    >
-                      <option value="">Select an item</option>
-                      {order.items.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.product_name} · {item.quantity} {item.weight_label || 'ordered'}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                  <div className="return-items-list">
+                    {order.items.map((item) => {
+                      const isSelected = Boolean(selectedItems[item.id] && selectedItems[item.id] > 0)
+                      const currentQty = selectedItems[item.id] || 0
+                      const unitPrice = Number(item.unit_price) || 100
+                      const subtotal = currentQty * unitPrice
 
-                  {affectedItem && (
-                    <div className="return-item-card">
-                      <div className="return-item-info-wrap">
-                        <div className="return-item-thumb">
-                          <img src={pineappleImage} alt={affectedItem.product_name} />
+                      return (
+                        <div
+                          key={item.id}
+                          className={`return-item-selectable-card ${isSelected ? 'is-selected' : ''}`}
+                          onClick={() => toggleItemSelection(item)}
+                        >
+                          <div className="return-item-left">
+                            <div className="return-checkbox">
+                              {isSelected && <Check size={14} strokeWidth={3} />}
+                            </div>
+
+                            <div className="return-item-thumb">
+                              <img src={pineappleImage} alt={item.product_name} />
+                            </div>
+
+                            <div className="return-item-info">
+                              <strong>{item.product_name}</strong>
+                              <span>
+                                {item.weight_label ? `${item.weight_label} · ` : ''}
+                                PHP {unitPrice.toLocaleString()} each · Ordered: {item.quantity} pcs
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="return-item-right" onClick={(e) => e.stopPropagation()}>
+                            {isSelected ? (
+                              <>
+                                <span className="return-qty-label">Quantity affected:</span>
+                                <div className="return-qty-stepper">
+                                  <button
+                                    type="button"
+                                    onClick={() => adjustItemQuantity(item, -1)}
+                                    disabled={currentQty <= 1}
+                                    aria-label="Decrease quantity"
+                                  >
+                                    <Minus size={14} />
+                                  </button>
+                                  <span>{currentQty}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => adjustItemQuantity(item, 1)}
+                                    disabled={currentQty >= item.quantity}
+                                    aria-label="Increase quantity"
+                                  >
+                                    <Plus size={14} />
+                                  </button>
+                                </div>
+                                <span className="return-item-subtotal">PHP {subtotal.toLocaleString()}</span>
+                              </>
+                            ) : (
+                              <span className="return-item-unselected-label">Click to select</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="return-item-info">
-                          <strong>{affectedItem.product_name}</strong>
-                          <span>
-                            {affectedItem.weight_label ? `${affectedItem.weight_label} · ` : ''}
-                            PHP {Number(affectedItem.unit_price || 100).toLocaleString()} each · Ordered: {affectedItem.quantity} pcs
-                          </span>
-                        </div>
-                      </div>
+                      )
+                    })}
+                  </div>
 
-                      <div className="return-qty-wrap">
-                        <span className="return-qty-label">Quantity affected:</span>
-                        <div className="return-qty-stepper">
-                          <button
-                            type="button"
-                            onClick={() => adjustQuantity(-1)}
-                            disabled={Number(quantity) <= 1}
-                            aria-label="Decrease quantity"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span>{quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => adjustQuantity(1)}
-                            disabled={Number(quantity) >= affectedItem.quantity}
-                            aria-label="Increase quantity"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ marginTop: '16px' }}>
+                  {/* Describe the issue box - Fixed to exactly match user's screenshot */}
+                  <div style={{ marginTop: '18px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-                      <label htmlFor="return-reason" style={{ margin: 0, color: '#2c5330', fontSize: '12px', fontWeight: '750' }}>
+                      <label htmlFor="return-reason" style={{ margin: 0, color: '#173b21', fontSize: '13px', fontWeight: '750' }}>
                         Describe the issue
                       </label>
                       <span style={{ fontSize: '11px', color: '#68736b' }}>{reason.length} / 1000 characters</span>
                     </div>
                     <textarea
                       id="return-reason"
+                      className="return-textarea-box"
                       maxLength={1000}
                       onChange={(event) => setReason(event.target.value)}
                       placeholder="For example: two pineapples arrived bruised and leaking."
@@ -401,7 +469,9 @@ export default function ReturnRequest() {
               <aside className="return-sidebar-card">
                 <div className="return-sidebar-heading">
                   <h3>Dispute Summary</h3>
-                  <span className="return-resolution-badge">Live Estimate</span>
+                  <span className="return-resolution-badge">
+                    {totalAffectedQuantity > 0 ? `${totalAffectedQuantity} pc${totalAffectedQuantity === 1 ? '' : 's'} affected` : 'Live Estimate'}
+                  </span>
                 </div>
 
                 <div className="return-sidebar-meta">
@@ -428,10 +498,24 @@ export default function ReturnRequest() {
                 </div>
 
                 <div className="return-sidebar-totals">
-                  <div className="return-total-row">
-                    <span>Affected Items ({quantity} pcs)</span>
-                    <span>PHP {estimatedRefund.toLocaleString()}</span>
-                  </div>
+                  {order.items
+                    .filter((it) => selectedItems[it.id] > 0)
+                    .map((it) => {
+                      const q = selectedItems[it.id]
+                      const sub = q * (Number(it.unit_price) || 100)
+                      return (
+                        <div className="return-total-row" key={it.id}>
+                          <span>{it.product_name} ({q} pcs)</span>
+                          <span>PHP {sub.toLocaleString()}</span>
+                        </div>
+                      )
+                    })}
+                  {selectedCount === 0 && (
+                    <div className="return-total-row" style={{ color: '#8e9b8f', fontStyle: 'italic' }}>
+                      <span>No items selected</span>
+                      <span>PHP 0</span>
+                    </div>
+                  )}
                   <div className="return-total-row">
                     <span>Resolution</span>
                     <span style={{ fontWeight: '700', color: '#176d34' }}>
@@ -482,4 +566,5 @@ export default function ReturnRequest() {
     </main>
   )
 }
+
 

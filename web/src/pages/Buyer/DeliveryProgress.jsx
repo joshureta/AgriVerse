@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarDays,
+  Camera,
   Check,
   ChevronRight,
+  ExternalLink,
   MapPin,
   PackageCheck,
   PackageOpen,
@@ -11,6 +14,7 @@ import {
   Search,
   Store,
   Truck,
+  X,
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
@@ -159,6 +163,7 @@ export default function DeliveryProgress() {
   const [disputeReason, setDisputeReason] = useState('')
   const [disputePhotos, setDisputePhotos] = useState([])
   const [receiptError, setReceiptError] = useState('')
+  const [viewingDeliveryProof, setViewingDeliveryProof] = useState(false)
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -546,6 +551,50 @@ export default function DeliveryProgress() {
                 <article className="order-detail"><IconBadge icon={CalendarDays} /><p><strong>Order Date</strong><span>{formatDate(selectedOrder.created_at, true)}</span></p></article>
                 <article className="order-detail"><IconBadge icon={Truck} /><p><strong>Est. Delivery</strong><span>{selectedOrder.delivery_method === 'pickup' ? 'On-site pickup' : formatDate(selectedOrder.estimated_delivery_at)}</span></p></article>
               </div>
+
+              {selectedOrder.delivery_proof_image_url && (
+                <div className="order-delivery-proof">
+                  <div className="order-delivery-proof-head">
+                    <span className="order-delivery-proof-label">
+                      <Camera size={14} />
+                      Proof of Delivery
+                    </span>
+                    <span className="order-delivery-proof-sub">Submitted by driver</span>
+                  </div>
+
+                  <div className="order-delivery-proof-body">
+                    <button
+                      type="button"
+                      className="order-delivery-proof-thumb"
+                      onClick={() => setViewingDeliveryProof(true)}
+                      aria-label="View full proof of delivery photo"
+                    >
+                      <img src={selectedOrder.delivery_proof_image_url} alt="Proof of delivery" />
+                      <span className="order-delivery-proof-zoom">
+                        <ExternalLink size={13} />
+                      </span>
+                    </button>
+
+                    <div className="order-delivery-proof-info">
+                      {selectedOrder.delivery_proof_notes ? (
+                        <>
+                          <span className="order-delivery-proof-note-label">Driver note:</span>
+                          <p className="order-delivery-proof-note">"{selectedOrder.delivery_proof_notes}"</p>
+                        </>
+                      ) : (
+                        <p className="order-delivery-proof-note">Photo taken upon arrival.</p>
+                      )}
+                      <button
+                        type="button"
+                        className="order-delivery-proof-view-btn"
+                        onClick={() => setViewingDeliveryProof(true)}
+                      >
+                        View full photo →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className="delivery-card order-items" aria-labelledby="order-items-title">
@@ -563,37 +612,142 @@ export default function DeliveryProgress() {
             </section>
           </div>
 
-          {selectedOrder.delivery_proof_image_url && (
-            <section className="delivery-card delivery-proof" aria-labelledby="delivery-proof-title">
-              <h2 id="delivery-proof-title">Delivery Photo</h2>
-              <img src={selectedOrder.delivery_proof_image_url} alt="Proof of delivery submitted by the driver" />
-              {selectedOrder.delivery_proof_notes && <p>{selectedOrder.delivery_proof_notes}</p>}
-            </section>
-          )}
-
           {selectedOrder.delivery_dispute_status && (
-            <section className={`delivery-card delivery-return-status is-${selectedOrder.delivery_dispute_status}`} aria-labelledby="delivery-return-status-title">
-              <header className="delivery-return-status-head">
-                <span className="delivery-return-status-icon"><PackageOpen aria-hidden="true" /></span>
-                <div>
-                  <h2 id="delivery-return-status-title">{selectedOrder.delivery_dispute_status === 'open' ? 'We’re reviewing your return request' : 'Update on your return request'}</h2>
-                  <p>{selectedOrder.delivery_dispute_status === 'open' ? 'We’ll review your report and evidence within 1–2 business days.' : selectedOrder.delivery_dispute_resolution_notes || 'Your request has been resolved.'}</p>
+            <section
+              className={`delivery-card delivery-return-formal-card is-${selectedOrder.delivery_dispute_status}`}
+              aria-labelledby="delivery-return-status-title"
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                window.location.href = `/buyer/return-details?order=${selectedOrder.id}`
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  window.location.href = `/buyer/return-details?order=${selectedOrder.id}`
+                }
+              }}
+            >
+              <div className="delivery-return-formal-top">
+                <div className="delivery-return-formal-left">
+                  <span className="delivery-return-formal-icon" aria-hidden="true">
+                    <PackageOpen />
+                  </span>
+                  <div className="delivery-return-formal-headings">
+                    <h2 id="delivery-return-status-title">
+                      {selectedOrder.delivery_dispute_status === 'open'
+                        ? 'We’re reviewing your return request'
+                        : 'Update on your return request'}
+                    </h2>
+                    <p>
+                      {disputeCategoryLabels[selectedOrder.delivery_dispute_category] || 'Damaged produce'}
+                      {selectedOrder.delivery_dispute_affected_quantity
+                        ? ` · ${selectedOrder.delivery_dispute_affected_quantity} affected`
+                        : ''}
+                      {Array.isArray(selectedOrder.delivery_dispute_photo_urls) && selectedOrder.delivery_dispute_photo_urls.length > 0
+                        ? ` · ${selectedOrder.delivery_dispute_photo_urls.length} photo${selectedOrder.delivery_dispute_photo_urls.length > 1 ? 's' : ''} attached`
+                        : ''}
+                    </p>
+                  </div>
                 </div>
-                <span className={`delivery-return-status-pill is-${selectedOrder.delivery_dispute_status}`}>{selectedOrder.delivery_dispute_status === 'open' ? 'Under review' : 'Resolved'}</span>
-              </header>
-              <div className="delivery-return-summary">
-                <div className="delivery-return-details">
-                  <p><span>Reported issue</span><strong>{disputeCategoryLabels[selectedOrder.delivery_dispute_category] || 'Delivery issue'}</strong></p>
-                  <p><span>Affected item</span><strong>{selectedOrder.items.find((item) => item.id === selectedOrder.delivery_dispute_item_id)?.product_name || 'Order item'}{selectedOrder.delivery_dispute_affected_quantity ? ` · ${selectedOrder.delivery_dispute_affected_quantity} affected` : ''}</strong></p>
-                  {selectedOrder.refund_amount != null && <p><span>Refund amount</span><strong>PHP {Number(selectedOrder.refund_amount).toLocaleString()}</strong></p>}
+
+                <div className="delivery-return-formal-right">
+                  <span className="delivery-return-view-btn">
+                    <span>View details</span>
+                    <ArrowRight size={15} />
+                  </span>
                 </div>
-                {selectedOrder.delivery_dispute_reason && <p className="delivery-return-note"><span>Buyer note</span>{selectedOrder.delivery_dispute_reason}</p>}
+              </div>
+
+              <div className="delivery-return-formal-divider" />
+
+              <div className="delivery-return-formal-stepper">
+                <div className="delivery-return-stepper-track">
+                  <div className="delivery-return-stepper-bg" />
+                  <div
+                    className="delivery-return-stepper-fill"
+                    style={{
+                      width: selectedOrder.delivery_dispute_status === 'resolved' ? '100%' : '50%',
+                    }}
+                  />
+                </div>
+
+                <div className="delivery-return-stepper-steps">
+                  <div className="delivery-return-step is-done">
+                    <div className="delivery-return-step-node">
+                      <Check size={13} strokeWidth={3} />
+                    </div>
+                    <strong>Report submitted</strong>
+                    <small>
+                      {selectedOrder.delivery_dispute_created_at
+                        ? new Date(selectedOrder.delivery_dispute_created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : 'Submitted'}
+                    </small>
+                  </div>
+
+                  <div className={`delivery-return-step ${selectedOrder.delivery_dispute_status === 'open' ? 'is-active' : 'is-done'}`}>
+                    <div className="delivery-return-step-node">
+                      {selectedOrder.delivery_dispute_status === 'resolved' ? (
+                        <Check size={13} strokeWidth={3} />
+                      ) : (
+                        <span className="delivery-return-step-dot" />
+                      )}
+                    </div>
+                    <strong>Return decision</strong>
+                    <small>
+                      {selectedOrder.delivery_dispute_status === 'resolved'
+                        ? 'Completed'
+                        : '1–2 business days'}
+                    </small>
+                  </div>
+
+                  <div className={`delivery-return-step ${selectedOrder.delivery_dispute_status === 'resolved' ? 'is-done' : 'is-pending'}`}>
+                    <div className="delivery-return-step-node">
+                      {selectedOrder.delivery_dispute_status === 'resolved' ? (
+                        <Check size={13} strokeWidth={3} />
+                      ) : (
+                        <span>3</span>
+                      )}
+                    </div>
+                    <strong>Refund completed</strong>
+                    <small>
+                      {selectedOrder.delivery_dispute_status === 'resolved'
+                        ? 'Completed'
+                        : 'Pending'}
+                    </small>
+                  </div>
+                </div>
               </div>
             </section>
           )}
 
         </>}
       </div>
+
+      {viewingDeliveryProof && selectedOrder?.delivery_proof_image_url && (
+        <div className="return-lightbox-overlay" onClick={() => setViewingDeliveryProof(false)}>
+          <div className="return-lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="return-lightbox-close"
+              onClick={() => setViewingDeliveryProof(false)}
+              aria-label="Close photo preview"
+            >
+              <X size={18} />
+            </button>
+            <img src={selectedOrder.delivery_proof_image_url} alt="Proof of delivery" />
+            {selectedOrder.delivery_proof_notes && (
+              <div className="order-delivery-proof-lightbox-caption">
+                <p><strong>Driver note:</strong> {selectedOrder.delivery_proof_notes}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <BuyerFooter />
     </main>
