@@ -4,8 +4,15 @@ import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, Vi
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
+import { BuyerCancelOrderModal } from '@/components/buyer-cancel-order-modal';
 import { BuyerHeader } from '@/components/buyer-header';
-import { BuyerOrder, confirmBuyerOrderReceipt, DisputeCategory, loadBuyerOrder } from '@/lib/buyer-marketplace';
+import {
+  BuyerOrder,
+  canCancelBuyerOrder,
+  confirmBuyerOrderReceipt,
+  DisputeCategory,
+  loadBuyerOrder,
+} from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-order-tracking.styles';
 
 const DISPUTE_CATEGORY_OPTIONS: { value: DisputeCategory; label: string }[] = [
@@ -288,6 +295,7 @@ export default function BuyerOrderTrackingScreen() {
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   const loadOrder = useCallback(async () => {
     if (!id) {
@@ -479,6 +487,24 @@ export default function BuyerOrderTrackingScreen() {
           </View>
         </View>
 
+        {/* CARD 4: CANCEL ORDER (PENDING/CONFIRMED ONLY) */}
+        {canCancelBuyerOrder(order) ? (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Need to cancel this order?</Text>
+            <Text style={styles.confirmationText}>
+              This order hasn&apos;t started preparing yet, so you can still cancel it
+              {order.payment_method === 'gcash' && order.payment_status === 'paid'
+                ? ' for a full refund to your GCash.'
+                : '.'}
+            </Text>
+            <View style={styles.actionRow}>
+              <Pressable onPress={() => setShowCancelModal(true)} style={styles.dangerButton}>
+                <Text style={styles.dangerButtonText}>Cancel Order</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
         {/* DELIVERY PROOF PHOTO (IF PRESENT) */}
         {order.delivery_proof_image_url ? (
           <View style={styles.card}>
@@ -536,6 +562,15 @@ export default function BuyerOrderTrackingScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      <BuyerCancelOrderModal
+        onCancelled={(updated) => {
+          setOrder(updated);
+          setShowCancelModal(false);
+        }}
+        onClose={() => setShowCancelModal(false)}
+        order={showCancelModal ? order : null}
+      />
 
       <BuyerBottomNavigation activeTab="order" />
     </SafeAreaView>

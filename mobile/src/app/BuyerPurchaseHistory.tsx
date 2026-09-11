@@ -4,8 +4,15 @@ import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, T
 import Svg, { Path } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
+import { BuyerCancelOrderModal } from '@/components/buyer-cancel-order-modal';
 import { BuyerHeader } from '@/components/buyer-header';
-import { BuyerOrder, BuyerOrderStatus, confirmBuyerOrderReceipt, loadBuyerOrders } from '@/lib/buyer-marketplace';
+import {
+  BuyerOrder,
+  BuyerOrderStatus,
+  canCancelBuyerOrder,
+  confirmBuyerOrderReceipt,
+  loadBuyerOrders,
+} from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-purchase-history.styles';
 
 function ReceiptIcon({ color = GREEN, size = 36 }: { color?: string; size?: number }) {
@@ -128,6 +135,7 @@ export default function BuyerPurchaseHistoryScreen() {
   const [error, setError] = useState('');
   const [activeFilter, setActiveFilter] = useState<OrderFilter>('all');
   const [confirmingOrderId, setConfirmingOrderId] = useState<number | null>(null);
+  const [cancelOrder, setCancelOrder] = useState<BuyerOrder | null>(null);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -253,11 +261,27 @@ export default function BuyerPurchaseHistoryScreen() {
                   </Pressable>
                 </View>
               )}
+              {canCancelBuyerOrder(order) && (
+                <View style={styles.orderActions}>
+                  <Pressable onPress={() => setCancelOrder(order)} style={[styles.actionButton, styles.actionButtonDanger]}>
+                    <Text style={styles.actionButtonDangerText}>Cancel order</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           ))
         )}
       </ScrollView>
       </View>
+
+      <BuyerCancelOrderModal
+        onCancelled={(updated) => {
+          setOrders((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+          setCancelOrder(null);
+        }}
+        onClose={() => setCancelOrder(null)}
+        order={cancelOrder}
+      />
 
       <BuyerBottomNavigation activeTab="account" />
     </SafeAreaView>

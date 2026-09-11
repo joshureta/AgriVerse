@@ -123,6 +123,24 @@ export async function confirmBuyerOrderReceipt(orderId: number): Promise<BuyerOr
   return order;
 }
 
+export type CancelReasonCategory = 'changed_mind' | 'mistake' | 'price' | 'slow' | 'other';
+
+// Mirrors the pending/confirmed transitions cancel_buyer_order() allows server-side.
+export function canCancelBuyerOrder(order: BuyerOrder): boolean {
+  return order.order_status === 'pending' || order.order_status === 'confirmed';
+}
+
+export async function cancelBuyerOrder(
+  orderId: number,
+  report: { category: CancelReasonCategory; note?: string },
+): Promise<BuyerOrder> {
+  const { order } = await apiRequest<{ order: BuyerOrder }>(`/api/buyer/orders/${orderId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ category: report.category, note: report.note || '' }),
+  });
+  return order;
+}
+
 export type DisputeCategory = 'damaged' | 'spoiled_rotten' | 'wrong_item' | 'missing_item' | 'wrong_quantity';
 
 export type DisputeReport = {
