@@ -15,33 +15,11 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.js'
 import jtoledoLogo from '../assets/Jtoledologo.png'
-import { buyerCartQuantity, loadBuyerOrders, readBuyerCart } from '../services/buyerMarketplace.js'
+import { buyerCartQuantity, loadBuyerNotifications, readBuyerCart } from '../services/buyerMarketplace.js'
 import { loadBuyerUnreadCount } from '../services/buyerMessages.js'
 
 const UNREAD_POLL_INTERVAL_MS = 20000
 const NOTIFICATION_READ_KEY = 'agriverse_buyer_read_notifications_v1'
-
-const notificationCopy = {
-  pending: ['Order received', 'Your order is waiting for seller confirmation.'],
-  confirmed: ['Order confirmed', 'The seller confirmed your order.'],
-  preparing: ['Order is being prepared', 'Your pineapples are being packed.'],
-  ready_for_delivery: ['Order is ready', 'Your order is ready for delivery or pickup.'],
-  out_for_delivery: ['Out for delivery', 'Your pineapple order is on the way.'],
-  delivered: ['Order delivered', 'Your order has been marked as delivered.'],
-  cancelled: ['Order cancelled', 'This order was cancelled. Open it for details.'],
-}
-
-function notificationDate(order) {
-  const statusDate = {
-    confirmed: order.confirmed_at,
-    preparing: order.preparing_at,
-    ready_for_delivery: order.ready_for_delivery_at,
-    out_for_delivery: order.out_for_delivery_at,
-    delivered: order.delivered_at,
-    cancelled: order.cancelled_at,
-  }
-  return statusDate[order.order_status] || order.created_at
-}
 
 function formatAlertTime(value) {
   const date = new Date(value)
@@ -52,20 +30,18 @@ function formatAlertTime(value) {
   return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' }).format(date)
 }
 
-function createOrderNotifications(orders) {
-  return orders.map((order) => {
-    const status = order.order_status || 'pending'
-    const [title, message] = notificationCopy[status] || notificationCopy.pending
+function createOrderNotifications(records) {
+  return records.map((record) => {
     return {
-      id: `${order.id}:${status}`,
-      status,
-      title,
-      message,
-      orderNumber: order.order_number,
-      createdAt: notificationDate(order),
-      href: `/buyer/delivery-progress?track=${order.id}`,
+      id: String(record.id),
+      status: record.type === 'order_cancelled' ? 'cancelled' : 'updated',
+      title: record.title,
+      message: record.body,
+      orderNumber: record.entity_id ? `Order #${record.entity_id}` : 'Order update',
+      createdAt: record.created_at,
+      href: record.entity_id ? `/buyer/delivery-progress?track=${record.entity_id}` : '/buyer/delivery-progress',
     }
-  }).sort((first, second) => new Date(second.createdAt) - new Date(first.createdAt)).slice(0, 6)
+  })
 }
 
 export function BuyerHeader({ active = 'home', cartCount }) {
@@ -108,9 +84,9 @@ export function BuyerHeader({ active = 'home', cartCount }) {
 
     async function fetchNotifications() {
       try {
-        const orders = await loadBuyerOrders()
+          const result = await loadBuyerNotifications()
         if (!cancelled) {
-          setNotifications(createOrderNotifications(orders))
+          setNotifications(createOrderNotifications(result.notifications || []))
           setNotificationsError(false)
         }
       } catch {
@@ -189,7 +165,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
                 {notificationsLoading && <p className="buyer-notification-state">Loading notifications…</p>}
                 {!notificationsLoading && notificationsError && <p className="buyer-notification-state is-error">Notifications could not be refreshed.</p>}
                 {!notificationsLoading && !notificationsError && notifications.length === 0 && <p className="buyer-notification-state">You have no order updates yet.</p>}
-                {!notificationsLoading && notifications.map((notification) => (
+                {!notificationsLoading && notifications.slice(0, 4).map((notification) => (
                   <a className={`buyer-notification-item${readNotificationIds.includes(notification.id) ? '' : ' is-unread'}`} href={notification.href} onClick={() => markNotificationRead(notification.id)} key={notification.id}>
                     <span className={`buyer-notification-icon is-${notification.status}`}>
                       {notification.status === 'delivered' ? <CheckCircle2 aria-hidden="true" /> : notification.status === 'out_for_delivery' ? <Truck aria-hidden="true" /> : notification.status === 'pending' ? <Clock3 aria-hidden="true" /> : <PackageCheck aria-hidden="true" />}
@@ -199,7 +175,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
                   </a>
                 ))}
               </div>
-              {notifications.length > 0 && <footer><a href="/buyer/delivery-progress">View all orders</a></footer>}
+              {notifications.length > 0 && <footer><a href="/buyer/delivery-progress">View all notifications <span aria-hidden="true">→</span></a></footer>}
             </section>
           </details>
         </div>

@@ -13,6 +13,16 @@ async function readAccessToken(refresh = false) {
   return token
 }
 
+export async function loadBuyerNotifications() {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/notifications`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load notifications')
+  return body
+}
+
 export async function loadPineappleProducts(retry = true) {
   const token = await readAccessToken()
   const controller = new AbortController()

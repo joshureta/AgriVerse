@@ -32,7 +32,7 @@ type NotificationType =
   | 'task_assigned' | 'task_starting_soon' | 'harvest_approved' | 'harvest_rejected'
   | 'task_reassigned' | 'admin_broadcast' | 'weather_alert'
   | 'delivery_assigned' | 'delivery_window_approaching' | 'order_cancelled'
-  | 'dispute_opened' | 'cod_confirmed' | 'rating_received';
+  | 'dispute_opened' | 'cod_confirmed' | 'rating_received' | 'order_status_updated';
 
 type NotificationRecord = {
   id: number;
@@ -59,6 +59,7 @@ const TYPE_META: Record<NotificationType, { tone: 'green' | 'amber' | 'red' | 'i
   dispute_opened: { tone: 'red', icon: 'alertTriangle' },
   cod_confirmed: { tone: 'green', icon: 'cash' },
   rating_received: { tone: 'info', icon: 'star' },
+  order_status_updated: { tone: 'green', icon: 'package' },
 };
 
 const TONE_STYLES = {

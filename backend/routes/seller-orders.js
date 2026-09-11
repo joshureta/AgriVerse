@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { createOrderStatusNotification } = require("../lib/order-notifications");
 
 const router = express.Router();
 const allowedStatuses = new Set(["pending", "confirmed", "preparing", "ready_for_delivery", "out_for_delivery", "delivered", "completed", "cancelled"]);
@@ -96,6 +97,12 @@ router.patch("/:id/status", async (req, res, next) => {
       if (/cannot move|invalid|only seller/i.test(error.message || "")) throw httpError(409, error.message);
       throw error;
     }
+    await createOrderStatusNotification({
+      buyerId: data.buyer_id,
+      orderId: data.id,
+      orderNumber: data.order_number,
+      status,
+    });
     return res.json({ order: serializeOrder(data) });
   } catch (error) {
     return next(error);

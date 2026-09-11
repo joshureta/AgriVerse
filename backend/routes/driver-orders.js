@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth, requireRole, requireInitialPasswordChanged, requireProfileOnboardingComplete } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { createOrderStatusNotification } = require("../lib/order-notifications");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("farm_worker"), requireInitialPasswordChanged, requireProfileOnboardingComplete);
@@ -34,7 +35,7 @@ async function uploadDeliveryProofImage(base64Data, mimeType, orderNumber) {
   }
 }
 
-const orderSelect = "id, order_number, total_amount, payment_method, payment_status, order_status, delivery_assignment_status, assigned_vehicle_id, delivery_full_name, delivery_mobile_number, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay, delivery_scheduled_at, delivery_window_end_at, delivery_accepted_at, delivery_picked_up_at, delivered_at, delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at, vehicle:delivery_vehicles(id, vehicle_name, plate_number), items:buyer_order_items!buyer_order_items_order_id_fkey(id, product_name, weight_label, quantity, unit_price, line_total)";
+const orderSelect = "id, order_number, buyer_id, total_amount, payment_method, payment_status, order_status, delivery_assignment_status, assigned_vehicle_id, delivery_full_name, delivery_mobile_number, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay, delivery_scheduled_at, delivery_window_end_at, delivery_accepted_at, delivery_picked_up_at, delivered_at, delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at, vehicle:delivery_vehicles(id, vehicle_name, plate_number), items:buyer_order_items!buyer_order_items_order_id_fkey(id, product_name, weight_label, quantity, unit_price, line_total)";
 
 async function fetchDriverOrder(id, driverId) {
   const { data, error } = await getSupabase().from("buyer_orders").select(orderSelect)
@@ -94,6 +95,9 @@ router.post("/:id/status", async (req, res, next) => {
     if (nextStatus === "out_for_delivery") update.order_status = "out_for_delivery";
     const { error } = await getSupabase().from("buyer_orders").update(update).eq("id", id).eq("assigned_driver_id", req.user.id);
     if (error) throw error;
+    if (nextStatus === "out_for_delivery") {
+      await createOrderStatusNotification({ buyerId: order.buyer_id, orderId: order.id, orderNumber: order.order_number, status: "out_for_delivery" });
+    }
     return res.json({ order: await fetchDriverOrder(id, req.user.id) });
   } catch (error) { return next(error); }
 });
@@ -131,6 +135,8 @@ router.post("/:id/complete", async (req, res, next) => {
     const { error } = await getSupabase().from("buyer_orders").update(update)
       .eq("id", id).eq("assigned_driver_id", req.user.id).eq("delivery_assignment_status", "out_for_delivery");
     if (error) throw error;
+
+    await createOrderStatusNotification({ buyerId: order.buyer_id, orderId: order.id, orderNumber: order.order_number, status: "delivered" });
 
     if (order.assigned_vehicle_id) {
       const { error: vehicleError } = await getSupabase().from("delivery_vehicles").update({ status: "available" }).eq("id", order.assigned_vehicle_id);
