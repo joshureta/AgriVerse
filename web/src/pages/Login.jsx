@@ -141,9 +141,7 @@ export default function Login() {
           <div className="login-hero-content">
             <h2>Welcome to<br />Jtoledo Trading</h2>
             <p className="login-hero-copy">
-              JToledo Trading is a privately owned agricultural enterprise in
-              Tagaytay specializing in pineapple farming and distribution, with
-              over 25 years of farming operations managed by Joseph Toledo.
+              Proudly providing fresh, high-quality pineapples from our farm to your table.
             </p>
           </div>
         </aside>
