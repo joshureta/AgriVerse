@@ -1,86 +1,43 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
-import { CartItem, PineappleProduct, loadPineappleProducts, readBuyerCart, writeBuyerCart } from '@/lib/buyer-marketplace';
+import {
+  BuyerReview,
+  CartItem,
+  PineappleProduct,
+  loadBuyerReviews,
+  loadPineappleProducts,
+  readBuyerCart,
+  writeBuyerCart,
+} from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-product-detail.styles';
 
-interface ReviewItem {
-  id: string;
-  name: string;
-  initials: string;
-  rating: number;
-  date: string;
-  size: string;
-  verified: boolean;
-  comment: string;
+type RatingFilter = 'all' | 1 | 2 | 3 | 4 | 5;
+type SortOption = 'recent' | 'highest' | 'lowest' | 'helpful';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'recent', label: 'Recent' },
+  { value: 'highest', label: 'Highest' },
+  { value: 'lowest', label: 'Lowest' },
+  { value: 'helpful', label: 'Helpful' },
+];
+
+function initialsFor(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '??';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1].replace(/[^A-Za-z]/g, '')[0]).toUpperCase();
 }
 
-const REVIEWS: ReviewItem[] = [
-  {
-    id: '1',
-    name: 'Maria Santos',
-    initials: 'MS',
-    rating: 5,
-    date: '2 days ago',
-    size: 'Medium Size',
-    verified: true,
-    comment: "Sweetest pineapples I've had! Delivered fresh, naturally sweet, and right on time for our store.",
-  },
-  {
-    id: '2',
-    name: 'Carlos Reyes',
-    initials: 'CR',
-    rating: 4,
-    date: '1 week ago',
-    size: 'Large Size',
-    verified: true,
-    comment: 'Great quality and generous size. Perfectly sweet and firm leaves. Will definitely reorder again.',
-  },
-  {
-    id: '3',
-    name: 'Ana Lim',
-    initials: 'AL',
-    rating: 5,
-    date: '2 weeks ago',
-    size: 'Small Size',
-    verified: true,
-    comment: 'Perfect ripeness and fragrance. Used them for fresh fruit shakes and the natural flavor was incredible.',
-  },
-  {
-    id: '4',
-    name: 'Juan Dela Cruz',
-    initials: 'JD',
-    rating: 5,
-    date: '3 weeks ago',
-    size: 'Medium Size',
-    verified: true,
-    comment: 'Ordered 2 crates for wholesale. Super sweet and fresh from Tagaytay. Packed very securely.',
-  },
-  {
-    id: '5',
-    name: 'Angela Reyes',
-    initials: 'AR',
-    rating: 5,
-    date: '1 month ago',
-    size: 'Large Size',
-    verified: true,
-    comment: 'Very fragrant and juicy with low acidity. Everyone loved it during our family gathering.',
-  },
-  {
-    id: '6',
-    name: 'Kevin Lopez',
-    initials: 'KL',
-    rating: 4,
-    date: '1 month ago',
-    size: 'Large Size',
-    verified: true,
-    comment: 'Good flavor and fair farm price. The fruit inside was intact and very fresh on arrival.',
-  },
-];
+function formatReviewDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(parsed);
+}
 
 // Same copy for every size — this listing is for bulk/wholesale ordering,
 // so the pitch doesn't change when the buyer switches sizes.
@@ -124,25 +81,33 @@ function ChevronRightIcon({ expanded = false, size = 20 }: { expanded?: boolean;
   );
 }
 
-function ReviewCard({ review }: { review: ReviewItem }) {
+function ReviewCard({
+  review,
+  helpfulCount,
+  marked,
+  onToggleHelpful,
+}: {
+  review: BuyerReview;
+  helpfulCount: number;
+  marked: boolean;
+  onToggleHelpful: () => void;
+}) {
   return (
     <View style={styles.reviewCard}>
       <View style={styles.reviewCardHeader}>
         <View style={styles.reviewerMeta}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>{review.initials}</Text>
+            <Text style={styles.avatarText}>{initialsFor(review.name)}</Text>
           </View>
           <View style={styles.reviewerDetails}>
             <View style={styles.nameRow}>
               <Text style={styles.reviewerName}>{review.name}</Text>
-              {review.verified ? (
-                <View style={styles.verifiedBadge}>
-                  <Text style={styles.verifiedText}>✓ Verified</Text>
-                </View>
-              ) : null}
+              <View style={styles.verifiedBadge}>
+                <Text style={styles.verifiedText}>✓ Verified</Text>
+              </View>
             </View>
             <Text style={styles.reviewSubInfo}>
-              {review.date} • {review.size}
+              {formatReviewDate(review.date)} • {review.productSize}
             </Text>
           </View>
         </View>
@@ -152,7 +117,17 @@ function ReviewCard({ review }: { review: ReviewItem }) {
           ))}
         </View>
       </View>
-      <Text style={styles.reviewComment}>{review.comment}</Text>
+      <Text style={styles.reviewComment}>{review.text}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={marked ? 'Remove helpful vote' : 'Mark as helpful'}
+        hitSlop={6}
+        onPress={onToggleHelpful}
+        style={[styles.helpfulButton, marked && styles.helpfulButtonActive]}>
+        <Text style={[styles.helpfulButtonText, marked && styles.helpfulButtonTextActive]}>
+          👍 Helpful ({helpfulCount})
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -167,6 +142,53 @@ export default function BuyerProductDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [cartNotice, setCartNotice] = useState('');
   const [showAllReviews, setShowAllReviews] = useState(false);
+
+  const [reviews, setReviews] = useState<BuyerReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState('');
+  const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('recent');
+  const [helpfulIds, setHelpfulIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    setReviewsLoading(true);
+    loadBuyerReviews()
+      .then((loaded) => { if (!cancelled) setReviews(loaded); })
+      .catch((caught) => { if (!cancelled) setReviewsError(caught instanceof Error ? caught.message : 'Could not load reviews.'); })
+      .finally(() => { if (!cancelled) setReviewsLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  function toggleHelpful(reviewId: number) {
+    setHelpfulIds((current) => {
+      const next = new Set(current);
+      if (next.has(reviewId)) next.delete(reviewId); else next.add(reviewId);
+      return next;
+    });
+  }
+
+  const ratingCounts = useMemo(() => {
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    reviews.forEach((review) => { counts[review.rating] = (counts[review.rating] || 0) + 1; });
+    return counts;
+  }, [reviews]);
+
+  const reviewAverage = useMemo(
+    () => (reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : 0),
+    [reviews],
+  );
+
+  const filteredReviews = useMemo(() => {
+    const matching = ratingFilter === 'all' ? [...reviews] : reviews.filter((review) => review.rating === ratingFilter);
+    const helpfulCount = (review: BuyerReview) => (helpfulIds.has(review.id) ? 1 : 0);
+    return matching.sort((a, b) => {
+      if (sortBy === 'highest') return b.rating - a.rating;
+      if (sortBy === 'lowest') return a.rating - b.rating;
+      if (sortBy === 'helpful') return helpfulCount(b) - helpfulCount(a);
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+  }, [reviews, ratingFilter, sortBy, helpfulIds]);
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -304,7 +326,7 @@ export default function BuyerProductDetailScreen() {
                 <View style={styles.reviewsTitleRow}>
                   <Text style={styles.reviewsTitle}>Customer Reviews</Text>
                   <View style={styles.reviewsCountBadge}>
-                    <Text style={styles.reviewsCountText}>({REVIEWS.length})</Text>
+                    <Text style={styles.reviewsCountText}>({reviews.length})</Text>
                   </View>
                 </View>
                 <Text style={styles.reviewsSubtitle}>Verified purchases from Tagaytay farm</Text>
@@ -324,44 +346,92 @@ export default function BuyerProductDetailScreen() {
             {/* RATING SUMMARY SCOREBOARD */}
             <View style={styles.scoreboardCard}>
               <View style={styles.scoreColumn}>
-                <Text style={styles.scoreBig}>4.9</Text>
+                <Text style={styles.scoreBig}>{reviewAverage ? reviewAverage.toFixed(1) : '—'}</Text>
                 <View style={styles.scoreStarsRow}>
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <StarIcon key={s} filled={true} size={11} />
+                    <StarIcon key={s} filled={s <= Math.round(reviewAverage)} size={11} />
                   ))}
                 </View>
-                <Text style={styles.scoreCountText}>18 reviews</Text>
+                <Text style={styles.scoreCountText}>{reviews.length} review{reviews.length === 1 ? '' : 's'}</Text>
               </View>
 
               <View style={styles.scoreBreakdown}>
-                <View style={styles.barRow}>
-                  <Text style={styles.barLabel}>5★</Text>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { width: '88%' }]} />
+                {[5, 4, 3, 2, 1].map((star) => (
+                  <View key={star} style={styles.barRow}>
+                    <Text style={styles.barLabel}>{star}★</Text>
+                    <View style={styles.barTrack}>
+                      <View
+                        style={[
+                          styles.barFill,
+                          { width: reviews.length ? `${(ratingCounts[star] / reviews.length) * 100}%` : '0%' },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.barValue}>{ratingCounts[star]}</Text>
                   </View>
-                  <Text style={styles.barValue}>16</Text>
-                </View>
-                <View style={styles.barRow}>
-                  <Text style={styles.barLabel}>4★</Text>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { width: '12%' }]} />
-                  </View>
-                  <Text style={styles.barValue}>2</Text>
-                </View>
-                <View style={styles.barRow}>
-                  <Text style={styles.barLabel}>3★</Text>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { width: '0%' }]} />
-                  </View>
-                  <Text style={styles.barValue}>0</Text>
-                </View>
+                ))}
+              </View>
+            </View>
+
+            {/* RATING FILTER CHIPS */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+              {(['all', 5, 4, 3, 2, 1] as RatingFilter[]).map((value) => {
+                const active = ratingFilter === value;
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    key={String(value)}
+                    onPress={() => setRatingFilter(value)}
+                    style={[styles.filterChip, active && styles.filterChipActive]}>
+                    <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                      {value === 'all' ? 'All' : `${value}★`}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* SORT ROW */}
+            <View style={styles.sortRow}>
+              <Text style={styles.sortLabel}>Sort by</Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {SORT_OPTIONS.map((option) => {
+                  const active = sortBy === option.value;
+                  return (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      key={option.value}
+                      onPress={() => setSortBy(option.value)}
+                      style={[styles.sortButton, active && styles.sortButtonActive]}>
+                      <Text style={[styles.sortButtonText, active && styles.sortButtonTextActive]}>{option.label}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
 
             {/* REVIEWS LIST */}
-            {(showAllReviews ? REVIEWS : REVIEWS.slice(0, 3)).map((review) => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
+            {reviewsLoading ? (
+              <ActivityIndicator style={styles.loader} color={GREEN} />
+            ) : reviewsError ? (
+              <Text style={styles.loadError}>{reviewsError}</Text>
+            ) : filteredReviews.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {reviews.length === 0 ? 'No reviews yet — be the first to rate an order!' : 'No reviews at this rating yet.'}
+              </Text>
+            ) : (
+              (showAllReviews ? filteredReviews : filteredReviews.slice(0, 3)).map((review) => (
+                <ReviewCard
+                  key={review.id}
+                  review={review}
+                  helpfulCount={helpfulIds.has(review.id) ? 1 : 0}
+                  marked={helpfulIds.has(review.id)}
+                  onToggleHelpful={() => toggleHelpful(review.id)}
+                />
+              ))
+            )}
           </View>
         </View>
       </ScrollView>

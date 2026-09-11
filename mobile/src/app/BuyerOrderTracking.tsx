@@ -540,7 +540,11 @@ export default function BuyerOrderTrackingScreen() {
         ) : null}
 
         {order.delivery_dispute_status ? (
-          <View style={[styles.card, styles.returnStatusCard]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View return request details"
+            onPress={() => router.push({ pathname: '/BuyerReturnDetails', params: { id: String(order.id) } })}
+            style={[styles.card, styles.returnStatusCard]}>
             <View style={styles.returnStatusHead}>
               <View style={styles.returnStatusIcon}><Text>↻</Text></View>
               <View style={{ flex: 1 }}>
@@ -559,7 +563,8 @@ export default function BuyerOrderTrackingScreen() {
               {order.refund_amount != null ? <View style={styles.returnFact}><Text style={styles.returnFactLabel}>Refund amount</Text><Text style={styles.returnFactValue}>₱{Number(order.refund_amount).toFixed(2)}</Text></View> : null}
             </View>
             {order.delivery_dispute_reason ? <Text style={styles.returnReason}>{order.delivery_dispute_reason}</Text> : null}
-          </View>
+            <Text style={styles.returnViewDetails}>View full details ›</Text>
+          </Pressable>
         ) : null}
       </ScrollView>
 

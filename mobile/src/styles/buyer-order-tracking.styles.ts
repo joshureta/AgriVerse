@@ -497,6 +497,58 @@ export const styles = StyleSheet.create({
   chipTextSelected: {
     color: GREEN,
   },
+  resCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    borderWidth: 1.5,
+    borderColor: SAGE_BORDER,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 9,
+  },
+  resCardSelected: {
+    borderColor: GREEN,
+    backgroundColor: SAGE_BG,
+  },
+  resRadio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.6,
+    borderColor: '#C3D0C1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resRadioSelected: {
+    borderColor: GREEN,
+  },
+  resRadioDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: GREEN,
+  },
+  resBody: {
+    flex: 1,
+  },
+  resBodyTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: DARK_GREEN,
+  },
+  resBodySub: {
+    fontSize: 10.5,
+    color: TEXT_MUTED,
+    marginTop: 2,
+    lineHeight: 14,
+  },
+  resBadge: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: GREEN,
+  },
   chipHelpText: {
     maxWidth: 142,
     marginTop: 3,
@@ -597,6 +649,7 @@ export const styles = StyleSheet.create({
   returnFactValue: { flex: 1, color: DARK_GREEN, fontSize: 11, fontWeight: '700', textAlign: 'right', lineHeight: 15 },
   returnReason: { marginTop: 12, padding: 11, borderRadius: 9, color: '#75673A', backgroundColor: '#FFF8E4', fontSize: 11, lineHeight: 16 },
   returnDetailsButton: { marginTop: 14, width: '100%' },
+  returnViewDetails: { marginTop: 12, textAlign: 'right', color: GREEN, fontSize: 11, fontWeight: '800' },
   actionErrorText: {
     marginTop: 8,
     color: '#a33d35',

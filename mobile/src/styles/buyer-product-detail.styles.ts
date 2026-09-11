@@ -387,6 +387,65 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  // Review filters & sort
+  filterRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingBottom: 4,
+    marginBottom: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: SAGE_BORDER,
+    backgroundColor: '#ffffff',
+  },
+  filterChipActive: {
+    backgroundColor: GREEN,
+    borderColor: GREEN,
+  },
+  filterChipText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: TEXT_MUTED,
+  },
+  filterChipTextActive: {
+    color: '#ffffff',
+  },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sortLabel: {
+    fontSize: 10.5,
+    color: TEXT_MUTED,
+    fontWeight: '600',
+  },
+  sortButton: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    backgroundColor: '#ffffff',
+  },
+  sortButtonActive: {
+    backgroundColor: SAGE_BG,
+    borderColor: GREEN,
+  },
+  sortButtonText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: TEXT_MUTED,
+  },
+  sortButtonTextActive: {
+    color: GREEN,
+  },
+
   // Review card
   reviewCard: {
     marginBottom: 10,
@@ -461,5 +520,26 @@ export const styles = StyleSheet.create({
     fontSize: 11.5,
     color: '#4A5B4D',
     lineHeight: 16.5,
+    marginBottom: 8,
+  },
+  helpfulButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+  },
+  helpfulButtonActive: {
+    backgroundColor: SAGE_BG,
+    borderColor: SAGE_BORDER,
+  },
+  helpfulButtonText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: TEXT_MUTED,
+  },
+  helpfulButtonTextActive: {
+    color: GREEN,
   },
 });

@@ -106,6 +106,20 @@ export async function loadPineappleProducts(): Promise<PineappleProduct[]> {
   return products || [];
 }
 
+export type BuyerReview = {
+  id: number;
+  name: string;
+  rating: number;
+  text: string;
+  date: string;
+  productSize: string;
+};
+
+export async function loadBuyerReviews(): Promise<BuyerReview[]> {
+  const { reviews } = await apiRequest<{ reviews: BuyerReview[] }>('/api/buyer/products/reviews');
+  return reviews || [];
+}
+
 export async function loadBuyerOrders(): Promise<BuyerOrder[]> {
   const { orders } = await apiRequest<{ orders: BuyerOrder[] }>('/api/buyer/orders');
   return orders || [];
