@@ -31,88 +31,68 @@ function SearchIcon() {
   return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>;
 }
 
-function ChevronIcon({ expanded }: { expanded: boolean }) {
-  return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Path d={expanded ? 'm6 15 6-6 6 6' : 'm6 9 6 6 6-6'} stroke="#64748B" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></Svg>;
+function ChevronRightIcon() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path d="m9 18 6-6-6-6" stroke="#94A3B8" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
 }
 
-function CompletedDeliveryCard({
-  order,
-  expanded,
-  onToggle,
-}: {
-  order: DriverOrder;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const vehicle = order.vehicle
-    ? `${order.vehicle.vehicle_name} (${order.vehicle.plate_number})`
-    : 'Vehicle Assigned';
+function CompletedDeliveryCard({ order }: { order: DriverOrder }) {
+  const destination =
+    order.delivery_city_municipality ||
+    order.delivery_province ||
+    order.delivery_barangay ||
+    'Delivery';
+
+  const paymentLabel = order.payment_method === 'gcash' ? 'GCash' : 'COD';
+
+  const deliveredTime = order.delivered_at
+    ? new Date(order.delivered_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : order.delivery_proof_submitted_at
+      ? new Date(order.delivery_proof_submitted_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : 'Delivered';
 
   return (
-    <View style={styles.taskCard}>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={onToggle} style={styles.completedBanner}>
-        <View style={styles.completedStatusContent}>
-          <Image
-            source={require('@/assets/images/delivery-produce-icon.png')}
-            style={styles.deliveryProductIconSmall}
-          />
-          <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={styles.completedText}>Delivered Successfully</Text>
-            <Text numberOfLines={1} style={styles.completedOrderNumber}>
-            {order.order_number || `Order #${order.id}`}
+    <Pressable
+      accessibilityRole="button"
+      onPress={() =>
+        router.push({
+          pathname: '/DriverCompletedDeliveryDetails',
+          params: { id: String(order.id) },
+        })
+      }
+      style={({ pressed }) => [
+        styles.taskCard,
+        pressed && { opacity: 0.9, transform: [{ scale: 0.995 }] },
+      ]}>
+      {/* Top Header Row with Order Pill & Delivered Badge */}
+      <View style={styles.completedCardHeaderRow}>
+        <View style={styles.completedBadgesLeft}>
+          <View style={styles.completedOrderPill}>
+            <Text style={styles.completedOrderPillText}>
+              {order.order_number || `Order #${order.id}`}
             </Text>
           </View>
-        </View>
-        <ChevronIcon expanded={expanded} />
-      </Pressable>
-
-      {expanded ? (
-        <>
-          {/* Main Delivery Title */}
-          <Text style={[styles.taskTitle, { marginTop: 14 }]}>
-            Deliver to {order.delivery_full_name || 'Customer'}
-          </Text>
-
-          {/* Structured Details Table */}
-          <View style={styles.activeDataTable}>
-            <View style={styles.activeDataRow}>
-              <Text style={styles.activeRowKey}>Receiver:</Text>
-              <Text numberOfLines={1} style={styles.activeRowVal}>
-                {order.delivery_full_name || 'Not provided'} ({order.delivery_mobile_number || 'N/A'})
-              </Text>
-            </View>
-
-            <View style={styles.activeDataRow}>
-              <Text style={styles.activeRowKey}>Location:</Text>
-              <Text numberOfLines={2} style={styles.activeRowVal}>
-                {formatDeliveryAddress(order)}
-              </Text>
-            </View>
-
-            <View style={styles.activeDataRow}>
-              <Text style={styles.activeRowKey}>Vehicle:</Text>
-              <Text numberOfLines={1} style={styles.activeRowVal}>
-                {vehicle}
-              </Text>
-            </View>
-
-            <View style={styles.activeDataRow}>
-              <Text style={styles.activeRowKey}>Payment:</Text>
-              <Text numberOfLines={1} style={styles.activeRowVal}>
-                {order.payment_method} · {formatPeso(order.total_amount)}
-              </Text>
-            </View>
-
-            <View style={[styles.activeDataRow, { borderBottomWidth: 0 }]}>
-              <Text style={styles.activeRowKey}>Delivered:</Text>
-              <Text numberOfLines={1} style={styles.activeRowVal}>
-                {formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}
-              </Text>
-            </View>
+          <View style={styles.completedStatusPill}>
+            <Text style={styles.completedStatusPillText}>✓ Delivered</Text>
           </View>
-        </>
-      ) : null}
-    </View>
+        </View>
+
+        <ChevronRightIcon />
+      </View>
+
+      {/* Main Delivery Title */}
+      <Text style={styles.taskTitle}>
+        Deliver to {order.delivery_full_name || 'Customer'}
+      </Text>
+
+      {/* Modern Meta Subtitle */}
+      <Text style={styles.completedTaskMetaSubtitle}>
+        {destination} · {formatPeso(order.total_amount)} ({paymentLabel}) · Delivered at {deliveredTime}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -120,7 +100,6 @@ export default function DriverTaskCompletedScreen() {
   const { width } = useWindowDimensions();
   const { loading: authLoading, profile } = useAuth();
   const [orders, setOrders] = useState<DriverOrder[]>([]);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -202,12 +181,7 @@ export default function DriverTaskCompletedScreen() {
             </View>
           ) : filteredOrders.length ? (
             filteredOrders.map((order) => (
-              <CompletedDeliveryCard
-                expanded={expandedId === order.id}
-                key={order.id}
-                onToggle={() => setExpandedId((current) => (current === order.id ? null : order.id))}
-                order={order}
-              />
+              <CompletedDeliveryCard key={order.id} order={order} />
             ))
           ) : (
             <View style={styles.emptyBox}>

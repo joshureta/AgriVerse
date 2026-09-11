@@ -3,7 +3,6 @@ import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -29,16 +28,13 @@ import {
   formatPeso,
 } from '@/lib/driver-deliveries';
 
-function TruckIcon({ size = 22, color = GREEN }: { size?: number; color?: string }) {
-  return <Svg width={size} height={size} viewBox="0 0 24 24" fill="none"><Path d="M3 5h11v11H3V5Zm11 5h3l3 3v3h-6v-6Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /><Circle cx={6.5} cy={18} r={1.5} stroke={color} strokeWidth={2} /><Circle cx={16.5} cy={18} r={1.5} stroke={color} strokeWidth={2} /></Svg>;
-}
-
 function SearchIcon() {
-  return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>;
-}
-
-function ChevronIcon({ expanded }: { expanded: boolean }) {
-  return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Path d={expanded ? 'm6 15 6-6 6 6' : 'm6 9 6 6 6-6'} stroke="#64748B" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></Svg>;
+  return (
+    <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
+      <Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} />
+      <Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
 }
 
 function VehicleSelector({
@@ -56,17 +52,17 @@ function VehicleSelector({
 }) {
   const selected = vehicles.find((vehicle) => vehicle.id === selectedId);
   return (
-    <View style={styles.vehiclePickerBox}>
-      <Text style={styles.detailLabel}>SELECT VEHICLE</Text>
-      <Pressable accessibilityRole="button" onPress={onToggle} style={styles.vehicleSelectControl}>
+    <View style={styles.vehicleSection}>
+      <Text style={styles.vehicleSectionLabel}>SELECT VEHICLE</Text>
+      <Pressable accessibilityRole="button" onPress={onToggle} style={styles.vehicleDropdownButton}>
         <Text
           numberOfLines={1}
-          style={[styles.vehicleSelectText, !selected && styles.vehiclePlaceholder]}>
+          style={[styles.vehicleDropdownText, !selected && styles.vehicleDropdownPlaceholder]}>
           {selected
             ? `${selected.vehicle_name} · ${selected.plate_number}`
             : 'Choose an available vehicle'}
         </Text>
-        <Text style={{ fontSize: 11, color: GREEN }}>▾</Text>
+        <Text style={styles.vehicleCaret}>{open ? '▴' : '▾'}</Text>
       </Pressable>
       {open ? (
         <View style={styles.vehicleOptionsList}>
@@ -119,100 +115,103 @@ function PendingDeliveryCard({
 }) {
   const orderNumber = order.order_number || `Order #${order.id}`;
   const destination = formatDeliveryAddress(order);
+  const deliveryWindow = formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at);
 
   return (
-    <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
-      {/* Top Header Row */}
-      <Pressable onPress={onExpand} style={styles.cardHeaderRow}>
-        <View style={styles.cardHeaderLeft}>
-          <View style={styles.categorySquircle}>
-            <Image
-              source={require('@/assets/images/delivery-produce-icon.png')}
-              style={styles.deliveryProductIcon}
-            />
+    <View style={[styles.pendingCard, expanded && styles.pendingCardExpanded]}>
+      {/* Top Header Row: Badges & Price */}
+      <View style={styles.pendingHeaderRow}>
+        <View style={styles.pendingBadgesLeft}>
+          <View style={styles.deliveryTagPill}>
+            <Text style={styles.deliveryTagPillText}>DELIVERY ORDER</Text>
           </View>
-          <View style={[styles.priorityPill, styles.priorityPill_order]}>
-            <Text style={[styles.priorityText, styles.priorityText_order]}>{orderNumber}</Text>
+          <View style={styles.orderNumberPill}>
+            <Text style={styles.orderNumberPillText}>{orderNumber}</Text>
           </View>
         </View>
+        <Text style={styles.pendingOrderAmount}>{formatPeso(order.total_amount)}</Text>
+      </View>
 
-        <View style={styles.cardHeaderRight}>
-          <ChevronIcon expanded={expanded} />
-        </View>
-      </Pressable>
-
-      {/* Main Item Title */}
-      <Text style={styles.taskTitle}>
-        Deliver to {order.delivery_full_name || 'Customer'} · {destination}
+      {/* Recipient & Destination (No icons) */}
+      <Text style={styles.recipientTitle}>
+        Deliver to {order.delivery_full_name || 'Customer'}
       </Text>
+      <Text style={styles.destinationText}>{destination}</Text>
 
-      {/* Expanded Details Section */}
+      {/* Schedule & Payment Meta Rows (No backgrounds, Time: instead of Window:) */}
+      <View style={styles.metaTextContainer}>
+        <View style={styles.metaTextRow}>
+          <Text style={styles.metaTextLabel}>Time:</Text>
+          <Text style={styles.metaTextValue}>{deliveryWindow}</Text>
+        </View>
+        <View style={styles.metaTextRow}>
+          <Text style={styles.metaTextLabel}>Payment:</Text>
+          <Text style={styles.metaTextValue}>
+            {order.payment_method || 'Cash on Delivery'} · {formatPeso(order.total_amount)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Collapsible Details Section */}
       {expanded ? (
-        <View style={styles.detailsSection}>
-          {/* Side-by-side Info Boxes */}
-          <View style={styles.detailGrid}>
-            <View style={styles.detailBoxSmall}>
-              <Text style={styles.detailLabel}>RECEIVER</Text>
-              <Text numberOfLines={1} style={styles.detailValue}>
-                {order.delivery_full_name || 'Not provided'}
-              </Text>
-            </View>
-            <View style={styles.detailBoxSmall}>
-              <Text style={styles.detailLabel}>CONTACT</Text>
-              <Text numberOfLines={1} style={styles.detailValue}>
-                {order.delivery_mobile_number || 'Not provided'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Delivery Location & Payment Box */}
-          <View style={styles.detailBox}>
-            <Text style={styles.detailLabel}>DELIVERY LOCATION &amp; PAYMENT</Text>
-            <Text style={styles.detailValue}>
-              {destination} · {order.payment_method} ({formatPeso(order.total_amount)})
+        <View style={styles.pendingDetailsBox}>
+          <View style={styles.pendingDetailRow}>
+            <Text style={styles.pendingDetailLabel}>Receiver:</Text>
+            <Text numberOfLines={1} style={styles.pendingDetailValue}>
+              {order.delivery_full_name || 'Not provided'}
             </Text>
           </View>
-
-          {/* Delivery Schedule Box */}
-          <View style={styles.detailBox}>
-            <Text style={styles.detailLabel}>DELIVERY SCHEDULE</Text>
-            <Text style={styles.detailValue}>
-              {formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}
+          <View style={styles.pendingDetailRow}>
+            <Text style={styles.pendingDetailLabel}>Contact:</Text>
+            <Text numberOfLines={1} style={styles.pendingDetailValue}>
+              {order.delivery_mobile_number || 'Not provided'}
             </Text>
           </View>
-
-          {/* Vehicle Selector */}
-          <VehicleSelector
-            vehicles={vehicles}
-            selectedId={selectedVehicleId}
-            open={selectorOpen}
-            onSelect={onSelectVehicle}
-            onToggle={onToggleSelector}
-          />
-
-          {!vehicles.length ? (
-            <Text style={styles.noVehiclesNotice}>
-              No available vehicle can be assigned right now.
-            </Text>
-          ) : null}
-
-          {/* Accept Delivery Action Button */}
-          <Pressable
-            disabled={busy || !selectedVehicleId || !vehicles.length}
-            onPress={onAccept}
-            style={({ pressed }) => [
-              styles.startButton,
-              (busy || !selectedVehicleId || !vehicles.length) && styles.startButtonDisabled,
-              pressed && styles.startButtonPressed,
-            ]}>
-            {busy ? (
-              <ActivityIndicator color={GREEN} size="small" />
-            ) : (
-              <Text style={styles.startButtonText}>Accept Delivery</Text>
-            )}
-          </Pressable>
+          <View style={styles.pendingDetailRow}>
+            <Text style={styles.pendingDetailLabel}>Address:</Text>
+            <Text style={styles.pendingDetailValue}>{destination}</Text>
+          </View>
         </View>
       ) : null}
+
+      {/* Toggle Details Link */}
+      <Pressable onPress={onExpand} style={styles.toggleDetailsButton}>
+        <Text style={styles.toggleDetailsText}>
+          {expanded ? 'Hide Details ▴' : 'View Details ▾'}
+        </Text>
+      </Pressable>
+
+      {/* Vehicle Selector */}
+      <VehicleSelector
+        vehicles={vehicles}
+        selectedId={selectedVehicleId}
+        open={selectorOpen}
+        onSelect={onSelectVehicle}
+        onToggle={onToggleSelector}
+      />
+
+      {!vehicles.length ? (
+        <Text style={styles.noVehiclesNotice}>
+          No available vehicle can be assigned right now.
+        </Text>
+      ) : null}
+
+      {/* Accept Delivery Action Button */}
+      <Pressable
+        accessibilityRole="button"
+        disabled={busy || !selectedVehicleId || !vehicles.length}
+        onPress={onAccept}
+        style={({ pressed }) => [
+          styles.acceptBtn,
+          (busy || !selectedVehicleId || !vehicles.length) && styles.acceptBtnDisabled,
+          pressed && styles.acceptBtnPressed,
+        ]}>
+        {busy ? (
+          <ActivityIndicator color="#FFFFFF" size="small" />
+        ) : (
+          <Text style={styles.acceptBtnText}>Accept Delivery</Text>
+        )}
+      </Pressable>
     </View>
   );
 }

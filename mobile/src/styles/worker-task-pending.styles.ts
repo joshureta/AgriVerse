@@ -38,6 +38,7 @@ export const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
   },
+
   // Segmented 3-tab pill container
   filters: {
     flexDirection: 'row',
@@ -75,23 +76,23 @@ export const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  // Pending Task Card
+  // Modern Icon-Free Pending Task Card
   taskCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+    gap: 10,
   },
   taskCardExpanded: {
-    borderColor: '#A5D6A7',
-    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
   },
 
   // Top header row of the task card
@@ -100,168 +101,115 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  cardHeaderLeft: {
+  badgesLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
+    flexWrap: 'wrap',
   },
-  cardHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  categoryPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 9999,
+    borderWidth: 1,
   },
-
-  // Category Icon Squircle
-  categorySquircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryIconText: {
-    fontSize: 18,
-  },
-
-  // Priority Pills
-  priorityPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  priorityText: {
-    fontSize: 11.5,
+  categoryPillText: {
+    fontSize: 10.5,
     fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
-  priority_high: {
-    backgroundColor: '#FEE2E2',
+  priorityPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 9999,
+    borderWidth: 1,
   },
-  priorityText_high: {
-    color: '#991B1B',
-  },
-  priority_medium: {
-    backgroundColor: '#FEF3C7',
-  },
-  priorityText_medium: {
-    color: '#92400E',
-  },
-  priority_low: {
-    backgroundColor: '#DCFCE7',
-  },
-  priorityText_low: {
-    color: '#166534',
-  },
-
-  // Duration & Chevron
-  durationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  durationClock: {
-    fontSize: 12,
-    color: '#6B7280',
+  priorityPillText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   durationText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // Task Title and Subtitle
+  taskTitle: {
+    color: '#0F172A',
+    fontSize: 15.5,
+    fontWeight: '800',
+    lineHeight: 21,
+  },
+  taskMetaSubtitle: {
+    color: '#64748B',
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
-  },
-  chevron: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#6B7280',
-    marginLeft: 2,
+    marginTop: 2,
   },
 
-  // Task Title / Description
-  taskTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-    lineHeight: 22,
-    marginTop: 12,
+  // Collapsible Instructions Section
+  toggleDetailsButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
+    marginTop: 2,
   },
-
-  // Expanded Details
+  toggleDetailsText: {
+    color: '#94A3B8',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
   detailsSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  detailGrid: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  detailBoxSmall: {
-    flex: 1,
     backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-  },
-  detailBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 8,
+    padding: 12,
+    gap: 6,
+    marginTop: 2,
   },
   detailLabel: {
     fontSize: 9.5,
     fontWeight: '800',
-    color: GREEN,
+    color: '#94A3B8',
     letterSpacing: 0.5,
-    marginBottom: 3,
     textTransform: 'uppercase',
   },
   detailValue: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
-    color: '#1E293B',
-    lineHeight: 18,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingHorizontal: 2,
-  },
-  metaText: {
-    fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '500',
+    color: '#334155',
+    lineHeight: 17,
   },
 
   // Start Task Button
   startButton: {
-    minHeight: 44,
-    borderRadius: 10,
-    backgroundColor: '#F7F8F0',
-    borderWidth: 1.5,
-    borderColor: GREEN,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: GREEN,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    marginTop: 4,
+    shadowColor: GREEN,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
   startButtonPressed: {
-    backgroundColor: '#EAF4D9',
-    opacity: 0.9,
+    opacity: 0.88,
+    transform: [{ scale: 0.99 }],
   },
   startButtonText: {
-    color: GREEN,
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
     textAlign: 'center',
   },
   startButtonTextWrap: {
@@ -269,6 +217,12 @@ export const styles = StyleSheet.create({
     lineHeight: 15,
     letterSpacing: 0,
   },
+  startButtonDisabled: {
+    backgroundColor: '#CBD5E1',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+
   completedBanner: {
     alignSelf: 'center',
     backgroundColor: '#DCFCE7',

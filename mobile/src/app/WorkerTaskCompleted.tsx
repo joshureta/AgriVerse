@@ -1,26 +1,20 @@
 import { styles } from '@/styles/worker-task-completed.styles';
 import { Redirect, router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
-  LayoutAnimation,
-  Modal,
-  Platform,
   Pressable,
   RefreshControl,
   SafeAreaView,
   ScrollView,
   Text,
   TextInput,
-  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
 
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
-import { WorkerTaskSegmentedTabs } from '@/components/worker-task-segmented-tabs';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
@@ -44,144 +38,270 @@ type WorkerTaskRecord = {
 const GREEN = '#176d34';
 function SearchIcon() { return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>; }
 
-function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
-  const [expanded, setExpanded] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
+function ChevronRightIcon() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Path d="m9 18 6-6-6-6" stroke="#94A3B8" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
+function MonitoringIcon({ size = 22, color = '#166534' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={10.5} cy={10.5} r={6.5} stroke={color} strokeWidth={2} />
+      <Path d="m15.5 15.5 5 5" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M10.5 7.5a3 3 0 0 0-3 3" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function IrrigationIcon({ size = 22, color = '#0284C7' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M9 15a3 3 0 0 0 3 3" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function HarvestingIcon({ size = 22, color = '#B45309' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3 9h18l-2 11H5L3 9z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M7 9V6a5 5 0 0 1 10 0v3" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M10 14h4" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PlantingIcon({ size = 22, color = '#15803D' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 22v-9" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path
+        d="M12 13c-3-6-9-4-9 1 5 1 8-1 9-1z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M12 13c3-6 9-4 9 1-5 1-8-1-9-1z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M5 22h14" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function FertilizingIcon({ size = 22, color = '#166534' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 3.5 1 5.5-.5 10A7 7 0 0 1 11 20z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="m7 15 5-5" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PestControlIcon({ size = 22, color = '#B91C1C' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="m9 12 2 2 4-4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function DefaultTaskIcon({ size = 22, color = '#166534' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 3.5 1 5.5-.5 10A7 7 0 0 1 11 20z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+type CategoryTheme = {
+  squircleBg: string;
+  iconColor: string;
+  pillBg: string;
+  pillColor: string;
+  pillBorder: string;
+  IconComponent: React.ComponentType<{ size?: number; color?: string }>;
+};
+
+const categoryConfig: Record<string, CategoryTheme> = {
+  Monitoring: {
+    squircleBg: '#E8F5E9',
+    iconColor: '#166534',
+    pillBg: '#DCFCE7',
+    pillColor: '#166534',
+    pillBorder: '#BBF7D0',
+    IconComponent: MonitoringIcon,
+  },
+  'Crop Inspection': {
+    squircleBg: '#E8F5E9',
+    iconColor: '#166534',
+    pillBg: '#DCFCE7',
+    pillColor: '#166534',
+    pillBorder: '#BBF7D0',
+    IconComponent: MonitoringIcon,
+  },
+  Irrigation: {
+    squircleBg: '#E0F2FE',
+    iconColor: '#0284C7',
+    pillBg: '#E0F2FE',
+    pillColor: '#0369A1',
+    pillBorder: '#BAE6FD',
+    IconComponent: IrrigationIcon,
+  },
+  Harvesting: {
+    squircleBg: '#FEF3C7',
+    iconColor: '#B45309',
+    pillBg: '#FEF3C7',
+    pillColor: '#92400E',
+    pillBorder: '#FDE68A',
+    IconComponent: HarvestingIcon,
+  },
+  Planting: {
+    squircleBg: '#DCFCE7',
+    iconColor: '#15803D',
+    pillBg: '#F0FDF4',
+    pillColor: '#15803D',
+    pillBorder: '#BBF7D0',
+    IconComponent: PlantingIcon,
+  },
+  Fertilizer: {
+    squircleBg: '#ECFDF5',
+    iconColor: '#166534',
+    pillBg: '#ECFDF5',
+    pillColor: '#166534',
+    pillBorder: '#A7F3D0',
+    IconComponent: FertilizingIcon,
+  },
+  Fertilizing: {
+    squircleBg: '#ECFDF5',
+    iconColor: '#166534',
+    pillBg: '#ECFDF5',
+    pillColor: '#166534',
+    pillBorder: '#A7F3D0',
+    IconComponent: FertilizingIcon,
+  },
+  'Pests & Disease Control': {
+    squircleBg: '#FEE2E2',
+    iconColor: '#B91C1C',
+    pillBg: '#FEF2F2',
+    pillColor: '#B91C1C',
+    pillBorder: '#FECACA',
+    IconComponent: PestControlIcon,
+  },
+};
+
+const defaultCategoryConfig: CategoryTheme = {
+  squircleBg: '#E8F5E9',
+  iconColor: '#166534',
+  pillBg: '#F3F7F3',
+  pillColor: '#166534',
+  pillBorder: '#DCE8DE',
+  IconComponent: DefaultTaskIcon,
+};
+
+function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
   const formattedTime = task.completed_at
     ? new Date(task.completed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : '11:30 AM';
   const isAwaitingApproval = task.status === 'awaiting_approval';
-  const isHarvesting = task.category === 'Harvesting' || isAwaitingApproval;
+  const config = categoryConfig[task.category] || defaultCategoryConfig;
+  const Icon = config.IconComponent;
 
-  const statusIcon = isAwaitingApproval ? '⏳' : '✓';
-  const statusText = isAwaitingApproval
-    ? 'Harvesting • Awaiting Approval'
-    : 'Completed';
+  const fieldName = task.field?.trim() || 'Field';
+  const cleanField = fieldName.toLowerCase().startsWith('field') ? fieldName : `Field ${fieldName}`;
 
-  const hasHarvestCounts =
-    isHarvesting &&
-    (task.harvest_small_count != null ||
-      task.harvest_medium_count != null ||
-      task.harvest_large_count != null ||
-      task.harvest_damaged_count != null);
-
-  const toggleExpand = () => {
-    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-      UIManager.setLayoutAnimationEnabledExperimental(true);
-    }
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpanded((prev) => !prev);
-  };
+  // Clean task title without duplicate category prefix
+  const cleanTitle = task.description
+    ? task.description.toLowerCase().startsWith((task.category || '').toLowerCase())
+      ? task.description
+      : `${task.category} - ${task.description}`
+    : `${task.category} - ${cleanField}`;
 
   return (
-    <View style={styles.taskCard}>
-      {/* Tappable main card area */}
-      <Pressable onPress={toggleExpand} style={styles.cardMainContent}>
-        {/* Status-colored bold font and bigger icon */}
-        <View style={styles.statusKickerRow}>
-          <Text style={isAwaitingApproval ? styles.statusIconHarvesting : styles.statusIconCompleted}>
-            {statusIcon}
-          </Text>
-          <Text style={isAwaitingApproval ? styles.statusKickerHarvesting : styles.statusKickerCompleted}>
-            {statusText}
-          </Text>
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: '/WorkerCompletedTaskDetails', params: { id: String(task.id) } })}
+      style={({ pressed }) => [
+        styles.taskCard,
+        pressed && { opacity: 0.9, transform: [{ scale: 0.995 }] },
+      ]}>
+      <View style={styles.cardRow}>
+        {/* Left: Squircle Category Icon Badge */}
+        <View style={[styles.categorySquircle, { backgroundColor: config.squircleBg }]}>
+          <Icon size={24} color={config.iconColor} />
         </View>
 
-        {/* Task Title */}
-        <Text style={styles.taskTitle}>
-          {task.category} - {task.description || `Completed task in ${task.field}`}
-        </Text>
-
-        {/* Option 1 Clean Typography (No icons) */}
-        <View style={styles.taskMeta}>
-          <Text style={styles.finishedText}>Finished at {formattedTime}</Text>
-          <Text style={styles.fieldText}>Field: {task.field}</Text>
-        </View>
-      </Pressable>
-
-      {/* Expandable Drawer ("see more" reveals Insights, Photo Proof, Harvest Counts) */}
-      {expanded ? (
-        <View style={styles.expandedDrawer}>
-          {/* Harvest Counts (if applicable) */}
-          {hasHarvestCounts ? (
-            <View style={styles.countsGrid}>
-              <View style={styles.countBox}>
-                <Text style={styles.countBoxLabel}>Small</Text>
-                <Text style={styles.countBoxValue}>{task.harvest_small_count ?? 0}</Text>
+        {/* Right Content Column: Badges, Title, Subtitle beside the icon */}
+        <View style={styles.cardContentColumn}>
+          {/* Top Header Row with Semantic Category Pill & Status Badge */}
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.badgesLeft}>
+              <View style={[styles.categoryPill, { backgroundColor: config.pillBg, borderColor: config.pillBorder }]}>
+                <Text style={[styles.categoryPillText, { color: config.pillColor }]}>{task.category}</Text>
               </View>
-              <View style={styles.countBox}>
-                <Text style={styles.countBoxLabel}>Medium</Text>
-                <Text style={styles.countBoxValue}>{task.harvest_medium_count ?? 0}</Text>
-              </View>
-              <View style={styles.countBox}>
-                <Text style={styles.countBoxLabel}>Large</Text>
-                <Text style={styles.countBoxValue}>{task.harvest_large_count ?? 0}</Text>
-              </View>
-              <View style={styles.countBox}>
-                <Text style={styles.countBoxLabel}>Damaged</Text>
-                <Text style={styles.countBoxValue}>{task.harvest_damaged_count ?? 0}</Text>
+              <View style={[styles.statusPill, isAwaitingApproval ? styles.statusPillAwaiting : styles.statusPillCompleted]}>
+                <Text style={isAwaitingApproval ? styles.statusPillTextAwaiting : styles.statusPillTextCompleted}>
+                  {isAwaitingApproval ? '⏳ Awaiting Approval' : '✓ Completed'}
+                </Text>
               </View>
             </View>
-          ) : null}
-
-          {/* Insights */}
-          <View style={styles.insightsContainer}>
-            <Text style={styles.sectionHeaderLabel}>Worker Insights</Text>
-            {task.completion_notes?.trim() ? (
-              <Text style={styles.insightsText}>{task.completion_notes.trim()}</Text>
-            ) : (
-              <Text style={styles.noInsightsText}>No additional insights logged for this task.</Text>
-            )}
           </View>
 
-          {/* Photo Proof */}
-          <View style={styles.photoProofSection}>
-            <Text style={styles.sectionHeaderLabel}>Photo Proof</Text>
-            {task.harvest_proof_image_url ? (
-              <Pressable onPress={() => setModalVisible(true)} style={styles.photoProofContainer}>
-                <Image
-                  source={{ uri: task.harvest_proof_image_url }}
-                  style={styles.photoProofImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.photoProofOverlay}>
-                  <Text style={styles.photoProofOverlayText}>Tap to view full</Text>
-                </View>
-              </Pressable>
-            ) : (
-              <View style={styles.noPhotoContainer}>
-                <Text style={styles.noPhotoText}>No photo proof uploaded</Text>
-              </View>
-            )}
-          </View>
+          {/* Task Title */}
+          <Text numberOfLines={1} style={styles.taskTitle}>{cleanTitle}</Text>
+
+          {/* Modern Meta Subtitle */}
+          <Text numberOfLines={1} style={styles.taskMetaSubtitle}>
+            {cleanField} · Finished at {formattedTime}
+          </Text>
         </View>
-      ) : null}
 
-      {/* Faded "see more" / "see less" Toggle Button */}
-      <Pressable
-        onPress={toggleExpand}
-        style={({ pressed }) => [styles.seeMoreButton, pressed && styles.seeMoreButtonPressed]}>
-        <Text style={styles.seeMoreText}>{expanded ? 'see less' : 'see more'}</Text>
-        <Text style={styles.seeMoreChevron}>{expanded ? '⌃' : '⌄'}</Text>
-      </Pressable>
-
-      {/* Full-Screen Image Modal */}
-      {task.harvest_proof_image_url ? (
-        <Modal animationType="fade" onRequestClose={() => setModalVisible(false)} transparent visible={modalVisible}>
-          <Pressable onPress={() => setModalVisible(false)} style={styles.modalBackdrop}>
-            <Pressable onPress={() => setModalVisible(false)} style={styles.modalCloseButton}>
-              <Text style={styles.modalCloseText}>×</Text>
-            </Pressable>
-            <Image
-              source={{ uri: task.harvest_proof_image_url }}
-              style={styles.modalImage}
-              resizeMode="contain"
-            />
-          </Pressable>
-        </Modal>
-      ) : null}
-    </View>
+        {/* Right Chevron Arrow */}
+        <View style={styles.chevronWrapper}>
+          <ChevronRightIcon />
+        </View>
+      </View>
+    </Pressable>
   );
 }
 

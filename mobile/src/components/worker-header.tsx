@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Image, ImageSourcePropType, Pressable, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
+import { apiRequest } from '@/lib/api';
 import { styles } from '@/styles/components/worker-header.styles';
 
 function getInitials(name?: string | null) {
@@ -11,7 +14,7 @@ function getInitials(name?: string | null) {
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
 }
 
-function BellIcon() {
+function BellIcon({ unread }: { unread: boolean }) {
   return (
     <View style={styles.bellWrapper}>
       <View style={styles.bellOutline}>
@@ -32,9 +35,11 @@ function BellIcon() {
           />
         </Svg>
       </View>
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>!</Text>
-      </View>
+      {unread ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>!</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -60,6 +65,14 @@ export function WorkerHeader({
 }) {
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
+  const [hasUnread, setHasUnread] = useState(false);
+
+  useEffect(() => {
+    if (!profile) return;
+    apiRequest<{ unread_count: number }>('/api/notifications')
+      .then((result) => setHasUnread((result.unread_count || 0) > 0))
+      .catch(() => {});
+  }, [profile]);
 
   return (
     <View style={[
@@ -92,8 +105,13 @@ export function WorkerHeader({
         </View>
 
         <View style={[styles.zone, styles.zoneEnd]}>
-          <Pressable accessibilityLabel="Notifications" accessibilityRole="button" hitSlop={12}>
-            <BellIcon />
+          <Pressable
+            accessibilityLabel="Notifications"
+            accessibilityRole="button"
+            hitSlop={12}
+            onPress={() => router.push('/Notifications')}
+          >
+            <BellIcon unread={hasUnread} />
           </Pressable>
           <View
             accessible

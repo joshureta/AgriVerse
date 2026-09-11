@@ -2,11 +2,21 @@ export type DeliveryAssignmentStatus = 'assigned' | 'accepted' | 'picked_up' | '
 
 export type DeliveryVehicle = { id: number; vehicle_name: string; plate_number: string };
 
+export type DriverOrderItem = {
+  id: number;
+  product_name: string;
+  weight_label?: string | null;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+};
+
 export type DriverOrder = {
   id: number;
   order_number: string;
   total_amount: number;
   payment_method: string;
+  payment_status?: string;
   order_status: string;
   delivery_assignment_status: DeliveryAssignmentStatus;
   assigned_vehicle_id: number | null;
@@ -18,7 +28,14 @@ export type DriverOrder = {
   delivery_barangay: string | null;
   delivery_scheduled_at: string | null;
   delivery_window_end_at: string | null;
+  delivery_accepted_at?: string | null;
+  delivery_picked_up_at?: string | null;
+  delivered_at?: string | null;
+  delivery_proof_image_url?: string | null;
+  delivery_proof_notes?: string | null;
+  delivery_proof_submitted_at?: string | null;
   vehicle: DeliveryVehicle | null;
+  items?: DriverOrderItem[];
 };
 
 export type DriverOrdersResponse = { orders: DriverOrder[] };

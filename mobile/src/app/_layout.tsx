@@ -54,6 +54,14 @@ export default function RootLayout() {
             name="DriverTaskCompletion"
             options={{ animation: 'none', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
           />
+          <Stack.Screen
+            name="WorkerCompletedTaskDetails"
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="DriverCompletedDeliveryDetails"
+            options={{ animation: 'slide_from_right' }}
+          />
         </Stack>
       </OnboardingGuard>
     </AuthProvider>

@@ -17,7 +17,7 @@ function DeliveryIcon({ active }: { active: boolean }) { const color = active ? 
 function CalendarIcon({ active }: { active: boolean }) { const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR; return <Svg width={22} height={22} viewBox="0 0 24 24" fill="none"><Path d="M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /><Path d="M8 2v4m8-4v4M3 10h18" stroke={color} strokeWidth={2} strokeLinecap="round" /></Svg>; }
 function ProfileIcon({ active }: { active: boolean }) { const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR; return <Svg width={22} height={22} viewBox="0 0 24 24" fill="none"><Circle cx={12} cy={8} r={4} stroke={color} strokeWidth={2} /><Path d="M4 21a8 8 0 0 1 16 0" stroke={color} strokeWidth={2} strokeLinecap="round" /></Svg>; }
 
-export function WorkerBottomNavigation({ activeTab }: { activeTab: WorkerTab }) {
+export function WorkerBottomNavigation({ activeTab }: { activeTab?: WorkerTab }) {
   const { profile } = useAuth();
   const homeRoute = profile?.worker_category === 'driver' ? '/DriverTaskDashboard' : '/WorkerTaskDashboard';
   const tasksRoute = profile?.worker_category === 'driver' ? '/DriverTaskPending' : '/WorkerTaskPending';

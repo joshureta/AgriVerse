@@ -84,19 +84,92 @@ export const styles = StyleSheet.create({
     marginTop: 40,
   },
 
-  // Completed Task Card (Bannerless)
+  // Completed Task Card (Modern typography & semantic pills with squircle icon)
   taskCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    marginBottom: 14,
+    padding: 14,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
-    overflow: 'hidden',
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  categorySquircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  cardContentColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  chevronWrapper: {
+    paddingLeft: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  badgesLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+  categoryPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  categoryPillText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  statusPillCompleted: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  statusPillAwaiting: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+  },
+  statusPillTextCompleted: {
+    color: '#166534',
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  statusPillTextAwaiting: {
+    color: '#92400E',
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   cardMainContent: {
     paddingHorizontal: 16,
@@ -134,10 +207,16 @@ export const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   taskTitle: {
-    color: '#111827',
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '800',
+    color: '#0F172A',
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  taskMetaSubtitle: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '500',
   },
   taskMeta: {
     marginTop: 8,

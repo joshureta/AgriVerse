@@ -54,13 +54,6 @@ function ActiveTaskCard({
 }) {
   return (
     <View style={styles.taskCard}>
-      {/* Radar pulse background decoration */}
-      <View style={styles.radarContainer} pointerEvents="none">
-        <View style={styles.radarOuterRing} />
-        <View style={styles.radarMidRing} />
-        <View style={styles.radarInnerCircle} />
-      </View>
-
       {/* Top Header Row */}
       <View style={styles.topRow}>
         <Text style={styles.activeLabel}>Active</Text>

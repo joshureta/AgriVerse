@@ -34,7 +34,7 @@ async function uploadDeliveryProofImage(base64Data, mimeType, orderNumber) {
   }
 }
 
-const orderSelect = "id, order_number, total_amount, payment_method, order_status, delivery_assignment_status, assigned_vehicle_id, delivery_full_name, delivery_mobile_number, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay, delivery_scheduled_at, delivery_window_end_at, vehicle:delivery_vehicles(id, vehicle_name, plate_number)";
+const orderSelect = "id, order_number, total_amount, payment_method, payment_status, order_status, delivery_assignment_status, assigned_vehicle_id, delivery_full_name, delivery_mobile_number, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay, delivery_scheduled_at, delivery_window_end_at, delivery_accepted_at, delivery_picked_up_at, delivered_at, delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at, vehicle:delivery_vehicles(id, vehicle_name, plate_number), items:buyer_order_items!buyer_order_items_order_id_fkey(id, product_name, weight_label, quantity, unit_price, line_total)";
 
 async function fetchDriverOrder(id, driverId) {
   const { data, error } = await getSupabase().from("buyer_orders").select(orderSelect)
@@ -172,6 +172,14 @@ router.post("/:id/dispute-response", async (req, res, next) => {
     if (error) throw error;
     if (!data) throw httpError(409, "This dispute can no longer be responded to");
     return res.json({ order: data });
+  } catch (error) { return next(error); }
+});
+
+router.get("/:id", async (req, res, next) => {
+  try {
+    const id = orderId(req.params.id);
+    const order = await fetchDriverOrder(id, req.user.id);
+    return res.json({ order });
   } catch (error) { return next(error); }
 });
 

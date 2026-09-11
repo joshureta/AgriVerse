@@ -12,15 +12,14 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
-import { WorkerTaskSegmentedTabs } from '@/components/worker-task-segmented-tabs';
 import { apiRequest } from '@/lib/api';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
-import Svg, { Circle, Path } from 'react-native-svg';
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
 type WorkerTaskRecord = {
@@ -41,25 +40,32 @@ const filters: { label: string; value: TaskStatus }[] = [
   { label: 'Completed', value: 'completed' },
 ];
 
-function SearchIcon() { return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>; }
+function SearchIcon() {
+  return (
+    <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
+      <Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} />
+      <Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
 
-const categoryThemes: Record<string, { icon: string; bg: string; color: string }> = {
-  Planting: { icon: '🌱', bg: '#FDF2E9', color: '#9A3412' },
-  Irrigation: { icon: '💧', bg: '#E0F2FE', color: '#0369A1' },
-  Fertilizer: { icon: '🌿', bg: '#DCFCE7', color: '#15803D' },
-  Fertilizing: { icon: '🌿', bg: '#DCFCE7', color: '#15803D' },
-  'Crop Inspection': { icon: '🔎', bg: '#F3E8FF', color: '#7E22CE' },
-  'Pests & Disease Control': { icon: '🔎', bg: '#FEE2E2', color: '#B91C1C' },
-  Harvesting: { icon: '🍍', bg: '#FEF3C7', color: '#B45309' },
+// Clean semantic color palettes for category pills (No emojis)
+const categoryThemes: Record<string, { bg: string; color: string; border: string }> = {
+  Harvesting: { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A' },
+  Monitoring: { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0' },
+  'Crop Inspection': { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0' },
+  Planting: { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0' },
+  Irrigation: { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0' },
+  Fertilizer: { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0' },
+  Fertilizing: { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0' },
+  'Pests & Disease Control': { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
 };
 
-function formatPriorityLabel(priority?: string) {
-  if (!priority) return 'Medium Priority';
-  const lower = priority.toLowerCase();
-  if (lower === 'high') return 'High Priority';
-  if (lower === 'low') return 'Low Priority';
-  return 'Medium Priority';
-}
+const priorityThemes: Record<string, { bg: string; color: string; border: string; label: string }> = {
+  high: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', label: 'High Priority' },
+  medium: { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: 'Medium Priority' },
+  low: { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0', label: 'Low Priority' },
+};
 
 function TaskCard({
   task,
@@ -78,80 +84,85 @@ function TaskCard({
 }) {
   const nextStatus = task.status === 'pending' ? 'in_progress' : 'completed';
   const priorityKey = task.priority || 'medium';
-  const theme = categoryThemes[task.category] || { icon: '🌾', bg: '#F1F5F9', color: '#475569' };
+  const categoryTheme = categoryThemes[task.category] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
+  const priorityTheme = priorityThemes[priorityKey] || priorityThemes.medium;
   const duration = task.estimated_duration_minutes || 45;
+  const scheduledTime = new Date(task.schedule_start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   return (
     <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
-      {/* Top Header Row */}
-      <Pressable onPress={onExpand} style={styles.cardHeaderRow}>
-        <View style={styles.cardHeaderLeft}>
-          <View style={[styles.categorySquircle, { backgroundColor: theme.bg }]}>
-            <Text style={styles.categoryIconText}>{theme.icon}</Text>
+      {/* Top Header Row: Semantic Badges & Duration (Zero Icons) */}
+      <View style={styles.cardHeaderRow}>
+        <View style={styles.badgesLeft}>
+          <View style={[styles.categoryPill, { backgroundColor: categoryTheme.bg, borderColor: categoryTheme.border }]}>
+            <Text style={[styles.categoryPillText, { color: categoryTheme.color }]}>
+              {task.category}
+            </Text>
           </View>
-          <View style={[styles.priorityPill, styles[`priority_${priorityKey}`]]}>
-            <Text style={[styles.priorityText, styles[`priorityText_${priorityKey}`]]}>
-              {formatPriorityLabel(task.priority)}
+          <View style={[styles.priorityPill, { backgroundColor: priorityTheme.bg, borderColor: priorityTheme.border }]}>
+            <Text style={[styles.priorityPillText, { color: priorityTheme.color }]}>
+              {priorityTheme.label}
             </Text>
           </View>
         </View>
 
-        <View style={styles.cardHeaderRight}>
-          <View style={styles.durationRow}>
-            <Text style={styles.durationClock}>🕒</Text>
-            <Text style={styles.durationText}>{duration} min</Text>
-          </View>
-          <Text style={styles.chevron}>{expanded ? '▲' : '▼'}</Text>
-        </View>
-      </Pressable>
+        <Text style={styles.durationText}>{duration} MINS</Text>
+      </View>
 
-      {/* Title */}
-      <Pressable onPress={onExpand}>
+      {/* Task Title & Field / Schedule Subtitle */}
+      <View>
         <Text style={styles.taskTitle}>
-          {task.category} - {task.description || `Task in ${task.field}`}
+          {task.description || `${task.category} in Field ${task.field}`}
         </Text>
-      </Pressable>
+        <Text style={styles.taskMetaSubtitle}>
+          Field {task.field} · Scheduled for {scheduledTime}
+        </Text>
+      </View>
 
-      {/* Expandable Details */}
+      {/* Collapsible Instructions Details */}
       {expanded ? (
         <View style={styles.detailsSection}>
-          <View style={styles.detailGrid}>
-            <View style={styles.detailBoxSmall}>
-              <Text style={styles.detailLabel}>FIELD LOCATION</Text>
-              <Text style={styles.detailValue}>{task.field}</Text>
-            </View>
-            <View style={styles.detailBoxSmall}>
-              <Text style={styles.detailLabel}>SCHEDULED TIME</Text>
-              <Text style={styles.detailValue}>
-                {new Date(task.schedule_start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailBox}>
-            <Text style={styles.detailLabel}>TASK INSTRUCTIONS</Text>
-            <Text style={styles.detailValue}>{task.description || 'Follow standard operating procedure for this sector.'}</Text>
-          </View>
+          <Text style={styles.detailLabel}>TASK INSTRUCTIONS</Text>
+          <Text style={styles.detailValue}>
+            {task.description || 'Follow standard operating procedure for this sector.'}
+          </Text>
+          <Text style={styles.detailValue}>
+            Field location: Sector {task.field}
+          </Text>
         </View>
       ) : null}
+
+      {/* Toggle Instructions Link */}
+      <Pressable onPress={onExpand} style={styles.toggleDetailsButton}>
+        <Text style={styles.toggleDetailsText}>
+          {expanded ? 'Hide Instructions ▴' : 'View Instructions ▾'}
+        </Text>
+      </Pressable>
 
       {/* Start Task Action CTA */}
       {task.status !== 'completed' ? (
         <Pressable
+          accessibilityRole="button"
           disabled={busy || !workAllowed}
           onPress={() => onStatusChange(nextStatus)}
-          style={({ pressed }) => [styles.startButton, (pressed || busy || !workAllowed) && styles.startButtonPressed]}>
+          style={({ pressed }) => [
+            styles.startButton,
+            (!workAllowed || busy) && styles.startButtonDisabled,
+            pressed && styles.startButtonPressed,
+          ]}>
           {busy ? (
-            <ActivityIndicator color="#176D34" size="small" />
+            <ActivityIndicator color="#FFFFFF" size="small" />
           ) : workAllowed ? (
             <Text style={styles.startButtonText}>Start Task</Text>
           ) : (
-            <Text style={[styles.startButtonText, styles.startButtonTextWrap]}>{CROP_WORK_HOURS_LABEL}</Text>
+            <Text style={[styles.startButtonText, styles.startButtonTextWrap]}>
+              {CROP_WORK_HOURS_LABEL}
+            </Text>
           )}
         </Pressable>
       ) : (
         <View style={styles.completedBanner}>
-          <Text style={styles.completedText}>✓ Task completed</Text>
+          <Text style={styles.completedText}>Task completed</Text>
         </View>
       )}
     </View>
@@ -191,7 +202,9 @@ export default function WorkerTaskPending() {
     if (profile) loadTasks();
   }, [loadTasks, profile]);
 
-  const visibleTasks = tasks.filter((task) => task.status === filter).filter((task) => `${task.category} ${task.field} ${task.description || ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase()));
+  const visibleTasks = tasks
+    .filter((task) => task.status === filter)
+    .filter((task) => `${task.category} ${task.field} ${task.description || ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase()));
   const workAllowed = canWorkCropTaskNow();
 
   async function updateTaskStatus(task: WorkerTaskRecord, status: TaskStatus) {
@@ -213,7 +226,11 @@ export default function WorkerTaskPending() {
   }
 
   if (authLoading) {
-    return <View style={styles.center}><ActivityIndicator color="#237c31" size="large" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color="#176D34" size="large" />
+      </View>
+    );
   }
   if (!profile) return <Redirect href="/login" />;
   const horizontalPadding = width < 360 ? 14 : 18;
@@ -225,20 +242,60 @@ export default function WorkerTaskPending() {
       <View style={styles.mainBodyContainer}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
-          refreshControl={<RefreshControl colors={['#237c31']} onRefresh={() => loadTasks(true)} refreshing={refreshing} />}>
+          refreshControl={<RefreshControl colors={['#176D34']} onRefresh={() => loadTasks(true)} refreshing={refreshing} />}>
           <View style={styles.titleRow}>
             <View>
               <Text style={styles.sectionTitle}>My Tasks</Text>
             </View>
           </View>
 
-          <View style={deliveryStyles.deliveryToolbar}><View style={deliveryStyles.deliverySearch}><SearchIcon /><TextInput accessibilityLabel="Search tasks" onChangeText={setSearchQuery} placeholder="Search tasks" placeholderTextColor="#94A3B8" style={deliveryStyles.deliverySearchInput} value={searchQuery} /></View></View>
-          <View style={deliveryStyles.deliveryStatusTabs}>{[{ label: 'Pending', route: '/WorkerTaskPending' }, { label: 'Active', route: '/WorkerTaskActive' }, { label: 'Completed', route: '/WorkerTaskCompleted' }].map((tab) => { const active = tab.label === 'Pending'; return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[deliveryStyles.deliveryStatusTab, active && deliveryStyles.deliveryStatusTabActive]}><Text style={[deliveryStyles.deliveryStatusTabText, active && deliveryStyles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>; })}</View>
+          <View style={deliveryStyles.deliveryToolbar}>
+            <View style={deliveryStyles.deliverySearch}>
+              <SearchIcon />
+              <TextInput
+                accessibilityLabel="Search tasks"
+                onChangeText={setSearchQuery}
+                placeholder="Search tasks"
+                placeholderTextColor="#94A3B8"
+                style={deliveryStyles.deliverySearchInput}
+                value={searchQuery}
+              />
+            </View>
+          </View>
+          <View style={deliveryStyles.deliveryStatusTabs}>
+            {[
+              { label: 'Pending', route: '/WorkerTaskPending' },
+              { label: 'Active', route: '/WorkerTaskActive' },
+              { label: 'Completed', route: '/WorkerTaskCompleted' },
+            ].map((tab) => {
+              const active = tab.label === 'Pending';
+              return (
+                <Pressable
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  key={tab.label}
+                  onPress={() => router.replace(tab.route as any)}
+                  style={[deliveryStyles.deliveryStatusTab, active && deliveryStyles.deliveryStatusTabActive]}>
+                  <Text style={[deliveryStyles.deliveryStatusTabText, active && deliveryStyles.deliveryStatusTabTextActive]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-          {error ? <Pressable onPress={() => loadTasks()} style={styles.errorBox}><Text style={styles.errorText}>{error}</Text><Text style={styles.retry}>Tap to retry</Text></Pressable> : null}
+          {error ? (
+            <Pressable onPress={() => loadTasks()} style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.retry}>Tap to retry</Text>
+            </Pressable>
+          ) : null}
 
           {loading ? (
-            <View style={styles.loadingBox}><ActivityIndicator color="#237c31" /><Text style={styles.loadingText}>Loading assigned tasks...</Text></View>
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color="#176D34" />
+              <Text style={styles.loadingText}>Loading assigned tasks...</Text>
+            </View>
           ) : visibleTasks.length ? (
             visibleTasks.map((task) => (
               <TaskCard
@@ -253,8 +310,9 @@ export default function WorkerTaskPending() {
             ))
           ) : (
             <View style={styles.emptyBox}>
-              <Text style={styles.emptyIcon}>✓</Text>
-              <Text style={styles.emptyTitle}>No {filters.find((item) => item.value === filter)?.label.toLowerCase()} tasks</Text>
+              <Text style={styles.emptyTitle}>
+                No {filters.find((item) => item.value === filter)?.label.toLowerCase()} tasks
+              </Text>
               <Text style={styles.emptyText}>Pull down to check for newly assigned work.</Text>
             </View>
           )}

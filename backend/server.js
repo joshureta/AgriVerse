@@ -24,6 +24,7 @@ const paymongoWebhookRouter = require("./routes/paymongo-webhook");
 const buyerMessagesRouter = require("./routes/buyer-messages");
 const adminMessagesRouter = require("./routes/admin-messages");
 const weatherRouter = require("./routes/weather");
+const notificationsRouter = require("./routes/notifications");
 
 const app = express();
 
@@ -111,6 +112,7 @@ app.use("/api/seller/orders", sellerOrdersRouter);
 app.use("/api/driver/orders", driverOrdersRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/weather", weatherRouter);
+app.use("/api/notifications", notificationsRouter);
 
 const PORT = process.env.PORT || 5000;
 
