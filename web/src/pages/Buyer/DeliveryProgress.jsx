@@ -12,6 +12,7 @@ import {
   PackageOpen,
   ReceiptText,
   Search,
+  Star,
   Store,
   Truck,
   X,
@@ -72,6 +73,31 @@ const CANCEL_REASONS = [
 
 function canCancelOrder(order) {
   return ['pending', 'confirmed'].includes(order.order_status)
+}
+
+const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Excellent' }
+
+function StarRating({ value, size = 16, interactive = false, onHover, onSelect }) {
+  return (
+    <div className="star-rating" onMouseLeave={interactive ? () => onHover(0) : undefined}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const filled = n <= value
+        const star = <Star size={size} fill={filled ? '#e9a528' : 'none'} stroke={filled ? '#e9a528' : '#c7cdc6'} strokeWidth={1.5} aria-hidden="true" />
+        return interactive ? (
+          <button
+            key={n}
+            type="button"
+            className="star-rating-btn"
+            aria-label={`${n} star${n === 1 ? '' : 's'} — ${RATING_LABELS[n]}`}
+            onMouseEnter={() => onHover(n)}
+            onClick={() => onSelect(n)}
+          >
+            {star}
+          </button>
+        ) : <span key={n}>{star}</span>
+      })}
+    </div>
+  )
 }
 
 const ORDER_FILTERS = [
@@ -182,6 +208,13 @@ export default function DeliveryProgress() {
   const [cancelNote, setCancelNote] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
+  const [rateTarget, setRateTarget] = useState(null)
+  const [rateValue, setRateValue] = useState(0)
+  const [rateHoverValue, setRateHoverValue] = useState(0)
+  const [rateComment, setRateComment] = useState('')
+  const [rateSubmitting, setRateSubmitting] = useState(false)
+  const [rateError, setRateError] = useState('')
+  const [rateSubmitted, setRateSubmitted] = useState(false)
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -294,14 +327,34 @@ export default function DeliveryProgress() {
     }
   }
 
-  async function handleRateOrder(order) {
-    const value = window.prompt('Rate this order from 1 to 5 stars')
-    if (value == null) return
-    const rating = Number(value)
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) { setReceiptError('Please choose a whole-number rating from 1 to 5.'); return }
-    const comment = window.prompt('Add a comment (optional)') || ''
-    try { const updated = await rateBuyerOrder(order.id, rating, comment); setOrders((current) => current.map((item) => item.id === updated.id ? updated : item)) }
-    catch (requestError) { setReceiptError(requestError.message) }
+  function openRateModal(order) {
+    setRateTarget(order)
+    setRateValue(order.buyer_rating || 0)
+    setRateHoverValue(0)
+    setRateComment(order.buyer_rating_comment || '')
+    setRateError('')
+    setRateSubmitted(false)
+  }
+
+  function closeRateModal() {
+    if (rateSubmitting) return
+    setRateTarget(null)
+  }
+
+  async function handleSubmitRating(event) {
+    event.preventDefault()
+    if (!rateTarget || !rateValue) return
+    setRateSubmitting(true)
+    setRateError('')
+    try {
+      const updated = await rateBuyerOrder(rateTarget.id, rateValue, rateComment)
+      setOrders((current) => current.map((order) => (order.id === updated.id ? updated : order)))
+      setRateSubmitted(true)
+    } catch (requestError) {
+      setRateError(requestError.message)
+    } finally {
+      setRateSubmitting(false)
+    }
   }
 
   const milestones = selectedOrder ? createMilestones(selectedOrder) : []
@@ -399,7 +452,8 @@ export default function DeliveryProgress() {
                   <div className="history-order-actions">
                     {(order.order_status === 'delivered' || order.order_status === 'completed') && !order.delivery_dispute_status && <button type="button" onClick={(event) => { event.stopPropagation(); window.location.href = `/buyer/return-request?order=${order.id}` }}>{order.order_status === 'delivered' ? 'Report an Issue' : 'Return/Refund'}</button>}
                     {order.order_status === 'delivered' && !order.delivery_dispute_status && <button type="button" className="is-primary" disabled={confirmingOrderId === order.id} onClick={(event) => { event.stopPropagation(); handleListConfirmReceipt(order) }}>{confirmingOrderId === order.id ? 'Confirming…' : 'Order Received'}</button>}
-                    {order.order_status === 'completed' && <button type="button" className="is-primary" onClick={(event) => { event.stopPropagation(); handleRateOrder(order) }}>{order.buyer_rating ? 'Update rating' : 'Rate'}</button>}
+                    {order.order_status === 'completed' && order.buyer_rating ? <StarRating value={order.buyer_rating} size={13} /> : null}
+                    {order.order_status === 'completed' && <button type="button" className={order.buyer_rating ? '' : 'is-primary'} onClick={(event) => { event.stopPropagation(); openRateModal(order) }}>{order.buyer_rating ? 'Update rating' : 'Rate'}</button>}
                     {canCancelOrder(order) && <button type="button" className="is-danger" onClick={(event) => { event.stopPropagation(); openCancelModal(order) }}>Cancel order</button>}
                     {!['delivered', 'completed'].includes(order.order_status) && <span className="history-view-order">View details <ChevronRight aria-hidden="true" /></span>}
                   </div>
@@ -549,6 +603,17 @@ export default function DeliveryProgress() {
               </p>
               <div className="delivery-confirmation-actions">
                 <button type="button" className="is-danger" onClick={() => openCancelModal(selectedOrder)}>Cancel Order</button>
+              </div>
+            </section>
+          )}
+
+          {selectedOrder.order_status === 'completed' && (
+            <section className="delivery-card delivery-confirmation" aria-labelledby="delivery-rate-title">
+              <h2 id="delivery-rate-title">{selectedOrder.buyer_rating ? 'Your rating' : 'How was your order?'}</h2>
+              <p>{selectedOrder.buyer_rating ? 'You can update your rating and comment anytime.' : 'Rate the items you received — it helps other buyers and the farm.'}</p>
+              {selectedOrder.buyer_rating && <StarRating value={selectedOrder.buyer_rating} size={20} />}
+              <div className="delivery-confirmation-actions">
+                <button type="button" className="is-primary" onClick={() => openRateModal(selectedOrder)}>{selectedOrder.buyer_rating ? 'Update rating' : 'Rate this order'}</button>
               </div>
             </section>
           )}
@@ -723,6 +788,53 @@ export default function DeliveryProgress() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {rateTarget && (
+        <div className="rate-modal-overlay" onClick={closeRateModal}>
+          {rateSubmitted ? (
+            <div className="rate-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="rate-success">
+                <div className="rate-success-icon"><Check aria-hidden="true" /></div>
+                <h3>Thanks for rating!</h3>
+                <p>Your feedback helps other buyers and the farm.</p>
+                <button type="button" className="is-primary" onClick={closeRateModal}>Done</button>
+              </div>
+            </div>
+          ) : (
+            <form className="rate-modal" onClick={(event) => event.stopPropagation()} onSubmit={handleSubmitRating}>
+              <div className="rate-modal-eyebrow">Order {rateTarget.order_number}</div>
+              <h3>Rate your purchase</h3>
+              <p>How was your order of {orderItemsText(rateTarget)}?</p>
+
+              <StarRating
+                value={rateHoverValue || rateValue}
+                size={34}
+                interactive
+                onHover={setRateHoverValue}
+                onSelect={setRateValue}
+              />
+              <div className="rate-modal-star-label">{RATING_LABELS[rateHoverValue || rateValue] || ' '}</div>
+
+              <textarea
+                value={rateComment}
+                onChange={(event) => setRateComment(event.target.value)}
+                placeholder="Share your experience (optional)"
+                maxLength={500}
+              />
+              <div className="rate-modal-count">{rateComment.length}/500</div>
+
+              {rateError && <div className="delivery-message is-error" role="alert">{rateError}</div>}
+
+              <div className="delivery-confirmation-actions cancel-modal-actions">
+                <button type="button" className="is-secondary" onClick={closeRateModal} disabled={rateSubmitting}>Maybe later</button>
+                <button type="submit" className="is-primary" disabled={!rateValue || rateSubmitting}>
+                  {rateSubmitting ? 'Submitting…' : 'Submit rating'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 
