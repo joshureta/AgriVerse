@@ -293,6 +293,56 @@ router.post("/:id/confirm-receipt", async (req, res, next) => {
   }
 });
 
+// Free-text reason only required for "other" — the rest store a fixed label
+// on buyer_order_status_history.note so the seller/admin views read cleanly.
+const CANCEL_REASON_LABELS = {
+  changed_mind: "I changed my mind",
+  mistake: "Ordered by mistake",
+  price: "Found a better price elsewhere",
+  slow: "Delivery is taking too long",
+  other: null,
+};
+
+router.post("/:id/cancel", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid order ID");
+
+    const category = String(req.body.category || "").trim();
+    if (!Object.prototype.hasOwnProperty.call(CANCEL_REASON_LABELS, category)) {
+      throw httpError(400, "Select a reason for cancelling");
+    }
+    const note = String(req.body.note || "").trim();
+    if (note.length > 500) throw httpError(400, "Note must not exceed 500 characters");
+    if (category === "other" && !note) throw httpError(400, "Tell us what happened");
+
+    const { error: cancelError } = await getSupabase().rpc("cancel_buyer_order", {
+      p_order_id: id,
+      p_buyer_id: req.user.id,
+      p_reason: category === "other" ? note : CANCEL_REASON_LABELS[category],
+    });
+    if (cancelError) {
+      if (/order not found/i.test(cancelError.message || "")) throw httpError(404, "Order not found");
+      if (/no longer be cancelled/i.test(cancelError.message || "")) throw httpError(409, "This order can no longer be cancelled");
+      if (cancelError.code === "PGRST202" || /cancel_buyer_order.*schema cache/i.test(cancelError.message || "")) {
+        throw httpError(503, "The Supabase cancel-order function is not installed. Run migration 027_buyer_order_cancellation.sql, then restart the backend");
+      }
+      throw cancelError;
+    }
+
+    const { data, error } = await getSupabase()
+      .from("buyer_orders")
+      .select(orderSelect)
+      .eq("id", id)
+      .eq("buyer_id", req.user.id)
+      .single();
+    if (error) throw error;
+    return res.json({ order: serializeOrder(data) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post("/:id/dispute", async (req, res, next) => {
   try {
     const id = Number(req.params.id);

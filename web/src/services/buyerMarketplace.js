@@ -216,6 +216,18 @@ export async function confirmBuyerOrderReceipt(orderId) {
   return body.order
 }
 
+export async function cancelBuyerOrder(orderId, { category, note = '' } = {}) {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/buyer/orders/${orderId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ category, note }),
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to cancel this order')
+  return body.order
+}
+
 export async function reportBuyerOrderDispute(orderId, { category, itemId, affectedQuantity, reason, photos }) {
   const token = await readAccessToken()
   const response = await fetch(`${API_URL}/api/buyer/orders/${orderId}/dispute`, {

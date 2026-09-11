@@ -453,6 +453,103 @@
 .delivery-confirmation-actions .is-danger { color: #fff; background: #b13b3b; }
 .delivery-confirmation-actions .is-danger:hover { background: #98302f; }
 
+/* Cancel-order modal */
+.cancel-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(10, 26, 15, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeInLightbox 160ms ease;
+}
+
+.cancel-modal {
+  width: min(100%, 440px);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 26px 26px 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .28);
+}
+
+.cancel-modal-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #fbeaea;
+  color: #98302f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.cancel-modal-icon svg { width: 21px; height: 21px; }
+
+.cancel-modal h3 { margin: 0 0 6px; font-size: 17px; font-weight: 800; color: #17331f; }
+.cancel-modal > p { margin: 0 0 16px; font-size: 12.5px; color: #5a695d; line-height: 1.5; }
+
+.cancel-modal-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #f4f2e6;
+  border: 1px solid #e2e8df;
+  border-radius: 10px;
+  padding: 10px 13px;
+  margin-bottom: 18px;
+}
+.cancel-modal-summary strong { display: block; font-size: 12px; font-weight: 800; }
+.cancel-modal-summary span { display: block; font-size: 10.5px; color: #5a695d; margin-top: 2px; }
+.cancel-modal-summary b { font-size: 13px; font-weight: 800; color: #197438; white-space: nowrap; }
+
+.cancel-modal-reasons { border: 0; margin: 0 0 16px; padding: 0; }
+.cancel-modal-reasons legend { font-size: 11.5px; font-weight: 800; color: #17331f; margin-bottom: 8px; padding: 0; }
+.cancel-modal-reasons label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 3px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: #223924;
+}
+.cancel-modal-reasons label:hover { background: #f4f2e6; }
+.cancel-modal-reasons input { margin-top: 2px; accent-color: #b13b3b; }
+.cancel-modal-reasons textarea {
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid #e2e8df;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
+  min-height: 54px;
+}
+
+.cancel-modal-refund-note {
+  display: flex;
+  gap: 9px;
+  background: #fdf3df;
+  color: #9a710e;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: 18px;
+}
+
+.cancel-modal-actions.delivery-confirmation-actions { margin-top: 4px; flex-wrap: nowrap; }
+.cancel-modal-actions.delivery-confirmation-actions button { flex: 1; }
+
 .delivery-dispute-form { margin-top: 16px; }
 .delivery-dispute-intro { margin: 0 0 18px; padding: 16px 18px; border: 1px solid #d5e7d5; border-radius: 12px; background: #f5faf3; }
 .return-request-content { width: min(calc(100% - 40px), 1160px); max-width: 1160px; margin: 0 auto; }
@@ -1299,7 +1396,7 @@
 .history-status.is-completed { color: #176b32; background: transparent; }
 .history-view-order { display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; color: #286f3a; font-size: 11px; font-weight: 750; white-space: nowrap; }
 .history-view-order svg { width: 15px; height: 15px; }
-.history-order-actions { display: flex; justify-content: flex-end; gap: 6px; }.history-order-actions button { min-height: 32px; border: 1px solid #b8cdb9; border-radius: 7px; padding: 0 9px; color: #225f32; background: #fff; font: inherit; font-size: 10px; font-weight: 750; cursor: pointer; white-space: nowrap; }.history-order-actions button.is-primary { border-color: #1f7438; color: #fff; background: #1f7438; }.history-order-actions button:disabled { opacity: .6; cursor: wait; }
+.history-order-actions { display: flex; justify-content: flex-end; gap: 6px; }.history-order-actions button { min-height: 32px; border: 1px solid #b8cdb9; border-radius: 7px; padding: 0 9px; color: #225f32; background: #fff; font: inherit; font-size: 10px; font-weight: 750; cursor: pointer; white-space: nowrap; }.history-order-actions button.is-primary { border-color: #1f7438; color: #fff; background: #1f7438; }.history-order-actions button.is-danger { border-color: #d79e9e; color: #a23131; }.history-order-actions button.is-danger:hover { background: #fbeaea; }.history-order-actions button:disabled { opacity: .6; cursor: wait; }
 
 .order-history-search {
   width: min(100%, 310px);

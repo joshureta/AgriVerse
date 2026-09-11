@@ -15,11 +15,13 @@ import {
   Store,
   Truck,
   X,
+  XCircle,
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import {
   buyerCartQuantity,
+  cancelBuyerOrder,
   confirmBuyerOrderReceipt,
   loadBuyerOrder,
   loadBuyerOrders,
@@ -59,6 +61,18 @@ const DISPUTE_CATEGORY_OPTIONS = [
 ]
 
 const disputeCategoryLabels = Object.fromEntries(DISPUTE_CATEGORY_OPTIONS.map((option) => [option.value, option.label]))
+
+const CANCEL_REASONS = [
+  { value: 'changed_mind', label: 'I changed my mind' },
+  { value: 'mistake', label: 'I ordered by mistake' },
+  { value: 'price', label: 'Found a better price elsewhere' },
+  { value: 'slow', label: 'Delivery is taking too long' },
+  { value: 'other', label: 'Other' },
+]
+
+function canCancelOrder(order) {
+  return ['pending', 'confirmed'].includes(order.order_status)
+}
 
 const ORDER_FILTERS = [
   { id: 'all', label: 'All' },
@@ -163,6 +177,11 @@ export default function DeliveryProgress() {
   const [confirmingOrderId, setConfirmingOrderId] = useState(null)
   const [receiptError, setReceiptError] = useState('')
   const [viewingDeliveryProof, setViewingDeliveryProof] = useState(false)
+  const [cancelTarget, setCancelTarget] = useState(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelNote, setCancelNote] = useState('')
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelError, setCancelError] = useState('')
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -244,6 +263,35 @@ export default function DeliveryProgress() {
     try { const updated = await confirmBuyerOrderReceipt(order.id); setOrders((current) => current.map((item) => item.id === updated.id ? updated : item)) }
     catch (requestError) { setReceiptError(requestError.message) }
     finally { setConfirmingOrderId(null) }
+  }
+
+  function openCancelModal(order) {
+    setCancelTarget(order)
+    setCancelReason('')
+    setCancelNote('')
+    setCancelError('')
+  }
+
+  function closeCancelModal() {
+    if (cancelling) return
+    setCancelTarget(null)
+  }
+
+  async function handleCancelOrder(event) {
+    event.preventDefault()
+    if (!cancelTarget || !cancelReason) return
+    if (cancelReason === 'other' && !cancelNote.trim()) { setCancelError('Tell us what happened.'); return }
+    setCancelling(true)
+    setCancelError('')
+    try {
+      const updated = await cancelBuyerOrder(cancelTarget.id, { category: cancelReason, note: cancelNote })
+      setOrders((current) => current.map((order) => (order.id === updated.id ? updated : order)))
+      setCancelTarget(null)
+    } catch (requestError) {
+      setCancelError(requestError.message)
+    } finally {
+      setCancelling(false)
+    }
   }
 
   async function handleRateOrder(order) {
@@ -352,6 +400,7 @@ export default function DeliveryProgress() {
                     {(order.order_status === 'delivered' || order.order_status === 'completed') && !order.delivery_dispute_status && <button type="button" onClick={(event) => { event.stopPropagation(); window.location.href = `/buyer/return-request?order=${order.id}` }}>{order.order_status === 'delivered' ? 'Report an Issue' : 'Return/Refund'}</button>}
                     {order.order_status === 'delivered' && !order.delivery_dispute_status && <button type="button" className="is-primary" disabled={confirmingOrderId === order.id} onClick={(event) => { event.stopPropagation(); handleListConfirmReceipt(order) }}>{confirmingOrderId === order.id ? 'Confirming…' : 'Order Received'}</button>}
                     {order.order_status === 'completed' && <button type="button" className="is-primary" onClick={(event) => { event.stopPropagation(); handleRateOrder(order) }}>{order.buyer_rating ? 'Update rating' : 'Rate'}</button>}
+                    {canCancelOrder(order) && <button type="button" className="is-danger" onClick={(event) => { event.stopPropagation(); openCancelModal(order) }}>Cancel order</button>}
                     {!['delivered', 'completed'].includes(order.order_status) && <span className="history-view-order">View details <ChevronRight aria-hidden="true" /></span>}
                   </div>
                 </article>
@@ -491,6 +540,19 @@ export default function DeliveryProgress() {
             </section>
           </div>
 
+          {canCancelOrder(selectedOrder) && (
+            <section className="delivery-card delivery-confirmation" aria-labelledby="delivery-cancel-title">
+              <h2 id="delivery-cancel-title">Need to cancel this order?</h2>
+              <p>
+                This order hasn't started preparing yet, so you can still cancel it
+                {selectedOrder.payment_method === 'gcash' && selectedOrder.payment_status === 'paid' ? ' for a full refund to your GCash.' : '.'}
+              </p>
+              <div className="delivery-confirmation-actions">
+                <button type="button" className="is-danger" onClick={() => openCancelModal(selectedOrder)}>Cancel Order</button>
+              </div>
+            </section>
+          )}
+
           {selectedOrder.delivery_dispute_status && (
             <section
               className={`delivery-card delivery-return-formal-card is-${selectedOrder.delivery_dispute_status}`}
@@ -606,6 +668,63 @@ export default function DeliveryProgress() {
 
         </>}
       </div>
+
+      {cancelTarget && (
+        <div className="cancel-modal-overlay" onClick={closeCancelModal}>
+          <form className="cancel-modal" onClick={(event) => event.stopPropagation()} onSubmit={handleCancelOrder}>
+            <div className="cancel-modal-icon"><XCircle aria-hidden="true" /></div>
+            <h3>Cancel this order?</h3>
+            <p>This can't be undone. The farm will be notified right away and stock will be released back to the shop.</p>
+
+            <div className="cancel-modal-summary">
+              <div>
+                <strong>{cancelTarget.order_number}</strong>
+                <span>{orderItemsText(cancelTarget)}</span>
+              </div>
+              <b>PHP {Number(cancelTarget.total_amount || 0).toLocaleString()}</b>
+            </div>
+
+            <fieldset className="cancel-modal-reasons">
+              <legend>Tell us why (helps us improve)</legend>
+              {CANCEL_REASONS.map((reasonOption) => (
+                <label key={reasonOption.value}>
+                  <input
+                    type="radio"
+                    name="cancel-reason"
+                    value={reasonOption.value}
+                    checked={cancelReason === reasonOption.value}
+                    onChange={(event) => setCancelReason(event.target.value)}
+                  />
+                  <span>{reasonOption.label}</span>
+                </label>
+              ))}
+              {cancelReason === 'other' && (
+                <textarea
+                  value={cancelNote}
+                  onChange={(event) => setCancelNote(event.target.value)}
+                  placeholder="What happened?"
+                  maxLength={500}
+                />
+              )}
+            </fieldset>
+
+            {cancelTarget.payment_method === 'gcash' && cancelTarget.payment_status === 'paid' && (
+              <div className="cancel-modal-refund-note">
+                Paid via GCash — PHP {Number(cancelTarget.total_amount || 0).toLocaleString()} will be refunded to your GCash account.
+              </div>
+            )}
+
+            {cancelError && <div className="delivery-message is-error" role="alert">{cancelError}</div>}
+
+            <div className="delivery-confirmation-actions cancel-modal-actions">
+              <button type="button" className="is-secondary" onClick={closeCancelModal} disabled={cancelling}>Keep order</button>
+              <button type="submit" className="is-danger" disabled={!cancelReason || cancelling}>
+                {cancelling ? 'Cancelling…' : 'Yes, cancel order'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {viewingDeliveryProof && selectedOrder?.delivery_proof_image_url && (
         <div className="return-lightbox-overlay" onClick={() => setViewingDeliveryProof(false)}>
