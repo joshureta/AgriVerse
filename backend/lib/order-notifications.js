@@ -5,6 +5,7 @@ const STATUS_COPY = {
   preparing: ["Order is being prepared", "Your pineapples are being packed."],
   ready_for_delivery: ["Order is ready", "Your order is ready for delivery or pickup."],
   out_for_delivery: ["Out for delivery", "Your pineapple order is on the way."],
+  ready_for_pickup: ["Ready for pickup!", "Show your pickup code at the counter to collect your order."],
   delivered: ["Order delivered", "Your order has been marked as delivered."],
   cancelled: ["Order cancelled", "This order was cancelled."],
   completed: ["Order completed", "Your order has been completed."],

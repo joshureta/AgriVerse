@@ -12,6 +12,7 @@ const orderSelect = [
   "subtotal, shipping_fee, total_amount, customer_note",
   "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
   "estimated_delivery_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
+  "ready_for_pickup_at, pickup_code, picked_up_at, picked_up_by",
   "paymongo_payment_intent_id",
   "delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at",
   "buyer_confirmed_at, delivery_dispute_status, delivery_dispute_reason, delivery_dispute_created_at, delivery_dispute_resolution, delivery_dispute_resolution_notes",
@@ -352,7 +353,6 @@ router.post("/:id/dispute", async (req, res, next) => {
     if (!Object.prototype.hasOwnProperty.call(DISPUTE_CATEGORIES, category)) {
       throw httpError(400, "Select what happened to this order");
     }
-    const responsibleRole = DISPUTE_CATEGORIES[category];
 
     const reason = String(req.body.reason || "").trim();
     if (!reason) throw httpError(400, "Describe what went wrong with this delivery");
@@ -381,7 +381,7 @@ router.post("/:id/dispute", async (req, res, next) => {
 
     const { data: order, error: orderLookupError } = await supabase
       .from("buyer_orders")
-      .select("id, order_number, order_status, delivery_dispute_status")
+      .select("id, order_number, order_status, delivery_method, delivery_dispute_status")
       .eq("id", id)
       .eq("buyer_id", req.user.id)
       .maybeSingle();
@@ -389,6 +389,9 @@ router.post("/:id/dispute", async (req, res, next) => {
     if (!order || !["delivered", "completed"].includes(order.order_status) || order.delivery_dispute_status) {
       throw httpError(409, "This order cannot be reported right now");
     }
+    // Pickup orders never involve a driver, so the seller is always responsible for the dispute
+    // regardless of category — there's no one else who could have caused it.
+    const responsibleRole = order.delivery_method === "pickup" ? "seller" : DISPUTE_CATEGORIES[category];
 
     const photoUrls = [];
     for (const photo of photos) {

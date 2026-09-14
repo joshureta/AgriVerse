@@ -4,12 +4,13 @@ const { getSupabase } = require("../supabase");
 const { createOrderStatusNotification } = require("../lib/order-notifications");
 
 const router = express.Router();
-const allowedStatuses = new Set(["pending", "confirmed", "preparing", "ready_for_delivery", "out_for_delivery", "delivered", "completed", "cancelled"]);
+const allowedStatuses = new Set(["pending", "confirmed", "preparing", "ready_for_delivery", "out_for_delivery", "ready_for_pickup", "delivered", "completed", "cancelled"]);
 const orderSelect = [
   "id, order_number, buyer_id, delivery_method, payment_method, payment_status, order_status, delivery_assignment_status",
   "subtotal, shipping_fee, total_amount, customer_note",
   "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
   "estimated_delivery_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
+  "ready_for_pickup_at, pickup_code, picked_up_at, picked_up_by",
   "items:buyer_order_items!buyer_order_items_order_id_fkey(id, product_name, weight_label, quantity, unit_price, line_total)",
   "history:buyer_order_status_history(id, previous_status, new_status, note, created_at, changed_by)",
 ].join(",");
@@ -81,8 +82,10 @@ router.patch("/:id/status", async (req, res, next) => {
   try {
     const status = String(req.body.status || "").trim();
     const note = String(req.body.note || "").trim();
-    // "delivered" and "completed" are only reachable through the driver-proof and buyer-confirmation flows.
-    if (!allowedStatuses.has(status) || status === "pending" || status === "delivered" || status === "completed") {
+    // "delivered" is only reachable through the driver-proof flow. "completed" is only reachable
+    // from "ready_for_pickup" (the pickup hand-off) — change_buyer_order_status enforces that
+    // adjacency, this just blocks the obviously-wrong entry points before hitting the database.
+    if (!allowedStatuses.has(status) || status === "pending" || status === "delivered") {
       throw httpError(400, "Invalid next order status");
     }
     if (note.length > 500) throw httpError(400, "Status note must not exceed 500 characters");

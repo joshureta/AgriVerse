@@ -38,6 +38,7 @@ const statusRank = {
   preparing: 1,
   ready_for_delivery: 1,
   out_for_delivery: 2,
+  ready_for_pickup: 2,
   delivered: 3,
   completed: 4,
 }
@@ -48,6 +49,7 @@ const statusLabels = {
   preparing: 'Preparing',
   ready_for_delivery: 'Ready for Delivery',
   out_for_delivery: 'Out for Delivery',
+  ready_for_pickup: 'Ready for Pickup',
   delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
@@ -130,7 +132,7 @@ function matchesOrderFilter(order, filter) {
     return ['pending', 'confirmed', 'preparing', 'ready_for_delivery'].includes(order.order_status)
   }
   if (filter === 'to_receive') {
-    return ['out_for_delivery', 'delivered'].includes(order.order_status)
+    return ['out_for_delivery', 'ready_for_pickup', 'delivered'].includes(order.order_status)
   }
   if (filter === 'completed') return order.order_status === 'completed'
   if (filter === 'cancelled') return order.order_status === 'cancelled'
@@ -153,6 +155,7 @@ function IconBadge({ icon: Icon }) {
 
 function createMilestones(order) {
   const rank = statusRank[order.order_status] ?? 0
+  const isPickup = order.delivery_method === 'pickup'
   return [
     { label: 'Order Placed', date: order.created_at, icon: ReceiptText },
     {
@@ -160,13 +163,12 @@ function createMilestones(order) {
       date: order.preparing_at || order.confirmed_at,
       icon: PackageOpen,
     },
-    { label: 'In Transit', date: order.out_for_delivery_at, icon: Truck },
-    {
-      label: 'Delivered',
-      date: order.delivered_at || order.estimated_delivery_at,
-      icon: Check,
-      estimated: !order.delivered_at,
-    },
+    isPickup
+      ? { label: 'Ready for Pickup', date: order.ready_for_pickup_at, icon: Store, estimated: !order.ready_for_pickup_at }
+      : { label: 'In Transit', date: order.out_for_delivery_at, icon: Truck },
+    isPickup
+      ? { label: 'Picked Up', date: order.picked_up_at || order.completed_at, icon: Check, estimated: !order.picked_up_at }
+      : { label: 'Delivered', date: order.delivered_at || order.estimated_delivery_at, icon: Check, estimated: !order.delivered_at },
   ].map((milestone, index) => ({
     ...milestone,
     complete: index < rank,
@@ -525,6 +527,45 @@ export default function DeliveryProgress() {
             </section>
           )}
 
+          {selectedOrder.order_status === 'ready_for_pickup' && (
+            <section className="delivery-card pickup-ticket" aria-labelledby="pickup-ticket-title">
+              <div className="pickup-ticket-row">
+                <div>
+                  <span className="pickup-ticket-label">Pickup code</span>
+                  <h2 id="pickup-ticket-title" className="pickup-ticket-code">{selectedOrder.pickup_code || '—'}</h2>
+                  <p>Show this code to farm staff when you arrive. No need to wait for a courier — collect it whenever the farm is open.</p>
+                </div>
+              </div>
+              <div className="pickup-ticket-meta">
+                <div className="pickup-ticket-meta-row"><Store aria-hidden="true" /><div><strong>JToledo Trading Farm</strong><span>Tagaytay City, Cavite</span></div></div>
+                <div className="pickup-ticket-meta-row"><CalendarDays aria-hidden="true" /><div><strong>Pickup hours</strong><span>Mon – Sat, 8:00 AM – 5:00 PM</span></div></div>
+              </div>
+              <a
+                className="pickup-directions-btn"
+                href="https://www.google.com/maps/search/?api=1&query=JToledo+Trading+Farm+Tagaytay+City"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <MapPin aria-hidden="true" /> Get Directions
+              </a>
+            </section>
+          )}
+
+          {selectedOrder.delivery_method === 'pickup' && selectedOrder.order_status === 'completed' && (
+            <section className="delivery-card pickup-completed-note" aria-labelledby="pickup-completed-title">
+              <div className="pickup-completed-icon"><Check aria-hidden="true" /></div>
+              <div>
+                <h2 id="pickup-completed-title">Picked up at the farm</h2>
+                <p>{selectedOrder.picked_up_at ? `Verified at the counter on ${formatDate(selectedOrder.picked_up_at, true)}.` : 'Verified at the counter.'} There's no confirm-receipt step for pickup orders — you inspected it in person.</p>
+                {!selectedOrder.delivery_dispute_status && (
+                  <button type="button" className="pickup-report-link" onClick={() => { window.location.href = `/buyer/return-request?order=${selectedOrder.id}` }}>
+                    Noticed something wrong? Report an issue
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
+
           <div className="delivery-summary-grid">
             <section className="delivery-card order-details" aria-labelledby="order-details-title">
               <h2 id="order-details-title">Order Details</h2>
@@ -532,6 +573,9 @@ export default function DeliveryProgress() {
                 <article className="order-detail"><IconBadge icon={ReceiptText} /><p><strong>Order Number</strong><span>{selectedOrder.order_number}</span></p></article>
                 <article className="order-detail"><IconBadge icon={CalendarDays} /><p><strong>Order Date</strong><span>{formatDate(selectedOrder.created_at, true)}</span></p></article>
                 <article className="order-detail"><IconBadge icon={Truck} /><p><strong>Est. Delivery</strong><span>{selectedOrder.delivery_method === 'pickup' ? 'On-site pickup' : formatDate(selectedOrder.estimated_delivery_at)}</span></p></article>
+                {selectedOrder.delivery_method === 'pickup' && selectedOrder.pickup_code && (
+                  <article className="order-detail is-pickup-code"><IconBadge icon={Store} /><p><strong>Pickup Code</strong><span>{selectedOrder.pickup_code}</span></p></article>
+                )}
               </div>
 
               {selectedOrder.delivery_proof_image_url && (

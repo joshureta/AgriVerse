@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
@@ -29,6 +29,7 @@ const STATUS_RANK: Record<BuyerOrder['order_status'], number> = {
   preparing: 1,
   ready_for_delivery: 1,
   out_for_delivery: 2,
+  ready_for_pickup: 2,
   delivered: 3,
   completed: 4,
   cancelled: 0,
@@ -68,6 +69,8 @@ function getStatusLabel(status: BuyerOrder['order_status']) {
       return 'Ready for Delivery';
     case 'out_for_delivery':
       return 'In Transit';
+    case 'ready_for_pickup':
+      return 'Ready for Pickup';
     case 'delivered':
       return 'Delivered';
     case 'completed':
@@ -208,9 +211,17 @@ function PlantIcon({ color = GREEN, size = 16 }: { color?: string; size?: number
   );
 }
 
-type Step = { key: 'placed' | 'confirmed' | 'transit' | 'delivered'; label: string; date: string | null; estimated?: boolean };
+type Step = { key: 'placed' | 'confirmed' | 'transit' | 'ready_pickup' | 'delivered'; label: string; date: string | null; estimated?: boolean };
 
 function buildSteps(order: BuyerOrder): Step[] {
+  if (order.delivery_method === 'pickup') {
+    return [
+      { key: 'placed', label: 'Order Placed', date: order.created_at },
+      { key: 'confirmed', label: 'Confirmed & Packing', date: order.confirmed_at || order.preparing_at },
+      { key: 'ready_pickup', label: 'Ready for Pickup', date: order.ready_for_pickup_at, estimated: !order.ready_for_pickup_at },
+      { key: 'delivered', label: 'Picked Up', date: order.picked_up_at || order.completed_at, estimated: !order.picked_up_at },
+    ];
+  }
   return [
     { key: 'placed', label: 'Order Placed', date: order.created_at },
     { key: 'confirmed', label: 'Confirmed', date: order.confirmed_at || order.preparing_at },
@@ -230,6 +241,8 @@ function StepCircle({ state, stepKey }: { state: 'done' | 'current' | 'pending';
         return <PackingIcon color={iconColor} size={16} />;
       case 'transit':
         return <TransitTruckIcon color={iconColor} size={16} />;
+      case 'ready_pickup':
+        return <MapPinIcon color={iconColor} size={16} />;
       case 'delivered':
         return <DeliveredIcon color={iconColor} size={16} />;
     }
@@ -446,6 +459,18 @@ export default function BuyerOrderTrackingScreen() {
               </Text>
             </View>
           </View>
+
+          {isPickup && order.pickup_code ? (
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconBox}>
+                <MapPinIcon color={GREEN} size={16} />
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>PICKUP CODE</Text>
+                <Text style={styles.detailValue}>{order.pickup_code}</Text>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         {/* CARD 3: ORDER ITEMS & FINANCIAL SUMMARY */}
@@ -536,6 +561,61 @@ export default function BuyerOrderTrackingScreen() {
                 <Text style={styles.secondaryButtonText}>Report an issue</Text>
               </Pressable>
             </View>
+          </View>
+        ) : null}
+
+        {/* READY FOR PICKUP TICKET */}
+        {order.order_status === 'ready_for_pickup' ? (
+          <View style={[styles.card, styles.pendingReviewCard]}>
+            <Text style={styles.pendingReviewTitle}>Ready for pickup</Text>
+            <Text style={styles.pickupCodeText}>{order.pickup_code || '—'}</Text>
+            <Text style={styles.confirmationText}>
+              Show this code to farm staff when you arrive. No courier involved — collect it whenever the farm is open.
+            </Text>
+            <View style={[styles.detailRow, { marginTop: 12 }]}>
+              <View style={styles.detailIconBox}>
+                <MapPinIcon color={GREEN} size={16} />
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>PICKUP LOCATION</Text>
+                <Text style={styles.detailValue}>JToledo Trading Farm, Tagaytay City</Text>
+              </View>
+            </View>
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconBox}>
+                <CalendarIcon color={GREEN} size={16} />
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>PICKUP HOURS</Text>
+                <Text style={styles.detailValue}>Mon – Sat, 8:00 AM – 5:00 PM</Text>
+              </View>
+            </View>
+            <View style={styles.actionRow}>
+              <Pressable
+                onPress={() => Linking.openURL('https://www.google.com/maps/search/?api=1&query=JToledo+Trading+Farm+Tagaytay+City')}
+                style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>Get Directions</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {/* PICKED UP AT THE FARM (PICKUP ORDERS REACHING COMPLETED) */}
+        {order.delivery_method === 'pickup' && order.order_status === 'completed' ? (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Picked up at the farm</Text>
+            <Text style={styles.confirmationText}>
+              {order.picked_up_at ? `Verified at the counter on ${formatDateTime(order.picked_up_at)}.` : 'Verified at the counter.'} There&apos;s no confirm-receipt step for pickup orders — you inspected it in person.
+            </Text>
+            {!order.delivery_dispute_status ? (
+              <View style={styles.actionRow}>
+                <Pressable
+                  onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })}
+                  style={styles.secondaryButton}>
+                  <Text style={styles.secondaryButtonText}>Report an issue</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         ) : null}
 

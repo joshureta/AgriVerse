@@ -9,7 +9,7 @@ import { useAuth } from '@/context/auth-context';
 import { BuyerOrder, PineappleProduct, loadBuyerOrders, loadPineappleProducts } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-home.styles';
 
-const ACTIVE_ORDER_STATUSES = ['pending', 'confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery'];
+const ACTIVE_ORDER_STATUSES = ['pending', 'confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery', 'ready_for_pickup'];
 
 function formatDate(value: string | null) {
   if (!value) return 'Pending';

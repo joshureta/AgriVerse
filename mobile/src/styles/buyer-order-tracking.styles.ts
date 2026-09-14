@@ -634,6 +634,7 @@ export const styles = StyleSheet.create({
     borderColor: '#F0E2B8',
   },
   pendingReviewTitle: { color: '#8A6A12', fontSize: 13.5, fontWeight: '800' },
+  pickupCodeText: { marginTop: 6, color: DARK_GREEN, fontSize: 28, fontWeight: '900', letterSpacing: 1 },
   returnStatusCard: { backgroundColor: '#FFFDF6', borderColor: '#EAD69C', padding: 16 },
   returnStatusHead: { flexDirection: 'row', gap: 11, alignItems: 'flex-start' },
   returnStatusIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0C9' },

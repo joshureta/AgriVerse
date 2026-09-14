@@ -23,14 +23,14 @@ import '../../styles/seller-workspace.css'
 const tabs = [
   { key: 'all', label: 'All Orders', statuses: null },
   { key: 'awaiting', label: 'Awaiting Confirmation', statuses: ['pending'] },
-  { key: 'fulfillment', label: 'In Fulfillment', statuses: ['confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery'] },
+  { key: 'fulfillment', label: 'In Fulfillment', statuses: ['confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery', 'ready_for_pickup'] },
   { key: 'completed', label: 'Completed', statuses: ['delivered', 'completed'] },
   { key: 'cancelled', label: 'Cancelled', statuses: ['cancelled'] },
 ]
 
 const statusLabels = {
   pending: 'Pending', confirmed: 'Confirmed', preparing: 'Packaging', ready_for_delivery: 'Ready for Delivery',
-  out_for_delivery: 'In Transit', delivered: 'Delivered', completed: 'Completed', cancelled: 'Cancelled',
+  out_for_delivery: 'In Transit', ready_for_pickup: 'Ready for Pickup', delivered: 'Delivered', completed: 'Completed', cancelled: 'Cancelled',
 }
 
 const nextActions = {
@@ -40,10 +40,17 @@ const nextActions = {
   ready_for_delivery: [{ status: 'out_for_delivery', label: 'Start Delivery' }],
 }
 
+// On-site pickup orders never see a driver, so they fork off the shared pending/confirmed/preparing
+// steps onto their own two-button path instead of the delivery-only ready_for_delivery/out_for_delivery pair.
+const pickupActions = {
+  preparing: [{ status: 'ready_for_pickup', label: 'Ready for Pickup' }],
+  ready_for_pickup: [{ status: 'completed', label: 'Mark Picked Up' }],
+}
+
 const DRIVER_READY_STATUSES = new Set(['accepted', 'picked_up'])
 
 function availableActions(order) {
-  const actions = nextActions[order.order_status] || []
+  const actions = (order.delivery_method === 'pickup' && pickupActions[order.order_status]) || nextActions[order.order_status] || []
   if (order.order_status !== 'ready_for_delivery') return actions
   return actions.filter((action) => action.status !== 'out_for_delivery' || DRIVER_READY_STATUSES.has(order.delivery_assignment_status))
 }
@@ -166,7 +173,7 @@ export default function SellerOrderManagement() {
   const counts = useMemo(() => ({
     total: orders.length,
     pending: orders.filter((order) => order.order_status === 'pending').length,
-    fulfillment: orders.filter((order) => ['confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery'].includes(order.order_status)).length,
+    fulfillment: orders.filter((order) => ['confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery', 'ready_for_pickup'].includes(order.order_status)).length,
     delivered: orders.filter((order) => order.order_status === 'delivered').length,
     cancelled: orders.filter((order) => order.order_status === 'cancelled').length,
   }), [orders])
@@ -348,7 +355,7 @@ export default function SellerOrderManagement() {
               <div className="seller-receipt-heading"><span>Order receipt</span><strong>{selected.order_number}</strong><small>{dateTime(selected.created_at)}</small></div>
               <section>
                 <div className="seller-modal-section-title"><div><h3>Customer &amp; Delivery</h3><small>Recipient and fulfillment details</small></div></div>
-                <dl><div><dt>Customer</dt><dd>{selected.delivery_full_name}</dd></div><div><dt>Mobile</dt><dd>{selected.delivery_mobile_number || 'Not provided'}</dd></div><div><dt>Method</dt><dd>{selected.delivery_method}</dd></div><div className="seller-modal-address"><dt>Address</dt><dd>{[selected.delivery_barangay, selected.delivery_city_municipality, selected.delivery_province, selected.delivery_region, selected.delivery_country].filter(Boolean).join(', ') || 'Farm pickup'}</dd></div></dl>
+                <dl><div><dt>Customer</dt><dd>{selected.delivery_full_name}</dd></div><div><dt>Mobile</dt><dd>{selected.delivery_mobile_number || 'Not provided'}</dd></div><div><dt>Method</dt><dd>{selected.delivery_method}</dd></div>{selected.delivery_method === 'pickup' ? <div><dt>Pickup Code</dt><dd>{selected.pickup_code || 'Not generated yet'}</dd></div> : <div className="seller-modal-address"><dt>Address</dt><dd>{[selected.delivery_barangay, selected.delivery_city_municipality, selected.delivery_province, selected.delivery_region, selected.delivery_country].filter(Boolean).join(', ') || 'Farm pickup'}</dd></div>}</dl>
               </section>
               <section className="seller-modal-items">
                 <div className="seller-modal-section-title"><div><h3>Ordered Items</h3><small>{selected.items.length} item{selected.items.length === 1 ? '' : 's'} in this order</small></div></div>
@@ -370,6 +377,7 @@ export default function SellerOrderManagement() {
           </div>
           {availableActions(selected).length > 0 && <footer>{[...availableActions(selected)].sort((first, second) => Number(second.danger) - Number(first.danger)).map((action) => <button className={action.danger ? 'is-danger' : 'is-primary'} type="button" disabled={updating} onClick={() => requestOrderAction(selected, action)} key={action.status}>{actionIcon(action.status)} {action.label}</button>)}</footer>}
           {selected.order_status === 'ready_for_delivery' && !DRIVER_READY_STATUSES.has(selected.delivery_assignment_status) && <footer><small className="seller-driver-pending-note">Waiting for a driver to accept this delivery before it can start.</small></footer>}
+          {selected.order_status === 'ready_for_pickup' && <footer><small className="seller-driver-pending-note">Pickup code <strong>{selected.pickup_code}</strong> — confirm it with the buyer before marking this picked up.</small></footer>}
         </section>
       </div>}
 

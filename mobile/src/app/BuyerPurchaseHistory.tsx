@@ -42,6 +42,7 @@ const STATUS_LABELS: Record<BuyerOrderStatus, string> = {
   preparing: 'Preparing',
   ready_for_delivery: 'Ready for Delivery',
   out_for_delivery: 'Out for Delivery',
+  ready_for_pickup: 'Ready for Pickup',
   delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
@@ -76,7 +77,7 @@ function matchesOrderFilter(order: BuyerOrder, filter: OrderFilter) {
   // An order still awaiting payment belongs only in To Pay until it's settled, regardless of fulfillment progress.
   if (needsPayment(order)) return false;
   if (filter === 'preparing') return ['pending', 'confirmed', 'preparing', 'ready_for_delivery'].includes(order.order_status);
-  if (filter === 'to_receive') return ['out_for_delivery', 'delivered'].includes(order.order_status);
+  if (filter === 'to_receive') return ['out_for_delivery', 'ready_for_pickup', 'delivered'].includes(order.order_status);
   if (filter === 'completed') return order.order_status === 'completed';
   if (filter === 'cancelled') return order.order_status === 'cancelled';
   return true;

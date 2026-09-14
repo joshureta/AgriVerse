@@ -33,6 +33,7 @@ export type BuyerOrderStatus =
   | 'preparing'
   | 'ready_for_delivery'
   | 'out_for_delivery'
+  | 'ready_for_pickup'
   | 'delivered'
   | 'completed'
   | 'cancelled';
@@ -62,6 +63,10 @@ export type BuyerOrder = {
   preparing_at: string | null;
   ready_for_delivery_at: string | null;
   out_for_delivery_at: string | null;
+  ready_for_pickup_at: string | null;
+  pickup_code: string | null;
+  picked_up_at: string | null;
+  picked_up_by: string | null;
   delivered_at: string | null;
   cancelled_at: string | null;
   created_at: string;
@@ -81,7 +86,7 @@ export type BuyerOrder = {
   delivery_dispute_photo_urls: string[] | null;
   refund_amount: number | null;
   completed_at: string | null;
-  completed_via: 'buyer_confirmed' | 'auto_timeout' | 'dispute_resolved' | null;
+  completed_via: 'buyer_confirmed' | 'auto_timeout' | 'dispute_resolved' | 'pickup_verified' | null;
   buyer_rating: number | null;
   buyer_rating_comment: string | null;
   buyer_rated_at: string | null;

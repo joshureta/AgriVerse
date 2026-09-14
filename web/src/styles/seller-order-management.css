@@ -55,7 +55,9 @@
 .seller-status.is-preparing { color: #37627b; background: #dfeef6; }
 .seller-status.is-ready_for_delivery { color: #256a71; background: #dff4f4; }
 .seller-status.is-out_for_delivery { color: #674daa; background: #ece6ff; }
+.seller-status.is-ready_for_pickup { color: #8d6511; background: #fff0bd; }
 .seller-status.is-delivered { color: #176b34; background: #dff2dc; }
+.seller-status.is-completed { color: #176b34; background: #dff2dc; }
 .seller-status.is-cancelled { color: #a22d2d; background: #fbe0e0; }
 .seller-row-actions { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .seller-row-actions button { min-height: 31px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 0; border-radius: 7px; padding: 0 9px; color: #fff; background: #23743a; font: inherit; font-size: 7px; font-weight: 850; cursor: pointer; white-space: nowrap; }
