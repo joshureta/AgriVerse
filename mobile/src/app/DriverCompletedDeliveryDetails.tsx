@@ -60,12 +60,12 @@ function PinIcon() {
     <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
       <Path
         d="M12 21s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 7.2c0 7.3-8 11.8-8 11.8z"
-        stroke="#EF4444"
+        stroke="#176D34"
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <Circle cx={12} cy={10} r={3} stroke="#EF4444" strokeWidth={2} />
+      <Circle cx={12} cy={10} r={3} stroke="#176D34" strokeWidth={2} />
     </Svg>
   );
 }
@@ -345,6 +345,7 @@ export default function DriverCompletedDeliveryDetailsScreen() {
               {/* Driver Hand-off Notes */}
               {order.delivery_proof_notes ? (
                 <View style={[styles.notesBox, { marginTop: 8 }]}>
+                  <Text style={styles.notesKicker}>Driver's notes</Text>
                   <Text style={styles.notesText}>{order.delivery_proof_notes}</Text>
                 </View>
               ) : null}

@@ -28,13 +28,10 @@ import {
 } from '@/lib/driver-deliveries';
 
 function SearchIcon() {
-  return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>;
-}
-
-function ChevronRightIcon() {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Path d="m9 18 6-6-6-6" stroke="#94A3B8" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
+      <Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} />
+      <Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -67,31 +64,42 @@ function CompletedDeliveryCard({ order }: { order: DriverOrder }) {
         styles.taskCard,
         pressed && { opacity: 0.9, transform: [{ scale: 0.995 }] },
       ]}>
-      {/* Top Header Row with Order Pill & Delivered Badge */}
-      <View style={styles.completedCardHeaderRow}>
-        <View style={styles.completedBadgesLeft}>
-          <View style={styles.completedOrderPill}>
-            <Text style={styles.completedOrderPillText}>
-              {order.order_number || `Order #${order.id}`}
-            </Text>
-          </View>
-          <View style={styles.completedStatusPill}>
-            <Text style={styles.completedStatusPillText}>✓ Delivered</Text>
-          </View>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+        {/* Left: Delivery Produce Icon Squircle */}
+        <View style={[styles.categorySquircle, { backgroundColor: '#EEF3EF', marginTop: 2 }]}>
+          <Image
+            source={require('@/assets/images/delivery-produce-icon.png')}
+            style={styles.deliveryProductIcon}
+          />
         </View>
 
-        <ChevronRightIcon />
+        {/* Right: Order Detail Content */}
+        <View style={{ flex: 1 }}>
+          {/* Top Header Row with Order Pill & Delivered Status Badge */}
+          <View style={styles.completedCardHeaderRow}>
+            <View style={styles.completedBadgesLeft}>
+              <View style={styles.completedOrderPill}>
+                <Text style={styles.completedOrderPillText}>
+                  {order.order_number || `Order #${order.id}`}
+                </Text>
+              </View>
+              <View style={styles.completedStatusPill}>
+                <Text style={styles.completedStatusPillText}>✓ Delivered</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Main Delivery Title */}
+          <Text style={[styles.taskTitle, { marginTop: 4 }]}>
+            Deliver to {order.delivery_full_name || 'Customer'}
+          </Text>
+
+          {/* Meta Subtitle */}
+          <Text style={styles.completedTaskMetaSubtitle}>
+            {destination} · {formatPeso(order.total_amount)} ({paymentLabel}) · Delivered at {deliveredTime}
+          </Text>
+        </View>
       </View>
-
-      {/* Main Delivery Title */}
-      <Text style={styles.taskTitle}>
-        Deliver to {order.delivery_full_name || 'Customer'}
-      </Text>
-
-      {/* Modern Meta Subtitle */}
-      <Text style={styles.completedTaskMetaSubtitle}>
-        {destination} · {formatPeso(order.total_amount)} ({paymentLabel}) · Delivered at {deliveredTime}
-      </Text>
     </Pressable>
   );
 }
@@ -162,8 +170,41 @@ export default function DriverTaskCompletedScreen() {
             <Text style={styles.sectionTitle}>My Deliveries</Text>
           </View>
 
-          <View style={styles.deliveryToolbar}><View style={styles.deliverySearch}><SearchIcon /><TextInput accessibilityLabel="Search deliveries" onChangeText={setSearchQuery} placeholder="Search deliveries" placeholderTextColor="#94A3B8" style={styles.deliverySearchInput} value={searchQuery} /></View></View>
-          <View style={styles.deliveryStatusTabs}>{[{ label: 'Pending', route: '/DriverTaskPending' }, { label: 'Active', route: '/DriverTaskActive' }, { label: 'Completed', route: '/DriverTaskCompleted' }].map((tab) => { const active = tab.label === 'Completed'; return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[styles.deliveryStatusTab, active && styles.deliveryStatusTabActive]}><Text style={[styles.deliveryStatusTabText, active && styles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>; })}</View>
+          <View style={styles.deliveryToolbar}>
+            <View style={styles.deliverySearch}>
+              <SearchIcon />
+              <TextInput
+                accessibilityLabel="Search deliveries"
+                onChangeText={setSearchQuery}
+                placeholder="Search deliveries"
+                placeholderTextColor="#94A3B8"
+                style={styles.deliverySearchInput}
+                value={searchQuery}
+              />
+            </View>
+          </View>
+
+          <View style={styles.deliveryStatusTabs}>
+            {[
+              { label: 'Pending', route: '/DriverTaskPending' },
+              { label: 'Active', route: '/DriverTaskActive' },
+              { label: 'Completed', route: '/DriverTaskCompleted' },
+            ].map((tab) => {
+              const active = tab.label === 'Completed';
+              return (
+                <Pressable
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  key={tab.label}
+                  onPress={() => router.replace(tab.route as any)}
+                  style={[styles.deliveryStatusTab, active && styles.deliveryStatusTabActive]}>
+                  <Text style={[styles.deliveryStatusTabText, active && styles.deliveryStatusTabTextActive]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           {/* Error Banner */}
           {error ? (
@@ -199,4 +240,3 @@ export default function DriverTaskCompletedScreen() {
     </SafeAreaView>
   );
 }
-
