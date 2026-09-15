@@ -247,8 +247,9 @@ function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
   const config = categoryConfig[task.category] || defaultCategoryConfig;
   const Icon = config.IconComponent;
 
-  const fieldName = task.field?.trim() || 'Field';
-  const cleanField = fieldName.toLowerCase().startsWith('field') ? fieldName : `Field ${fieldName}`;
+  const rawField = task.field?.trim() || 'Field';
+  const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
+  const cleanSector = rawField.replace(/^field\s*/i, '').trim() || rawField;
 
   // Clean task title without duplicate category prefix
   const cleanTitle = task.description
@@ -271,28 +272,23 @@ function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
           <Icon size={24} color={config.iconColor} />
         </View>
 
-        {/* Right Content Column: Badges, Title, Subtitle beside the icon */}
+        {/* Right Content Column: Status Badge, Title, Subtitle beside the icon */}
         <View style={styles.cardContentColumn}>
-          {/* Top Header Row with Semantic Category Pill & Status Badge */}
+          {/* Top Header Row with Status Badge (Category pill removed to prevent duplication) */}
           <View style={styles.cardHeaderRow}>
-            <View style={styles.badgesLeft}>
-              <View style={[styles.categoryPill, { backgroundColor: config.pillBg, borderColor: config.pillBorder }]}>
-                <Text style={[styles.categoryPillText, { color: config.pillColor }]}>{task.category}</Text>
-              </View>
-              <View style={[styles.statusPill, isAwaitingApproval ? styles.statusPillAwaiting : styles.statusPillCompleted]}>
-                <Text style={isAwaitingApproval ? styles.statusPillTextAwaiting : styles.statusPillTextCompleted}>
-                  {isAwaitingApproval ? '⏳ Awaiting Approval' : '✓ Completed'}
-                </Text>
-              </View>
+            <View style={[styles.statusPill, isAwaitingApproval ? styles.statusPillAwaiting : styles.statusPillCompleted]}>
+              <Text style={isAwaitingApproval ? styles.statusPillTextAwaiting : styles.statusPillTextCompleted}>
+                {isAwaitingApproval ? '⏳ Awaiting Approval' : '✓ Completed'}
+              </Text>
             </View>
           </View>
 
           {/* Task Title */}
           <Text numberOfLines={1} style={styles.taskTitle}>{cleanTitle}</Text>
 
-          {/* Modern Meta Subtitle */}
+          {/* Modern Meta Subtitle - Finished timestamp and sector (no redundant field name) */}
           <Text numberOfLines={1} style={styles.taskMetaSubtitle}>
-            {cleanField} · Finished at {formattedTime}
+            Finished at {formattedTime} · Sector {cleanSector}
           </Text>
         </View>
 

@@ -82,44 +82,103 @@ export const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  // Category & Location Badges
+  // Badges Row: Category, Task ID & Location Badges
   categoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
   },
   categoryBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 9999,
+    borderWidth: 1,
     backgroundColor: '#ECFDF5',
+    borderColor: '#BBF7D0',
   },
   categoryBadgeHarvesting: {
     backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
   },
   categoryBadgeText: {
     color: '#166534',
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
   },
   categoryBadgeTextHarvesting: {
-    color: '#78350F',
-    fontSize: 13,
-    fontWeight: '700',
+    color: '#92400E',
+    fontSize: 12,
+    fontWeight: '800',
   },
-  fieldBadge: {
+  taskIdBadge: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     paddingHorizontal: 10,
-    paddingVertical: 3.5,
+    paddingVertical: 4,
+    borderRadius: 9999,
+  },
+  taskIdBadgeText: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  fieldBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 9999,
   },
   fieldBadgeText: {
-    color: '#64748B',
+    color: '#475569',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+
+  // Consolidated Task Information Card (Driver deliveryInfoCard Style)
+  taskInfoCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  infoCol: {
+    flex: 1,
+  },
+  infoDividerCol: {
+    flex: 1,
+    borderLeftWidth: 1,
+    borderLeftColor: '#E2E8F0',
+    paddingLeft: 10,
+  },
+  infoKicker: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  infoValueHighlighted: {
+    color: GREEN,
   },
 
   // Objective Box (Standard Non-Harvesting Tasks)
@@ -146,53 +205,113 @@ export const styles = StyleSheet.create({
     lineHeight: 17,
   },
 
-  // 2x2 Harvest Counts Grid (Exact match to uploaded design)
+  // Structured Harvest Counts Section (Harvesting Tasks Only)
+  harvestSection: {
+    marginTop: 2,
+    gap: 8,
+  },
+  harvestHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  harvestKicker: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: GREEN,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  harvestHint: {
+    fontSize: 10.5,
+    color: '#64748B',
+    fontWeight: '600',
+  },
   harvestGrid: {
     gap: 10,
-    marginTop: 2,
-    marginBottom: 2,
   },
   harvestGridRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
     alignItems: 'center',
   },
-  harvestGridItem: {
+  harvestGridCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  harvestItemLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  harvestItemInput: {
-    width: 68,
-    height: 40,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 10,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  harvestGridCardDamaged: {
+    borderColor: '#FECACA',
     backgroundColor: '#FFFFFF',
-    textAlign: 'center',
-    fontSize: 16,
+  },
+  harvestCardLabel: {
+    fontSize: 14,
     fontWeight: '700',
+    color: '#1E293B',
+  },
+  harvestCardLabelDamaged: {
+    color: '#B91C1C',
+  },
+  harvestCardInput: {
+    width: 56,
+    height: 36,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#0F172A',
     padding: 0,
   },
+  harvestCardInputDamaged: {
+    borderColor: '#FECACA',
+    backgroundColor: '#FEF2F2',
+    color: '#B91C1C',
+  },
 
-  // Photo Proof Section
+  // Photo Proof Section (Driver Style)
   photoSection: {
     marginTop: 2,
   },
+  photoHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   photoProofKicker: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#176D34',
+    color: GREEN,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    marginBottom: 6,
+  },
+  photoRequiredTag: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 9999,
+  },
+  photoRequiredText: {
+    color: '#166534',
+    fontSize: 9.5,
+    fontWeight: '800',
   },
   photoProofContainer: {
     borderWidth: 1.2,
@@ -323,8 +442,10 @@ export const styles = StyleSheet.create({
     height: 48,
     borderRadius: 14,
     backgroundColor: GREEN,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     marginTop: 4,
     shadowColor: GREEN,
     shadowOffset: { width: 0, height: 4 },
@@ -335,6 +456,19 @@ export const styles = StyleSheet.create({
   submitButtonPressed: {
     opacity: 0.88,
     transform: [{ scale: 0.99 }],
+  },
+  checkCircleBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkCircleIcon: {
+    color: GREEN,
+    fontSize: 11,
+    fontWeight: '900',
   },
   submitText: {
     color: '#FFFFFF',

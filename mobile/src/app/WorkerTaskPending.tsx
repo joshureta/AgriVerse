@@ -49,16 +49,207 @@ function SearchIcon() {
   );
 }
 
-// Clean semantic color palettes for category pills (No emojis)
-const categoryThemes: Record<string, { bg: string; color: string; border: string }> = {
-  Harvesting: { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A' },
-  Monitoring: { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0' },
-  'Crop Inspection': { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0' },
-  Planting: { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0' },
-  Irrigation: { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0' },
-  Fertilizer: { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0' },
-  Fertilizing: { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0' },
-  'Pests & Disease Control': { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
+function MonitoringIcon({ size = 18, color = '#166534' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={10.5} cy={10.5} r={6.5} stroke={color} strokeWidth={2} />
+      <Path d="m15.5 15.5 5 5" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M10.5 7.5a3 3 0 0 0-3 3" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function IrrigationIcon({ size = 18, color = '#0284C7' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M9 15a3 3 0 0 0 3 3" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function HarvestingIcon({ size = 18, color = '#B45309' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3 9h18l-2 11H5L3 9z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M7 9V6a5 5 0 0 1 10 0v3" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M10 14h4" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PlantingIcon({ size = 18, color = '#15803D' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 22v-9" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path
+        d="M12 13c-3-6-9-4-9 1 5 1 8-1 9-1z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M12 13c3-6 9-4 9 1-5 1-8-1 9-1z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M5 22h14" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function FertilizingIcon({ size = 18, color = '#166534' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 3.5 1 5.5-.5 10A7 7 0 0 1 11 20z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="m7 15 5-5" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PestControlIcon({ size = 18, color = '#B91C1C' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="m9 12 2 2 4-4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function DefaultTaskIcon({ size = 18, color = '#166534' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 3.5 1 5.5-.5 10A7 7 0 0 1 11 20z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+type CategoryTheme = {
+  bg: string;
+  border: string;
+  iconColor: string;
+  pillBg: string;
+  pillColor: string;
+  pillBorder: string;
+  IconComponent: React.ComponentType<{ size?: number; color?: string }>;
+};
+
+const categoryConfig: Record<string, CategoryTheme> = {
+  Monitoring: {
+    bg: '#E8F5E9',
+    border: '#BBF7D0',
+    iconColor: '#166534',
+    pillBg: '#DCFCE7',
+    pillColor: '#166534',
+    pillBorder: '#BBF7D0',
+    IconComponent: MonitoringIcon,
+  },
+  'Crop Inspection': {
+    bg: '#E8F5E9',
+    border: '#BBF7D0',
+    iconColor: '#166534',
+    pillBg: '#DCFCE7',
+    pillColor: '#166534',
+    pillBorder: '#BBF7D0',
+    IconComponent: MonitoringIcon,
+  },
+  Irrigation: {
+    bg: '#E0F2FE',
+    border: '#BAE6FD',
+    iconColor: '#0284C7',
+    pillBg: '#E0F2FE',
+    pillColor: '#0369A1',
+    pillBorder: '#BAE6FD',
+    IconComponent: IrrigationIcon,
+  },
+  Harvesting: {
+    bg: '#FEF3C7',
+    border: '#FDE68A',
+    iconColor: '#B45309',
+    pillBg: '#FEF3C7',
+    pillColor: '#92400E',
+    pillBorder: '#FDE68A',
+    IconComponent: HarvestingIcon,
+  },
+  Planting: {
+    bg: '#DCFCE7',
+    border: '#BBF7D0',
+    iconColor: '#15803D',
+    pillBg: '#F0FDF4',
+    pillColor: '#15803D',
+    pillBorder: '#BBF7D0',
+    IconComponent: PlantingIcon,
+  },
+  Fertilizer: {
+    bg: '#ECFDF5',
+    border: '#A7F3D0',
+    iconColor: '#166534',
+    pillBg: '#ECFDF5',
+    pillColor: '#166534',
+    pillBorder: '#A7F3D0',
+    IconComponent: FertilizingIcon,
+  },
+  Fertilizing: {
+    bg: '#ECFDF5',
+    border: '#A7F3D0',
+    iconColor: '#166534',
+    pillBg: '#ECFDF5',
+    pillColor: '#166534',
+    pillBorder: '#A7F3D0',
+    IconComponent: FertilizingIcon,
+  },
+  'Pests & Disease Control': {
+    bg: '#FEF2F2',
+    border: '#FECACA',
+    iconColor: '#B91C1C',
+    pillBg: '#FEF2F2',
+    pillColor: '#B91C1C',
+    pillBorder: '#FECACA',
+    IconComponent: PestControlIcon,
+  },
+};
+
+const defaultCategoryTheme: CategoryTheme = {
+  bg: '#DCFCE7',
+  border: '#BBF7D0',
+  iconColor: '#166534',
+  pillBg: '#DCFCE7',
+  pillColor: '#166534',
+  pillBorder: '#BBF7D0',
+  IconComponent: DefaultTaskIcon,
 };
 
 const priorityThemes: Record<string, { bg: string; color: string; border: string; label: string }> = {
@@ -66,6 +257,58 @@ const priorityThemes: Record<string, { bg: string; color: string; border: string
   medium: { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: 'Medium Priority' },
   low: { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0', label: 'Low Priority' },
 };
+
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+      <Path
+        d={expanded ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'}
+        stroke="#176D34"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function getTaskInstructions(task: WorkerTaskRecord, cleanField: string): string {
+  const desc = task.description?.trim();
+  const title = `${task.category} - ${cleanField}`.toLowerCase();
+  const rawField = (task.field || '').trim().toLowerCase();
+
+  // If description exists and has distinct content (not just repeating category/title/field):
+  if (
+    desc &&
+    desc.toLowerCase() !== title &&
+    desc.toLowerCase() !== (task.category || '').toLowerCase() &&
+    desc.toLowerCase() !== cleanField.toLowerCase() &&
+    desc.toLowerCase() !== rawField &&
+    desc.toLowerCase() !== `${task.category} - ${rawField}`
+  ) {
+    return desc;
+  }
+
+  // Meaningful standard SOP guidance per category
+  switch (task.category) {
+    case 'Irrigation':
+      return `Inspect drip lines and irrigation valves. Ensure even water distribution across ${cleanField}.`;
+    case 'Harvesting':
+      return `Harvest mature pineapples meeting size and quality standards. Handle with care to prevent bruising.`;
+    case 'Monitoring':
+    case 'Crop Inspection':
+      return `Inspect crop rows for pest activity, leaf discoloration, and soil moisture levels in ${cleanField}.`;
+    case 'Planting':
+      return `Ensure proper spacing and depth for crown seedlings. Irrigate immediately after planting.`;
+    case 'Fertilizer':
+    case 'Fertilizing':
+      return `Apply recommended fertilizer dosage evenly along plant base per schedule in ${cleanField}.`;
+    case 'Pests & Disease Control':
+      return `Apply designated organic treatment wearing required PPE. Record any severe infestation spots.`;
+    default:
+      return `Follow standard operating procedures and farm safety guidelines for ${cleanField}.`;
+  }
+}
 
 function TaskCard({
   task,
@@ -84,60 +327,86 @@ function TaskCard({
 }) {
   const nextStatus = task.status === 'pending' ? 'in_progress' : 'completed';
   const priorityKey = task.priority || 'medium';
-  const categoryTheme = categoryThemes[task.category] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
+  const config = categoryConfig[task.category] || defaultCategoryTheme;
+  const IconComponent = config.IconComponent;
   const priorityTheme = priorityThemes[priorityKey] || priorityThemes.medium;
   const duration = task.estimated_duration_minutes || 45;
   const scheduledTime = new Date(task.schedule_start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
+  // Field & sector sanitization (fixes "Field Field C" and "Sector Field C" duplication)
+  const rawField = task.field?.trim() || 'Field';
+  const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
+  const cleanSector = rawField.replace(/^field\s*/i, '').trim() || rawField;
+
+  // Title sanitization (no duplicate category prefix)
+  const cleanTitle = task.description
+    ? task.description.toLowerCase().startsWith((task.category || '').toLowerCase())
+      ? task.description
+      : `${task.category} - ${task.description}`
+    : `${task.category} - ${cleanField}`;
+
+  const instructions = getTaskInstructions(task, cleanField);
+
   return (
     <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
-      {/* Top Header Row: Semantic Badges & Duration (Zero Icons) */}
-      <View style={styles.cardHeaderRow}>
-        <View style={styles.badgesLeft}>
-          <View style={[styles.categoryPill, { backgroundColor: categoryTheme.bg, borderColor: categoryTheme.border }]}>
-            <Text style={[styles.categoryPillText, { color: categoryTheme.color }]}>
-              {task.category}
+      {/* Header Row: Category Squircle Icon, Title, Field + Priority Pill & Top-Right Dropdown Button (Driver Style) */}
+      <View style={styles.pendingCardHeader}>
+        <View style={[styles.categorySquircle, { backgroundColor: config.bg, borderColor: config.border }]}>
+          <IconComponent size={20} color={config.iconColor} />
+        </View>
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={1} style={styles.taskTitle}>
+            {cleanTitle}
+          </Text>
+          <View style={styles.headerSubtitleRow}>
+            <Text numberOfLines={1} style={styles.taskMetaSubtitle}>
+              {cleanField}
             </Text>
-          </View>
-          <View style={[styles.priorityPill, { backgroundColor: priorityTheme.bg, borderColor: priorityTheme.border }]}>
-            <Text style={[styles.priorityPillText, { color: priorityTheme.color }]}>
-              {priorityTheme.label}
-            </Text>
+            <View style={[styles.priorityPill, { backgroundColor: priorityTheme.bg, borderColor: priorityTheme.border }]}>
+              <Text style={[styles.priorityPillText, { color: priorityTheme.color }]}>
+                {priorityTheme.label}
+              </Text>
+            </View>
           </View>
         </View>
 
-        <Text style={styles.durationText}>{duration} MINS</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Hide details' : 'Show details'}
+          onPress={onExpand}
+          style={({ pressed }) => [styles.topRightDropdownBtn, pressed && styles.topRightDropdownBtnActive]}>
+          <ChevronIcon expanded={expanded} />
+        </Pressable>
       </View>
 
-      {/* Task Title & Field / Schedule Subtitle */}
-      <View>
-        <Text style={styles.taskTitle}>
-          {task.description || `${task.category} in Field ${task.field}`}
-        </Text>
-        <Text style={styles.taskMetaSubtitle}>
-          Field {task.field} · Scheduled for {scheduledTime}
-        </Text>
+      {/* Driver Meta Rows (Clean non-redundant metadata) */}
+      <View style={styles.metaTextContainer}>
+        <View style={styles.metaTextRow}>
+          <Text style={styles.metaTextLabel}>Time:</Text>
+          <Text style={styles.metaTextValue}>Scheduled for {scheduledTime}</Text>
+        </View>
+        <View style={styles.metaTextRow}>
+          <Text style={styles.metaTextLabel}>Est. Duration:</Text>
+          <Text style={[styles.metaTextValue, styles.metaTextValueHighlighted]}>
+            {duration} mins (Allocated)
+          </Text>
+        </View>
       </View>
 
-      {/* Collapsible Instructions Details */}
+      {/* Collapsible Details Section (Driver pendingDetailsBox Style) */}
       {expanded ? (
-        <View style={styles.detailsSection}>
-          <Text style={styles.detailLabel}>TASK INSTRUCTIONS</Text>
-          <Text style={styles.detailValue}>
-            {task.description || 'Follow standard operating procedure for this sector.'}
-          </Text>
-          <Text style={styles.detailValue}>
-            Field location: Sector {task.field}
-          </Text>
+        <View style={styles.pendingDetailsBox}>
+          <View style={styles.pendingDetailRow}>
+            <Text style={styles.pendingDetailLabel}>Instructions:</Text>
+            <Text style={styles.pendingDetailValue}>{instructions}</Text>
+          </View>
+          <View style={styles.pendingDetailRow}>
+            <Text style={styles.pendingDetailLabel}>Location:</Text>
+            <Text style={styles.pendingDetailValue}>Sector {cleanSector}</Text>
+          </View>
         </View>
       ) : null}
-
-      {/* Toggle Instructions Link */}
-      <Pressable onPress={onExpand} style={styles.toggleDetailsButton}>
-        <Text style={styles.toggleDetailsText}>
-          {expanded ? 'Hide Instructions ▴' : 'View Instructions ▾'}
-        </Text>
-      </Pressable>
 
       {/* Start Task Action CTA */}
       {task.status !== 'completed' ? (

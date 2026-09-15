@@ -29,17 +29,238 @@ type WorkerTask = {
   field: string;
   status: 'pending' | 'in_progress' | 'completed';
   description: string | null;
+  schedule_start?: string | null;
+  started_at?: string | null;
+  estimated_duration_minutes?: number | null;
 };
 
-const categoryIcons: Record<string, string> = {
-  Harvesting: '🍍',
-  Monitoring: '🌱',
-  Fertilizing: '🧪',
-  Pruning: '✂️',
-  Weeding: '🌿',
-  Planting: '🌱',
-  Watering: '💧',
+function PinSvg({ color = '#DC2626', size = 12 }: { color?: string; size?: number }) {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Path
+        d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx={12} cy={10} r={3} stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+function MonitoringIcon({ size = 13, color = '#166534' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={10.5} cy={10.5} r={6.5} stroke={color} strokeWidth={2} />
+      <Path d="m15.5 15.5 5 5" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M10.5 7.5a3 3 0 0 0-3 3" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function IrrigationIcon({ size = 13, color = '#0284C7' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M9 15a3 3 0 0 0 3 3" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function HarvestingIcon({ size = 13, color = '#B45309' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3 9h18l-2 11H5L3 9z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M7 9V6a5 5 0 0 1 10 0v3" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M10 14h4" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PlantingIcon({ size = 13, color = '#15803D' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 22v-9" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path
+        d="M12 13c-3-6-9-4-9 1 5 1 8-1 9-1z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M12 13c3-6 9-4 9 1-5 1-8-1-9-1z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M5 22h14" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function FertilizingIcon({ size = 13, color = '#166534' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 3.5 1 5.5-.5 10A7 7 0 0 1 11 20z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="m7 15 5-5" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PestControlIcon({ size = 13, color = '#B91C1C' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="m9 12 2 2 4-4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function DefaultTaskIcon({ size = 13, color = '#166534' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 3.5 1 5.5-.5 10A7 7 0 0 1 11 20z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+type CategoryTheme = {
+  bg: string;
+  border: string;
+  iconColor: string;
+  textColor: string;
+  IconComponent: React.ComponentType<{ size?: number; color?: string }>;
 };
+
+const categoryConfig: Record<string, CategoryTheme> = {
+  Monitoring: {
+    bg: '#E8F5E9',
+    border: '#BBF7D0',
+    iconColor: '#166534',
+    textColor: '#166534',
+    IconComponent: MonitoringIcon,
+  },
+  'Crop Inspection': {
+    bg: '#E8F5E9',
+    border: '#BBF7D0',
+    iconColor: '#166534',
+    textColor: '#166534',
+    IconComponent: MonitoringIcon,
+  },
+  Irrigation: {
+    bg: '#E0F2FE',
+    border: '#BAE6FD',
+    iconColor: '#0284C7',
+    textColor: '#0369A1',
+    IconComponent: IrrigationIcon,
+  },
+  Harvesting: {
+    bg: '#FEF3C7',
+    border: '#FDE68A',
+    iconColor: '#B45309',
+    textColor: '#92400E',
+    IconComponent: HarvestingIcon,
+  },
+  Planting: {
+    bg: '#DCFCE7',
+    border: '#BBF7D0',
+    iconColor: '#15803D',
+    textColor: '#15803D',
+    IconComponent: PlantingIcon,
+  },
+  Fertilizer: {
+    bg: '#ECFDF5',
+    border: '#A7F3D0',
+    iconColor: '#166534',
+    textColor: '#166534',
+    IconComponent: FertilizingIcon,
+  },
+  Fertilizing: {
+    bg: '#ECFDF5',
+    border: '#A7F3D0',
+    iconColor: '#166534',
+    textColor: '#166534',
+    IconComponent: FertilizingIcon,
+  },
+  'Pests & Disease Control': {
+    bg: '#FEF2F2',
+    border: '#FECACA',
+    iconColor: '#B91C1C',
+    textColor: '#B91C1C',
+    IconComponent: PestControlIcon,
+  },
+};
+
+const defaultCategoryTheme: CategoryTheme = {
+  bg: '#DCFCE7',
+  border: '#BBF7D0',
+  iconColor: '#166534',
+  textColor: '#166534',
+  IconComponent: DefaultTaskIcon,
+};
+
+function formatStartTime(startedAt?: string | null, scheduleStart?: string | null) {
+  const timeStr = startedAt || scheduleStart;
+  if (!timeStr) return '08:30 AM';
+  try {
+    const d = new Date(timeStr);
+    if (isNaN(d.getTime())) return '08:30 AM';
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return '08:30 AM';
+  }
+}
+
+function formatDuration(startedAt?: string | null, estimatedMinutes?: number | null) {
+  if (startedAt) {
+    try {
+      const diff = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
+      const hrs = String(Math.floor(diff / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+      const secs = String(diff % 60).padStart(2, '0');
+      return `${hrs}:${mins}:${secs}`;
+    } catch {
+      // fallback
+    }
+  }
+  if (estimatedMinutes) {
+    return `${estimatedMinutes} mins`;
+  }
+  return '01:24:18';
+}
 
 function CameraSvg({ color = '#176D34', size = 22 }: { color?: string; size?: number }) {
   return (
@@ -340,19 +561,51 @@ export default function WorkerTaskCompletionScreen() {
                   </Pressable>
                 </View>
 
-                {/* Category & Location Badges */}
-                <View style={styles.categoryRow}>
-                  <View style={[styles.categoryBadge, isHarvesting && styles.categoryBadgeHarvesting]}>
-                    <Text style={[styles.categoryBadgeText, isHarvesting && styles.categoryBadgeTextHarvesting]}>
-                      {categoryIcons[task.category] || '🌱'} {task.category}
-                    </Text>
-                  </View>
-                  {task.field ? (
-                    <View style={styles.fieldBadge}>
-                      <Text style={styles.fieldBadgeText}>📍 {task.field}</Text>
-                    </View>
-                  ) : null}
-                </View>
+                {/* Badges Row: Category, Task ID & Field Badges (Driver Style) */}
+                {(() => {
+                  const config = categoryConfig[task.category] || defaultCategoryTheme;
+                  const IconComponent = config.IconComponent;
+                  const rawField = task.field?.trim() || 'Field';
+                  const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
+                  const scheduleTime = formatStartTime(task.started_at, task.schedule_start);
+                  const durationText = formatDuration(task.started_at, task.estimated_duration_minutes);
+
+                  return (
+                    <>
+                      <View style={styles.categoryRow}>
+                        <View style={[styles.categoryBadge, { backgroundColor: config.bg, borderColor: config.border }]}>
+                          <IconComponent size={13} color={config.iconColor} />
+                          <Text style={[styles.categoryBadgeText, { color: config.textColor }]}>
+                            {task.category}
+                          </Text>
+                        </View>
+                        <View style={styles.taskIdBadge}>
+                          <Text style={styles.taskIdBadgeText}>Task #{task.id}</Text>
+                        </View>
+                        <View style={styles.fieldBadge}>
+                          <PinSvg size={12} color="#DC2626" />
+                          <Text style={styles.fieldBadgeText}>{cleanField}</Text>
+                        </View>
+                      </View>
+
+                      {/* Consolidated Task Information Card (Driver deliveryInfoCard Style) */}
+                      <View style={styles.taskInfoCard}>
+                        <View style={styles.infoCol}>
+                          <Text style={styles.infoKicker}>FIELD</Text>
+                          <Text style={styles.infoValue}>{cleanField}</Text>
+                        </View>
+                        <View style={styles.infoDividerCol}>
+                          <Text style={styles.infoKicker}>SCHEDULE</Text>
+                          <Text style={styles.infoValue}>{scheduleTime}</Text>
+                        </View>
+                        <View style={styles.infoDividerCol}>
+                          <Text style={styles.infoKicker}>DURATION</Text>
+                          <Text style={[styles.infoValue, styles.infoValueHighlighted]}>{durationText}</Text>
+                        </View>
+                      </View>
+                    </>
+                  );
+                })()}
 
                 {/* Standard Task Objective Box (For Non-Harvesting Tasks) */}
                 {!isHarvesting && (
@@ -364,78 +617,91 @@ export default function WorkerTaskCompletionScreen() {
                   </View>
                 )}
 
-                {/* 2x2 Harvest Counts Grid (Harvesting Tasks Only) */}
+                {/* Structured Harvest Counts Grid (Harvesting Tasks Only) */}
                 {isHarvesting && (
-                  <View style={styles.harvestGrid}>
-                    {/* Row 1: Small & Medium */}
-                    <View style={styles.harvestGridRow}>
-                      <View style={styles.harvestGridItem}>
-                        <Text style={styles.harvestItemLabel}>Small</Text>
-                        <TextInput
-                          accessibilityLabel="Small pineapple count"
-                          keyboardType="number-pad"
-                          maxLength={5}
-                          onChangeText={setSmallCount}
-                          placeholder="0"
-                          placeholderTextColor="#94A3B8"
-                          selectTextOnFocus
-                          style={styles.harvestItemInput}
-                          value={smallCount}
-                        />
-                      </View>
-                      <View style={styles.harvestGridItem}>
-                        <Text style={styles.harvestItemLabel}>Medium</Text>
-                        <TextInput
-                          accessibilityLabel="Medium pineapple count"
-                          keyboardType="number-pad"
-                          maxLength={5}
-                          onChangeText={setMediumCount}
-                          placeholder="0"
-                          placeholderTextColor="#94A3B8"
-                          selectTextOnFocus
-                          style={styles.harvestItemInput}
-                          value={mediumCount}
-                        />
-                      </View>
+                  <View style={styles.harvestSection}>
+                    <View style={styles.harvestHeaderRow}>
+                      <Text style={styles.harvestKicker}>HARVEST YIELD COUNTS</Text>
+                      <Text style={styles.harvestHint}>Enter harvested quantities</Text>
                     </View>
 
-                    {/* Row 2: Large & Damaged */}
-                    <View style={styles.harvestGridRow}>
-                      <View style={styles.harvestGridItem}>
-                        <Text style={styles.harvestItemLabel}>Large</Text>
-                        <TextInput
-                          accessibilityLabel="Large pineapple count"
-                          keyboardType="number-pad"
-                          maxLength={5}
-                          onChangeText={setLargeCount}
-                          placeholder="0"
-                          placeholderTextColor="#94A3B8"
-                          selectTextOnFocus
-                          style={styles.harvestItemInput}
-                          value={largeCount}
-                        />
+                    <View style={styles.harvestGrid}>
+                      {/* Row 1: Small & Medium */}
+                      <View style={styles.harvestGridRow}>
+                        <View style={styles.harvestGridCard}>
+                          <Text style={styles.harvestCardLabel}>Small</Text>
+                          <TextInput
+                            accessibilityLabel="Small pineapple count"
+                            keyboardType="number-pad"
+                            maxLength={5}
+                            onChangeText={setSmallCount}
+                            placeholder="0"
+                            placeholderTextColor="#94A3B8"
+                            selectTextOnFocus
+                            style={styles.harvestCardInput}
+                            value={smallCount}
+                          />
+                        </View>
+                        <View style={styles.harvestGridCard}>
+                          <Text style={styles.harvestCardLabel}>Medium</Text>
+                          <TextInput
+                            accessibilityLabel="Medium pineapple count"
+                            keyboardType="number-pad"
+                            maxLength={5}
+                            onChangeText={setMediumCount}
+                            placeholder="0"
+                            placeholderTextColor="#94A3B8"
+                            selectTextOnFocus
+                            style={styles.harvestCardInput}
+                            value={mediumCount}
+                          />
+                        </View>
                       </View>
-                      <View style={styles.harvestGridItem}>
-                        <Text style={styles.harvestItemLabel}>Damaged</Text>
-                        <TextInput
-                          accessibilityLabel="Damaged pineapple count"
-                          keyboardType="number-pad"
-                          maxLength={5}
-                          onChangeText={setDamagedCount}
-                          placeholder="0"
-                          placeholderTextColor="#94A3B8"
-                          selectTextOnFocus
-                          style={styles.harvestItemInput}
-                          value={damagedCount}
-                        />
+
+                      {/* Row 2: Large & Damaged */}
+                      <View style={styles.harvestGridRow}>
+                        <View style={styles.harvestGridCard}>
+                          <Text style={styles.harvestCardLabel}>Large</Text>
+                          <TextInput
+                            accessibilityLabel="Large pineapple count"
+                            keyboardType="number-pad"
+                            maxLength={5}
+                            onChangeText={setLargeCount}
+                            placeholder="0"
+                            placeholderTextColor="#94A3B8"
+                            selectTextOnFocus
+                            style={styles.harvestCardInput}
+                            value={largeCount}
+                          />
+                        </View>
+                        <View style={[styles.harvestGridCard, styles.harvestGridCardDamaged]}>
+                          <Text style={[styles.harvestCardLabel, styles.harvestCardLabelDamaged]}>Damaged</Text>
+                          <TextInput
+                            accessibilityLabel="Damaged pineapple count"
+                            keyboardType="number-pad"
+                            maxLength={5}
+                            onChangeText={setDamagedCount}
+                            placeholder="0"
+                            placeholderTextColor="#94A3B8"
+                            selectTextOnFocus
+                            style={[styles.harvestCardInput, styles.harvestCardInputDamaged]}
+                            value={damagedCount}
+                          />
+                        </View>
                       </View>
                     </View>
                   </View>
                 )}
 
-                {/* Photo Proof Section */}
+                {/* Photo Proof Section (Driver Style) */}
                 <View style={styles.photoSection}>
-                  <Text style={styles.photoProofKicker}>PHOTO PROOF</Text>
+                  <View style={styles.photoHeaderRow}>
+                    <Text style={styles.photoProofKicker}>PHOTO PROOF</Text>
+                    <View style={styles.photoRequiredTag}>
+                      <Text style={styles.photoRequiredText}>Photo Required</Text>
+                    </View>
+                  </View>
+
                   <View style={styles.photoProofContainer}>
                     {photoUri ? (
                       <View style={styles.photoImageWrapper}>
@@ -491,7 +757,7 @@ export default function WorkerTaskCompletionScreen() {
 
                 {/* Insights Section */}
                 <View style={styles.insightsSection}>
-                  <Text style={styles.insightsLabel}>Insights</Text>
+                  <Text style={styles.insightsLabel}>Field Insights (Optional)</Text>
                   <TextInput
                     accessibilityLabel="Completion insights"
                     maxLength={2000}
@@ -525,13 +791,18 @@ export default function WorkerTaskCompletionScreen() {
                   {submitting ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
-                    <Text style={styles.submitText}>
-                      {!workAllowed
-                        ? 'Work unavailable'
-                        : isHarvesting
-                        ? 'Submit for Approval'
-                        : 'Complete Task'}
-                    </Text>
+                    <>
+                      <View style={styles.checkCircleBadge}>
+                        <Text style={styles.checkCircleIcon}>✓</Text>
+                      </View>
+                      <Text style={styles.submitText}>
+                        {!workAllowed
+                          ? 'Work unavailable'
+                          : isHarvesting
+                          ? 'Submit for Approval'
+                          : 'Complete Task'}
+                      </Text>
+                    </>
                   )}
                 </Pressable>
               </ScrollView>

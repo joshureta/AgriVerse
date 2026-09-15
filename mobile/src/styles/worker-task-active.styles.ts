@@ -102,6 +102,49 @@ export const styles = StyleSheet.create({
   },
 
   // Top Area: Active label on left, IN-PROGRESS badge on right
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    zIndex: 2,
+  },
+  deliveryHeadingWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  categoryMiniSquircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeHeadingText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: GREEN,
+  },
+  radarPulseBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  radarBadgeText: {
+    backgroundColor: '#FEF3C7',
+    color: '#92400E',
+    fontSize: 10.5,
+    fontWeight: '800',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -165,9 +208,9 @@ export const styles = StyleSheet.create({
   // Main Task Title
   taskTitle: {
     color: '#111827',
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '800',
-    lineHeight: 23,
+    lineHeight: 26,
     marginBottom: 12,
     zIndex: 2,
   },
@@ -182,17 +225,98 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
     zIndex: 2,
   },
+  rejectionBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+  },
   rejectionBannerTitle: {
     color: '#B91C1C',
     fontSize: 12,
     fontWeight: '800',
-    marginBottom: 3,
   },
   rejectionBannerText: {
     color: '#7F1D1D',
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '500',
+    paddingLeft: 20,
+  },
+
+  // Driver-style structured table
+  activeDataTable: {
+    borderTopWidth: 1,
+    borderTopColor: '#E7EEE8',
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  activeDataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E7EEE8',
+  },
+  activeRowKey: {
+    width: '26%',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+    lineHeight: 18,
+  },
+  activeRowVal: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'left',
+    lineHeight: 18,
+  },
+  activeRowValHighlighted: {
+    color: GREEN,
+    fontWeight: '800',
+  },
+
+  // Driver-style Action Button
+  markCompletedBtn: {
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: GREEN,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 2,
+    elevation: 2,
+    shadowColor: GREEN,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  markCompletedBtnPressed: {
+    backgroundColor: GREEN_DARK,
+    opacity: 0.88,
+    transform: [{ scale: 0.99 }],
+  },
+  markCompletedBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  checkCircleBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkCircleIcon: {
+    color: GREEN,
+    fontSize: 11,
+    fontWeight: '900',
   },
 
   // Divider

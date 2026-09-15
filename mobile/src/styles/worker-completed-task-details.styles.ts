@@ -31,8 +31,8 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
   },
   headerStatusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 4.5,
     borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderWidth: 1,
@@ -65,165 +65,195 @@ export const styles = StyleSheet.create({
     padding: 20,
   },
   content: {
-    paddingTop: 18,
+    paddingTop: 16,
     paddingBottom: 40,
-    paddingHorizontal: 18,
-    gap: 14,
+    paddingHorizontal: 16,
   },
-  card: {
+
+  // Official Digital Operations Slip Card
+  receiptCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    marginBottom: 16,
   },
-  cardHeaderRow: {
-    flexDirection: 'row',
+
+  // Receipt Slip Top Header
+  receiptTopHeader: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    paddingBottom: 6,
   },
-  badgesRow: {
+  receiptLogoBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  categoryPill: {
-    paddingHorizontal: 9,
-    paddingVertical: 3.5,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  categoryPillText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  fieldPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  fieldPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  statusTextCompleted: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#166534',
-  },
-  statusTextAwaiting: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#92400E',
-  },
-  taskTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-    lineHeight: 24,
-    marginBottom: 6,
-  },
-  taskDesc: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#64748B',
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  metaRow: {
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  metaItem: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  metaItemBold: {
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#134B24',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  totalYieldBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: '#DCFCE7',
-  },
-  totalYieldText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#166534',
-  },
-  countsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 10,
-  },
-  countBox: {
-    width: '48%',
-    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 12,
-    padding: 12,
+    backgroundColor: '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#DCFCE7',
+    marginBottom: 8,
   },
-  countBoxDamaged: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-  },
-  countBoxLabel: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#64748B',
+  receiptLogoText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: GREEN,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
-  countBoxLabelDamaged: {
-    color: '#B91C1C',
-  },
-  countBoxValue: {
-    fontSize: 22,
+  receiptTaskNumber: {
+    fontSize: 20,
     fontWeight: '900',
-    color: '#1E293B',
-    marginTop: 4,
+    color: '#0F172A',
+    letterSpacing: 0.5,
   },
-  countBoxValueDamaged: {
-    color: '#DC2626',
-  },
-  countBoxSub: {
-    fontSize: 10,
-    color: '#94A3B8',
+  receiptDateStamp: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
     marginTop: 2,
   },
-  qualityBenchmark: {
-    padding: 10,
-    borderRadius: 10,
+  receiptStatusStamp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 14,
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    marginTop: 8,
+  },
+  receiptStatusStampAwaiting: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+  },
+  receiptStatusStampText: {
+    fontSize: 11.5,
+    fontWeight: '900',
+    color: '#166534',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  receiptStatusStampTextAwaiting: {
+    color: '#92400E',
+  },
+
+  // Dashed Line Separator
+  dashedDivider: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#CBD5E1',
+    borderStyle: 'dashed',
+    marginVertical: 14,
+  },
+
+  // Section Header Kickers
+  receiptSectionKicker: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+
+  // Task & Field Specifications Rows
+  specRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  specLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  specValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+    textAlign: 'right',
+  },
+  categoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  categoryBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+
+  // Harvest Yield Manifest Table (Itemized Table)
+  manifestHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    marginBottom: 6,
+  },
+  manifestColItem: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  manifestColCount: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    textAlign: 'right',
+    letterSpacing: 0.5,
+  },
+  manifestItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  manifestItemName: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  manifestItemMeta: {
+    fontSize: 10.5,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  manifestItemCount: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    textAlign: 'right',
+  },
+
+  // Quality Benchmark Box
+  qualityBenchmarkBox: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
     backgroundColor: '#F0FDF4',
     borderWidth: 1,
     borderColor: '#BBF7D0',
@@ -231,167 +261,192 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  qualityBenchmarkLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#166534',
-  },
-  qualityBenchmarkVal: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#166534',
-  },
-  specRow: {
+  qualityBenchmarkLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    gap: 6,
   },
-  specRowLast: {
-    borderBottomWidth: 0,
-    paddingBottom: 2,
+  qualityBenchmarkDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#166534',
   },
-  specLabel: {
+  qualityBenchmarkLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  specValue: {
-    fontSize: 12.5,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#166534',
   },
-  insightsBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  qualityBenchmarkValue: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#166534',
   },
-  insightsText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#334155',
-    lineHeight: 19,
-    fontStyle: 'italic',
-  },
-  noInsightsText: {
-    fontSize: 12.5,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  photoCard: {
+
+  // Proof of Work (Photo)
+  podWrapper: {
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F1F5F9',
+    borderColor: '#CBD5E1',
+    backgroundColor: '#0F172A',
+    height: 180,
+    marginTop: 4,
+    marginBottom: 4,
     position: 'relative',
   },
-  photoImage: {
+  podImage: {
     width: '100%',
-    height: 190,
+    height: '100%',
+    resizeMode: 'cover',
   },
-  photoOverlay: {
+  podZoomBadge: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    top: 10,
+    right: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  photoOverlayText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  photoZoomBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 10,
+    gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
-  photoZoomBadgeText: {
+  podZoomBadgeText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '700',
   },
-  noPhotoBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingVertical: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
+  podMetaBox: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  noPhotoText: {
-    color: '#94A3B8',
-    fontSize: 12,
+  podMetaText: {
+    color: '#FFFFFF',
+    fontSize: 10.5,
     fontWeight: '600',
   },
-  timelineContainer: {
-    borderLeftWidth: 2,
-    borderLeftColor: '#DCFCE7',
-    marginLeft: 8,
-    paddingLeft: 14,
-    gap: 14,
+
+  // Worker Notes
+  notesBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 8,
   },
-  timelineItem: {
+  notesKicker: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  notesText: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontStyle: 'italic',
+    color: '#334155',
+  },
+
+  // Task Timeline Stepper
+  timelineContainer: {
+    paddingLeft: 4,
+    paddingTop: 4,
+  },
+  timelineStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
     position: 'relative',
   },
+  timelineStepLast: {
+    marginBottom: 0,
+  },
   timelineDot: {
-    position: 'absolute',
-    left: -21,
-    top: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#176D34',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ECFDF5',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: '#166534',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    zIndex: 2,
   },
-  timelineDotPending: {
-    backgroundColor: '#D97706',
+  timelineDotActive: {
+    backgroundColor: '#166534',
   },
-  timelineTitle: {
-    fontSize: 12.5,
+  timelineLine: {
+    position: 'absolute',
+    left: 10,
+    top: 22,
+    bottom: -16,
+    width: 2,
+    backgroundColor: '#E2E8F0',
+    zIndex: 1,
+  },
+  timelineStepContent: {
+    flex: 1,
+    paddingTop: 1,
+  },
+  timelineStepTitle: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#0F172A',
   },
-  timelineSub: {
-    fontSize: 11,
-    fontWeight: '500',
+  timelineStepSub: {
+    fontSize: 10.5,
     color: '#64748B',
-    marginTop: 2,
+    marginTop: 1,
   },
-  returnButton: {
+
+  // Slip Watermark Footer
+  receiptFooter: {
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  receiptFooterText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+
+  // Bottom Action Button
+  bottomBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     paddingVertical: 13,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
     elevation: 1,
   },
-  returnButtonText: {
-    fontSize: 13,
+  bottomBackButtonText: {
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#334155',
   },
+
+  // Error & Retry
   errorBox: {
     backgroundColor: '#FEF2F2',
     borderRadius: 12,
@@ -404,41 +459,98 @@ export const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 13,
     fontWeight: '600',
+    marginBottom: 8,
     textAlign: 'center',
   },
-  retryText: {
-    color: '#B91C1C',
+  retryButton: {
+    backgroundColor: GREEN,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '800',
-    marginTop: 8,
+    fontWeight: '700',
   },
 
-  // Full Screen Photo Modal
+  // Fullscreen Photo Modal
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.92)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 16,
+  },
+  modalContainer: {
+    width: '100%',
+    maxHeight: '90%',
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalSub: {
+    fontSize: 10.5,
+    color: 'rgba(255, 255, 255, 0.65)',
+    marginTop: 1,
   },
   modalCloseButton: {
-    position: 'absolute',
-    top: 48,
-    right: 20,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
   },
-  modalCloseText: {
+  modalCloseButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '800',
   },
+  modalImageContainer: {
+    width: '100%',
+    height: 340,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalImage: {
-    width: '94%',
-    height: '75%',
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  modalFooter: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalFooterTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalFooterSub: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 2,
   },
 });

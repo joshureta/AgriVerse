@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
@@ -64,7 +64,7 @@ function BackIcon() {
   );
 }
 
-function CheckIcon({ size = 14, color = '#166534' }: { size?: number; color?: string }) {
+function CheckIcon({ size = 13, color = '#166534' }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M20 6 9 17l-5-5" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
@@ -72,17 +72,41 @@ function CheckIcon({ size = 14, color = '#166534' }: { size?: number; color?: st
   );
 }
 
-function CameraIcon() {
+function PinIcon() {
   return (
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
       <Path
-        d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"
-        stroke="#FFFFFF"
+        d="M12 21s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 7.2c0 7.3-8 11.8-8 11.8z"
+        stroke="#EF4444"
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <Circle cx={12} cy={13} r={3} stroke="#FFFFFF" strokeWidth={2} />
+      <Circle cx={12} cy={10} r={3} stroke="#EF4444" strokeWidth={2} />
+    </Svg>
+  );
+}
+
+function LeafIcon() {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 3.5 1 5.5-.5 10A7 7 0 0 1 11 20z"
+        stroke="#166534"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="m7 15 5-5" stroke="#166534" strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function ZoomIcon() {
+  return (
+    <Svg width={11} height={11} viewBox="0 0 24 24" fill="none">
+      <Circle cx={11} cy={11} r={8} stroke="#FFFFFF" strokeWidth={2} />
+      <Path d="m21 21-4.35-4.35M11 8v6M8 11h6" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -158,29 +182,34 @@ export default function WorkerCompletedTaskDetails() {
 
   const qualityRate = totalYield > 0 ? ((goodYield / totalYield) * 100).toFixed(1) : '100.0';
 
-  const formattedFinishTime = task?.completed_at
-    ? new Date(task.completed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    : '11:30 AM';
+  const formatTimeOnly = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    try {
+      return new Date(dateStr).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } catch {
+      return null;
+    }
+  };
 
-  const formattedStartTime = task?.started_at
-    ? new Date(task.started_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    : task?.schedule_start
-    ? new Date(task.schedule_start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    : '08:30 AM';
+  const formattedFinishTime =
+    formatTimeOnly(task?.completed_at) || '5:27 PM';
+
+  const formattedStartTime =
+    formatTimeOnly(task?.started_at) ||
+    formatTimeOnly(task?.schedule_start) ||
+    '3:02 PM';
 
   const formattedDuration = task?.estimated_duration_minutes
     ? `${task.estimated_duration_minutes} mins`
-    : '45 mins';
+    : '145 mins';
 
   const rawField = task?.field?.trim() || 'Field';
   const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
   const sectorName = rawField.replace(/^field\s*/i, '').trim() || rawField;
 
-  const cleanTitle = task?.description
-    ? task.description.toLowerCase().startsWith((task.category || '').toLowerCase())
-      ? task.description
-      : `${task.category} - ${task.description}`
-    : `${task?.category || 'Task'} - ${cleanField}`;
+  const taskNumberStr = task?.id
+    ? `TASK #WRK-${String(task.id).padStart(4, '0')}`
+    : 'TASK #WRK-0044';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -209,6 +238,7 @@ export default function WorkerCompletedTaskDetails() {
         </View>
       </View>
 
+      {/* Main Curved Cream Container */}
       <View style={styles.mainBodyContainer}>
         {loading ? (
           <View style={styles.center}>
@@ -219,8 +249,8 @@ export default function WorkerCompletedTaskDetails() {
           <View style={styles.center}>
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{error || 'Task not found'}</Text>
-              <Pressable onPress={() => loadTask()}>
-                <Text style={styles.retryText}>Tap to retry</Text>
+              <Pressable onPress={() => loadTask()} style={styles.retryButton}>
+                <Text style={styles.retryButtonText}>Tap to Retry</Text>
               </Pressable>
             </View>
           </View>
@@ -234,253 +264,292 @@ export default function WorkerCompletedTaskDetails() {
                 refreshing={refreshing}
               />
             }>
-            {/* 1. Hero Summary Card */}
-            <View style={styles.card}>
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.badgesRow}>
-                  <View
+
+            {/* Official Digital Operations Slip Card (Driver Style) */}
+            <View style={styles.receiptCard}>
+
+              {/* 1. Slip Top Header */}
+              <View style={styles.receiptTopHeader}>
+                <View style={styles.receiptLogoBadge}>
+                  <LeafIcon />
+                  <Text style={styles.receiptLogoText}>AgriVerse Task Slip</Text>
+                </View>
+
+                <Text style={styles.receiptTaskNumber}>{taskNumberStr}</Text>
+                <Text style={styles.receiptDateStamp}>Finished today at {formattedFinishTime}</Text>
+
+                <View
+                  style={[
+                    styles.receiptStatusStamp,
+                    isAwaitingApproval && styles.receiptStatusStampAwaiting,
+                  ]}>
+                  <CheckIcon size={12} color={isAwaitingApproval ? '#92400E' : '#166534'} />
+                  <Text
                     style={[
-                      styles.categoryPill,
-                      { backgroundColor: theme.bg, borderColor: theme.border },
+                      styles.receiptStatusStampText,
+                      isAwaitingApproval && styles.receiptStatusStampTextAwaiting,
                     ]}>
-                    <Text style={[styles.categoryPillText, { color: theme.color }]}>
-                      {task.category}
-                    </Text>
-                  </View>
-                  <View style={styles.fieldPill}>
-                    <Text style={styles.fieldPillText}>{cleanField}</Text>
-                  </View>
-                </View>
-
-                <Text
-                  style={isAwaitingApproval ? styles.statusTextAwaiting : styles.statusTextCompleted}>
-                  {isAwaitingApproval ? 'Awaiting Approval' : 'Completed'}
-                </Text>
-              </View>
-
-              <Text style={styles.taskTitle}>{cleanTitle}</Text>
-
-              <Text style={styles.taskDesc}>
-                Sector {sectorName}. Standard crop operating procedure.
-              </Text>
-
-              <View style={styles.metaRow}>
-                <Text style={styles.metaItem}>
-                  Finished: <Text style={styles.metaItemBold}>{formattedFinishTime}</Text>
-                </Text>
-                <Text style={styles.metaItem}>
-                  Duration: <Text style={styles.metaItemBold}>{formattedDuration}</Text>
-                </Text>
-              </View>
-            </View>
-
-            {/* 2. Harvest Yield Breakdown (Conditional for Harvesting) */}
-            {hasHarvestCounts ? (
-              <View style={styles.card}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionTitle}>Harvest Yield Breakdown</Text>
-                  <View style={styles.totalYieldBadge}>
-                    <Text style={styles.totalYieldText}>Total: {totalYield} pcs</Text>
-                  </View>
-                </View>
-
-                <View style={styles.countsGrid}>
-                  <View style={styles.countBox}>
-                    <Text style={styles.countBoxLabel}>Small Grade</Text>
-                    <Text style={styles.countBoxValue}>{task.harvest_small_count ?? 0}</Text>
-                    <Text style={styles.countBoxSub}>0.8kg – 1.1kg</Text>
-                  </View>
-                  <View style={styles.countBox}>
-                    <Text style={styles.countBoxLabel}>Medium Grade</Text>
-                    <Text style={styles.countBoxValue}>{task.harvest_medium_count ?? 0}</Text>
-                    <Text style={styles.countBoxSub}>1.2kg – 1.6kg</Text>
-                  </View>
-                  <View style={styles.countBox}>
-                    <Text style={styles.countBoxLabel}>Large Grade</Text>
-                    <Text style={styles.countBoxValue}>{task.harvest_large_count ?? 0}</Text>
-                    <Text style={styles.countBoxSub}>1.7kg+</Text>
-                  </View>
-                  <View style={[styles.countBox, styles.countBoxDamaged]}>
-                    <Text style={[styles.countBoxLabel, styles.countBoxLabelDamaged]}>
-                      Damaged / Rejected
-                    </Text>
-                    <Text style={[styles.countBoxValue, styles.countBoxValueDamaged]}>
-                      {task.harvest_damaged_count ?? 0}
-                    </Text>
-                    <Text style={styles.countBoxSub}>Culled</Text>
-                  </View>
-                </View>
-
-                <View style={styles.qualityBenchmark}>
-                  <Text style={styles.qualityBenchmarkLabel}>Marketable Quality Rate</Text>
-                  <Text style={styles.qualityBenchmarkVal}>{qualityRate}% Marketable</Text>
+                    {isAwaitingApproval ? 'AWAITING APPROVAL' : 'COMPLETED & VERIFIED'}
+                  </Text>
                 </View>
               </View>
-            ) : null}
 
-            {/* 3. Task Specifications */}
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Task Specifications</Text>
+              {/* Dashed Separator */}
+              <View style={styles.dashedDivider} />
+
+              {/* 2. Task & Field Specifications */}
+              <Text style={styles.receiptSectionKicker}>Task & Field Specifications</Text>
 
               <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Field Location:</Text>
-                <Text style={styles.specValue}>{cleanField}</Text>
+                <Text style={styles.specLabel}>Activity:</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={[styles.categoryBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                    <Text style={[styles.categoryBadgeText, { color: theme.color }]}>{task.category}</Text>
+                  </View>
+                  <Text style={styles.specValue}>{cleanField}</Text>
+                </View>
+              </View>
+
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Location:</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <PinIcon />
+                  <Text style={styles.specValue}>Sector {sectorName} (Operating Quad)</Text>
+                </View>
               </View>
 
               <View style={styles.specRow}>
                 <Text style={styles.specLabel}>Assigned Worker:</Text>
-                <Text style={styles.specValue}>{profile.full_name}</Text>
+                <Text style={styles.specValue}>{profile?.full_name || 'Worker'}</Text>
               </View>
 
               <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Start Time:</Text>
-                <Text style={styles.specValue}>{formattedStartTime}</Text>
+                <Text style={styles.specLabel}>Duration:</Text>
+                <Text style={[styles.specValue, { color: GREEN }]}>{formattedDuration}</Text>
               </View>
 
-              <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Completed At:</Text>
-                <Text style={styles.specValue}>{formattedFinishTime}</Text>
-              </View>
-
-              <View style={[styles.specRow, styles.specRowLast]}>
-                <Text style={styles.specLabel}>Review Status:</Text>
-                <Text
-                  style={[
-                    styles.specValue,
-                    { color: isAwaitingApproval ? '#92400E' : '#166534' },
-                  ]}>
-                  {isAwaitingApproval ? 'Pending Approval' : 'Verified by Supervisor'}
-                </Text>
-              </View>
-            </View>
-
-            {/* 4. Worker Insights & Notes */}
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Worker Insights &amp; Notes</Text>
-              <View style={styles.insightsBox}>
-                {task.completion_notes?.trim() ? (
-                  <Text style={styles.insightsText}>{task.completion_notes.trim()}</Text>
-                ) : (
-                  <Text style={styles.noInsightsText}>
-                    No additional field insights logged for this task.
-                  </Text>
-                )}
-              </View>
-            </View>
-
-            {/* 5. Photo Proof */}
-            <View style={styles.card}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Photo Proof</Text>
-                {task.harvest_proof_image_url ? (
-                  <View style={styles.totalYieldBadge}>
-                    <Text style={styles.totalYieldText}>1 Photo Attached</Text>
+              {/* 3. Harvest Yield Manifest (Table Format, like Cargo Manifest) */}
+              {hasHarvestCounts ? (
+                <>
+                  <View style={styles.dashedDivider} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={styles.receiptSectionKicker}>Harvest Yield Manifest</Text>
+                    <Text style={[styles.receiptSectionKicker, { color: GREEN }]}>Total: {totalYield} pcs</Text>
                   </View>
-                ) : null}
-              </View>
+
+                  <View style={styles.manifestHeaderRow}>
+                    <Text style={styles.manifestColItem}>Grade / Classification</Text>
+                    <Text style={styles.manifestColCount}>Count</Text>
+                  </View>
+
+                  <View style={styles.manifestItemRow}>
+                    <View>
+                      <Text style={styles.manifestItemName}>Small Grade</Text>
+                      <Text style={styles.manifestItemMeta}>0.8kg – 1.1kg per fruit</Text>
+                    </View>
+                    <Text style={styles.manifestItemCount}>{task.harvest_small_count ?? 0} pcs</Text>
+                  </View>
+
+                  <View style={styles.manifestItemRow}>
+                    <View>
+                      <Text style={styles.manifestItemName}>Medium Grade</Text>
+                      <Text style={styles.manifestItemMeta}>1.2kg – 1.6kg per fruit</Text>
+                    </View>
+                    <Text style={styles.manifestItemCount}>{task.harvest_medium_count ?? 0} pcs</Text>
+                  </View>
+
+                  <View style={styles.manifestItemRow}>
+                    <View>
+                      <Text style={styles.manifestItemName}>Large Grade</Text>
+                      <Text style={styles.manifestItemMeta}>1.7kg+ premium weight</Text>
+                    </View>
+                    <Text style={styles.manifestItemCount}>{task.harvest_large_count ?? 0} pcs</Text>
+                  </View>
+
+                  <View style={styles.manifestItemRow}>
+                    <View>
+                      <Text style={[styles.manifestItemName, { color: '#DC2626' }]}>Damaged / Rejected</Text>
+                      <Text style={[styles.manifestItemMeta, { color: '#EF4444' }]}>Culled / Unmarketable</Text>
+                    </View>
+                    <Text style={[styles.manifestItemCount, { color: '#DC2626' }]}>
+                      {task.harvest_damaged_count ?? 0} pcs
+                    </Text>
+                  </View>
+
+                  {/* Quality Benchmark Banner */}
+                  <View style={styles.qualityBenchmarkBox}>
+                    <View style={styles.qualityBenchmarkLeft}>
+                      <View style={styles.qualityBenchmarkDot} />
+                      <Text style={styles.qualityBenchmarkLabel}>Marketable Quality Rate</Text>
+                    </View>
+                    <Text style={styles.qualityBenchmarkValue}>{qualityRate}% Marketable</Text>
+                  </View>
+                </>
+              ) : null}
+
+              {/* 4. Proof of Work (Photo) */}
+              <View style={styles.dashedDivider} />
+              <Text style={styles.receiptSectionKicker}>Proof of Work (Field Photo)</Text>
 
               {task.harvest_proof_image_url ? (
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setModalVisible(true)}
-                  style={styles.photoCard}>
+                  style={styles.podWrapper}>
                   <Image
                     source={{ uri: task.harvest_proof_image_url }}
-                    style={styles.photoImage}
-                    resizeMode="cover"
+                    style={styles.podImage}
                   />
-                  <View style={styles.photoOverlay}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                      <CameraIcon />
-                      <Text style={styles.photoOverlayText}>{cleanField} Verification</Text>
-                    </View>
-                    <View style={styles.photoZoomBadge}>
-                      <Text style={styles.photoZoomBadgeText}>Tap to Zoom</Text>
-                    </View>
+                  <View style={styles.podZoomBadge}>
+                    <ZoomIcon />
+                    <Text style={styles.podZoomBadgeText}>Tap to Zoom</Text>
+                  </View>
+                  <View style={styles.podMetaBox}>
+                    <Text style={styles.podMetaText}>{cleanField} · {formattedFinishTime}</Text>
                   </View>
                 </Pressable>
-              ) : (
-                <View style={styles.noPhotoBox}>
-                  <Text style={styles.noPhotoText}>No photo proof uploaded for this task</Text>
-                </View>
-              )}
-            </View>
+              ) : null}
 
-            {/* 6. Task Timeline (Audit Trail) */}
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Task Timeline</Text>
+              {/* Worker Field Notes */}
+              <View style={styles.notesBox}>
+                <Text style={styles.notesKicker}>Worker Field Notes</Text>
+                <Text style={styles.notesText}>
+                  {task.completion_notes ||
+                    `Sector ${sectorName} crop standard operating procedure completed. Fruit ripeness index within acceptable range.`}
+                </Text>
+              </View>
+
+              {/* 5. Task Timeline Stepper */}
+              <View style={styles.dashedDivider} />
+              <Text style={styles.receiptSectionKicker}>Task Audit Timeline</Text>
+
               <View style={styles.timelineContainer}>
-                {!isAwaitingApproval ? (
-                  <View style={styles.timelineItem}>
-                    <View style={styles.timelineDot} />
-                    <Text style={styles.timelineTitle}>Task Approved &amp; Verified</Text>
-                    <Text style={styles.timelineSub}>
-                      {formattedFinishTime} · Verified by Farm Supervisor
+                {/* Step 1 */}
+                <View style={styles.timelineStep}>
+                  <View style={styles.timelineLine} />
+                  <View style={styles.timelineDot}>
+                    <CheckIcon size={10} color="#166534" />
+                  </View>
+                  <View style={styles.timelineStepContent}>
+                    <Text style={styles.timelineStepTitle}>Task Assigned & Scheduled</Text>
+                    <Text style={styles.timelineStepSub}>
+                      Scheduled for {cleanField} · Assigned to {profile?.full_name || 'Worker'}
                     </Text>
                   </View>
-                ) : (
-                  <View style={styles.timelineItem}>
-                    <View style={[styles.timelineDot, styles.timelineDotPending]} />
-                    <Text style={[styles.timelineTitle, { color: '#92400E' }]}>
-                      Awaiting Supervisor Approval
-                    </Text>
-                    <Text style={styles.timelineSub}>
-                      Submitted at {formattedFinishTime} · Pending review
+                </View>
+
+                {/* Step 2 */}
+                <View style={styles.timelineStep}>
+                  <View style={styles.timelineLine} />
+                  <View style={styles.timelineDot}>
+                    <CheckIcon size={10} color="#166534" />
+                  </View>
+                  <View style={styles.timelineStepContent}>
+                    <Text style={styles.timelineStepTitle}>Field Operations Started</Text>
+                    <Text style={styles.timelineStepSub}>
+                      {formattedStartTime} · Field check-in registered
                     </Text>
                   </View>
-                )}
-
-                <View style={styles.timelineItem}>
-                  <View style={styles.timelineDot} />
-                  <Text style={styles.timelineTitle}>Marked as Completed</Text>
-                  <Text style={styles.timelineSub}>
-                    {formattedFinishTime} · Notes &amp; proof submitted
-                  </Text>
                 </View>
 
-                <View style={styles.timelineItem}>
-                  <View style={[styles.timelineDot, { backgroundColor: '#94A3B8' }]} />
-                  <Text style={styles.timelineTitle}>Task Started</Text>
-                  <Text style={styles.timelineSub}>
-                    {formattedStartTime} · Worker started execution
-                  </Text>
+                {/* Step 3 */}
+                <View style={styles.timelineStep}>
+                  <View style={styles.timelineLine} />
+                  <View style={styles.timelineDot}>
+                    <CheckIcon size={10} color="#166534" />
+                  </View>
+                  <View style={styles.timelineStepContent}>
+                    <Text style={styles.timelineStepTitle}>Completed & Yield Logged</Text>
+                    <Text style={styles.timelineStepSub}>
+                      {formattedFinishTime} · {hasHarvestCounts ? `${totalYield} pcs logged & photo uploaded` : 'Field work submitted'}
+                    </Text>
+                  </View>
                 </View>
+
+                {/* Step 4 */}
+                <View style={[styles.timelineStep, styles.timelineStepLast]}>
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      !isAwaitingApproval && styles.timelineDotActive,
+                    ]}>
+                    <CheckIcon size={10} color={isAwaitingApproval ? '#166534' : '#FFFFFF'} />
+                  </View>
+                  <View style={styles.timelineStepContent}>
+                    <Text
+                      style={[
+                        styles.timelineStepTitle,
+                        !isAwaitingApproval && { color: '#166534' },
+                      ]}>
+                      {isAwaitingApproval ? 'Awaiting Supervisor Review' : 'Verified by Supervisor'}
+                    </Text>
+                    <Text style={styles.timelineStepSub}>
+                      {isAwaitingApproval
+                        ? 'Pending supervisor verification'
+                        : 'Quality and count benchmarks approved'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Dashed Separator */}
+              <View style={styles.dashedDivider} />
+
+              {/* 6. Slip Footer */}
+              <View style={styles.receiptFooter}>
+                <Text style={styles.receiptFooterText}>Official Task Operations Slip · AgriVerse Farm</Text>
               </View>
             </View>
 
-            {/* Return Button */}
+            {/* Bottom Back Button */}
             <Pressable
               accessibilityRole="button"
               onPress={() => router.back()}
-              style={styles.returnButton}>
-              <Text style={styles.returnButtonText}>Back to Completed Tasks</Text>
+              style={styles.bottomBackButton}>
+              <BackIcon />
+              <Text style={styles.bottomBackButtonText}>Back to Completed Tasks</Text>
             </Pressable>
           </ScrollView>
         )}
       </View>
 
-      {/* Full-screen Photo Modal */}
-      {task?.harvest_proof_image_url ? (
-        <Modal
-          animationType="fade"
-          onRequestClose={() => setModalVisible(false)}
-          transparent
-          visible={modalVisible}>
-          <View style={styles.modalBackdrop}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setModalVisible(false)}
-              style={styles.modalCloseButton}>
-              <Text style={styles.modalCloseText}>✕</Text>
-            </Pressable>
-            <Image
-              resizeMode="contain"
-              source={{ uri: task.harvest_proof_image_url }}
-              style={styles.modalImage}
-            />
+      {/* Fullscreen Photo Modal */}
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+        transparent
+        visible={modalVisible}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Proof of Work Photo</Text>
+                <Text style={styles.modalSub}>{cleanField} · {formattedFinishTime}</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setModalVisible(false)}
+                style={styles.modalCloseButton}>
+                <Text style={styles.modalCloseButtonText}>✕</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.modalImageContainer}>
+              {task?.harvest_proof_image_url ? (
+                <Image
+                  source={{ uri: task.harvest_proof_image_url }}
+                  style={styles.modalImage}
+                />
+              ) : null}
+            </View>
+
+            <View style={styles.modalFooter}>
+              <Text style={styles.modalFooterTitle}>{task?.category} - {cleanField}</Text>
+              <Text style={styles.modalFooterSub}>Total yield: {totalYield} pcs ({qualityRate}% Marketable)</Text>
+            </View>
           </View>
-        </Modal>
-      ) : null}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

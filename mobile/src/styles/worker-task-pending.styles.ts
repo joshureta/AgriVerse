@@ -140,20 +140,83 @@ export const styles = StyleSheet.create({
   },
 
   // Task Title and Subtitle
+  pendingCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 4,
+  },
+  categorySquircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topRightDropdownBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topRightDropdownBtnActive: {
+    backgroundColor: '#E2E8F0',
+  },
   taskTitle: {
     color: '#0F172A',
-    fontSize: 15.5,
+    fontSize: 16,
     fontWeight: '800',
-    lineHeight: 21,
+    lineHeight: 22,
+  },
+  headerSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 3,
   },
   taskMetaSubtitle: {
     color: '#64748B',
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '600',
-    marginTop: 2,
   },
 
-  // Collapsible Instructions Section
+  // Driver Meta Rows
+  metaTextContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 8,
+    marginTop: 2,
+    marginBottom: 2,
+    gap: 5,
+  },
+  metaTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  metaTextLabel: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#64748B',
+    width: 82,
+    lineHeight: 18,
+  },
+  metaTextValue: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    lineHeight: 18,
+  },
+  metaTextValueHighlighted: {
+    color: GREEN,
+    fontWeight: '800',
+  },
+
+  // Collapsible Instructions Section (Driver pendingDetailsBox Style)
   toggleDetailsButton: {
     alignSelf: 'flex-start',
     paddingVertical: 2,
@@ -163,6 +226,35 @@ export const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 11.5,
     fontWeight: '700',
+  },
+  pendingDetailsBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  pendingDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  pendingDetailLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    width: 82,
+    lineHeight: 18,
+  },
+  pendingDetailValue: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E293B',
+    lineHeight: 18,
   },
   detailsSection: {
     backgroundColor: '#F8FAFC',
