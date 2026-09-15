@@ -286,6 +286,7 @@ test("driver order routes require an access token", async () => {
   for (const [path, options] of [
     ["/api/driver/orders", undefined],
     ["/api/driver/orders/vehicles", undefined],
+    ["/api/driver/orders/fleet", undefined],
     ["/api/driver/orders/1/accept", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

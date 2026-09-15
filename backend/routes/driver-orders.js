@@ -54,6 +54,15 @@ router.get("/vehicles", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.get("/fleet", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase().from("delivery_vehicles")
+      .select("id, vehicle_name, plate_number, status").order("vehicle_name");
+    if (error) throw error;
+    return res.json({ vehicles: data || [] });
+  } catch (error) { return next(error); }
+});
+
 router.get("/", async (req, res, next) => {
   try {
     const { data, error } = await getSupabase().from("buyer_orders").select(orderSelect)

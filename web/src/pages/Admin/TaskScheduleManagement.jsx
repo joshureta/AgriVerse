@@ -19,6 +19,8 @@ const emptyOptions = {
   workers: [], categories: [], fields: [], priorities: [], statuses: [], scheduleStatuses: [],
 }
 const emptyDeliveryForm = { order_id: '', delivery_date: '', start_time: '07:00', end_time: '08:00' }
+const emptyVehicleForm = { vehicle_name: '', plate_number: '', status: 'available' }
+const vehicleStatusLabels = { available: 'Available', in_use: 'In Use', maintenance: 'Maintenance', inactive: 'Inactive' }
 const workerCategoryLabels = {
   crop_management_worker: 'Crop Management Worker',
   driver: 'Driver',
@@ -250,6 +252,8 @@ export default function TaskScheduleManagement() {
   const [deliveryForm, setDeliveryForm] = useState(emptyDeliveryForm)
   const [deliveryEditForm, setDeliveryEditForm] = useState({ driver_id: '', delivery_date: '', start_time: '07:00', end_time: '08:00' })
   const [readyOrders, setReadyOrders] = useState([])
+  const [vehicles, setVehicles] = useState([])
+  const [vehicleForm, setVehicleForm] = useState(emptyVehicleForm)
   const [disputeOrders, setDisputeOrders] = useState([])
   const [disputeResolutionNotes, setDisputeResolutionNotes] = useState('')
   const [disputeRefundAmount, setDisputeRefundAmount] = useState('')
@@ -448,10 +452,44 @@ export default function TaskScheduleManagement() {
     }
   }, [])
 
+  const loadVehicles = useCallback(async () => {
+    try {
+      const data = await apiRequest('/api/admin/deliveries/vehicles')
+      setVehicles(data.vehicles || [])
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }, [])
+
   useEffect(() => {
     if (activeTab === 'archive') loadArchivedSettings()
+    else if (activeTab === 'fleet') loadVehicles()
     else if (activeTab !== 'tasks') loadSettings()
-  }, [activeTab, loadArchivedSettings, loadSettings])
+  }, [activeTab, loadArchivedSettings, loadSettings, loadVehicles])
+
+  function openVehicleModal(vehicle = null) {
+    setError('')
+    setVehicleForm(vehicle ? { vehicle_name: vehicle.vehicle_name, plate_number: vehicle.plate_number, status: vehicle.status } : emptyVehicleForm)
+    setModal({ mode: 'vehicle', vehicle })
+  }
+
+  async function saveVehicle(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/deliveries/vehicles${modal.vehicle ? `/${modal.vehicle.id}` : ''}`, {
+        method: modal.vehicle ? 'PATCH' : 'POST',
+        body: JSON.stringify(vehicleForm),
+      })
+      setModal(null)
+      await loadVehicles()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   useEffect(() => {
     const delay = window.setTimeout(loadTasks, search ? 300 : 0)
@@ -669,6 +707,7 @@ export default function TaskScheduleManagement() {
   const settingsSearch = search.trim().toLowerCase()
   const settingsSource = activeTab === 'archive' ? archivedSettings : settingsValues
   const visibleSettings = activeTab === 'tasks' ? [] : settingsSource[settingsConfig.resource].filter((value) => !settingsSearch || `${value[settingsConfig.nameKey]} ${value.description || ''}`.toLowerCase().includes(settingsSearch))
+  const visibleVehicles = vehicles.filter((vehicle) => !settingsSearch || `${vehicle.vehicle_name} ${vehicle.plate_number}`.toLowerCase().includes(settingsSearch))
   const visibleDeliveryOrders = useMemo(() => {
     const query = search.trim().toLowerCase()
     const requestedStatus = filter.startsWith('delivery:') ? filter.slice('delivery:'.length) : ''
@@ -721,6 +760,7 @@ export default function TaskScheduleManagement() {
               <button className={activeTab === 'tasks' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('tasks'); setSearch(''); setPage(1) }}>All Tasks</button>
               <button className={activeTab === 'fields' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fields'); setSearch(''); setPage(1) }}>Fields &amp; Locations</button>
               <button className={activeTab === 'categories' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('categories'); setSearch(''); setPage(1) }}>Task Categories</button>
+              <button className={activeTab === 'fleet' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fleet'); setSearch(''); setPage(1) }}>Fleet</button>
               <button className={activeTab === 'archive' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('archive'); setSearch(''); setPage(1) }}>Archived Items</button>
             </nav>
             {activeTab === 'tasks' ? <>
@@ -784,6 +824,21 @@ export default function TaskScheduleManagement() {
               </div>
             </footer>
             </>}
+            </> : activeTab === 'fleet' ? <>
+              <div className="task-settings-toolbar">
+                <label className="task-search"><span className="sr-only">Search fleet vehicles</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search fleet vehicles" /><span aria-hidden="true" /></label>
+                <button type="button" onClick={() => openVehicleModal()}><span>＋</span>Add Vehicle</button>
+              </div>
+              {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
+              <div className="tasks-table-wrap">
+                <table className="tasks-table">
+                  <thead><tr><th>VEHICLE</th><th>PLATE NUMBER</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                  <tbody>{visibleVehicles.length ? visibleVehicles.map((vehicle) => <tr key={vehicle.id}><td><strong>{vehicle.vehicle_name}</strong></td><td>{vehicle.plate_number}</td><td><span className={`task-status status-${vehicle.status}`}>{vehicleStatusLabels[vehicle.status] || vehicle.status}</span></td><td><div className="task-actions"><button type="button" onClick={() => openVehicleModal(vehicle)}>Edit</button></div></td></tr>) : <tr><td className="tasks-empty" colSpan="4">No vehicles in the fleet yet.</td></tr>}</tbody>
+                </table>
+              </div>
+              <footer className="task-pagination">
+                <span>{visibleVehicles.length} vehicle{visibleVehicles.length === 1 ? '' : 's'}</span>
+              </footer>
             </> : <>
               <div className="task-settings-toolbar">
                 <label className="task-search"><span className="sr-only">{settingsConfig.searchLabel}</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder={settingsConfig.searchLabel} /><span aria-hidden="true" /></label>
@@ -1126,6 +1181,19 @@ export default function TaskScheduleManagement() {
             {error && <div className="task-modal-error" role="alert">{error}</div>}
             <label><span>{modal.type === 'categories' ? 'Category name' : 'Field or location name'}</span><input autoFocus value={settingsForm.name} onChange={(event) => setSettingsForm({ ...settingsForm, name: event.target.value })} maxLength="120" required /></label>
             {modal.type === 'categories' && <label className="task-description"><span>Description <em>(optional)</em></span><textarea value={settingsForm.description} onChange={(event) => setSettingsForm({ ...settingsForm, description: event.target.value })} placeholder="What kind of tasks belong in this category?" maxLength="500" /></label>}
+            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button></footer>
+          </form>
+        </section>
+      </div>}
+
+      {modal?.mode === 'vehicle' && <div className="task-modal-backdrop">
+        <section className="task-reference-modal task-setting-modal" role="dialog" aria-modal="true">
+          <TaskModalHeader title={modal.vehicle ? 'Edit Vehicle' : 'Add Vehicle'} tag="Fleet management" onClose={() => setModal(null)} />
+          <form className="task-reference-body" onSubmit={saveVehicle}>
+            {error && <div className="task-modal-error" role="alert">{error}</div>}
+            <label><span>Vehicle name</span><input autoFocus value={vehicleForm.vehicle_name} onChange={(event) => setVehicleForm({ ...vehicleForm, vehicle_name: event.target.value })} maxLength="120" required /></label>
+            <label><span>Plate number</span><input value={vehicleForm.plate_number} onChange={(event) => setVehicleForm({ ...vehicleForm, plate_number: event.target.value })} maxLength="30" required /></label>
+            <label><span>Status</span><select value={vehicleForm.status} onChange={(event) => setVehicleForm({ ...vehicleForm, status: event.target.value })}>{Object.entries(vehicleStatusLabels).map(([code, label]) => <option value={code} key={code}>{label}</option>)}</select></label>
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button></footer>
           </form>
         </section>

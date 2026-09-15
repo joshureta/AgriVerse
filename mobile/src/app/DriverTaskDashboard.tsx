@@ -20,8 +20,10 @@ import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import {
+  DriverFleetResponse,
   DriverOrder,
   DriverOrdersResponse,
+  FleetVehicle,
   formatDeliveryAddress,
   formatDeliveryRoute,
   isActiveDelivery,
@@ -155,6 +157,7 @@ export default function DriverTaskDashboardScreen() {
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [navbarBlurred, setNavbarBlurred] = useState(false);
   const [disputes, setDisputes] = useState<DriverDisputeOrder[]>([]);
+  const [fleet, setFleet] = useState<FleetVehicle[]>([]);
 
   const loadTasks = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -178,27 +181,39 @@ export default function DriverTaskDashboardScreen() {
     }
   }, []);
 
+  const loadFleet = useCallback(async () => {
+    try {
+      const result = await apiRequest<DriverFleetResponse>('/api/driver/orders/fleet');
+      setFleet(result.vehicles ?? []);
+    } catch {
+      setFleet([]);
+    }
+  }, []);
+
   useEffect(() => {
     if (profile) {
       loadTasks();
+      loadFleet();
       loadWeather().then(setWeather);
       apiRequest<{ orders: DriverDisputeOrder[] }>('/api/driver/orders/disputes')
         .then((result) => setDisputes(result.orders ?? []))
         .catch(() => setDisputes([]));
     }
-  }, [loadTasks, profile]);
+  }, [loadFleet, loadTasks, profile]);
 
   const dashboard = summary;
   const pendingOrders = orders.filter((o) => o.delivery_assignment_status === 'assigned');
   const previewOrders = pendingOrders.slice(0, 3);
   const contentInset = width < 360 ? styles.contentInsetCompact : styles.contentInset;
 
-  const fleetItems = [
-    { id: '1', name: 'Delivery Truck A', meta: 'Plate: AGV-4081', status: 'available' as const },
-    { id: '2', name: 'Delivery Truck B', meta: 'Silang ➔ Tagaytay', status: 'transit' as const },
-    { id: '3', name: 'Farm Utility Pickup', meta: 'Plate: AGV-1024', status: 'available' as const },
-  ];
-  const displayedEquipment = fleetItems;
+  const displayedEquipment = fleet.map((vehicle) => ({
+    id: String(vehicle.id),
+    name: vehicle.vehicle_name,
+    meta: `Plate: ${vehicle.plate_number}`,
+    status: vehicle.status === 'in_use' ? ('transit' as const)
+      : vehicle.status === 'available' ? ('available' as const)
+      : ('unavailable' as const),
+  }));
 
   if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
   if (!profile) return <Redirect href="/login" />;
@@ -226,6 +241,7 @@ export default function DriverTaskDashboardScreen() {
               refreshing={refreshing}
               onRefresh={() => {
                 loadTasks(true);
+                loadFleet();
                 loadWeather().then(setWeather);
               }}
               colors={[GREEN]}
@@ -318,38 +334,46 @@ export default function DriverTaskDashboardScreen() {
 
                 {/* Equipment Unit Items */}
                 <View style={styles.equipmentList}>
-                  {displayedEquipment.map((item) => (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => router.push(item.status === 'transit' ? '/DriverTaskActive' : '/DriverTaskPending')}
-                      style={({ pressed }) => [styles.equipmentItemRow, pressed && { opacity: 0.9 }]}>
-                      <View style={styles.equipmentItemLeft}>
-                        <View style={styles.equipmentIconSquare}>
-                          <Image
-                            source={require('@/assets/images/driver-equipment.png')}
-                            style={styles.equipmentItemThumb}
-                          />
-                        </View>
-                        <View>
-                          <Text style={styles.equipmentItemName}>{item.name}</Text>
-                          <Text style={styles.equipmentItemMeta}>{item.meta}</Text>
-                        </View>
-                      </View>
-                      <View
-                        style={[
-                          styles.equipmentStatusTag,
-                          item.status === 'transit' ? styles.statusTag_transit : styles.statusTag_available,
-                        ]}>
-                        <Text
-                          style={[
-                            styles.statusTagText,
-                            item.status === 'transit' ? styles.statusTagText_transit : styles.statusTagText_available,
-                          ]}>
-                          {item.status === 'transit' ? 'On Transit' : 'Available'}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  ))}
+                  {displayedEquipment.length === 0 ? (
+                    <Text style={styles.equipmentItemMeta}>No vehicles in the fleet yet.</Text>
+                  ) : (
+                    displayedEquipment.map((item) => {
+                      const tagStyle =
+                        item.status === 'transit' ? styles.statusTag_transit
+                        : item.status === 'available' ? styles.statusTag_available
+                        : styles.statusTag_unavailable;
+                      const tagTextStyle =
+                        item.status === 'transit' ? styles.statusTagText_transit
+                        : item.status === 'available' ? styles.statusTagText_available
+                        : styles.statusTagText_unavailable;
+                      const tagLabel =
+                        item.status === 'transit' ? 'On Transit'
+                        : item.status === 'available' ? 'Available'
+                        : 'Unavailable';
+                      return (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => router.push(item.status === 'transit' ? '/DriverTaskActive' : '/DriverTaskPending')}
+                          style={({ pressed }) => [styles.equipmentItemRow, pressed && { opacity: 0.9 }]}>
+                          <View style={styles.equipmentItemLeft}>
+                            <View style={styles.equipmentIconSquare}>
+                              <Image
+                                source={require('@/assets/images/driver-equipment.png')}
+                                style={styles.equipmentItemThumb}
+                              />
+                            </View>
+                            <View>
+                              <Text style={styles.equipmentItemName}>{item.name}</Text>
+                              <Text style={styles.equipmentItemMeta}>{item.meta}</Text>
+                            </View>
+                          </View>
+                          <View style={[styles.equipmentStatusTag, tagStyle]}>
+                            <Text style={[styles.statusTagText, tagTextStyle]}>{tagLabel}</Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })
+                  )}
                 </View>
               </View>
             </View>

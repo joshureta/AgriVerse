@@ -2,6 +2,9 @@ export type DeliveryAssignmentStatus = 'assigned' | 'accepted' | 'picked_up' | '
 
 export type DeliveryVehicle = { id: number; vehicle_name: string; plate_number: string };
 
+export type VehicleStatus = 'available' | 'in_use' | 'maintenance' | 'inactive';
+export type FleetVehicle = DeliveryVehicle & { status: VehicleStatus };
+
 export type DriverOrderItem = {
   id: number;
   product_name: string;
@@ -40,6 +43,7 @@ export type DriverOrder = {
 
 export type DriverOrdersResponse = { orders: DriverOrder[] };
 export type DriverVehiclesResponse = { vehicles: DeliveryVehicle[] };
+export type DriverFleetResponse = { vehicles: FleetVehicle[] };
 
 export const ACTIVE_DELIVERY_STATUSES: DeliveryAssignmentStatus[] = ['accepted', 'picked_up', 'out_for_delivery'];
 

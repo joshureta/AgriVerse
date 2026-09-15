@@ -389,6 +389,10 @@ export const styles = StyleSheet.create({
     backgroundColor: '#FEF0CD',
     borderColor: '#FDE047',
   },
+  statusTag_unavailable: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#CBD5E1',
+  },
   statusTagText: {
     fontSize: 9.5,
     fontWeight: '800',
@@ -398,6 +402,9 @@ export const styles = StyleSheet.create({
   },
   statusTagText_transit: {
     color: '#9C6819',
+  },
+  statusTagText_unavailable: {
+    color: '#475569',
   },
 
   // Equipment Status Section (Legacy)

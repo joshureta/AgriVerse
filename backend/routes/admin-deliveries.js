@@ -10,6 +10,11 @@ function orderId(value) { const id = Number(value); if (!Number.isSafeInteger(id
 function driverId(value) { const id = String(value || "").trim(); if (!/^[0-9a-f-]{36}$/i.test(id)) throw httpError(400, "Select a valid driver"); return id; }
 function date(value) { const result = String(value || "").trim(); if (!/^\d{4}-\d{2}-\d{2}$/.test(result)) throw httpError(400, "Select a delivery date"); return result; }
 function time(value) { const result = String(value || "").trim(); if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(result)) throw httpError(400, "Select a valid delivery time"); return result; }
+function vehicleRecordId(value) { const id = Number(value); if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid vehicle ID"); return id; }
+
+const VEHICLE_STATUSES = ["available", "in_use", "maintenance", "inactive"];
+function vehicleName(value) { const result = String(value || "").trim(); if (!result) throw httpError(400, "Enter a vehicle name"); if (result.length > 120) throw httpError(400, "Vehicle name must not exceed 120 characters"); return result; }
+function plateNumber(value) { const result = String(value || "").trim(); if (!result) throw httpError(400, "Enter a plate number"); if (result.length > 30) throw httpError(400, "Plate number must not exceed 30 characters"); return result; }
 
 function readSchedule(body) {
   const scheduleDate = date(body.delivery_date);
@@ -31,6 +36,54 @@ router.get("/ready-orders", async (req, res, next) => {
       .order("created_at", { ascending: true });
     if (error) throw error;
     return res.json({ orders: data || [] });
+  } catch (error) { return next(error); }
+});
+
+router.get("/vehicles", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase().from("delivery_vehicles")
+      .select("id, vehicle_name, plate_number, status").order("vehicle_name");
+    if (error) throw error;
+    return res.json({ vehicles: data || [] });
+  } catch (error) { return next(error); }
+});
+
+router.post("/vehicles", async (req, res, next) => {
+  try {
+    const insert = {
+      vehicle_name: vehicleName(req.body.vehicle_name),
+      plate_number: plateNumber(req.body.plate_number),
+      status: VEHICLE_STATUSES.includes(req.body.status) ? req.body.status : "available",
+    };
+    const { data, error } = await getSupabase().from("delivery_vehicles").insert(insert)
+      .select("id, vehicle_name, plate_number, status").single();
+    if (error) {
+      if (error.code === "23505") throw httpError(409, "A vehicle with this plate number already exists");
+      throw error;
+    }
+    return res.status(201).json({ vehicle: data });
+  } catch (error) { return next(error); }
+});
+
+router.patch("/vehicles/:id", async (req, res, next) => {
+  try {
+    const id = vehicleRecordId(req.params.id);
+    const update = {};
+    if (req.body.vehicle_name !== undefined) update.vehicle_name = vehicleName(req.body.vehicle_name);
+    if (req.body.plate_number !== undefined) update.plate_number = plateNumber(req.body.plate_number);
+    if (req.body.status !== undefined) {
+      if (!VEHICLE_STATUSES.includes(req.body.status)) throw httpError(400, "Select a valid status");
+      update.status = req.body.status;
+    }
+    if (!Object.keys(update).length) throw httpError(400, "Nothing to update");
+    const { data, error } = await getSupabase().from("delivery_vehicles").update(update)
+      .eq("id", id).select("id, vehicle_name, plate_number, status").maybeSingle();
+    if (error) {
+      if (error.code === "23505") throw httpError(409, "A vehicle with this plate number already exists");
+      throw error;
+    }
+    if (!data) throw httpError(404, "Vehicle not found");
+    return res.json({ vehicle: data });
   } catch (error) { return next(error); }
 });
 
