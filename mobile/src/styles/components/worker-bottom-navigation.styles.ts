@@ -1,10 +1,10 @@
 import { StyleSheet } from 'react-native';
 
-export const GREEN_NAV_BG = '#176D34';
-export const ACTIVE_PILL_BG = '#EAF5EA';
-export const ACTIVE_ICON_COLOR = '#176D34';
-export const INACTIVE_ICON_COLOR = '#E0F2E9';
-export const INACTIVE_TEXT_COLOR = '#DCF0E2';
+export const GREEN_NAV_BG = '#FFFFFF';
+export const ACTIVE_PILL_BG = '#176D34';
+export const ACTIVE_ICON_COLOR = '#FFFFFF';
+export const INACTIVE_ICON_COLOR = '#4A6552';
+export const INACTIVE_TEXT_COLOR = '#4A6552';
 
 export const styles = StyleSheet.create({
   navigationArea: {
@@ -14,36 +14,42 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F8FAEF',
   },
   navigation: {
-    height: 70,
+    height: 68,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 7,
-    borderRadius: 35,
-    backgroundColor: GREEN_NAV_BG,
+    paddingHorizontal: 6,
+    borderRadius: 34,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    elevation: 14,
-    shadowColor: '#07150C',
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    borderColor: 'rgba(23, 109, 52, 0.14)',
+    elevation: 8,
+    shadowColor: '#04180C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
   },
   button: {
     flex: 1,
-    height: 56,
+    height: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 28,
+    borderRadius: 27,
     marginHorizontal: 3,
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 2,
   },
   activeButton: {
     backgroundColor: ACTIVE_PILL_BG,
+    shadowColor: '#176D34',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   pressedButton: {
     opacity: 0.75,
+    transform: [{ scale: 0.96 }],
   },
   iconSlot: {
     width: 28,
@@ -54,20 +60,22 @@ export const styles = StyleSheet.create({
 
   // Label Typography
   label: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
     color: INACTIVE_TEXT_COLOR,
     marginTop: 2,
     height: 14,
     textAlign: 'center',
+    letterSpacing: 0.1,
   },
   activeLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '800',
     color: ACTIVE_ICON_COLOR,
     marginTop: 2,
     height: 14,
     textAlign: 'center',
+    letterSpacing: 0.1,
   },
 
   // Home Icon
@@ -218,4 +226,3 @@ export const styles = StyleSheet.create({
     borderTopRightRadius: 10,
   },
 });
-

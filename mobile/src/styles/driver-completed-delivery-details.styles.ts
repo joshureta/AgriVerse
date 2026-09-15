@@ -10,8 +10,8 @@ export const styles = StyleSheet.create({
     backgroundColor: GREEN,
   },
   headerBar: {
-    height: 64,
-    paddingHorizontal: 18,
+    height: 60,
+    paddingHorizontal: 16,
     backgroundColor: GREEN,
     flexDirection: 'row',
     alignItems: 'center',
@@ -22,18 +22,16 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingVertical: 8,
-    paddingHorizontal: 0,
-    backgroundColor: 'transparent',
   },
   backButtonText: {
     color: '#FFFFFF',
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '700',
   },
   headerStatusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.35)',
@@ -46,8 +44,8 @@ export const styles = StyleSheet.create({
   mainBodyContainer: {
     flex: 1,
     backgroundColor: BG_COLOR,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: 'hidden',
   },
   center: {
@@ -58,177 +56,114 @@ export const styles = StyleSheet.create({
     padding: 20,
   },
   content: {
-    paddingTop: 18,
-    paddingBottom: 40,
-    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 36,
+    paddingHorizontal: 16,
   },
 
-  // Hero Card
-  heroCard: {
+  // Official Receipt Card Styling
+  receiptCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    marginBottom: 16,
   },
-  heroHeaderRow: {
-    flexDirection: 'row',
+
+  // Receipt Top Header
+  receiptTopHeader: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    paddingBottom: 14,
   },
-  badgesLeft: {
+  receiptLogoBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexWrap: 'wrap',
-  },
-  orderPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 6,
-    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#DCFCE7',
+    marginBottom: 8,
   },
-  orderPillText: {
-    fontSize: 10.5,
+  receiptLogoText: {
+    fontSize: 11,
     fontWeight: '800',
-    color: '#334155',
-    letterSpacing: 0.3,
+    color: GREEN,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
-  statusPillDelivered: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 6,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
+  receiptOrderNumber: {
+    fontSize: 19,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: 0.5,
   },
-  statusPillTextDelivered: {
-    color: '#166534',
-    fontSize: 10.5,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  heroCompletedTime: {
-    fontSize: 11.5,
+  receiptDateStamp: {
+    fontSize: 12,
     fontWeight: '600',
     color: '#64748B',
+    marginTop: 2,
   },
-  heroTitle: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 12,
-  },
-  heroDivider: {
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 12,
+  receiptStatusStamp: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  heroMetaLabel: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  heroAmountValue: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#176D34',
-  },
-  paymentMethodBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
+    gap: 5,
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 14,
     backgroundColor: '#DCFCE7',
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: '#86EFAC',
+    marginTop: 8,
   },
-  paymentMethodBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
+  receiptStatusStampText: {
+    fontSize: 11.5,
+    fontWeight: '900',
     color: '#166534',
+    letterSpacing: 0.3,
   },
 
-  // Standard Info Card
-  sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+  // Dashed Line Separator
+  dashedDivider: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#CBD5E1',
+    borderStyle: 'dashed',
+    marginVertical: 14,
   },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  sectionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  sectionTitle: {
-    fontSize: 11,
+
+  // Receipt Section Titles
+  receiptSectionKicker: {
+    fontSize: 10.5,
     fontWeight: '800',
     color: '#64748B',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-  },
-  sectionTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-    backgroundColor: '#F1F5F9',
-  },
-  sectionTagText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#475569',
+    marginBottom: 8,
   },
 
-  // Customer Contact Row
-  customerRow: {
+  // Customer & Address Info
+  recipientRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  customerName: {
-    fontSize: 14,
-    fontWeight: '700',
+  recipientName: {
+    fontSize: 14.5,
+    fontWeight: '800',
     color: '#0F172A',
   },
-  customerPhone: {
+  recipientPhone: {
     fontSize: 12,
-    fontWeight: '500',
     color: '#64748B',
     marginTop: 1,
   },
@@ -253,7 +188,7 @@ export const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 8,
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -262,183 +197,191 @@ export const styles = StyleSheet.create({
   addressText: {
     flex: 1,
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 17,
     fontWeight: '500',
     color: '#334155',
   },
-  routeRow: {
+  infoGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 4,
+    paddingVertical: 3,
   },
-  routeLabel: {
+  infoLabel: {
     fontSize: 11.5,
     color: '#64748B',
     fontWeight: '500',
   },
-  routeValue: {
+  infoValue: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#176D34',
+    color: '#1E293B',
   },
 
-  // Proof of Delivery (POD)
-  photoThumbnailWrapper: {
-    position: 'relative',
-    borderRadius: 14,
+  // Cargo Manifest Receipt Table
+  manifestHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    marginBottom: 8,
+  },
+  manifestColItem: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  manifestColTotal: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    textAlign: 'right',
+  },
+
+  manifestItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  manifestItemName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  manifestItemMeta: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  manifestItemPrice: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    textAlign: 'right',
+  },
+  manifestItemUnitRate: {
+    fontSize: 10.5,
+    color: '#64748B',
+    textAlign: 'right',
+    marginTop: 1,
+  },
+
+  // Payment Summary Box
+  summaryBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 6,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 3,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  grandTotalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#CBD5E1',
+  },
+  grandTotalLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    textTransform: 'uppercase',
+  },
+  grandTotalValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: GREEN,
+  },
+  paymentMethodBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  paymentMethodBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#166534',
+  },
+
+  // Proof of Delivery Photo
+  podWrapper: {
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#CBD5E1',
     backgroundColor: '#0F172A',
-    height: 180,
-    marginBottom: 10,
+    height: 160,
+    marginBottom: 8,
+    position: 'relative',
   },
-  photoThumbnail: {
+  podImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
-  photoOverlay: {
+  podZoomBadge: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'space-between',
-    padding: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-  },
-  photoZoomBadge: {
-    alignSelf: 'flex-end',
+    top: 8,
+    right: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
-  photoZoomBadgeText: {
+  podZoomBadgeText: {
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '700',
-  },
-  photoMetaBox: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    alignSelf: 'flex-start',
-  },
-  photoMetaText: {
-    color: '#FFFFFF',
-    fontSize: 10.5,
-    fontWeight: '600',
   },
   notesBox: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-  },
-  notesKicker: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
   },
   notesText: {
-    fontSize: 12,
-    lineHeight: 18,
-    fontStyle: 'italic',
+    fontSize: 11.5,
+    lineHeight: 17,
     color: '#334155',
+    fontStyle: 'italic',
   },
 
-  // Cargo Manifest Items
-  cargoItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  cargoItemName: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  cargoItemMeta: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  cargoItemTotal: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#0F172A',
-    textAlign: 'right',
-  },
-  cargoItemUnit: {
-    fontSize: 10,
-    color: '#64748B',
-    textAlign: 'right',
-    marginTop: 1,
-  },
-  cargoSummaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 10,
-  },
-  cargoSummaryLabel: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  cargoSummaryValue: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: '#176D34',
-  },
-
-  // Logistics & Vehicle Grid
-  logisticsGrid: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  logisticsCol: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  logisticsKicker: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  logisticsValue: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginTop: 2,
-  },
-  logisticsSub: {
-    fontSize: 10.5,
-    color: '#64748B',
-    marginTop: 1,
-  },
-
-  // Timeline Stepper
+  // Delivery Timeline
   timelineContainer: {
     paddingLeft: 4,
     paddingTop: 4,
@@ -446,31 +389,31 @@ export const styles = StyleSheet.create({
   timelineStep: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 14,
     position: 'relative',
   },
   timelineStepLast: {
     marginBottom: 0,
   },
   timelineDot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#ECFDF5',
     borderWidth: 2,
     borderColor: '#166534',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
     zIndex: 2,
   },
   timelineLine: {
     position: 'absolute',
-    left: 10,
-    top: 22,
-    bottom: -16,
+    left: 9,
+    top: 20,
+    bottom: -14,
     width: 2,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#CBD5E1',
     zIndex: 1,
   },
   timelineStepContent: {
@@ -488,7 +431,19 @@ export const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  // Back Button Action
+  // Receipt Footer Barcode / Watermark
+  receiptFooter: {
+    alignItems: 'center',
+    paddingTop: 10,
+  },
+  receiptFooterText: {
+    fontSize: 10.5,
+    color: '#94A3B8',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
+  // Back Action Button
   bottomBackButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -499,7 +454,6 @@ export const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    marginTop: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
