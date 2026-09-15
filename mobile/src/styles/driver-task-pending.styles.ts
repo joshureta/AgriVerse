@@ -407,7 +407,7 @@ export const styles = StyleSheet.create({
     borderBottomColor: '#E7EEE8',
   },
   activeRowKey: {
-    width: '34%',
+    width: '26%',
     fontSize: 13,
     fontWeight: '600',
     color: '#64748B',

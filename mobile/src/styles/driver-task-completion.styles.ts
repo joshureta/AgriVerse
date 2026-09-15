@@ -126,17 +126,8 @@ export const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  infoColLeft: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  infoColRight: {
-    alignItems: 'flex-end',
+  detailListItem: {
+    paddingBottom: 2,
   },
   fieldKicker: {
     fontSize: 9.5,
@@ -151,17 +142,6 @@ export const styles = StyleSheet.create({
     color: '#0F172A',
     marginTop: 1,
   },
-  phoneNumber: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: GREEN,
-    marginTop: 1,
-  },
-  addressDivider: {
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingTop: 6,
-  },
   addressText: {
     fontSize: 12,
     fontWeight: '600',
@@ -169,27 +149,17 @@ export const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: 1,
   },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    paddingTop: 2,
-  },
-  metaChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 8,
-  },
-  metaChipText: {
-    fontSize: 10.5,
+  detailText: {
+    fontSize: 12.5,
     fontWeight: '700',
-    color: '#334155',
+    color: '#0F172A',
+    lineHeight: 17,
+    marginTop: 1,
+  },
+  detailListDivider: {
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 6,
   },
 
   // Photo Proof Section
@@ -237,7 +207,7 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
   },
   photoImage: {
     width: '100%',

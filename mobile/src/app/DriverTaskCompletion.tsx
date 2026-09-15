@@ -181,8 +181,7 @@ export default function DriverTaskCompletionScreen() {
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false,
         quality: 0.8,
         base64: true,
       });
@@ -304,40 +303,44 @@ export default function DriverTaskCompletionScreen() {
                   </View>
                 </View>
 
-                {/* Consolidated Delivery Information Card */}
+                {/* Consolidated Delivery Information List */}
                 <View style={styles.deliveryInfoCard}>
-                  {/* Receiver & Contact */}
-                  <View style={styles.infoRow}>
-                    <View style={styles.infoColLeft}>
-                      <Text style={styles.fieldKicker}>Receiver</Text>
-                      <Text style={styles.receiverName}>{order.delivery_full_name || 'Not provided'}</Text>
-                    </View>
-                    <View style={styles.infoColRight}>
-                      <Text style={styles.fieldKicker}>Phone</Text>
-                      <Text style={styles.phoneNumber}>{order.delivery_mobile_number || 'N/A'}</Text>
-                    </View>
+                  {/* Receiver */}
+                  <View style={styles.detailListItem}>
+                    <Text style={styles.fieldKicker}>Receiver</Text>
+                    <Text style={styles.receiverName}>
+                      {order.delivery_full_name || 'Not provided'}
+                      {order.delivery_mobile_number ? ` · ${order.delivery_mobile_number}` : ''}
+                    </Text>
                   </View>
 
-                  {/* Drop-off Address */}
-                  <View style={styles.addressDivider}>
+                  {/* Drop-off Location */}
+                  <View style={styles.detailListDivider}>
                     <Text style={styles.fieldKicker}>Drop-off Location</Text>
                     <Text style={styles.addressText}>{formatDeliveryAddress(order)}</Text>
                   </View>
 
-                  {/* Metadata Chips Row: Payment, Vehicle, Window */}
-                  <View style={styles.chipsRow}>
-                    <View style={styles.metaChip}>
-                      <Text style={styles.metaChipText}>💳 {order.payment_method} · {formatPeso(order.total_amount)}</Text>
-                    </View>
-                    <View style={styles.metaChip}>
-                      <Text style={styles.metaChipText}>🚛 {vehicle}</Text>
-                    </View>
-                    {deliveryWindow ? (
-                      <View style={styles.metaChip}>
-                        <Text style={styles.metaChipText}>⏱️ {deliveryWindow}</Text>
-                      </View>
-                    ) : null}
+                  {/* Payment */}
+                  <View style={styles.detailListDivider}>
+                    <Text style={styles.fieldKicker}>Payment</Text>
+                    <Text style={styles.detailText}>
+                      {order.payment_method === 'gcash' ? 'GCash' : (order.payment_method || 'COD').toUpperCase()} · {formatPeso(order.total_amount)}
+                    </Text>
                   </View>
+
+                  {/* Vehicle */}
+                  <View style={styles.detailListDivider}>
+                    <Text style={styles.fieldKicker}>Vehicle</Text>
+                    <Text style={styles.detailText}>{vehicle}</Text>
+                  </View>
+
+                  {/* Schedule */}
+                  {deliveryWindow ? (
+                    <View style={styles.detailListDivider}>
+                      <Text style={styles.fieldKicker}>Schedule</Text>
+                      <Text style={styles.detailText}>{deliveryWindow}</Text>
+                    </View>
+                  ) : null}
                 </View>
 
                 {/* Proof of Delivery Photo Section */}
@@ -353,9 +356,6 @@ export default function DriverTaskCompletionScreen() {
                     {photoUri ? (
                       <View style={styles.photoImageWrapper}>
                         <Image source={{ uri: photoUri }} style={styles.photoImage} />
-                        <View style={styles.photoAttachedBadge}>
-                          <Text style={styles.photoAttachedBadgeText}>✓ Photo attached</Text>
-                        </View>
                         <View style={styles.photoButtonsOverlay}>
                           <Pressable
                             accessibilityLabel="Change photo"

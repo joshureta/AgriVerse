@@ -76,35 +76,35 @@ function ActiveDeliveryCard({
       <View style={styles.activeDataTable}>
         <View style={styles.activeDataRow}>
           <Text style={styles.activeRowKey}>Receiver:</Text>
-          <Text numberOfLines={1} style={styles.activeRowVal}>
-            {order.delivery_full_name || 'Not provided'} ({order.delivery_mobile_number || 'N/A'})
+          <Text style={styles.activeRowVal}>
+            {order.delivery_full_name || 'Customer'}{order.delivery_mobile_number ? ` · ${order.delivery_mobile_number}` : ''}
           </Text>
         </View>
 
         <View style={styles.activeDataRow}>
           <Text style={styles.activeRowKey}>Location:</Text>
-          <Text numberOfLines={2} style={styles.activeRowVal}>
+          <Text style={styles.activeRowVal}>
             {formatDeliveryAddress(order)}
           </Text>
         </View>
 
         <View style={styles.activeDataRow}>
           <Text style={styles.activeRowKey}>Vehicle:</Text>
-          <Text numberOfLines={1} style={styles.activeRowVal}>
+          <Text style={styles.activeRowVal}>
             {vehicle}
           </Text>
         </View>
 
         <View style={styles.activeDataRow}>
           <Text style={styles.activeRowKey}>Payment:</Text>
-          <Text numberOfLines={1} style={styles.activeRowVal}>
-            {order.payment_method} · {formatPeso(order.total_amount)}
+          <Text style={styles.activeRowVal}>
+            {order.payment_method === 'gcash' ? 'GCash' : (order.payment_method || 'COD').toUpperCase()} · {formatPeso(order.total_amount)}
           </Text>
         </View>
 
         <View style={styles.activeDataRow}>
           <Text style={styles.activeRowKey}>Schedule:</Text>
-          <Text numberOfLines={1} style={styles.activeRowVal}>
+          <Text style={styles.activeRowVal}>
             {formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}
           </Text>
         </View>

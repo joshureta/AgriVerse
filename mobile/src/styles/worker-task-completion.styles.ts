@@ -209,7 +209,7 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
   },
   photoImage: {
     width: '100%',
