@@ -1,0 +1,102 @@
+import { StyleSheet } from 'react-native';
+
+export const ACTIVE_PILL_BG = '#176D34';
+export const ACTIVE_ICON_COLOR = '#FFFFFF';
+export const INACTIVE_ICON_COLOR = '#4A6552';
+export const INACTIVE_TEXT_COLOR = '#4A6552';
+
+export const styles = StyleSheet.create({
+  navigationArea: {
+    position: 'relative',
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 10,
+    backgroundColor: '#F8FAEF',
+  },
+  navigation: {
+    height: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+    borderRadius: 34,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(23, 109, 52, 0.14)',
+    elevation: 8,
+    shadowColor: '#04180C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+  },
+  button: {
+    flex: 1,
+    height: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 27,
+    marginHorizontal: 3,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    position: 'relative',
+  },
+  activeButton: {
+    backgroundColor: ACTIVE_PILL_BG,
+    shadowColor: '#176D34',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  pressedButton: {
+    opacity: 0.8,
+    transform: [{ scale: 0.96 }],
+  },
+  iconSlot: {
+    width: 30,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  label: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: INACTIVE_TEXT_COLOR,
+    marginTop: 2,
+    height: 14,
+    textAlign: 'center',
+    letterSpacing: 0.1,
+  },
+  activeLabel: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: ACTIVE_ICON_COLOR,
+    marginTop: 2,
+    height: 14,
+    textAlign: 'center',
+    letterSpacing: 0.1,
+  },
+  dispatchBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -7,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#E11D48',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  dispatchBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '900',
+    lineHeight: 11,
+    textAlign: 'center',
+  },
+});
