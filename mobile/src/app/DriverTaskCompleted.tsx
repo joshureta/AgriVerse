@@ -44,6 +44,7 @@ function CompletedDeliveryCard({ order }: { order: DriverOrder }) {
     'Delivery';
 
   const paymentLabel = order.payment_method === 'gcash' ? 'GCash' : 'COD';
+  const orderCode = order.order_number || `Order #${order.id}`;
 
   const deliveredTime = order.delivered_at
     ? new Date(order.delivered_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
@@ -64,9 +65,9 @@ function CompletedDeliveryCard({ order }: { order: DriverOrder }) {
         styles.taskCard,
         pressed && { opacity: 0.9, transform: [{ scale: 0.995 }] },
       ]}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         {/* Left: Delivery Produce Icon Squircle */}
-        <View style={[styles.categorySquircle, { backgroundColor: '#EEF3EF', marginTop: 2 }]}>
+        <View style={[styles.categorySquircle, { backgroundColor: '#EEF3EF' }]}>
           <Image
             source={require('@/assets/images/delivery-produce-icon.png')}
             style={styles.deliveryProductIcon}
@@ -75,28 +76,14 @@ function CompletedDeliveryCard({ order }: { order: DriverOrder }) {
 
         {/* Right: Order Detail Content */}
         <View style={{ flex: 1 }}>
-          {/* Top Header Row with Order Pill & Delivered Status Badge */}
-          <View style={styles.completedCardHeaderRow}>
-            <View style={styles.completedBadgesLeft}>
-              <View style={styles.completedOrderPill}>
-                <Text style={styles.completedOrderPillText}>
-                  {order.order_number || `Order #${order.id}`}
-                </Text>
-              </View>
-              <View style={styles.completedStatusPill}>
-                <Text style={styles.completedStatusPillText}>✓ Delivered</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Main Delivery Title */}
-          <Text style={[styles.taskTitle, { marginTop: 4 }]}>
-            Deliver to {order.delivery_full_name || 'Customer'}
+          {/* Main Delivery Title with Order Code */}
+          <Text style={styles.taskTitle}>
+            Order Delivery {orderCode}
           </Text>
 
-          {/* Meta Subtitle */}
-          <Text style={styles.completedTaskMetaSubtitle}>
-            {destination} · {formatPeso(order.total_amount)} ({paymentLabel}) · Delivered at {deliveredTime}
+          {/* Buyer Name & Delivery Meta Subtitle */}
+          <Text style={[styles.completedTaskMetaSubtitle, { marginTop: 3 }]}>
+            {order.delivery_full_name || 'Buyer'} · {destination} · {formatPeso(order.total_amount)} ({paymentLabel}) · Delivered at {deliveredTime}
           </Text>
         </View>
       </View>

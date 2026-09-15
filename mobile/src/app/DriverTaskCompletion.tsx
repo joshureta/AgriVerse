@@ -167,9 +167,6 @@ export default function DriverTaskCompletionScreen() {
   }, [orderId]);
 
   useEffect(() => {
-    // Order data was already loaded on the active-deliveries screen and handed off
-    // via params, so the sheet can render its content immediately instead of showing
-    // a loading state and re-fetching what we already have.
     if (profile && !passedOrder) loadOrder();
   }, [loadOrder, profile, passedOrder]);
 
@@ -431,7 +428,7 @@ export default function DriverTaskCompletionScreen() {
                   </Text>
                 ) : null}
 
-                {/* Submit Action Button */}
+                {/* Complete Delivery Action Button */}
                 <Pressable
                   accessibilityRole="button"
                   disabled={submitting}
@@ -443,7 +440,7 @@ export default function DriverTaskCompletionScreen() {
                   {submitting ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
-                    <Text style={styles.submitText}>Submit Delivery Proof</Text>
+                    <Text style={styles.submitText}>Complete Delivery</Text>
                   )}
                 </Pressable>
               </ScrollView>
