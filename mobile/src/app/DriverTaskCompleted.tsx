@@ -77,7 +77,11 @@ function CompletedDeliveryCard({ order }: { order: DriverOrder }) {
         {/* Right: Order Detail Content */}
         <View style={{ flex: 1 }}>
           {/* Main Delivery Title with Order Code */}
-          <Text style={styles.taskTitle}>
+          <Text
+            style={styles.taskTitle}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}>
             Order Delivery {orderCode}
           </Text>
 

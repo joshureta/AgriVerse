@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { createDeliveryAssignedNotification, createDeliveryScheduleUpdatedNotification } = require("../lib/order-notifications");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
@@ -110,6 +111,7 @@ router.post("/:id/assign", async (req, res, next) => {
       .select("id, order_number, assigned_driver_id, delivery_scheduled_at, delivery_window_end_at").maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "This order is no longer ready for driver assignment");
+    await createDeliveryAssignedNotification({ driverId: data.assigned_driver_id, orderId: data.id, orderNumber: data.order_number });
     return res.status(201).json({ order: data });
   } catch (error) { return next(error); }
 });
@@ -229,6 +231,7 @@ router.patch("/:id/assignment", async (req, res, next) => {
       .select("id, order_number, assigned_driver_id, delivery_scheduled_at, delivery_window_end_at").maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "Only unaccepted ready-for-delivery orders can be edited");
+    await createDeliveryScheduleUpdatedNotification({ driverId: data.assigned_driver_id, orderId: data.id, orderNumber: data.order_number });
     return res.json({ order: data });
   } catch (error) { return next(error); }
 });

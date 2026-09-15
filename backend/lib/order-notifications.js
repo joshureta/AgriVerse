@@ -26,4 +26,36 @@ async function createOrderStatusNotification({ buyerId, orderId, orderNumber, st
   if (error) throw error;
 }
 
-module.exports = { createOrderStatusNotification };
+async function createDeliveryAssignedNotification({ driverId, orderId, orderNumber }) {
+  if (!driverId || !orderId) return;
+
+  const { error } = await getSupabase().from("notifications").insert({
+    recipient_id: driverId,
+    type: "delivery_assigned",
+    title: "New delivery assigned",
+    body: `You've been assigned order ${orderNumber || `#${orderId}`} for delivery.`,
+    entity_type: "order",
+    entity_id: orderId,
+  });
+  if (error) throw error;
+}
+
+async function createDeliveryScheduleUpdatedNotification({ driverId, orderId, orderNumber }) {
+  if (!driverId || !orderId) return;
+
+  const { error } = await getSupabase().from("notifications").insert({
+    recipient_id: driverId,
+    type: "delivery_assigned",
+    title: "Delivery schedule updated",
+    body: `Your delivery window for order ${orderNumber || `#${orderId}`} was updated.`,
+    entity_type: "order",
+    entity_id: orderId,
+  });
+  if (error) throw error;
+}
+
+module.exports = {
+  createOrderStatusNotification,
+  createDeliveryAssignedNotification,
+  createDeliveryScheduleUpdatedNotification,
+};

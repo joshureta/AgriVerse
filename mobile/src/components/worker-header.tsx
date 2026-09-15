@@ -1,13 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, ImageSourcePropType, Pressable, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
+import { NotificationToast } from '@/components/notification-toast';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import { styles } from '@/styles/components/worker-header.styles';
+
+const POLL_INTERVAL_MS = 20000;
+
+type NotificationSummary = { id: number; title: string; body: string };
 
 function getInitials(name?: string | null) {
   const parts = name?.trim().split(/\s+/).filter(Boolean) ?? [];
@@ -67,14 +72,51 @@ export function WorkerHeader({
   const { profile } = useAuth();
   const [hasUnread, setHasUnread] = useState(false);
 
+  const [toastQueue, setToastQueue] = useState<NotificationSummary[]>([]);
+  const [currentToast, setCurrentToast] = useState<NotificationSummary | null>(null);
+  const lastSeenIdRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!profile) return;
-    apiRequest<{ unread_count: number }>('/api/notifications')
-      .then((result) => setHasUnread((result.unread_count || 0) > 0))
-      .catch(() => {});
+    let cancelled = false;
+
+    async function poll(isFirst: boolean) {
+      try {
+        const result = await apiRequest<{ notifications: NotificationSummary[]; unread_count: number }>('/api/notifications');
+        if (cancelled) return;
+        setHasUnread((result.unread_count || 0) > 0);
+        const list = result.notifications || [];
+        const maxId = list.reduce((max, item) => Math.max(max, item.id), 0);
+        if (isFirst) {
+          lastSeenIdRef.current = maxId;
+          return;
+        }
+        const seenId = lastSeenIdRef.current ?? 0;
+        const fresh = list.filter((item) => item.id > seenId).sort((a, b) => a.id - b.id);
+        if (fresh.length) {
+          setToastQueue((queue) => [...queue, ...fresh]);
+          lastSeenIdRef.current = maxId;
+        }
+      } catch {}
+    }
+
+    poll(true);
+    const interval = setInterval(() => poll(false), POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [profile]);
 
+  useEffect(() => {
+    if (!currentToast && toastQueue.length > 0) {
+      setCurrentToast(toastQueue[0]);
+      setToastQueue((queue) => queue.slice(1));
+    }
+  }, [currentToast, toastQueue]);
+
   return (
+    <>
     <View style={[
       styles.headerWrap,
       extendUnderStatusBar && { paddingTop: insets.top },
@@ -123,5 +165,16 @@ export function WorkerHeader({
         </View>
       </View>
     </View>
+
+    <NotificationToast
+      insetsTop={insets.top}
+      item={currentToast}
+      onHide={() => setCurrentToast(null)}
+      onPress={() => {
+        setCurrentToast(null);
+        router.push('/Notifications');
+      }}
+    />
+    </>
   );
 }
