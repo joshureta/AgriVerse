@@ -7,16 +7,30 @@ import {
 } from '@/styles/components/worker-bottom-navigation.styles';
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 type WorkerTab = 'home' | 'tasks' | 'schedule' | 'profile';
 
 function HomeIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M9 21v-7h6v7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3 10.2L12 3l9 7.2V20a1.5 1.5 0 0 1-1.5 1.5H15V14H9v7.5H4.5A1.5 1.5 0 0 1 3 20V10.2Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={active ? 'rgba(255, 255, 255, 0.25)' : 'none'}
+      />
+      <Path
+        d="M9 21.5V14a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7.5"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={active ? 'rgba(255, 255, 255, 0.4)' : 'none'}
+      />
     </Svg>
   );
 }
@@ -24,9 +38,32 @@ function HomeIcon({ active }: { active: boolean }) {
 function TasksIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path d="M9 4h6v3H9zM6 6H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-1" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="m8 14 2 2 5-5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Rect
+        x={4}
+        y={5}
+        width={16}
+        height={16}
+        rx={3}
+        stroke={color}
+        strokeWidth={2}
+        fill={active ? 'rgba(255, 255, 255, 0.22)' : 'none'}
+      />
+      <Path
+        d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={active ? color : 'none'}
+      />
+      <Path
+        d="m8.5 12 2.5 2.5 4.5-4.5"
+        stroke={color}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }
@@ -34,10 +71,17 @@ function TasksIcon({ active }: { active: boolean }) {
 function DeliveryIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path d="M3 5h11v11H3V5Zm11 5h3l3 3v3h-6v-6Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Circle cx={6.5} cy={18} r={1.5} stroke={color} strokeWidth={2} />
-      <Circle cx={16.5} cy={18} r={1.5} stroke={color} strokeWidth={2} />
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3 5h11v11H3V5Zm11 5h3l3 3v3h-6v-6Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={active ? 'rgba(255, 255, 255, 0.22)' : 'none'}
+      />
+      <Circle cx={6.5} cy={18} r={1.5} stroke={color} strokeWidth={2} fill={active ? color : 'none'} />
+      <Circle cx={16.5} cy={18} r={1.5} stroke={color} strokeWidth={2} fill={active ? color : 'none'} />
     </Svg>
   );
 }
@@ -45,9 +89,28 @@ function DeliveryIcon({ active }: { active: boolean }) {
 function CalendarIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path d="M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M8 2v4m8-4v4M3 10h18" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Rect
+        x={3.5}
+        y={4.5}
+        width={17}
+        height={16.5}
+        rx={3}
+        stroke={color}
+        strokeWidth={2}
+        fill={active ? 'rgba(255, 255, 255, 0.22)' : 'none'}
+      />
+      <Path
+        d="M16 2.5v4M8 2.5v4M3.5 9.5h17"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+      <Circle cx={8} cy={13.5} r={1.2} fill={color} />
+      <Circle cx={12} cy={13.5} r={1.2} fill={color} />
+      <Circle cx={16} cy={13.5} r={1.2} fill={color} />
+      <Circle cx={8} cy={17} r={1.2} fill={color} />
+      <Circle cx={12} cy={17} r={1.2} fill={color} />
     </Svg>
   );
 }
@@ -55,9 +118,22 @@ function CalendarIcon({ active }: { active: boolean }) {
 function ProfileIcon({ active }: { active: boolean }) {
   const color = active ? ACTIVE_ICON_COLOR : INACTIVE_ICON_COLOR;
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={8} r={4} stroke={color} strokeWidth={2} />
-      <Path d="M4 21a8 8 0 0 1 16 0" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Circle
+        cx={12}
+        cy={7.5}
+        r={3.8}
+        stroke={color}
+        strokeWidth={2}
+        fill={active ? 'rgba(255, 255, 255, 0.35)' : 'none'}
+      />
+      <Path
+        d="M4.5 20.5a7.5 7.5 0 0 1 15 0"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        fill={active ? 'rgba(255, 255, 255, 0.22)' : 'none'}
+      />
     </Svg>
   );
 }
