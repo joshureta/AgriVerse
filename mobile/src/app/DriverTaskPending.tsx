@@ -3,6 +3,8 @@ import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
+  Modal,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -37,24 +39,34 @@ function SearchIcon() {
   );
 }
 
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+      <Path
+        d={expanded ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'}
+        stroke="#176D34"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function VehicleSelector({
   vehicles,
   selectedId,
-  open,
-  onSelect,
-  onToggle,
+  onOpen,
 }: {
   vehicles: DeliveryVehicle[];
   selectedId?: number;
-  open: boolean;
-  onSelect: (vehicle: DeliveryVehicle) => void;
-  onToggle: () => void;
+  onOpen: () => void;
 }) {
   const selected = vehicles.find((vehicle) => vehicle.id === selectedId);
   return (
     <View style={styles.vehicleSection}>
       <Text style={styles.vehicleSectionLabel}>SELECT VEHICLE</Text>
-      <Pressable accessibilityRole="button" onPress={onToggle} style={styles.vehicleDropdownButton}>
+      <Pressable accessibilityRole="button" onPress={onOpen} style={styles.vehicleDropdownButton}>
         <Text
           numberOfLines={1}
           style={[styles.vehicleDropdownText, !selected && styles.vehicleDropdownPlaceholder]}>
@@ -62,30 +74,7 @@ function VehicleSelector({
             ? `${selected.vehicle_name} · ${selected.plate_number}`
             : 'Choose an available vehicle'}
         </Text>
-        <Text style={styles.vehicleCaret}>{open ? '▴' : '▾'}</Text>
       </Pressable>
-      {open ? (
-        <View style={styles.vehicleOptionsList}>
-          {vehicles.length ? (
-            vehicles.map((vehicle) => (
-              <Pressable
-                key={vehicle.id}
-                onPress={() => onSelect(vehicle)}
-                style={[
-                  styles.vehicleOptionItem,
-                  selectedId === vehicle.id && styles.vehicleOptionItemSelected,
-                ]}>
-                <Text style={styles.vehicleOptionName}>{vehicle.vehicle_name}</Text>
-                <Text style={styles.vehicleOptionPlate}>Plate: {vehicle.plate_number}</Text>
-              </Pressable>
-            ))
-          ) : (
-            <View style={{ padding: 10 }}>
-              <Text style={styles.noVehiclesNotice}>No vehicle is currently available.</Text>
-            </View>
-          )}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -95,23 +84,21 @@ function PendingDeliveryCard({
   vehicles,
   selectedVehicleId,
   expanded,
-  selectorOpen,
   busy,
   onAccept,
   onExpand,
   onSelectVehicle,
-  onToggleSelector,
+  onOpenVehicleSelector,
 }: {
   order: DriverOrder;
   vehicles: DeliveryVehicle[];
   selectedVehicleId?: number;
   expanded: boolean;
-  selectorOpen: boolean;
   busy: boolean;
   onAccept: () => void;
   onExpand: () => void;
   onSelectVehicle: (vehicle: DeliveryVehicle) => void;
-  onToggleSelector: () => void;
+  onOpenVehicleSelector: () => void;
 }) {
   const orderNumber = order.order_number || `Order #${order.id}`;
   const destination = formatDeliveryAddress(order);
@@ -119,24 +106,34 @@ function PendingDeliveryCard({
 
   return (
     <View style={[styles.pendingCard, expanded && styles.pendingCardExpanded]}>
-      {/* Top Header Row: Badges & Price */}
-      <View style={styles.pendingHeaderRow}>
-        <View style={styles.pendingBadgesLeft}>
-          <View style={styles.deliveryTagPill}>
-            <Text style={styles.deliveryTagPillText}>DELIVERY ORDER</Text>
-          </View>
-          <View style={styles.orderNumberPill}>
-            <Text style={styles.orderNumberPillText}>{orderNumber}</Text>
-          </View>
+      {/* Header Row: Pineapple Produce Icon, Title 'Order Delivery {orderNumber}', and Top-Right Dropdown Icon */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+        <View style={[styles.categorySquircle, { backgroundColor: '#EEF3EF' }]}>
+          <Image
+            source={require('@/assets/images/delivery-produce-icon.png')}
+            style={styles.deliveryProductIcon}
+          />
         </View>
-        <Text style={styles.pendingOrderAmount}>{formatPeso(order.total_amount)}</Text>
-      </View>
 
-      {/* Recipient & Destination (No icons) */}
-      <Text style={styles.recipientTitle}>
-        Deliver to {order.delivery_full_name || 'Customer'}
-      </Text>
-      <Text style={styles.destinationText}>{destination}</Text>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={styles.recipientTitle}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}>
+            Order Delivery {orderNumber}
+          </Text>
+          <Text style={styles.destinationText}>{destination}</Text>
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Hide details' : 'Show details'}
+          onPress={onExpand}
+          style={styles.topRightDropdownBtn}>
+          <ChevronIcon expanded={expanded} />
+        </Pressable>
+      </View>
 
       {/* Schedule & Payment Meta Rows (No backgrounds, Time: instead of Window:) */}
       <View style={styles.metaTextContainer}>
@@ -174,20 +171,11 @@ function PendingDeliveryCard({
         </View>
       ) : null}
 
-      {/* Toggle Details Link */}
-      <Pressable onPress={onExpand} style={styles.toggleDetailsButton}>
-        <Text style={styles.toggleDetailsText}>
-          {expanded ? 'Hide Details ▴' : 'View Details ▾'}
-        </Text>
-      </Pressable>
-
       {/* Vehicle Selector */}
       <VehicleSelector
         vehicles={vehicles}
         selectedId={selectedVehicleId}
-        open={selectorOpen}
-        onSelect={onSelectVehicle}
-        onToggle={onToggleSelector}
+        onOpen={onOpenVehicleSelector}
       />
 
       {!vehicles.length ? (
@@ -222,8 +210,8 @@ export default function DriverTaskPending() {
   const [orders, setOrders] = useState<DriverOrder[]>([]);
   const [vehicles, setVehicles] = useState<DeliveryVehicle[]>([]);
   const [selectedVehicles, setSelectedVehicles] = useState<Record<number, number>>({});
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [openSelectorId, setOpenSelectorId] = useState<number | null>(null);
+  const [collapsedIds, setCollapsedIds] = useState<Record<number, boolean>>({});
+  const [vehiclePickerOrderId, setVehiclePickerOrderId] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -243,13 +231,9 @@ export default function DriverTaskPending() {
       );
       setOrders(pendingOrders);
       setVehicles(vehicleResult.vehicles ?? []);
-      setExpandedId((current) =>
-        pendingOrders.some((order) => order.id === current) ? current : pendingOrders[0]?.id ?? null
-      );
     } catch (caught) {
       setOrders([]);
       setVehicles([]);
-      setExpandedId(null);
       setError(caught instanceof Error ? caught.message : 'Could not load pending deliveries.');
     } finally {
       setLoading(false);
@@ -352,20 +336,17 @@ export default function DriverTaskPending() {
                 order={order}
                 vehicles={vehicles}
                 selectedVehicleId={selectedVehicles[order.id]}
-                expanded={expandedId === order.id}
-                selectorOpen={openSelectorId === order.id}
+                expanded={!collapsedIds[order.id]}
                 busy={busyId === order.id}
                 onAccept={() => acceptDelivery(order)}
                 onExpand={() =>
-                  setExpandedId((current) => (current === order.id ? null : order.id))
+                  setCollapsedIds((current) => ({ ...current, [order.id]: !current[order.id] }))
                 }
                 onSelectVehicle={(vehicle) => {
                   setSelectedVehicles((current) => ({ ...current, [order.id]: vehicle.id }));
-                  setOpenSelectorId(null);
+                  setVehiclePickerOrderId(null);
                 }}
-                onToggleSelector={() =>
-                  setOpenSelectorId((current) => (current === order.id ? null : order.id))
-                }
+                onOpenVehicleSelector={() => setVehiclePickerOrderId(order.id)}
               />
             ))
           ) : (
@@ -383,6 +364,55 @@ export default function DriverTaskPending() {
           )}
         </ScrollView>
       </View>
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={vehiclePickerOrderId !== null}
+        onRequestClose={() => setVehiclePickerOrderId(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setVehiclePickerOrderId(null)}>
+          <Pressable style={styles.modalCard} onPress={(event) => event.stopPropagation()}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select a Vehicle</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close vehicle selector"
+                onPress={() => setVehiclePickerOrderId(null)}>
+                <Text style={styles.modalCloseX}>×</Text>
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.vehicleModalList}>
+              {vehicles.length ? vehicles.map((vehicle) => {
+                const selected = vehiclePickerOrderId !== null
+                  && selectedVehicles[vehiclePickerOrderId] === vehicle.id;
+                return (
+                  <Pressable
+                    key={vehicle.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    onPress={() => {
+                      if (vehiclePickerOrderId !== null) {
+                        setSelectedVehicles((current) => ({ ...current, [vehiclePickerOrderId]: vehicle.id }));
+                      }
+                      setVehiclePickerOrderId(null);
+                    }}
+                    style={[styles.vehicleModalItem, selected && styles.vehicleModalItemSelected]}>
+                    <Image source={require('@/assets/images/driver-equipment.png')} style={styles.vehicleModalImage} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.vehicleModalName}>{vehicle.vehicle_name}</Text>
+                      <Text style={styles.vehicleModalPlate}>Plate: {vehicle.plate_number}</Text>
+                    </View>
+                    <View style={[styles.vehicleSelectRadio, selected && styles.vehicleSelectRadioActive]}>
+                      {selected ? <Text style={styles.vehicleSelectRadioCheck}>✓</Text> : null}
+                    </View>
+                  </Pressable>
+                );
+              }) : <Text style={styles.noVehiclesNotice}>No vehicle is currently available.</Text>}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <WorkerBottomNavigation activeTab="tasks" />
     </SafeAreaView>
