@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
 import {
   ReconciledCartItem,
@@ -263,7 +262,6 @@ export default function BuyerCartScreen() {
                     accessibilityLabel="Clear all items"
                     onPress={removeAll}
                     style={styles.clearAllButton}>
-                    <TrashIcon color="#B4463A" size={13} />
                     <Text style={styles.clearAllText}>Clear All</Text>
                   </Pressable>
                 </View>
@@ -324,8 +322,6 @@ export default function BuyerCartScreen() {
           )}
         </ScrollView>
       </View>
-
-      <BuyerBottomNavigation activeTab="cart" />
     </SafeAreaView>
   );
 }

@@ -90,7 +90,6 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: '#FDF2F0',
   },
   clearAllText: {
     fontSize: 11,
@@ -114,9 +113,9 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFBEA',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#F6E5A8',
+    borderColor: CARD_BORDER,
   },
   itemImage: {
     width: 36,
