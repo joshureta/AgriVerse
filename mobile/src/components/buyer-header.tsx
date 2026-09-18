@@ -1,11 +1,14 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
+import { NotificationToast } from '@/components/notification-toast';
 import { useAuth } from '@/context/auth-context';
 import { loadBuyerUnreadCount } from '@/lib/buyer-messages';
+import { loadNotifications, NotificationRecord } from '@/lib/notifications';
 import { HEADER_GRADIENT, styles } from '@/styles/components/buyer-header.styles';
 
 const UNREAD_POLL_INTERVAL_MS = 20000;
@@ -45,7 +48,7 @@ function ChatIcon() {
   );
 }
 
-function BellIcon({ hasNotice }: { hasNotice?: boolean }) {
+function BellIcon({ hasNotice }: { hasNotice: boolean }) {
   return (
     <View style={styles.bell}>
       <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -69,9 +72,14 @@ function BellIcon({ hasNotice }: { hasNotice?: boolean }) {
   );
 }
 
-function HeaderIcons({ hasNotice }: { hasNotice?: boolean }) {
+function HeaderIcons() {
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [toastQueue, setToastQueue] = useState<NotificationRecord[]>([]);
+  const [currentToast, setCurrentToast] = useState<NotificationRecord | null>(null);
+  const lastSeenIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -86,37 +94,86 @@ function HeaderIcons({ hasNotice }: { hasNotice?: boolean }) {
       }
     }
 
+    async function pollNotifications(isFirst: boolean) {
+      try {
+        const result = await loadNotifications();
+        if (cancelled) return;
+        setUnreadNotifications(result.unread_count || 0);
+        const list = result.notifications || [];
+        const maxId = list.reduce((max, item) => Math.max(max, item.id), 0);
+        if (isFirst) {
+          lastSeenIdRef.current = maxId;
+          return;
+        }
+        const seenId = lastSeenIdRef.current ?? 0;
+        const fresh = list.filter((item) => item.id > seenId).sort((a, b) => a.id - b.id);
+        if (fresh.length) {
+          setToastQueue((queue) => [...queue, ...fresh]);
+          lastSeenIdRef.current = maxId;
+        }
+      } catch {
+        // Badge just won't refresh this cycle.
+      }
+    }
+
     fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, UNREAD_POLL_INTERVAL_MS);
+    pollNotifications(true);
+    const interval = setInterval(() => {
+      fetchUnreadCount();
+      pollNotifications(false);
+    }, UNREAD_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
   }, [profile]);
 
+  useEffect(() => {
+    if (!currentToast && toastQueue.length > 0) {
+      setCurrentToast(toastQueue[0]);
+      setToastQueue((queue) => queue.slice(1));
+    }
+  }, [currentToast, toastQueue]);
+
   return (
-    <View style={styles.actions}>
-      <Pressable
-        accessibilityLabel={unreadCount > 0 ? `Messages (${unreadCount} unread)` : 'Messages'}
-        accessibilityRole="button"
-        hitSlop={12}
-        onPress={() => router.push('/BuyerMessages' as never)}
-        style={styles.chat}>
-        <ChatIcon />
-        {unreadCount > 0 && (
-          <View style={styles.chatBadge}>
-            <Text style={styles.chatBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-          </View>
-        )}
-      </Pressable>
-      <Pressable accessibilityLabel="Notifications" accessibilityRole="button" hitSlop={12}>
-        <BellIcon hasNotice={hasNotice} />
-      </Pressable>
-    </View>
+    <>
+      <View style={styles.actions}>
+        <Pressable
+          accessibilityLabel={unreadCount > 0 ? `Messages (${unreadCount} unread)` : 'Messages'}
+          accessibilityRole="button"
+          hitSlop={12}
+          onPress={() => router.push('/BuyerMessages' as never)}
+          style={styles.chat}>
+          <ChatIcon />
+          {unreadCount > 0 && (
+            <View style={styles.chatBadge}>
+              <Text style={styles.chatBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+            </View>
+          )}
+        </Pressable>
+        <Pressable
+          accessibilityLabel={unreadNotifications > 0 ? `Notifications (${unreadNotifications} unread)` : 'Notifications'}
+          accessibilityRole="button"
+          hitSlop={12}
+          onPress={() => router.push('/BuyerNotifications' as never)}>
+          <BellIcon hasNotice={unreadNotifications > 0} />
+        </Pressable>
+      </View>
+
+      <NotificationToast
+        insetsTop={insets.top}
+        item={currentToast}
+        onHide={() => setCurrentToast(null)}
+        onPress={() => {
+          setCurrentToast(null);
+          router.push('/BuyerNotifications' as never);
+        }}
+      />
+    </>
   );
 }
 
-export function BuyerHeader({ hasNotice = true, showBack = false }: { hasNotice?: boolean; showBack?: boolean }) {
+export function BuyerHeader({ showBack = false }: { showBack?: boolean }) {
   return (
     <LinearGradient colors={HEADER_GRADIENT} style={styles.header}>
       <View style={styles.zone}>
@@ -136,7 +193,7 @@ export function BuyerHeader({ hasNotice = true, showBack = false }: { hasNotice?
       </View>
 
       <View style={[styles.zone, styles.zoneEnd]}>
-        <HeaderIcons hasNotice={hasNotice} />
+        <HeaderIcons />
       </View>
     </LinearGradient>
   );

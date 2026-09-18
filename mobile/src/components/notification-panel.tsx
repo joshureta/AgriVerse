@@ -4,24 +4,8 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { loadNotifications, NotificationRecord, NotificationType } from '@/lib/notifications';
 import { styles } from '@/styles/notifications.styles';
-
-type NotificationType =
-  | 'task_assigned' | 'task_starting_soon' | 'harvest_approved' | 'harvest_rejected'
-  | 'task_reassigned' | 'admin_broadcast' | 'weather_alert'
-  | 'delivery_assigned' | 'delivery_window_approaching' | 'order_cancelled'
-  | 'dispute_opened' | 'cod_confirmed' | 'rating_received' | 'order_status_updated';
-
-type NotificationRecord = {
-  id: number;
-  type: NotificationType;
-  title: string;
-  body: string;
-  entity_type: 'task' | 'order' | null;
-  entity_id: number | null;
-  read_at: string | null;
-  created_at: string;
-};
 
 const TYPE_META: Record<NotificationType, { tone: 'green' | 'amber' | 'red' | 'info'; icon: 'task' | 'clock' | 'check' | 'x' | 'swap' | 'megaphone' | 'cloud' | 'package' | 'alertTriangle' | 'cash' | 'star' }> = {
   task_assigned: { tone: 'green', icon: 'task' },
@@ -170,7 +154,7 @@ export function NotificationPanel({
     refresh ? setRefreshing(true) : setLoading(true);
     setError('');
     try {
-      const result = await apiRequest<{ notifications: NotificationRecord[]; unread_count: number }>('/api/notifications');
+      const result = await loadNotifications();
       setNotifications(result.notifications || []);
       setUnreadCount(result.unread_count || 0);
     } catch (caught) {

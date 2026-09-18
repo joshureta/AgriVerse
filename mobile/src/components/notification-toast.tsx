@@ -47,7 +47,7 @@ export function NotificationToast({
       <View pointerEvents="box-none" style={{ flex: 1 }}>
         <Animated.View
           pointerEvents="box-none"
-          style={[styles.wrap, { top: insetsTop + 8, transform: [{ translateY }], opacity }]}
+          style={[styles.wrap, { top: insetsTop + 80, transform: [{ translateY }], opacity }]}
         >
           <Pressable onPress={onPress} style={styles.card}>
             <View style={styles.dot} />
