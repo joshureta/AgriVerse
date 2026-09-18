@@ -250,14 +250,35 @@
 .delivery-current-status.is-completed { background: #176b32; }
 .delivery-current-status.is-ready_for_pickup { background: #c47d10; }
 
-.delivery-cancelled {
+.cancellation-details {
   border: 1px solid #e7bdbd;
   border-radius: 10px;
-  padding: 16px;
-  color: #a42626;
+  padding: 4px 16px;
   background: #fff3f3;
-  font-size: 13px;
-  text-align: center;
+}
+
+.cancellation-details-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.cancellation-details-row + .cancellation-details-row {
+  border-top: 1px solid #f3d8d8;
+}
+
+.cancellation-details-row span {
+  color: #a42626;
+  font-size: 12.5px;
+}
+
+.cancellation-details-row strong {
+  color: #5a1c1c;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: right;
 }
 
 .route-map {

@@ -73,6 +73,12 @@ const CANCEL_REASONS = [
   { value: 'other', label: 'Other' },
 ]
 
+const PAYMENT_METHOD_LABELS = {
+  cash: 'Cash on Delivery',
+  bank: 'Bank Transfer',
+  gcash: 'GCash',
+}
+
 function canCancelOrder(order) {
   return ['pending', 'confirmed'].includes(order.order_status)
 }
@@ -498,7 +504,26 @@ export default function DeliveryProgress() {
             </div>
 
             {selectedOrder.order_status === 'cancelled'
-              ? <div className="delivery-cancelled">This order was cancelled on {formatDate(selectedOrder.cancelled_at)}.</div>
+              ? (
+                <div className="cancellation-details">
+                  <div className="cancellation-details-row">
+                    <span>Requested by</span>
+                    <strong>You</strong>
+                  </div>
+                  <div className="cancellation-details-row">
+                    <span>Requested at</span>
+                    <strong>{formatDate(selectedOrder.cancelled_at, true)}</strong>
+                  </div>
+                  <div className="cancellation-details-row">
+                    <span>Reason</span>
+                    <strong>{selectedOrder.cancellation_reason || 'Not specified'}</strong>
+                  </div>
+                  <div className="cancellation-details-row">
+                    <span>Payment method</span>
+                    <strong>{PAYMENT_METHOD_LABELS[selectedOrder.payment_method] || selectedOrder.payment_method}</strong>
+                  </div>
+                </div>
+              )
               : <div className="delivery-timeline">
                 {milestones.map(({ label, date, icon, complete, current, estimated }, index) => (
                   <div className={`delivery-milestone ${complete ? 'is-complete' : ''} ${current ? 'is-current' : ''}`} key={label}>

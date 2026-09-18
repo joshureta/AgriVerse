@@ -110,6 +110,21 @@ function serializeOrder(order) {
   };
 }
 
+// The buyer's chosen reason only lives on the status-history row written by
+// cancel_buyer_order() (migration 027) — the order itself has no reason column.
+async function attachCancellationReason(order) {
+  if (order.order_status !== "cancelled") return { ...order, cancellation_reason: null };
+  const { data } = await getSupabase()
+    .from("buyer_order_status_history")
+    .select("note")
+    .eq("order_id", order.id)
+    .eq("new_status", "cancelled")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return { ...order, cancellation_reason: data?.note || null };
+}
+
 // Handling problems happened after pickup, so the driver has context to add.
 // Quality/fulfillment problems happened before dispatch, so the seller does instead.
 const DISPUTE_CATEGORIES = {
@@ -258,7 +273,7 @@ router.get("/:id", async (req, res, next) => {
     if (error) throw error;
     const paymentReconciledOrder = await reconcileGcashPaymentStatus(data);
     const reconciledOrder = await reconcileDeliveryCompletion(paymentReconciledOrder);
-    return res.json({ order: serializeOrder(reconciledOrder) });
+    return res.json({ order: await attachCancellationReason(serializeOrder(reconciledOrder)) });
   } catch (error) {
     return next(error);
   }
@@ -338,7 +353,9 @@ router.post("/:id/cancel", async (req, res, next) => {
       .eq("buyer_id", req.user.id)
       .single();
     if (error) throw error;
-    return res.json({ order: serializeOrder(data) });
+    return res.json({
+      order: { ...serializeOrder(data), cancellation_reason: category === "other" ? note : CANCEL_REASON_LABELS[category] },
+    });
   } catch (error) {
     return next(error);
   }

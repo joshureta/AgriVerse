@@ -22,6 +22,12 @@ const DISPUTE_CATEGORY_OPTIONS: { value: DisputeCategory; label: string }[] = [
   { value: 'wrong_quantity', label: 'Wrong quantity' },
 ];
 
+const PAYMENT_METHOD_LABELS: Record<BuyerOrder['payment_method'], string> = {
+  cash: 'Cash on Delivery',
+  bank: 'Bank Transfer',
+  gcash: 'GCash',
+};
+
 const STATUS_RANK: Record<BuyerOrder['order_status'], number> = {
   pending: 0,
   confirmed: 1,
@@ -415,7 +421,24 @@ export default function BuyerOrderTrackingScreen() {
           </View>
 
           {order.order_status === 'cancelled' ? (
-            <Text style={styles.cancelledText}>This order was cancelled on {formatDate(order.cancelled_at)}.</Text>
+            <View style={styles.cancellationPanel}>
+              <View style={styles.cancellationRow}>
+                <Text style={styles.cancellationLabel}>Requested by</Text>
+                <Text style={styles.cancellationValue}>You</Text>
+              </View>
+              <View style={styles.cancellationRow}>
+                <Text style={styles.cancellationLabel}>Requested at</Text>
+                <Text style={styles.cancellationValue}>{formatDateTime(order.cancelled_at)}</Text>
+              </View>
+              <View style={styles.cancellationRow}>
+                <Text style={styles.cancellationLabel}>Reason</Text>
+                <Text style={styles.cancellationValue}>{order.cancellation_reason || 'Not specified'}</Text>
+              </View>
+              <View style={[styles.cancellationRow, styles.cancellationRowLast]}>
+                <Text style={styles.cancellationLabel}>Payment method</Text>
+                <Text style={styles.cancellationValue}>{PAYMENT_METHOD_LABELS[order.payment_method]}</Text>
+              </View>
+            </View>
           ) : (
             <DeliveryStepper order={order} />
           )}

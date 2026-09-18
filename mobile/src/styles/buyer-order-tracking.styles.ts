@@ -355,14 +355,36 @@ export const styles = StyleSheet.create({
     color: GREEN,
   },
 
-  cancelledText: {
+  cancellationPanel: {
     marginTop: 14,
-    padding: 12,
+    paddingHorizontal: 14,
     borderRadius: 12,
     backgroundColor: '#FBE9E7',
+    borderWidth: 1,
+    borderColor: '#F3D8D8',
+  },
+  cancellationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3D8D8',
+  },
+  cancellationRowLast: {
+    borderBottomWidth: 0,
+  },
+  cancellationLabel: {
+    fontSize: 12.5,
     color: '#a33d35',
-    fontSize: 12,
-    textAlign: 'center',
+  },
+  cancellationValue: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#5a1c1c',
+    textAlign: 'right',
   },
 
   // Delivery proof photo

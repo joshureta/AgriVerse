@@ -90,6 +90,7 @@ export type BuyerOrder = {
   buyer_rating: number | null;
   buyer_rating_comment: string | null;
   buyer_rated_at: string | null;
+  cancellation_reason: string | null;
   items: BuyerOrderItem[];
 };
 
