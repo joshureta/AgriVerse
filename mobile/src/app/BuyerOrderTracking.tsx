@@ -348,7 +348,7 @@ export default function BuyerOrderTrackingScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <BuyerHeader />
+        <BuyerHeader showBack />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={GREEN} size="large" />
         </View>
@@ -360,7 +360,7 @@ export default function BuyerOrderTrackingScreen() {
   if (error || !order) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <BuyerHeader />
+        <BuyerHeader showBack />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
           <Text style={{ color: '#a33d35', fontSize: 13, textAlign: 'center' }}>{error || 'Order not found.'}</Text>
         </View>
@@ -375,7 +375,7 @@ export default function BuyerOrderTrackingScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <BuyerHeader />
+      <BuyerHeader showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* CARD 1: DELIVERY ROUTE & PROGRESS STEPPER */}

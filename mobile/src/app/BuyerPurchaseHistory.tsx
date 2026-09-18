@@ -40,7 +40,7 @@ const STATUS_LABELS: Record<BuyerOrderStatus, string> = {
   pending: 'Pending',
   confirmed: 'Confirmed',
   preparing: 'Preparing',
-  ready_for_delivery: 'Ready for Delivery',
+  ready_for_delivery: 'To Ship',
   out_for_delivery: 'Out for Delivery',
   ready_for_pickup: 'Ready for Pickup',
   delivered: 'Delivered',
