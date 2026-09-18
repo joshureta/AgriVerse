@@ -173,16 +173,6 @@ function CardIcon({ color = GREEN, size = 20 }: { color?: string; size?: number 
   );
 }
 
-
-function LockIcon({ color = '#ffffff', size = 15 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x={3} y={11} width={18} height={11} rx={2} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M7 11V7a5 5 0 0 1 10 0v4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
 function CloseIcon({ color = '#556658', size = 15 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -444,7 +434,6 @@ export default function BuyerCheckoutScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.titleBlock}>
           <Text style={styles.titleText}>Delivery Information</Text>
-          <Text style={styles.subtitleText}>Review your order, delivery details, and payment</Text>
         </View>
 
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
@@ -618,7 +607,6 @@ export default function BuyerCheckoutScreen() {
             pressed && !(cartLoading || placing || items.length === 0) && styles.placeOrderButtonPressed,
             { marginTop: 4, marginBottom: 12 },
           ]}>
-          <LockIcon color="#ffffff" size={15} />
           <Text style={styles.placeOrderButtonText}>{placing ? 'Placing order…' : 'Place Order'}</Text>
         </Pressable>
       </ScrollView>

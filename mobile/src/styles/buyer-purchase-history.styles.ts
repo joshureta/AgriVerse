@@ -166,21 +166,9 @@ export const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 12,
   },
-  statusBadgeDelivered: {
-    backgroundColor: SAGE_BG,
-    borderWidth: 1,
-    borderColor: SAGE_BORDER,
-  },
-  statusBadgeTransit: {
-    backgroundColor: '#FDF3E5',
-    borderWidth: 1,
-    borderColor: '#F7DCBA',
-  },
-  statusBadgeCancelled: {
-    backgroundColor: '#FBE9E7',
-    borderWidth: 1,
-    borderColor: '#F5C6C2',
-  },
+  statusBadgeDelivered: {},
+  statusBadgeTransit: {},
+  statusBadgeCancelled: {},
   statusDot: {
     width: 6,
     height: 6,
