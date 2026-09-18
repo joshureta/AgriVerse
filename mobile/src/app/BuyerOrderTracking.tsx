@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerCancelOrderModal } from '@/components/buyer-cancel-order-modal';
 import { BuyerHeader } from '@/components/buyer-header';
 import {
@@ -352,7 +351,6 @@ export default function BuyerOrderTrackingScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={GREEN} size="large" />
         </View>
-        <BuyerBottomNavigation activeTab="order" />
       </SafeAreaView>
     );
   }
@@ -364,7 +362,6 @@ export default function BuyerOrderTrackingScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
           <Text style={{ color: '#a33d35', fontSize: 13, textAlign: 'center' }}>{error || 'Order not found.'}</Text>
         </View>
-        <BuyerBottomNavigation activeTab="order" />
       </SafeAreaView>
     );
   }
@@ -656,8 +653,6 @@ export default function BuyerOrderTrackingScreen() {
         onClose={() => setShowCancelModal(false)}
         order={showCancelModal ? order : null}
       />
-
-      <BuyerBottomNavigation activeTab="order" />
     </SafeAreaView>
   );
 }

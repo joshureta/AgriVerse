@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
 import { useAuth } from '@/context/auth-context';
 import {
@@ -680,8 +679,6 @@ export default function BuyerCheckoutScreen() {
           </View>
         </View>
       </Modal>
-
-      <BuyerBottomNavigation activeTab="cart" />
     </SafeAreaView>
   );
 }

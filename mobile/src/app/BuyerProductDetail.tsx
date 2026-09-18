@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -46,6 +46,20 @@ const BULK_DESCRIPTION =
 
 function sizeBadge(sizeName: string) {
   return sizeName.trim().charAt(0).toUpperCase() || '?';
+}
+
+function CartToastIcon() {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M20 6 9 17l-5-5"
+        stroke="#ffffff"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
 }
 
 function StarIcon({ filled = true, size = 11 }: { filled?: boolean; size?: number }) {
@@ -231,7 +245,7 @@ export default function BuyerProductDetailScreen() {
       ? cart.map((item) => (item.product_id === product.id ? { ...item, quantity: item.quantity + quantity } : item))
       : [...cart, { product_id: product.id, quantity, size_name: product.size_name, weight: product.weight, price: product.price }];
     await writeBuyerCart(nextCart);
-    setCartNotice(`Added ${quantity} × ${product.size_name} Pineapple to your cart.`);
+    setCartNotice(`Added ${quantity} × ${product.size_name} Pineapple to cart`);
   }, [product, inStock, quantity]);
 
   return (
@@ -314,8 +328,6 @@ export default function BuyerProductDetailScreen() {
                   <Text style={styles.addToCartText}>{inStock ? 'Add to Cart' : 'Out of Stock'}</Text>
                 </Pressable>
               </View>
-
-              {cartNotice ? <Text style={styles.cartNotice}>{cartNotice}</Text> : null}
             </>
           )}
 
@@ -435,6 +447,24 @@ export default function BuyerProductDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {cartNotice ? (
+        <View pointerEvents="box-none" style={styles.cartToastWrap}>
+          <View style={styles.cartToast}>
+            <View style={styles.cartToastIcon}>
+              <CartToastIcon />
+            </View>
+            <Text style={styles.cartToastText} numberOfLines={2}>{cartNotice}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="View cart"
+              onPress={() => router.push('/BuyerCart' as never)}
+              style={styles.cartToastButton}>
+              <Text style={styles.cartToastButtonText}>View</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       <BuyerBottomNavigation activeTab="order" />
     </SafeAreaView>

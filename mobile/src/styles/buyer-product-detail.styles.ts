@@ -59,18 +59,6 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 12,
   },
-  cartNotice: {
-    marginTop: 12,
-    fontSize: 12,
-    fontWeight: '700',
-    color: GREEN,
-    backgroundColor: SAGE_BG,
-    borderWidth: 1,
-    borderColor: SAGE_BORDER,
-    borderRadius: 12,
-    padding: 12,
-    textAlign: 'center',
-  },
 
   titleRow: {
     flexDirection: 'row',
@@ -541,5 +529,54 @@ export const styles = StyleSheet.create({
   },
   helpfulButtonTextActive: {
     color: GREEN,
+  },
+
+  cartToastWrap: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 96,
+    alignItems: 'center',
+  },
+  cartToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    maxWidth: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    shadowColor: '#0B2E16',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  cartToastIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: GREEN,
+  },
+  cartToastText: {
+    flexShrink: 1,
+    color: DARK_GREEN,
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  cartToastButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  cartToastButtonText: {
+    color: GREEN,
+    fontSize: 11.5,
+    fontWeight: '800',
   },
 });
