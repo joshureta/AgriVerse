@@ -345,9 +345,10 @@ export default function SignUpScreen({
         <View style={[styles.cardContainer, embedded && styles.embeddedCardContainer]}>
           {!embedded ? (
             <View style={styles.domeCap}>
-              <ConvexDomeCap color="#FFFFFF" height={34} />
+              <ConvexDomeCap color="#FFFFFF" height={54} />
             </View>
           ) : null}
+
           <View style={[styles.card, embedded && styles.embeddedCard]}>
             {/* Bottom-left leaf decoration matching web */}
             <View pointerEvents="none" style={styles.leafContainer}>
@@ -360,9 +361,9 @@ export default function SignUpScreen({
 
             {/* FIXED HEADER: Remains intact and does not scroll */}
             <View style={[styles.fixedHeader, embedded && styles.embeddedFixedHeader]}>
-              <Text style={styles.title}>Create your account</Text>
-              <Text style={styles.subtitle}>Complete three quick steps to get started.</Text>
-
+              <Text style={styles.kicker}>CREATE ACCOUNT</Text>
+              <Text style={styles.title}>Sign up to get started</Text>
+              <Text style={styles.subtitle}>Create your account details</Text>
               {/* 3-STEP PROGRESS STEPPER */}
               <View accessibilityLabel={`Step ${step + 1} of 3: ${steps[step]}`} style={styles.stepper}>
                 {steps.map((label, index) => {
