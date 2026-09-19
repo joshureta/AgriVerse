@@ -1,4 +1,5 @@
 import { styles } from '@/styles/authentication.styles';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
@@ -24,28 +25,30 @@ type AuthChoice = 'login' | 'signup';
 export default function AuthenticationScreen() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const { height } = useWindowDimensions();
-  const panelHeight = Math.max(350, Math.min(height * 0.49, 430));
+  const panelHeight = Math.max(360, Math.min(height * 0.50, 440));
   const [choice, setChoice] = useState<AuthChoice | null>(mode === 'login' ? 'login' : null);
   const [signUpStep, setSignUpStep] = useState(0);
   const keyboardOffset = useRef(new Animated.Value(0)).current;
   const [keyboardActive, setKeyboardActive] = useState(false);
 
-  const loginPanelHeight = Math.max(430, Math.min(height * 0.54, 465));
+  const loginPanelHeight = Math.max(440, Math.min(height * 0.56, 480));
   const signupPersonalHeight = Math.max(490, Math.min(height * 0.65, 550));
   const signupSecurityHeight = Math.max(470, Math.min(height * 0.61, 515));
   const signupLocationHeight = Math.max(540, Math.min(height - 24, height * 0.78));
 
-  const signupPanelHeight = signUpStep === 1
-    ? signupSecurityHeight
-    : signUpStep === 2
-    ? signupLocationHeight
-    : signupPersonalHeight;
+  const signupPanelHeight =
+    signUpStep === 1
+      ? signupSecurityHeight
+      : signUpStep === 2
+      ? signupLocationHeight
+      : signupPersonalHeight;
 
-  const finalPanelHeight = choice === 'login'
-    ? loginPanelHeight
-    : choice === 'signup'
-    ? signupPanelHeight
-    : panelHeight;
+  const finalPanelHeight =
+    choice === 'login'
+      ? loginPanelHeight
+      : choice === 'signup'
+      ? signupPanelHeight
+      : panelHeight;
 
   const animatedHeight = useRef(new Animated.Value(panelHeight)).current;
 
@@ -65,11 +68,11 @@ export default function AuthenticationScreen() {
       setKeyboardActive(true);
       const kHeight = e.endCoordinates.height;
       const topSpace = height - finalPanelHeight;
-      // Allow panel to shift up with keyboard, keeping at least 48px from screen top
       const maxShift = Math.max(0, topSpace - 48);
-      const targetShift = choice === 'login'
-        ? Math.min(kHeight - 30, maxShift)
-        : Math.min(kHeight * 0.55, maxShift);
+      const targetShift =
+        choice === 'login'
+          ? Math.min(kHeight - 30, maxShift)
+          : Math.min(kHeight * 0.55, maxShift);
 
       Animated.timing(keyboardOffset, {
         toValue: -targetShift,
@@ -108,17 +111,23 @@ export default function AuthenticationScreen() {
 
       <Pressable onPress={Keyboard.dismiss} style={styles.background}>
         <ImageBackground
-          source={require('@/assets/images/authentication-farm.png')}
+          source={require('@/assets/images/auth-banner-haze-v2.png')}
           resizeMode="cover"
           style={styles.backgroundImage}
         />
         <View pointerEvents="none" style={styles.backgroundTint} />
       </Pressable>
+
       {choice && !keyboardActive ? (
         <View pointerEvents="none" style={styles.backgroundLogo}>
-          <Image source={require('@/assets/images/toledo-trading-logo.png')} resizeMode="contain" style={styles.backgroundLogoImage} />
+          <Image
+            source={require('@/assets/images/toledo-trading-logo.png')}
+            resizeMode="contain"
+            style={styles.backgroundLogoImage}
+          />
         </View>
       ) : null}
+
       <Animated.View
         style={[
           styles.panelContainer,
@@ -129,7 +138,7 @@ export default function AuthenticationScreen() {
         ]}>
         {/* Convex Dome Arch Cap */}
         <View style={styles.domeCap}>
-          <ConvexDomeCap color="#ffffd8" height={34} />
+          <ConvexDomeCap color="#FFFFFF" height={34} />
         </View>
 
         {/* Panel Body */}
@@ -142,14 +151,34 @@ export default function AuthenticationScreen() {
             )
           ) : (
             <>
+              {/* Bottom-left leaf decoration matching web */}
+              <View pointerEvents="none" style={styles.leafContainer}>
+                <Image
+                  source={require('@/assets/images/sign-in-up-bg.png')}
+                  style={styles.leafImage}
+                  resizeMode="cover"
+                />
+              </View>
+
+              <Text style={styles.kicker}>TOLEDO TRADING</Text>
               <Text style={styles.title}>Set up your account</Text>
+              <Text style={styles.subtitle}>Choose how you'd like to get started with AgriVerse.</Text>
 
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Create a farm worker account"
                 onPress={() => openAuth('signup')}
-                style={({ pressed }) => [styles.outlineButton, pressed && styles.buttonPressed]}>
-                <Text style={styles.outlineButtonText}>Create Account</Text>
+                style={({ pressed }) => [
+                  styles.gradientButtonWrapper,
+                  pressed && styles.buttonPressed,
+                ]}>
+                <LinearGradient
+                  colors={['#3D9B43', '#185C35']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.gradientButton}>
+                  <Text style={styles.gradientButtonText}>Create Account</Text>
+                </LinearGradient>
               </Pressable>
 
               <Text style={styles.orText}>or</Text>
@@ -159,12 +188,16 @@ export default function AuthenticationScreen() {
                 accessibilityLabel="Sign in to AgriVerse"
                 onPress={() => openAuth('login')}
                 style={({ pressed }) => [styles.outlineButton, pressed && styles.buttonPressed]}>
-                <Text style={styles.outlineButtonText}>Sign In</Text>
+                  <Text style={styles.outlineButtonText}>Sign In</Text>
               </Pressable>
 
               <View style={styles.loginPrompt}>
                 <Text style={styles.loginPromptText}>Already a user? </Text>
-                <Pressable accessibilityRole="link" accessibilityLabel="Log in to AgriVerse" hitSlop={10} onPress={() => openAuth('login')}>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel="Log in to AgriVerse"
+                  hitSlop={10}
+                  onPress={() => openAuth('login')}>
                   <Text style={styles.loginLink}>Log in</Text>
                 </Pressable>
               </View>
