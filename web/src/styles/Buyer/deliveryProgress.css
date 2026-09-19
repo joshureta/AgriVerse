@@ -1433,6 +1433,7 @@
 .delivery-receipt-card,
 .delivery-cancel-card { padding: 20px 22px; }
 .delivery-rate-card { text-align: center; }
+.delivery-rate-card .star-rating { display: flex; justify-content: center; margin-top: 12px; }
 .delivery-rate-card h2,
 .delivery-receipt-card h2,
 .delivery-cancel-card h2 { font-size: 16px; }
