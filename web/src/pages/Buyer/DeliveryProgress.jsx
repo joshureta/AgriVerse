@@ -7,10 +7,10 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   FileText,
   Hourglass,
   MapPin,
+  Maximize2,
   PackageCheck,
   PackageOpen,
   ReceiptText,
@@ -216,14 +216,14 @@ function orderItemsText(order) {
   return order.items.map((item) => `${item.quantity} ${item.product_name}`).join(', ')
 }
 
+// Split the address so the place a buyer recognises leads and the rest sits underneath.
+// Country is dropped, since every order is delivered in the same one.
 function getDeliveryAddress(order) {
-  return [
-    order.delivery_barangay,
-    order.delivery_city_municipality,
-    order.delivery_province,
-    order.delivery_region,
-    order.delivery_country,
-  ].filter(Boolean).join(', ')
+  const primary = [order.delivery_barangay, order.delivery_city_municipality].filter(Boolean).join(', ')
+  const secondary = [order.delivery_province, order.delivery_region].filter(Boolean).join(', ')
+  return primary
+    ? { primary, secondary }
+    : { primary: secondary, secondary: '' }
 }
 
 export default function DeliveryProgress() {
@@ -413,7 +413,7 @@ export default function DeliveryProgress() {
   }
 
   const milestones = selectedOrder ? createMilestones(selectedOrder) : []
-  const destination = selectedOrder ? getDeliveryAddress(selectedOrder) : ''
+  const destination = selectedOrder ? getDeliveryAddress(selectedOrder) : { primary: '', secondary: '' }
   const collapsible = selectedOrder ? canCollapseProgress(selectedOrder) : false
   const progressCollapsed = collapsible && !showFullProgress
   const progressSummaryText = progressCollapsed ? progressSummary(selectedOrder) : null
@@ -425,19 +425,18 @@ export default function DeliveryProgress() {
       <div className="delivery-content">
         {selectedOrder && !trackedOrderId && <button className="delivery-back-button" type="button" onClick={() => { setSelectedOrderId(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }}><ChevronLeft aria-hidden="true" /> Back</button>}
 
-        <header className={`delivery-title ${selectedOrder ? 'is-order' : ''}`}>
-          {!selectedOrder && (
-            <div>
-              <h1>My Orders</h1>
-              <p>Select an order to view its delivery progress and complete details.</p>
-            </div>
-          )}
-          {selectedOrder && selectedOrder.order_status !== 'cancelled' && (
-            <span className={`delivery-current-status is-${selectedOrder.order_status}`}>
-              {statusLabels[selectedOrder.order_status] || selectedOrder.order_status}
-            </span>
-          )}
-        </header>
+        {/* The cancelled receipt page carries its own centred title. */}
+        {(!selectedOrder || !(selectedOrder.order_status === 'cancelled' && !showPreCancelDetails)) && (
+          <header className={`delivery-title ${selectedOrder ? 'is-order' : ''}`}>
+            {!selectedOrder && (
+              <div>
+                <h1>My Orders</h1>
+                <p>Select an order to view its delivery progress and complete details.</p>
+              </div>
+            )}
+            {selectedOrder && <h1>Order {selectedOrder.order_number}</h1>}
+          </header>
+        )}
 
         {!selectedOrder && (
           <>
@@ -645,13 +644,15 @@ export default function DeliveryProgress() {
               <div className="cancelled-total-row is-total"><span>Total</span><span>PHP {selectedOrder.total_amount.toLocaleString()}</span></div>
             </section>
 
-            <button type="button" className="order-detail-link-button" onClick={() => { setShowPreCancelDetails(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
-              <ReceiptText aria-hidden="true" /> Order details
-            </button>
+            <div className="cancelled-actions">
+              <button type="button" className="order-detail-link-button" onClick={() => { setShowPreCancelDetails(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+                <ReceiptText aria-hidden="true" /> Order details
+              </button>
 
-            {selectedOrder.items.some((item) => item.pineapple_size_id) && (
-              <button type="button" className="buy-again-button" onClick={() => handleBuyAgain(selectedOrder)}>Buy again</button>
-            )}
+              {selectedOrder.items.some((item) => item.pineapple_size_id) && (
+                <button type="button" className="buy-again-button" onClick={() => handleBuyAgain(selectedOrder)}>Buy again</button>
+              )}
+            </div>
           </div>
           ) : (<>
           {selectedOrder.order_status === 'cancelled' && (
@@ -683,16 +684,17 @@ export default function DeliveryProgress() {
             {selectedOrder.delivery_method !== 'pickup' && (
               <div className="route-map">
                 <article className="route-location route-origin">
-                  <h3><MapPin aria-hidden="true" /> Tagaytay City</h3>
-                  <p>JToledo Trading Farm</p>
-                  <Store aria-hidden="true" />
+                  <span className="route-location-label"><Store aria-hidden="true" /> From</span>
+                  <strong className="route-location-main">JToledo Trading Farm</strong>
+                  <span className="route-location-sub">Tagaytay City</span>
                 </article>
                 <span className="route-dashes" aria-hidden="true" />
                 <IconBadge icon={Truck} />
-                <span className="route-dashes route-arrow" aria-hidden="true" />
+                <span className="route-dashes" aria-hidden="true" />
                 <article className="route-location route-destination">
-                  <span className="route-location-label">Delivery address</span>
-                  <h3><MapPin aria-hidden="true" /> {destination || 'Address not provided'}</h3>
+                  <span className="route-location-label"><MapPin aria-hidden="true" /> Deliver to</span>
+                  <strong className="route-location-main">{destination.primary || 'Address not provided'}</strong>
+                  {destination.secondary && <span className="route-location-sub">{destination.secondary}</span>}
                 </article>
               </div>
             )}
@@ -758,45 +760,26 @@ export default function DeliveryProgress() {
 
               {selectedOrder.delivery_proof_image_url && (
                 <div className="order-delivery-proof">
-                  <div className="order-delivery-proof-head">
-                    <span className="order-delivery-proof-label">
-                      <Camera size={14} />
-                      Proof of Delivery
+                  <span className="order-delivery-proof-label">
+                    <Camera size={15} />
+                    Proof of delivery
+                  </span>
+
+                  <button
+                    type="button"
+                    className="order-delivery-proof-photo"
+                    onClick={() => setViewingDeliveryProof(true)}
+                    aria-label="View full proof of delivery photo"
+                  >
+                    <img src={selectedOrder.delivery_proof_image_url} alt="Proof of delivery" />
+                    <span className="order-delivery-proof-zoom" aria-hidden="true">
+                      <Maximize2 size={14} />
                     </span>
-                    <span className="order-delivery-proof-sub">Submitted by driver</span>
-                  </div>
+                  </button>
 
-                  <div className="order-delivery-proof-body">
-                    <button
-                      type="button"
-                      className="order-delivery-proof-thumb"
-                      onClick={() => setViewingDeliveryProof(true)}
-                      aria-label="View full proof of delivery photo"
-                    >
-                      <img src={selectedOrder.delivery_proof_image_url} alt="Proof of delivery" />
-                      <span className="order-delivery-proof-zoom">
-                        <ExternalLink size={13} />
-                      </span>
-                    </button>
-
-                    <div className="order-delivery-proof-info">
-                      {selectedOrder.delivery_proof_notes ? (
-                        <>
-                          <span className="order-delivery-proof-note-label">Driver note:</span>
-                          <p className="order-delivery-proof-note">"{selectedOrder.delivery_proof_notes}"</p>
-                        </>
-                      ) : (
-                        <p className="order-delivery-proof-note">Photo taken upon arrival.</p>
-                      )}
-                      <button
-                        type="button"
-                        className="order-delivery-proof-view-btn"
-                        onClick={() => setViewingDeliveryProof(true)}
-                      >
-                        View full photo →
-                      </button>
-                    </div>
-                  </div>
+                  {selectedOrder.delivery_proof_notes && (
+                    <p className="order-delivery-proof-note"><strong>Driver note:</strong> “{selectedOrder.delivery_proof_notes}”</p>
+                  )}
                 </div>
               )}
             </section>
@@ -840,17 +823,11 @@ export default function DeliveryProgress() {
                     <button type="button" className="is-primary" onClick={() => openRateModal(selectedOrder)}>Rate this order</button>
                   </div>
                 )}
-              </section>
-            )}
-
-            {selectedOrder.order_status === 'completed' && !selectedOrder.delivery_dispute_status && (
-              <p className="order-report-note">
                 <button type="button" className="order-report-link" onClick={() => { window.location.href = `/buyer/return-request?order=${selectedOrder.id}` }}>
                   Noticed something wrong? Report an issue
                 </button>
-              </p>
+              </section>
             )}
-
           </aside>
           </div>
           </>)}

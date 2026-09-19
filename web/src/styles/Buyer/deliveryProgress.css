@@ -15,11 +15,12 @@
 }
 
 .delivery-title.is-order {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 16px;
-  text-align: left;
+  text-align: center;
 }
 
 .delivery-title h1 {
@@ -245,24 +246,11 @@
 
 .delivery-route-heading + .progress-stepper { margin-top: 26px; }
 
-.delivery-current-status {
-  border-radius: 999px;
-  padding: 7px 13px;
-  color: #fff;
-  background: #277a3a;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.delivery-current-status.is-pending { background: #b8860b; }
-.delivery-current-status.is-cancelled { background: #b13b3b; }
-.delivery-current-status.is-delivered { background: #22863a; }
-.delivery-current-status.is-completed { background: #176b32; }
-.delivery-current-status.is-ready_for_pickup { background: #c47d10; }
-
 /* Cancelled order: narrow receipt-style page */
 .cancelled-receipt { width: 100%; margin: 0 auto; display: grid; gap: 16px; }
 .cancelled-receipt .delivery-title { margin-bottom: 8px; }
+.cancelled-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.cancelled-actions > button { width: auto; min-width: 190px; padding: 0 28px; }
 
 .cancelled-summary { padding: 26px 28px; text-align: center; }
 .cancelled-hero-icon {
@@ -352,72 +340,44 @@
 }
 
 .route-location {
-  min-height: 112px;
+  min-height: 104px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, .28);
+  gap: 3px;
+  border: 1px solid #cfe3c6;
   border-radius: 15px;
   padding: 14px 16px;
-  color: #fff;
-  background: #70b42e;
-  text-align: center;
-}
-
-.route-destination {
-  align-items: flex-start;
-  background: linear-gradient(145deg, #2c8b43, #176b32);
-  box-shadow: 0 8px 18px rgba(23, 107, 50, .18);
+  color: #1f6b34;
+  background: #e8f3e1;
   text-align: left;
 }
 
-.route-location h3 {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.35;
-  text-align: center;
+.route-destination {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(145deg, #2c8b43, #176b32);
+  box-shadow: 0 8px 18px rgba(23, 107, 50, .18);
 }
-
-.route-location h3 svg { width: 17px; }
-.route-location p { margin: 5px 0 2px; font-size: 10px; }
-.route-location > svg,
-.route-location-art { width: 34px; height: 34px; opacity: 0.52; }
 
 .route-location-label {
-  margin-bottom: 6px;
-  color: #d9efcf;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: .85;
 }
 
-.route-destination h3 {
-  align-items: flex-start;
-  color: #fff;
-}
-
-.route-destination h3 svg {
-  flex: 0 0 auto;
-  margin-top: 1px;
-}
+.route-location-label svg { width: 14px; height: 14px; }
+.route-location-main { font-size: 14px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }
+.route-location-sub { font-size: 11.5px; line-height: 1.4; opacity: .9; overflow-wrap: anywhere; }
 
 .route-dashes {
   height: 0;
   border-top: 3px dotted #318741;
-}
-
-.route-arrow::after {
-  content: "›";
-  float: right;
-  margin-top: -13px;
-  color: #318741;
-  font-size: 27px;
-  font-weight: 900;
 }
 
 .delivery-icon-badge {
@@ -570,7 +530,7 @@
 .pickup-directions-btn svg { width: 15px; }
 
 /* Report-an-issue link at the bottom of a completed order */
-.order-report-note { margin: 22px 0 0; text-align: center; }
+.delivery-rate-card .order-report-link { align-self: center; margin-top: 16px; }
 .order-report-link { border: 0; background: none; padding: 0; color: #5a695d; font: inherit; font-size: 12.5px; font-weight: 750; text-decoration: underline; cursor: pointer; }
 .order-report-link:hover { color: #176b32; }
 
@@ -1436,8 +1396,38 @@
 .order-detail-side .pickup-ticket { padding: 20px 22px; }
 .order-detail-side .pickup-ticket-code { font-size: 22px; overflow-wrap: anywhere; }
 .order-detail-side .pickup-ticket-meta { flex-direction: column; gap: 12px; }
+
+/* Breadcrumb (return pages) */
+.breadcrumb ol { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; padding: 0; list-style: none; color: #68736b; font-size: 12px; }
+.breadcrumb li { display: flex; align-items: center; gap: 6px; }
+.breadcrumb a { color: #237538; font-weight: 700; text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb svg { width: 14px; height: 14px; color: #9aa69c; }
+.breadcrumb [aria-current="page"] { color: #173b21; font-weight: 800; }
+
+/* Return pages share the order details setup: cards on the left, details on the right */
+.order-detail-main > .delivery-card + .delivery-card { margin-top: 20px; }
+.return-panel { padding: 22px 26px; }
+.return-panel h2 { font-size: 18px; }
+.return-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.return-panel-head span { color: #68736b; font-size: 12px; }
+.return-panel-stepper { margin-top: 26px; }
+.return-panel .delivery-order-cost { padding-inline: 0; }
+.return-panel .return-detail-items-list { margin-top: 14px; }
+.return-panel .return-items-list { margin-top: 14px; }
+.return-panel .return-issue-tiles { margin-top: 14px; }
+.return-step-label { display: block; margin-bottom: 4px; color: #287642; font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.return-panel-help { margin: 6px 0 0; color: #5a695d; font-size: 12px; line-height: 1.55; }
+.return-describe { margin-top: 18px; }
+.return-describe-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.return-describe-head label { margin: 0; color: #173b21; font-size: 13px; font-weight: 750; }
+.return-describe-head span { color: #68736b; font-size: 11px; }
+.return-resolution-label { display: block; margin: 18px 0 8px; color: #2c5330; font-size: 12px; font-weight: 750; }
+.return-panel .return-photo-picker { margin-top: 14px; }
+.return-claim-card { padding: 20px 22px; }
+.order-detail-side .return-detail-advisory { margin: 0; }
 .order-detail-side .order-detail { padding: 12px 16px; }
-.order-detail-side .order-report-note { margin: 0; }
+
 
 .delivery-rate-card,
 .delivery-receipt-card,
@@ -1684,7 +1674,7 @@
 @media (min-width: 981px) {
   .order-detail-main .delivery-route { padding: 20px 24px 26px; }
   .order-detail-main .route-map {
-    grid-template-columns: minmax(0, 170px) minmax(24px, 1fr) 44px minmax(24px, 1fr) minmax(0, 170px);
+    grid-template-columns: minmax(0, 220px) minmax(24px, 1fr) 44px minmax(24px, 1fr) minmax(0, 220px);
     gap: 10px;
     margin: 22px 0 32px;
   }
@@ -1703,13 +1693,11 @@
 @media (max-width: 760px) {
   .delivery-content { padding-bottom: 110px; }
   .delivery-title { align-items: flex-start; flex-direction: column; }
-  .delivery-title.is-order { align-items: flex-start; }
-  .delivery-title h1 { font-size: 27px; }
+  .delivery-title.is-order { align-items: center; }  .delivery-title h1 { font-size: 27px; }
   .delivery-route { padding-inline: 22px; }
   .route-map { grid-template-columns: 1fr 54px 1fr; gap: 12px; }
   .route-map > .route-dashes { display: none; }
-  .route-location { min-height: 118px; }
-  .route-location h3 { font-size: 13px; }
+  .route-location { min-height: 104px; }
   .order-history { margin-top: 36px; }
   .history-list-head { display: none; }
   .history-order { grid-template-columns: minmax(0,1fr) auto; gap: 7px 16px; padding: 16px 20px; }
@@ -2352,61 +2340,37 @@
    ========================================================================= */
 .order-delivery-proof {
   margin-top: 18px;
-  padding: 14px 16px;
-  border: 1px solid #dce7dc;
-  border-radius: 12px;
-  background: #fbfdfa;
-}
-
-.order-delivery-proof-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
+  padding-top: 16px;
+  border-top: 1px solid #e1eadc;
 }
 
 .order-delivery-proof-label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
   font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: #26743a;
 }
 
-.order-delivery-proof-sub {
-  font-size: 11px;
-  color: #627566;
-}
-
-.order-delivery-proof-body {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.order-delivery-proof-thumb {
+.order-delivery-proof-photo {
   position: relative;
-  width: 80px;
-  height: 64px;
-  flex: 0 0 auto;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #dce7dc;
-  background: #f0f4ef;
+  display: block;
+  width: 100%;
+  height: 170px;
   padding: 0;
+  border: 1px solid #dce7dc;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f0f4ef;
   cursor: pointer;
-  transition: transform 180ms ease, border-color 180ms ease;
+  transition: border-color 180ms ease;
 }
 
-.order-delivery-proof-thumb:hover {
-  transform: scale(1.03);
-  border-color: #26743a;
-}
+.order-delivery-proof-photo:hover { border-color: #26743a; }
 
-.order-delivery-proof-thumb img {
+.order-delivery-proof-photo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2414,70 +2378,26 @@
 
 .order-delivery-proof-zoom {
   position: absolute;
-  bottom: 4px;
-  right: 4px;
-  width: 20px;
-  height: 20px;
+  right: 8px;
+  bottom: 8px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.65);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
-
-.order-delivery-proof-thumb:hover .order-delivery-proof-zoom {
-  opacity: 1;
-}
-
-.order-delivery-proof-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.order-delivery-proof-note-label {
-  font-size: 10px;
-  font-weight: 750;
-  color: #718073;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  color: #173b21;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
 .order-delivery-proof-note {
-  margin: 0;
+  margin: 8px 0 0;
+  color: #4c5b4e;
   font-size: 12px;
-  color: #173b21;
-  font-style: italic;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  line-height: 1.5;
 }
 
-.order-delivery-proof-view-btn {
-  align-self: flex-start;
-  margin-top: 4px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #1f7438;
-  font-size: 11px;
-  font-weight: 750;
-  cursor: pointer;
-  transition: color 160ms ease;
-}
-
-.order-delivery-proof-view-btn:hover {
-  text-decoration: underline;
-  color: #165528;
-}
+.order-delivery-proof-note strong { color: #173b21; font-weight: 750; }
 
 .order-delivery-proof-lightbox-caption {
   padding: 12px 16px;
@@ -2491,3 +2411,8 @@
   margin: 0;
 }
 
+@media (max-width: 600px) {
+  .breadcrumb li:not(:nth-last-child(2)) { display: none; }
+  .breadcrumb li:nth-last-child(2) svg { display: none; }
+  .breadcrumb li:nth-last-child(2) a::before { content: "\2039  "; }
+}

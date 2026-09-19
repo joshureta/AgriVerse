@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ArrowLeft,
   Banknote,
+  CalendarDays,
+  Check,
   ExternalLink,
   FileText,
   Hourglass,
   MessageSquare,
   PackageOpen,
+  ReceiptText,
   ShieldAlert,
   X,
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import Breadcrumb from '../../components/Breadcrumb.jsx'
 import ProgressStepper from '../../components/ProgressStepper.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import { loadBuyerOrder } from '../../services/buyerMarketplace.js'
@@ -23,6 +26,17 @@ const categoryLabels = {
   wrong_item: 'Wrong item received',
   missing_item: 'Missing item in delivery',
   wrong_quantity: 'Incorrect quantity delivered',
+}
+
+function formatDateTime(value) {
+  if (!value) return 'Pending'
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
 export default function ReturnDetails() {
@@ -131,86 +145,65 @@ export default function ReturnDetails() {
     return []
   }, [order])
 
+  const resolved = order?.delivery_dispute_status === 'resolved'
+
   return (
     <main className="buyer-page delivery-page">
       <BuyerHeader active="orders" />
 
-      <div className="delivery-content return-details-page-wrap">
-        <button
-          type="button"
-          className="delivery-back-button"
-          onClick={() => {
-            window.location.href = `/buyer/delivery-progress?order=${orderId}`
-          }}
-        >
-          <ArrowLeft /> Back to delivery tracking
-        </button>
+      <div className="delivery-content">
+        <Breadcrumb
+          items={[
+            { label: 'My Orders', href: '/buyer/delivery-progress' },
+            { label: order ? `Order ${order.order_number}` : 'Order', href: `/buyer/delivery-progress?track=${orderId}` },
+            { label: 'Return details' },
+          ]}
+        />
 
         {loading && <div className="delivery-message">Loading your dispute details…</div>}
         {error && <div className="delivery-message is-error">{error}</div>}
 
         {order && (
-          <section className="delivery-card return-detail-card" aria-labelledby="return-details-heading">
-            {/* Header Section */}
-            <div className="return-detail-header">
-              <div>
-                <span className="return-eyebrow">DISPUTE &amp; CLAIM SUMMARY</span>
-                <h1 id="return-details-heading">Return / Refund Details</h1>
-                <p className="return-detail-meta">
-                  Order <strong>{order.order_number}</strong> · Seller: <strong>{order.seller_farm_name || 'JToledo Trading'}</strong> · Submitted{' '}
-                  {order.delivery_dispute_created_at
-                    ? new Date(order.delivery_dispute_created_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
-                    : 'Recently'}
-                </p>
-              </div>
+          <>
+            <header className="delivery-title">
+              <h1>Return for order {order.order_number}</h1>
+            </header>
 
-              <div>
-                <span className={`return-detail-badge is-${order.delivery_dispute_status || 'open'}`}>
-                  <span className="return-detail-badge-dot" />
-                  {order.delivery_dispute_status === 'resolved' ? 'Resolved' : 'Under Review'}
-                </span>
-              </div>
-            </div>
+            <div className="order-detail-layout">
+              <div className="order-detail-main">
+                <section className="delivery-card return-panel" aria-labelledby="return-progress-title">
+                  <h2 id="return-progress-title">Return Progress</h2>
+                  <div className="return-panel-stepper">
+                    <ProgressStepper
+                      steps={[
+                        {
+                          icon: FileText,
+                          label: 'Report submitted',
+                          sub: order.delivery_dispute_created_at
+                            ? new Date(order.delivery_dispute_created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                            : 'Submitted',
+                          state: 'done',
+                        },
+                        {
+                          icon: Hourglass,
+                          label: 'Return decision',
+                          sub: resolved ? 'Decision reached' : '1–2 business days',
+                          state: resolved ? 'done' : 'current',
+                        },
+                        {
+                          icon: Banknote,
+                          label: 'Refund completed',
+                          sub: resolved ? 'Completed' : 'Pending',
+                          state: resolved ? 'done' : '',
+                        },
+                      ]}
+                    />
+                  </div>
+                </section>
 
-            {/* Stepper Timeline */}
-            <div className="return-detail-stepper-wrap">
-              <ProgressStepper
-                steps={[
-                  {
-                    icon: FileText,
-                    label: 'Report submitted',
-                    sub: order.delivery_dispute_created_at
-                      ? new Date(order.delivery_dispute_created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                      : 'Submitted',
-                    state: 'done',
-                  },
-                  {
-                    icon: Hourglass,
-                    label: 'Return decision',
-                    sub: order.delivery_dispute_status === 'resolved' ? 'Decision reached' : '1–2 business days',
-                    state: order.delivery_dispute_status === 'resolved' ? 'done' : 'current',
-                  },
-                  {
-                    icon: Banknote,
-                    label: 'Refund completed',
-                    sub: order.delivery_dispute_status === 'resolved' ? 'Completed' : 'Pending',
-                    state: order.delivery_dispute_status === 'resolved' ? 'done' : '',
-                  },
-                ]}
-              />
-            </div>
-
-            {/* 2-Column Grid */}
-            <div className="return-detail-grid">
-              {/* Left Column: Affected Produce & Claim */}
-              <div className="return-detail-column">
-                <div className="return-detail-section-box">
-                  <div className="return-detail-section-head">
-                    <h3>Affected Produce</h3>
+                <section className="delivery-card return-panel" aria-labelledby="return-produce-title">
+                  <div className="return-panel-head">
+                    <h2 id="return-produce-title">Affected Produce</h2>
                     <span>{categoryLabels[order.delivery_dispute_category] || 'Damaged produce'}</span>
                   </div>
 
@@ -243,33 +236,13 @@ export default function ReturnDetails() {
                     )}
                   </div>
 
-                  <div className="return-detail-claim-total">
-                    <div>
-                      <span>Requested Resolution</span>
-                      <strong>{resolutionLabel}</strong>
-                    </div>
-                    <div className="return-detail-total-val">
-                      <span>Total Claim</span>
-                      <strong>PHP {totalRefundAmount.toLocaleString()}</strong>
-                    </div>
-                  </div>
-                </div>
+                  <div className="delivery-order-cost"><span>Requested resolution</span><strong>{resolutionLabel}</strong></div>
+                  <div className="delivery-total"><span>Total Claim</span><strong>PHP {totalRefundAmount.toLocaleString()}</strong></div>
+                </section>
 
-                {/* Important Advisory */}
-                <div className="return-detail-advisory">
-                  <ShieldAlert size={18} />
-                  <div>
-                    <strong>Important notice</strong>
-                    <p>Please keep the affected produce and delivery packaging intact until customer support completes the review.</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Evidence & Description */}
-              <div className="return-detail-column">
-                <div className="return-detail-section-box">
-                  <div className="return-detail-section-head">
-                    <h3>Submitted Evidence</h3>
+                <section className="delivery-card return-panel" aria-labelledby="return-evidence-title">
+                  <div className="return-panel-head">
+                    <h2 id="return-evidence-title">Submitted Evidence</h2>
                     <span>{photos.length} photo{photos.length !== 1 ? 's' : ''}</span>
                   </div>
 
@@ -294,41 +267,54 @@ export default function ReturnDetails() {
                     <p className="return-detail-empty-photos">No photos were submitted with this dispute.</p>
                   )}
 
-                  {/* Buyer Description */}
                   <div className="return-detail-description-wrap">
                     <span className="return-detail-label">Buyer Description</span>
                     <blockquote className="return-detail-quote">
                       {userDescription || 'No additional note was provided.'}
                     </blockquote>
                   </div>
-                </div>
-
-                {/* Actions */}
-                <div className="return-detail-actions">
-                  <button
-                    type="button"
-                    className="return-contact-support-btn"
-                    onClick={() => {
-                      window.location.href = '/buyer/messages?partner_role=admin'
-                    }}
-                  >
-                    <MessageSquare size={16} />
-                    Contact Support
-                  </button>
-
-                  <button
-                    type="button"
-                    className="return-secondary-back-btn"
-                    onClick={() => {
-                      window.location.href = `/buyer/delivery-progress?order=${orderId}`
-                    }}
-                  >
-                    Back to tracking
-                  </button>
-                </div>
+                </section>
               </div>
+
+              <aside className="order-detail-side">
+                <section className="delivery-card order-details" aria-labelledby="return-order-details-title">
+                  <h2 id="return-order-details-title">Order Details</h2>
+                  <div className="order-detail-list">
+                    <article className="order-detail"><span className="delivery-icon-badge"><ReceiptText aria-hidden="true" /></span><p><strong>Order Number</strong><span>{order.order_number}</span></p></article>
+                    <article className="order-detail"><span className="delivery-icon-badge"><CalendarDays aria-hidden="true" /></span><p><strong>Order Date</strong><span>{formatDateTime(order.created_at)}</span></p></article>
+                    <article className="order-detail">
+                      <span className="delivery-icon-badge">{resolved ? <Check aria-hidden="true" /> : <Hourglass aria-hidden="true" />}</span>
+                      <p><strong>Status</strong><span>{resolved ? 'Resolved' : 'Under review'}</span></p>
+                    </article>
+                  </div>
+                </section>
+
+                <div className="return-detail-advisory">
+                  <ShieldAlert size={18} />
+                  <div>
+                    <strong>Important notice</strong>
+                    <p>Please keep the affected produce and delivery packaging intact until customer support completes the review.</p>
+                  </div>
+                </div>
+
+                <section className="delivery-card delivery-confirmation delivery-receipt-card" aria-labelledby="return-help-title">
+                  <h2 id="return-help-title">Need help?</h2>
+                  <p>Message support about this return.</p>
+                  <div className="delivery-confirmation-actions">
+                    <button
+                      type="button"
+                      className="is-primary"
+                      onClick={() => {
+                        window.location.href = '/buyer/messages?partner_role=admin'
+                      }}
+                    >
+                      <MessageSquare size={16} /> Contact Support
+                    </button>
+                  </div>
+                </section>
+              </aside>
             </div>
-          </section>
+          </>
         )}
       </div>
 
