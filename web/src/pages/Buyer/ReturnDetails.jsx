@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
-  Check,
+  Banknote,
   ExternalLink,
+  FileText,
+  Hourglass,
   MessageSquare,
   PackageOpen,
   ShieldAlert,
   X,
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import ProgressStepper from '../../components/ProgressStepper.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import { loadBuyerOrder } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
@@ -175,60 +178,30 @@ export default function ReturnDetails() {
 
             {/* Stepper Timeline */}
             <div className="return-detail-stepper-wrap">
-              <div className="delivery-return-stepper-track">
-                <div className="delivery-return-stepper-bg" />
-                <div
-                  className="delivery-return-stepper-fill"
-                  style={{
-                    width: order.delivery_dispute_status === 'resolved' ? '100%' : '50%',
-                  }}
-                />
-              </div>
-
-              <div className="delivery-return-stepper-steps">
-                <div className="delivery-return-step is-done">
-                  <div className="delivery-return-step-node">
-                    <Check size={14} strokeWidth={3} />
-                  </div>
-                  <strong>Report submitted</strong>
-                  <small>
-                    {order.delivery_dispute_created_at
-                      ? new Date(order.delivery_dispute_created_at).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })
-                      : 'Submitted'}
-                  </small>
-                </div>
-
-                <div className={`delivery-return-step ${order.delivery_dispute_status === 'open' ? 'is-active' : 'is-done'}`}>
-                  <div className="delivery-return-step-node">
-                    {order.delivery_dispute_status === 'resolved' ? (
-                      <Check size={14} strokeWidth={3} />
-                    ) : (
-                      <span className="delivery-return-step-dot" />
-                    )}
-                  </div>
-                  <strong>Return decision</strong>
-                  <small>
-                    {order.delivery_dispute_status === 'resolved' ? 'Decision reached' : '1–2 business days'}
-                  </small>
-                </div>
-
-                <div className={`delivery-return-step ${order.delivery_dispute_status === 'resolved' ? 'is-done' : 'is-pending'}`}>
-                  <div className="delivery-return-step-node">
-                    {order.delivery_dispute_status === 'resolved' ? (
-                      <Check size={14} strokeWidth={3} />
-                    ) : (
-                      <span>3</span>
-                    )}
-                  </div>
-                  <strong>Refund completed</strong>
-                  <small>
-                    {order.delivery_dispute_status === 'resolved' ? 'Completed' : 'Pending'}
-                  </small>
-                </div>
-              </div>
+              <ProgressStepper
+                steps={[
+                  {
+                    icon: FileText,
+                    label: 'Report submitted',
+                    sub: order.delivery_dispute_created_at
+                      ? new Date(order.delivery_dispute_created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                      : 'Submitted',
+                    state: 'done',
+                  },
+                  {
+                    icon: Hourglass,
+                    label: 'Return decision',
+                    sub: order.delivery_dispute_status === 'resolved' ? 'Decision reached' : '1–2 business days',
+                    state: order.delivery_dispute_status === 'resolved' ? 'done' : 'current',
+                  },
+                  {
+                    icon: Banknote,
+                    label: 'Refund completed',
+                    sub: order.delivery_dispute_status === 'resolved' ? 'Completed' : 'Pending',
+                    state: order.delivery_dispute_status === 'resolved' ? 'done' : '',
+                  },
+                ]}
+              />
             </div>
 
             {/* 2-Column Grid */}

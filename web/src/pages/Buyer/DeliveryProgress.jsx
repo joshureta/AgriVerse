@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
+  Banknote,
   CalendarDays,
   Camera,
   Check,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  FileText,
+  Hourglass,
   MapPin,
   PackageCheck,
   PackageOpen,
@@ -19,6 +22,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import ProgressStepper from '../../components/ProgressStepper.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import {
   buyerCartQuantity,
@@ -28,6 +32,7 @@ import {
   loadBuyerOrders,
   readBuyerCart,
   rateBuyerOrder,
+  writeBuyerCart,
 } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/deliveryProgress.css'
@@ -157,8 +162,33 @@ function formatDate(value, includeTime = false) {
   }).format(new Date(value))
 }
 
+function formatShortDate(value) {
+  if (!value) return ''
+  return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(new Date(value))
+}
+
 function IconBadge({ icon: Icon }) {
   return <span className="delivery-icon-badge"><Icon aria-hidden="true" /></span>
+}
+
+// A delivered/completed order that has a return: the fulfilment steps are all done, so the
+// route card shrinks to one line and the return card leads the page.
+function canCollapseProgress(order) {
+  return isReturnOrRefund(order) && ['delivered', 'completed'].includes(order.order_status)
+}
+
+function progressSummary(order) {
+  const isPickup = order.delivery_method === 'pickup'
+  const when = isPickup ? (order.picked_up_at || order.completed_at) : (order.delivered_at || order.completed_at)
+  const detail = [
+    ['Placed', order.created_at],
+    ['Packed', order.preparing_at || order.confirmed_at],
+    [isPickup ? 'Ready' : 'Shipped', isPickup ? order.ready_for_pickup_at : order.out_for_delivery_at],
+  ].filter(([, date]) => date).map(([label, date]) => `${label} ${formatShortDate(date)}`).join(' · ')
+  return {
+    headline: `${isPickup ? 'Picked up at the farm' : 'Delivered'}${when ? ` on ${formatDate(when)}` : ''}`,
+    detail,
+  }
 }
 
 function createMilestones(order) {
@@ -177,11 +207,9 @@ function createMilestones(order) {
     isPickup
       ? { label: 'Picked Up', date: order.picked_up_at || order.completed_at, icon: Check, estimated: !order.picked_up_at }
       : { label: 'Delivered', date: order.delivered_at || order.estimated_delivery_at, icon: Check, estimated: !order.delivered_at },
-  ].map((milestone, index) => ({
-    ...milestone,
-    complete: index < rank,
-    current: index === rank,
-  }))
+  ].map((milestone, index) => (order.order_status === 'cancelled'
+    ? { ...milestone, complete: Boolean(milestone.date) && !milestone.estimated, current: false }
+    : { ...milestone, complete: index < rank, current: index === rank }))
 }
 
 function orderItemsText(order) {
@@ -213,6 +241,8 @@ export default function DeliveryProgress() {
   const [confirmingOrderId, setConfirmingOrderId] = useState(null)
   const [receiptError, setReceiptError] = useState('')
   const [viewingDeliveryProof, setViewingDeliveryProof] = useState(false)
+  const [showFullProgress, setShowFullProgress] = useState(false)
+  const [showPreCancelDetails, setShowPreCancelDetails] = useState(false)
   const [cancelTarget, setCancelTarget] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelNote, setCancelNote] = useState('')
@@ -285,6 +315,8 @@ export default function DeliveryProgress() {
 
   useEffect(() => {
     setReceiptError('')
+    setShowFullProgress(false)
+    setShowPreCancelDetails(false)
   }, [selectedOrderId])
 
   async function handleConfirmReceipt() {
@@ -337,6 +369,19 @@ export default function DeliveryProgress() {
     }
   }
 
+  // The cart page re-checks every saved item against live stock, so only ids and quantities are needed here.
+  function handleBuyAgain(order) {
+    const merged = new Map(readBuyerCart().map((item) => [String(item.id), { ...item }]))
+    order.items.forEach((item) => {
+      if (!item.pineapple_size_id) return
+      const existing = merged.get(String(item.pineapple_size_id))
+      if (existing) existing.quantity = (Number(existing.quantity) || 0) + item.quantity
+      else merged.set(String(item.pineapple_size_id), { id: item.pineapple_size_id, quantity: item.quantity })
+    })
+    writeBuyerCart([...merged.values()])
+    window.location.href = '/buyer/cart'
+  }
+
   function openRateModal(order) {
     setRateTarget(order)
     setRateValue(order.buyer_rating || 0)
@@ -369,17 +414,29 @@ export default function DeliveryProgress() {
 
   const milestones = selectedOrder ? createMilestones(selectedOrder) : []
   const destination = selectedOrder ? getDeliveryAddress(selectedOrder) : ''
+  const collapsible = selectedOrder ? canCollapseProgress(selectedOrder) : false
+  const progressCollapsed = collapsible && !showFullProgress
+  const progressSummaryText = progressCollapsed ? progressSummary(selectedOrder) : null
 
   return (
     <main className="buyer-page delivery-page">
       <BuyerHeader active="orders" cartCount={buyerCartQuantity(readBuyerCart())} />
 
       <div className="delivery-content">
-        <header className="delivery-title">
-          <div>
-            <h1>{selectedOrder ? `Order ${selectedOrder.order_number}` : 'My Orders'}</h1>
-            <p>{selectedOrder ? 'View this order’s route, details, and delivery progress.' : 'Select an order to view its delivery progress and complete details.'}</p>
-          </div>
+        {selectedOrder && !trackedOrderId && <button className="delivery-back-button" type="button" onClick={() => { setSelectedOrderId(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }}><ChevronLeft aria-hidden="true" /> Back</button>}
+
+        <header className={`delivery-title ${selectedOrder ? 'is-order' : ''}`}>
+          {!selectedOrder && (
+            <div>
+              <h1>My Orders</h1>
+              <p>Select an order to view its delivery progress and complete details.</p>
+            </div>
+          )}
+          {selectedOrder && selectedOrder.order_status !== 'cancelled' && (
+            <span className={`delivery-current-status is-${selectedOrder.order_status}`}>
+              {statusLabels[selectedOrder.order_status] || selectedOrder.order_status}
+            </span>
+          )}
         </header>
 
         {!selectedOrder && (
@@ -476,111 +533,221 @@ export default function DeliveryProgress() {
         )}
 
         {selectedOrder && <>
-          {!trackedOrderId && <button className="delivery-back-button" type="button" onClick={() => { setSelectedOrderId(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }}><ChevronLeft aria-hidden="true" /> Back</button>}
-          <section className="delivery-card delivery-route" aria-labelledby="delivery-route-title">
-            <div className="delivery-route-heading">
-              <h2 id="delivery-route-title">Delivery Route</h2>
-              <span className={`delivery-current-status is-${selectedOrder.order_status}`}>
-                {statusLabels[selectedOrder.order_status] || selectedOrder.order_status}
-              </span>
-            </div>
-            <div className="route-map">
-              <article className="route-location route-origin">
-                <h3><MapPin aria-hidden="true" /> Tagaytay City</h3>
-                <p>JToledo Trading Farm</p>
-                <Store aria-hidden="true" />
-              </article>
-              <span className="route-dashes" aria-hidden="true" />
-              <IconBadge icon={selectedOrder.delivery_method === 'pickup' ? PackageCheck : Truck} />
-              <span className="route-dashes route-arrow" aria-hidden="true" />
-              <article className="route-location route-destination">
-                {selectedOrder.delivery_method === 'pickup'
-                  ? <>
-                    <h3><PackageCheck aria-hidden="true" /> Farm Pickup</h3>
-                    <p>JToledo Trading Farm, Tagaytay City</p>
-                    <Store className="route-location-art" aria-hidden="true" />
-                  </>
-                  : <>
-                    <span className="route-location-label">Delivery address</span>
-                    <h3><MapPin aria-hidden="true" /> {destination || 'Address not provided'}</h3>
-                  </>}
-              </article>
-            </div>
-
-            {selectedOrder.order_status === 'cancelled'
-              ? (
-                <div className="cancellation-details">
-                  <div className="cancellation-details-row">
-                    <span>Requested by</span>
-                    <strong>You</strong>
-                  </div>
-                  <div className="cancellation-details-row">
-                    <span>Requested at</span>
-                    <strong>{formatDate(selectedOrder.cancelled_at, true)}</strong>
-                  </div>
-                  <div className="cancellation-details-row">
-                    <span>Reason</span>
-                    <strong>{selectedOrder.cancellation_reason || 'Not specified'}</strong>
-                  </div>
-                  <div className="cancellation-details-row">
-                    <span>Payment method</span>
-                    <strong>{PAYMENT_METHOD_LABELS[selectedOrder.payment_method] || selectedOrder.payment_method}</strong>
+          {selectedOrder.delivery_dispute_status && (
+            <section
+              className={`delivery-card delivery-return-formal-card is-${selectedOrder.delivery_dispute_status}`}
+              aria-labelledby="delivery-return-status-title"
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                window.location.href = `/buyer/return-details?order=${selectedOrder.id}`
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  window.location.href = `/buyer/return-details?order=${selectedOrder.id}`
+                }
+              }}
+            >
+              <div className="delivery-return-formal-top">
+                <div className="delivery-return-formal-left">
+                  <span className="delivery-return-formal-icon" aria-hidden="true">
+                    <PackageOpen />
+                  </span>
+                  <div className="delivery-return-formal-headings">
+                    <h2 id="delivery-return-status-title">
+                      {selectedOrder.delivery_dispute_status === 'open'
+                        ? 'We’re reviewing your return request'
+                        : 'Update on your return request'}
+                    </h2>
+                    <p>
+                      {disputeCategoryLabels[selectedOrder.delivery_dispute_category] || 'Damaged produce'}
+                      {selectedOrder.delivery_dispute_affected_quantity
+                        ? ` · ${selectedOrder.delivery_dispute_affected_quantity} affected`
+                        : ''}
+                      {Array.isArray(selectedOrder.delivery_dispute_photo_urls) && selectedOrder.delivery_dispute_photo_urls.length > 0
+                        ? ` · ${selectedOrder.delivery_dispute_photo_urls.length} photo${selectedOrder.delivery_dispute_photo_urls.length > 1 ? 's' : ''} attached`
+                        : ''}
+                    </p>
                   </div>
                 </div>
-              )
-              : <div className="delivery-timeline">
-                {milestones.map(({ label, date, icon, complete, current, estimated }, index) => (
-                  <div className={`delivery-milestone ${complete ? 'is-complete' : ''} ${current ? 'is-current' : ''}`} key={label}>
-                    {index > 0 && <span className="milestone-line" aria-hidden="true" />}
-                    <IconBadge icon={icon} />
-                    <strong>{label}</strong>
-                    <time>{estimated && !complete && !current ? 'Estimated: ' : ''}{formatDate(date)}</time>
-                  </div>
-                ))}
-              </div>}
+
+                <div className="delivery-return-formal-right">
+                  <span className="delivery-return-view-btn">
+                    <span>View details</span>
+                    <ArrowRight size={15} />
+                  </span>
+                </div>
+              </div>
+
+              <div className="delivery-return-formal-divider" />
+
+              <ProgressStepper
+                steps={[
+                  {
+                    icon: FileText,
+                    label: 'Report submitted',
+                    sub: selectedOrder.delivery_dispute_created_at ? formatShortDate(selectedOrder.delivery_dispute_created_at) : 'Submitted',
+                    state: 'done',
+                  },
+                  {
+                    icon: Hourglass,
+                    label: 'Return decision',
+                    sub: selectedOrder.delivery_dispute_status === 'resolved' ? 'Completed' : '1–2 business days',
+                    state: selectedOrder.delivery_dispute_status === 'resolved' ? 'done' : 'current',
+                  },
+                  {
+                    icon: Banknote,
+                    label: 'Refund completed',
+                    sub: selectedOrder.delivery_dispute_status === 'resolved' ? 'Completed' : 'Pending',
+                    state: selectedOrder.delivery_dispute_status === 'resolved' ? 'done' : '',
+                  },
+                ]}
+              />
+            </section>
+          )}
+
+          {selectedOrder.order_status === 'cancelled' && !showPreCancelDetails ? (
+          <div className="cancelled-receipt">
+            <header className="delivery-title">
+              <h1>Order {selectedOrder.order_number}</h1>
+            </header>
+
+            <section className="delivery-card cancelled-summary" aria-labelledby="cancelled-title">
+              <span className="cancelled-hero-icon" aria-hidden="true"><X /></span>
+              <h2 id="cancelled-title">Order cancelled</h2>
+              <p className="cancelled-when">{selectedOrder.cancelled_at ? formatDate(selectedOrder.cancelled_at, true) : 'Cancellation time unavailable'} · {selectedOrder.order_number}</p>
+              <dl className="cancelled-facts">
+                <div><dt>Reason</dt><dd>{selectedOrder.cancellation_reason || 'Not specified'}</dd></div>
+                <div><dt>Payment</dt><dd>{PAYMENT_METHOD_LABELS[selectedOrder.payment_method] || selectedOrder.payment_method}</dd></div>
+                <div><dt>Placed</dt><dd>{formatDate(selectedOrder.created_at, true)}</dd></div>
+                {selectedOrder.refund_amount != null && (
+                  <div><dt>Refund</dt><dd>PHP {Number(selectedOrder.refund_amount).toLocaleString()} · Refund requested</dd></div>
+                )}
+              </dl>
+              {selectedOrder.refund_amount != null && (
+                <p className="cancelled-refund-note">We'll return the refund to your {PAYMENT_METHOD_LABELS[selectedOrder.payment_method] || selectedOrder.payment_method}, the payment method you used.</p>
+              )}
+            </section>
+
+            <section className="delivery-card cancelled-items" aria-labelledby="cancelled-items-title">
+              <h2 id="cancelled-items-title">Items</h2>
+              <div className="cancelled-items-head" aria-hidden="true"><span /><span>Item</span><span>Qty</span><span>Price</span></div>
+              {selectedOrder.items.map((item) => (
+                <div className="cancelled-item" key={item.id}>
+                  <img src={pineappleImage} alt="" />
+                  <p><strong>{item.product_name}</strong><small>{item.weight_label}</small></p>
+                  <span className="cancelled-item-qty">×{item.quantity}</span>
+                  <span className="cancelled-item-price">PHP {item.line_total.toLocaleString()}</span>
+                </div>
+              ))}
+              <div className="cancelled-total-row"><span>Shipping</span><span>PHP {selectedOrder.shipping_fee.toLocaleString()}</span></div>
+              <div className="cancelled-total-row is-total"><span>Total</span><span>PHP {selectedOrder.total_amount.toLocaleString()}</span></div>
+            </section>
+
+            <button type="button" className="order-detail-link-button" onClick={() => { setShowPreCancelDetails(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+              <ReceiptText aria-hidden="true" /> Order details
+            </button>
+
+            {selectedOrder.items.some((item) => item.pineapple_size_id) && (
+              <button type="button" className="buy-again-button" onClick={() => handleBuyAgain(selectedOrder)}>Buy again</button>
+            )}
+          </div>
+          ) : (<>
+          {selectedOrder.order_status === 'cancelled' && (
+            <button type="button" className="order-detail-link-button is-back" onClick={() => { setShowPreCancelDetails(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+              <ChevronLeft aria-hidden="true" /> Back to cancellation
+            </button>
+          )}
+          <div className="order-detail-layout">
+          <div className="order-detail-main">
+          <section
+            className={`delivery-card delivery-route ${progressCollapsed ? 'is-collapsed' : ''}`}
+            aria-label={progressCollapsed ? 'Order progress' : undefined}
+            aria-labelledby={progressCollapsed ? undefined : 'delivery-route-title'}
+          >
+            {progressCollapsed ? (
+              <div className="progress-summary">
+                <span className="progress-summary-icon" aria-hidden="true"><Check /></span>
+                <div>
+                  <strong>{progressSummaryText.headline}</strong>
+                  {progressSummaryText.detail && <small>{progressSummaryText.detail}</small>}
+                </div>
+                <button type="button" className="progress-summary-toggle" onClick={() => setShowFullProgress(true)}>View full progress</button>
+              </div>
+            ) : <>
+            <div className="delivery-route-heading">
+              <h2 id="delivery-route-title">{selectedOrder.delivery_method === 'pickup' ? 'Pickup Progress' : 'Delivery Route'}</h2>
+              {collapsible && <button type="button" className="progress-summary-toggle" onClick={() => setShowFullProgress(false)}>Hide progress</button>}
+            </div>
+            {selectedOrder.delivery_method !== 'pickup' && (
+              <div className="route-map">
+                <article className="route-location route-origin">
+                  <h3><MapPin aria-hidden="true" /> Tagaytay City</h3>
+                  <p>JToledo Trading Farm</p>
+                  <Store aria-hidden="true" />
+                </article>
+                <span className="route-dashes" aria-hidden="true" />
+                <IconBadge icon={Truck} />
+                <span className="route-dashes route-arrow" aria-hidden="true" />
+                <article className="route-location route-destination">
+                  <span className="route-location-label">Delivery address</span>
+                  <h3><MapPin aria-hidden="true" /> {destination || 'Address not provided'}</h3>
+                </article>
+              </div>
+            )}
+
+            <ProgressStepper
+              steps={milestones.map(({ label, date, icon, complete, current, estimated }) => ({
+                icon,
+                label,
+                sub: date ? `${estimated && !complete && !current ? 'Est. ' : ''}${formatShortDate(date)}` : 'Pending',
+                state: complete ? 'done' : current ? 'current' : '',
+              }))}
+            />
+            </>}
           </section>
 
-          {selectedOrder.order_status === 'delivered' && selectedOrder.delivery_dispute_status !== 'open' && (
-            <section className="delivery-card delivery-confirmation" aria-labelledby="delivery-confirmation-title">
-              <h2 id="delivery-confirmation-title">Did you receive your order?</h2>
-              <p>Confirm everything arrived as expected, or report a problem while the delivery details are still fresh.</p>
-              {receiptError && <div className="delivery-message is-error" role="alert">{receiptError}</div>}
-              <div className="delivery-confirmation-actions">
-                <button type="button" className="is-primary" onClick={handleConfirmReceipt} disabled={confirming}>
-                  {confirming ? 'Confirming…' : 'Confirm Receipt'}
-                </button>
-                <button type="button" className="is-secondary" onClick={() => { window.location.href = `/buyer/return-request?order=${selectedOrder.id}` }} disabled={confirming}>
-                  Report an Issue
-                </button>
+            <section className="delivery-card order-items" aria-labelledby="order-items-title">
+              <h2 id="order-items-title">Order Items</h2>
+              <div className="order-item-list">
+                {selectedOrder.items.map((item) => (
+                  <article className="delivery-order-item" key={item.id}>
+                    <img src={pineappleImage} alt="" />
+                    <p><strong>{item.product_name}</strong><span>{item.weight_label} · {item.quantity} {item.quantity === 1 ? 'piece' : 'pieces'}</span><b>PHP {item.line_total.toLocaleString()}</b></p>
+                  </article>
+                ))}
               </div>
+              <div className="delivery-order-cost"><span>Shipping</span><strong>PHP {selectedOrder.shipping_fee.toLocaleString()}</strong></div>
+              <div className="delivery-total"><span>Total</span><strong>PHP {selectedOrder.total_amount.toLocaleString()}</strong></div>
             </section>
-          )}
+          </div>
 
-          {selectedOrder.order_status === 'ready_for_pickup' && (
-            <section className="delivery-card pickup-ticket" aria-labelledby="pickup-ticket-title">
-              <div className="pickup-ticket-row">
-                <div>
-                  <span className="pickup-ticket-label">Order number</span>
-                  <h2 id="pickup-ticket-title" className="pickup-ticket-code">{selectedOrder.order_number}</h2>
-                  <p>Show this order number to farm staff when you arrive. No need to wait for a courier — collect it whenever the farm is open.</p>
+          <aside className="order-detail-side">
+            {selectedOrder.order_status === 'ready_for_pickup' && (
+              <section className="delivery-card pickup-ticket" aria-labelledby="pickup-ticket-title">
+                <div className="pickup-ticket-row">
+                  <div>
+                    <span className="pickup-ticket-label">Order number</span>
+                    <h2 id="pickup-ticket-title" className="pickup-ticket-code">{selectedOrder.order_number}</h2>
+                    <p>Show this order number to farm staff when you arrive. No need to wait for a courier — collect it whenever the farm is open.</p>
+                  </div>
                 </div>
-              </div>
-              <div className="pickup-ticket-meta">
-                <div className="pickup-ticket-meta-row"><Store aria-hidden="true" /><div><strong>JToledo Trading Farm</strong><span>Tagaytay City, Cavite</span></div></div>
-                <div className="pickup-ticket-meta-row"><CalendarDays aria-hidden="true" /><div><strong>Pickup hours</strong><span>Mon – Sat, 8:00 AM – 5:00 PM</span></div></div>
-              </div>
-              <a
-                className="pickup-directions-btn"
-                href="https://www.google.com/maps/search/?api=1&query=JToledo+Trading+Farm+Tagaytay+City"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <MapPin aria-hidden="true" /> Get Directions
-              </a>
-            </section>
-          )}
+                <div className="pickup-ticket-meta">
+                  <div className="pickup-ticket-meta-row"><Store aria-hidden="true" /><div><strong>JToledo Trading Farm</strong><span>Tagaytay City, Cavite</span></div></div>
+                  <div className="pickup-ticket-meta-row"><CalendarDays aria-hidden="true" /><div><strong>Pickup hours</strong><span>Mon – Sat, 8:00 AM – 5:00 PM</span></div></div>
+                </div>
+                <a
+                  className="pickup-directions-btn"
+                  href="https://www.google.com/maps/search/?api=1&query=JToledo+Trading+Farm+Tagaytay+City"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <MapPin aria-hidden="true" /> Get Directions
+                </a>
+              </section>
+            )}
 
-          <div className="delivery-summary-grid">
             <section className="delivery-card order-details" aria-labelledby="order-details-title">
               <h2 id="order-details-title">Order Details</h2>
               <div className="order-detail-list">
@@ -634,167 +801,59 @@ export default function DeliveryProgress() {
               )}
             </section>
 
-            <section className="delivery-card order-items" aria-labelledby="order-items-title">
-              <h2 id="order-items-title">Order Items</h2>
-              <div className="order-item-list">
-                {selectedOrder.items.map((item) => (
-                  <article className="delivery-order-item" key={item.id}>
-                    <img src={pineappleImage} alt="" />
-                    <p><strong>{item.product_name}</strong><span>{item.weight_label} · {item.quantity} {item.quantity === 1 ? 'piece' : 'pieces'}</span><b>PHP {item.line_total.toLocaleString()}</b></p>
-                  </article>
-                ))}
-              </div>
-              <div className="delivery-order-cost"><span>Shipping</span><strong>PHP {selectedOrder.shipping_fee.toLocaleString()}</strong></div>
-              <div className="delivery-total"><span>Total</span><strong>PHP {selectedOrder.total_amount.toLocaleString()}</strong></div>
-            </section>
-          </div>
-
-          {canCancelOrder(selectedOrder) && (
-            <section className="delivery-card delivery-confirmation" aria-labelledby="delivery-cancel-title">
-              <h2 id="delivery-cancel-title">Need to cancel this order?</h2>
-              <p>
-                This order hasn't started preparing yet, so you can still cancel it
-                {selectedOrder.payment_method === 'gcash' && selectedOrder.payment_status === 'paid' ? ' for a full refund to your GCash.' : '.'}
-              </p>
-              <div className="delivery-confirmation-actions">
-                <button type="button" className="is-danger" onClick={() => openCancelModal(selectedOrder)}>Cancel Order</button>
-              </div>
-            </section>
-          )}
-
-          {selectedOrder.order_status === 'completed' && !isReturnOrRefund(selectedOrder) && (
-            <section className="delivery-card delivery-confirmation" aria-labelledby="delivery-rate-title">
-              <h2 id="delivery-rate-title">{selectedOrder.buyer_rating ? 'Your rating' : 'How was your order?'}</h2>
-              <p>{selectedOrder.buyer_rating ? 'Thanks for rating your order.' : 'Rate the items you received — it helps other buyers and the farm.'}</p>
-              {selectedOrder.buyer_rating && <StarRating value={selectedOrder.buyer_rating} size={20} />}
-              {!selectedOrder.buyer_rating && (
+            {canCancelOrder(selectedOrder) && (
+              <section className="delivery-card delivery-confirmation delivery-cancel-card" aria-labelledby="delivery-cancel-title">
+                <h2 id="delivery-cancel-title">Need to cancel this order?</h2>
+                <p>
+                  This order hasn't started preparing yet, so you can still cancel it
+                  {selectedOrder.payment_method === 'gcash' && selectedOrder.payment_status === 'paid' ? ' for a full refund to your GCash.' : '.'}
+                </p>
                 <div className="delivery-confirmation-actions">
-                  <button type="button" className="is-primary" onClick={() => openRateModal(selectedOrder)}>Rate this order</button>
+                  <button type="button" className="is-danger" onClick={() => openCancelModal(selectedOrder)}>Cancel Order</button>
                 </div>
-              )}
-            </section>
-          )}
+              </section>
+            )}
 
-          {selectedOrder.delivery_dispute_status && (
-            <section
-              className={`delivery-card delivery-return-formal-card is-${selectedOrder.delivery_dispute_status}`}
-              aria-labelledby="delivery-return-status-title"
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                window.location.href = `/buyer/return-details?order=${selectedOrder.id}`
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  window.location.href = `/buyer/return-details?order=${selectedOrder.id}`
-                }
-              }}
-            >
-              <div className="delivery-return-formal-top">
-                <div className="delivery-return-formal-left">
-                  <span className="delivery-return-formal-icon" aria-hidden="true">
-                    <PackageOpen />
-                  </span>
-                  <div className="delivery-return-formal-headings">
-                    <h2 id="delivery-return-status-title">
-                      {selectedOrder.delivery_dispute_status === 'open'
-                        ? 'We’re reviewing your return request'
-                        : 'Update on your return request'}
-                    </h2>
-                    <p>
-                      {disputeCategoryLabels[selectedOrder.delivery_dispute_category] || 'Damaged produce'}
-                      {selectedOrder.delivery_dispute_affected_quantity
-                        ? ` · ${selectedOrder.delivery_dispute_affected_quantity} affected`
-                        : ''}
-                      {Array.isArray(selectedOrder.delivery_dispute_photo_urls) && selectedOrder.delivery_dispute_photo_urls.length > 0
-                        ? ` · ${selectedOrder.delivery_dispute_photo_urls.length} photo${selectedOrder.delivery_dispute_photo_urls.length > 1 ? 's' : ''} attached`
-                        : ''}
-                    </p>
+            {selectedOrder.order_status === 'delivered' && selectedOrder.delivery_dispute_status !== 'open' && (
+              <section className="delivery-card delivery-confirmation delivery-receipt-card" aria-labelledby="delivery-confirmation-title">
+                <h2 id="delivery-confirmation-title">Did you receive your order?</h2>
+                <p>Confirm everything arrived as expected, or report a problem while the delivery details are still fresh.</p>
+                {receiptError && <div className="delivery-message is-error" role="alert">{receiptError}</div>}
+                <div className="delivery-confirmation-actions">
+                  <button type="button" className="is-primary" onClick={handleConfirmReceipt} disabled={confirming}>
+                    {confirming ? 'Confirming…' : 'Confirm Receipt'}
+                  </button>
+                  <button type="button" className="is-secondary" onClick={() => { window.location.href = `/buyer/return-request?order=${selectedOrder.id}` }} disabled={confirming}>
+                    Report an Issue
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {selectedOrder.order_status === 'completed' && !isReturnOrRefund(selectedOrder) && (
+              <section className="delivery-card delivery-confirmation delivery-rate-card" aria-labelledby="delivery-rate-title">
+                <h2 id="delivery-rate-title">{selectedOrder.buyer_rating ? 'Your rating' : 'How was your order?'}</h2>
+                <p>{selectedOrder.buyer_rating ? 'Thanks for rating your order.' : 'Rate the items you received — it helps other buyers and the farm.'}</p>
+                {selectedOrder.buyer_rating && <StarRating value={selectedOrder.buyer_rating} size={20} />}
+                {!selectedOrder.buyer_rating && (
+                  <div className="delivery-confirmation-actions">
+                    <button type="button" className="is-primary" onClick={() => openRateModal(selectedOrder)}>Rate this order</button>
                   </div>
-                </div>
+                )}
+              </section>
+            )}
 
-                <div className="delivery-return-formal-right">
-                  <span className="delivery-return-view-btn">
-                    <span>View details</span>
-                    <ArrowRight size={15} />
-                  </span>
-                </div>
-              </div>
+            {selectedOrder.order_status === 'completed' && !selectedOrder.delivery_dispute_status && (
+              <p className="order-report-note">
+                <button type="button" className="order-report-link" onClick={() => { window.location.href = `/buyer/return-request?order=${selectedOrder.id}` }}>
+                  Noticed something wrong? Report an issue
+                </button>
+              </p>
+            )}
 
-              <div className="delivery-return-formal-divider" />
-
-              <div className="delivery-return-formal-stepper">
-                <div className="delivery-return-stepper-track">
-                  <div className="delivery-return-stepper-bg" />
-                  <div
-                    className="delivery-return-stepper-fill"
-                    style={{
-                      width: selectedOrder.delivery_dispute_status === 'resolved' ? '100%' : '50%',
-                    }}
-                  />
-                </div>
-
-                <div className="delivery-return-stepper-steps">
-                  <div className="delivery-return-step is-done">
-                    <div className="delivery-return-step-node">
-                      <Check size={13} strokeWidth={3} />
-                    </div>
-                    <strong>Report submitted</strong>
-                    <small>
-                      {selectedOrder.delivery_dispute_created_at
-                        ? new Date(selectedOrder.delivery_dispute_created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })
-                        : 'Submitted'}
-                    </small>
-                  </div>
-
-                  <div className={`delivery-return-step ${selectedOrder.delivery_dispute_status === 'open' ? 'is-active' : 'is-done'}`}>
-                    <div className="delivery-return-step-node">
-                      {selectedOrder.delivery_dispute_status === 'resolved' ? (
-                        <Check size={13} strokeWidth={3} />
-                      ) : (
-                        <span className="delivery-return-step-dot" />
-                      )}
-                    </div>
-                    <strong>Return decision</strong>
-                    <small>
-                      {selectedOrder.delivery_dispute_status === 'resolved'
-                        ? 'Completed'
-                        : '1–2 business days'}
-                    </small>
-                  </div>
-
-                  <div className={`delivery-return-step ${selectedOrder.delivery_dispute_status === 'resolved' ? 'is-done' : 'is-pending'}`}>
-                    <div className="delivery-return-step-node">
-                      {selectedOrder.delivery_dispute_status === 'resolved' ? (
-                        <Check size={13} strokeWidth={3} />
-                      ) : (
-                        <span>3</span>
-                      )}
-                    </div>
-                    <strong>Refund completed</strong>
-                    <small>
-                      {selectedOrder.delivery_dispute_status === 'resolved'
-                        ? 'Completed'
-                        : 'Pending'}
-                    </small>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {selectedOrder.order_status === 'completed' && !selectedOrder.delivery_dispute_status && (
-            <p className="order-report-note">
-              <button type="button" className="order-report-link" onClick={() => { window.location.href = `/buyer/return-request?order=${selectedOrder.id}` }}>
-                Noticed something wrong? Report an issue
-              </button>
-            </p>
-          )}
+          </aside>
+          </div>
+          </>)}
 
         </>}
       </div>
