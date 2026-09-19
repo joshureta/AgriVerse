@@ -3,6 +3,7 @@ import {
   Banknote,
   CalendarDays,
   Check,
+  ChevronLeft,
   ExternalLink,
   FileText,
   Hourglass,
@@ -152,6 +153,10 @@ export default function ReturnDetails() {
       <BuyerHeader active="orders" />
 
       <div className="delivery-content">
+        <a className="delivery-back-button" href="/buyer/delivery-progress">
+          <ChevronLeft aria-hidden="true" /> Back
+        </a>
+
         <Breadcrumb
           items={[
             { label: 'My Orders', href: '/buyer/delivery-progress' },

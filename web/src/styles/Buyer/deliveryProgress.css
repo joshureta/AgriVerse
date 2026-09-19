@@ -230,6 +230,7 @@
 }
 
 .delivery-back-button svg { width: 22px; height: 22px; }
+a.delivery-back-button { text-decoration: none; }
 .delivery-back-button:hover,
 .delivery-back-button:focus-visible { outline: 3px solid rgba(45, 126, 47, .14); background: #eef7eb; }
 
@@ -1848,31 +1849,14 @@
 }
 
 .delivery-return-view-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border: 1px solid #d8e6d6;
-  border-radius: 10px;
-  background: #f5f9f4;
   color: #1f7438;
   font-size: 13px;
   font-weight: 750;
-  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+  text-decoration: none;
 }
 
 .delivery-return-formal-card:hover .delivery-return-view-btn {
-  background: #eaf3e8;
-  border-color: #bad3b8;
-  color: #145524;
-}
-
-.delivery-return-view-btn svg {
-  transition: transform 200ms ease;
-}
-
-.delivery-return-formal-card:hover .delivery-return-view-btn svg {
-  transform: translateX(3px);
+  text-decoration: underline;
 }
 
 .delivery-return-formal-divider {

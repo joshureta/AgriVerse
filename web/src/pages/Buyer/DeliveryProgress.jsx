@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ArrowRight,
   Banknote,
   CalendarDays,
   Camera,
@@ -423,7 +422,20 @@ export default function DeliveryProgress() {
       <BuyerHeader active="orders" cartCount={buyerCartQuantity(readBuyerCart())} />
 
       <div className="delivery-content">
-        {selectedOrder && !trackedOrderId && <button className="delivery-back-button" type="button" onClick={() => { setSelectedOrderId(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }}><ChevronLeft aria-hidden="true" /> Back</button>}
+        {selectedOrder && (
+          <button
+            className="delivery-back-button"
+            type="button"
+            onClick={() => {
+              // Arriving from a tracking link (?track=) has no list state to fall back to, so reload the list page.
+              if (trackedOrderId) { window.location.href = '/buyer/delivery-progress'; return }
+              setSelectedOrderId(null)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+          >
+            <ChevronLeft aria-hidden="true" /> Back
+          </button>
+        )}
 
         {/* The cancelled receipt page carries its own centred title. */}
         {(!selectedOrder || !(selectedOrder.order_status === 'cancelled' && !showPreCancelDetails)) && (
@@ -572,10 +584,7 @@ export default function DeliveryProgress() {
                 </div>
 
                 <div className="delivery-return-formal-right">
-                  <span className="delivery-return-view-btn">
-                    <span>View details</span>
-                    <ArrowRight size={15} />
-                  </span>
+                  <span className="delivery-return-view-btn">View details</span>
                 </div>
               </div>
 

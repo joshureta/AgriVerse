@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Camera,
   Check,
+  ChevronLeft,
   Minus,
   PackageOpen,
   PackageX,
@@ -210,6 +211,10 @@ export default function ReturnRequest() {
       <BuyerHeader active="orders" cartCount={0} />
 
       <div className="delivery-content">
+        <a className="delivery-back-button" href="/buyer/delivery-progress">
+          <ChevronLeft aria-hidden="true" /> Back
+        </a>
+
         <Breadcrumb
           items={[
             { label: 'My Orders', href: '/buyer/delivery-progress' },
