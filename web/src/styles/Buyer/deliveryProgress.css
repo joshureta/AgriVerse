@@ -207,20 +207,20 @@
   min-height: 40px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
   margin: 0 0 16px;
-  border: 1px solid #b9d3b5;
+  border: 0;
   border-radius: 9px;
-  padding: 0 15px;
+  padding: 0 10px 0 4px;
   color: #237538;
-  background: #fff;
+  background: transparent;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
 }
 
-.delivery-back-button svg { width: 17px; height: 17px; }
+.delivery-back-button svg { width: 22px; height: 22px; }
 .delivery-back-button:hover,
 .delivery-back-button:focus-visible { outline: 3px solid rgba(45, 126, 47, .14); background: #eef7eb; }
 
@@ -494,17 +494,11 @@
 .pickup-directions-btn:hover { background: #1f6332; }
 .pickup-directions-btn svg { width: 15px; }
 
-/* Picked up (pickup orders reaching completed) */
-.pickup-completed-note { margin-top: 20px; padding: 22px 28px; display: flex; gap: 16px; align-items: flex-start; }
-.pickup-completed-icon { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; color: #176b32; background: #eaf2e6; }
-.pickup-completed-note h2 { font-size: 17px; }
-.pickup-completed-note p { margin: 6px 0 0; color: #5a695d; font-size: 12.5px; line-height: 1.55; }
-.pickup-report-link { margin-top: 10px; border: 0; background: none; padding: 0; color: #5a695d; font: inherit; font-size: 11.5px; font-weight: 750; text-decoration: underline; cursor: pointer; }
+/* Report-an-issue link at the bottom of a completed order */
+.order-report-note { margin: 22px 0 0; text-align: center; }
+.order-report-link { border: 0; background: none; padding: 0; color: #5a695d; font: inherit; font-size: 12.5px; font-weight: 750; text-decoration: underline; cursor: pointer; }
+.order-report-link:hover { color: #176b32; }
 
-.order-detail.is-pickup-code { border-color: #f0dba8; background: #fffaf0; }
-.order-detail.is-pickup-code .delivery-icon-badge { background: linear-gradient(145deg, #e5b355, #c47d10); }
-.order-detail.is-pickup-code strong { color: #8a6a12; }
-.order-detail.is-pickup-code span { color: #9a710e; }
 
 /* Cancel-order modal */
 .cancel-modal-overlay {
@@ -1455,13 +1449,13 @@
 .history-heading h2 { margin: 0; color: #1e6835; font-size: 22px; }
 .history-heading p { margin: 4px 0 0; color: #66736a; font-size: 12px; }
 .history-list { margin: 0; }
-.history-list-head { display: grid; grid-template-columns: 1.25fr 1.6fr .8fr .7fr 190px; gap: 18px; padding: 11px 22px; color: #657168; background: #f5f7f3; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.history-list-head { display: grid; grid-template-columns: 1.25fr 1.6fr .8fr 190px; gap: 18px; padding: 11px 22px; color: #657168; background: #f5f7f3; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 
 .history-order {
   width: 100%;
   min-height: 84px;
   display: grid;
-  grid-template-columns: 1.25fr 1.6fr .8fr .7fr 190px;
+  grid-template-columns: 1.25fr 1.6fr .8fr 190px;
   align-items: center;
   gap: 18px;
   margin: 0;
@@ -1591,7 +1585,7 @@
   .delivery-summary-grid { gap: 22px; }
   .order-details, .order-items { padding: 40px 28px; }
   .history-list-head,
-  .history-order { grid-template-columns: 1.2fr 1.35fr .8fr .7fr 92px; gap: 13px; }
+  .history-order { grid-template-columns: 1.2fr 1.35fr .8fr 92px; gap: 13px; }
 }
 
 @media (max-width: 760px) {

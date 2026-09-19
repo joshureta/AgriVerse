@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ArrowLeft,
   ArrowRight,
   CalendarDays,
   Camera,
   Check,
+  ChevronLeft,
   ChevronRight,
   ExternalLink,
   MapPin,
@@ -119,6 +119,8 @@ const ORDER_FILTERS = [
 ]
 
 function isReturnOrRefund(order) {
+  // A cancelled order (refunded automatically if it was paid) stays under Cancelled.
+  if (order.order_status === 'cancelled') return false
   return order.payment_status === 'refunded' || Boolean(order.delivery_dispute_status)
 }
 
@@ -433,7 +435,7 @@ export default function DeliveryProgress() {
               </label>
             </header>
             <div className="history-list">
-              <div className="history-list-head" aria-hidden="true"><span>Order</span><span>Items</span><span>Total</span><span>Status</span><span>Actions</span></div>
+              <div className="history-list-head" aria-hidden="true"><span>Order</span><span>Items</span><span>Total</span><span>Actions</span></div>
               {visibleOrders.length === 0 && (
                 <div className="history-search-empty">
                   <Search aria-hidden="true" />
@@ -456,14 +458,16 @@ export default function DeliveryProgress() {
                   </div>
                   <p className="history-items">{orderItemsText(order)}</p>
                   <div className="history-payment"><strong>PHP {Number(order.total_amount || 0).toLocaleString()}</strong><small>{String(order.delivery_method || 'Delivery').replaceAll('_', ' ')}</small></div>
-                  <span className={`history-status is-${order.order_status}`}>{statusLabels[order.order_status] || order.order_status}</span>
                   <div className="history-order-actions">
+                    {activeFilter === 'returns' ? (
+                      <span className="history-view-order">View details <ChevronRight aria-hidden="true" /></span>
+                    ) : (<>
                     {(order.order_status === 'delivered' || order.order_status === 'completed') && !order.delivery_dispute_status && <button type="button" onClick={(event) => { event.stopPropagation(); window.location.href = `/buyer/return-request?order=${order.id}` }}>{order.order_status === 'delivered' ? 'Report an Issue' : 'Return/Refund'}</button>}
                     {order.order_status === 'delivered' && !order.delivery_dispute_status && <button type="button" className="is-primary" disabled={confirmingOrderId === order.id} onClick={(event) => { event.stopPropagation(); handleListConfirmReceipt(order) }}>{confirmingOrderId === order.id ? 'Confirming…' : 'Order Received'}</button>}
-                    {order.order_status === 'completed' && order.buyer_rating ? <StarRating value={order.buyer_rating} size={13} /> : null}
-                    {order.order_status === 'completed' && <button type="button" className={order.buyer_rating ? '' : 'is-primary'} onClick={(event) => { event.stopPropagation(); openRateModal(order) }}>{order.buyer_rating ? 'Update rating' : 'Rate'}</button>}
+                    {order.order_status === 'completed' && !order.buyer_rating && <button type="button" className="is-primary" onClick={(event) => { event.stopPropagation(); openRateModal(order) }}>Rate</button>}
                     {canCancelOrder(order) && <button type="button" className="is-danger" onClick={(event) => { event.stopPropagation(); openCancelModal(order) }}>Cancel order</button>}
                     {!['delivered', 'completed'].includes(order.order_status) && <span className="history-view-order">View details <ChevronRight aria-hidden="true" /></span>}
+                    </>)}
                   </div>
                 </article>
               ))}
@@ -472,7 +476,7 @@ export default function DeliveryProgress() {
         )}
 
         {selectedOrder && <>
-          {!trackedOrderId && <button className="delivery-back-button" type="button" onClick={() => { setSelectedOrderId(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }}><ArrowLeft aria-hidden="true" /> Back to My Orders</button>}
+          {!trackedOrderId && <button className="delivery-back-button" type="button" onClick={() => { setSelectedOrderId(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }}><ChevronLeft aria-hidden="true" /> Back</button>}
           <section className="delivery-card delivery-route" aria-labelledby="delivery-route-title">
             <div className="delivery-route-heading">
               <h2 id="delivery-route-title">Delivery Route</h2>
@@ -556,9 +560,9 @@ export default function DeliveryProgress() {
             <section className="delivery-card pickup-ticket" aria-labelledby="pickup-ticket-title">
               <div className="pickup-ticket-row">
                 <div>
-                  <span className="pickup-ticket-label">Pickup code</span>
-                  <h2 id="pickup-ticket-title" className="pickup-ticket-code">{selectedOrder.pickup_code || '—'}</h2>
-                  <p>Show this code to farm staff when you arrive. No need to wait for a courier — collect it whenever the farm is open.</p>
+                  <span className="pickup-ticket-label">Order number</span>
+                  <h2 id="pickup-ticket-title" className="pickup-ticket-code">{selectedOrder.order_number}</h2>
+                  <p>Show this order number to farm staff when you arrive. No need to wait for a courier — collect it whenever the farm is open.</p>
                 </div>
               </div>
               <div className="pickup-ticket-meta">
@@ -576,21 +580,6 @@ export default function DeliveryProgress() {
             </section>
           )}
 
-          {selectedOrder.delivery_method === 'pickup' && selectedOrder.order_status === 'completed' && (
-            <section className="delivery-card pickup-completed-note" aria-labelledby="pickup-completed-title">
-              <div className="pickup-completed-icon"><Check aria-hidden="true" /></div>
-              <div>
-                <h2 id="pickup-completed-title">Picked up at the farm</h2>
-                <p>{selectedOrder.picked_up_at ? `Verified at the counter on ${formatDate(selectedOrder.picked_up_at, true)}.` : 'Verified at the counter.'} There's no confirm-receipt step for pickup orders — you inspected it in person.</p>
-                {!selectedOrder.delivery_dispute_status && (
-                  <button type="button" className="pickup-report-link" onClick={() => { window.location.href = `/buyer/return-request?order=${selectedOrder.id}` }}>
-                    Noticed something wrong? Report an issue
-                  </button>
-                )}
-              </div>
-            </section>
-          )}
-
           <div className="delivery-summary-grid">
             <section className="delivery-card order-details" aria-labelledby="order-details-title">
               <h2 id="order-details-title">Order Details</h2>
@@ -598,9 +587,6 @@ export default function DeliveryProgress() {
                 <article className="order-detail"><IconBadge icon={ReceiptText} /><p><strong>Order Number</strong><span>{selectedOrder.order_number}</span></p></article>
                 <article className="order-detail"><IconBadge icon={CalendarDays} /><p><strong>Order Date</strong><span>{formatDate(selectedOrder.created_at, true)}</span></p></article>
                 <article className="order-detail"><IconBadge icon={Truck} /><p><strong>Est. Delivery</strong><span>{selectedOrder.delivery_method === 'pickup' ? 'On-site pickup' : formatDate(selectedOrder.estimated_delivery_at)}</span></p></article>
-                {selectedOrder.delivery_method === 'pickup' && selectedOrder.pickup_code && (
-                  <article className="order-detail is-pickup-code"><IconBadge icon={Store} /><p><strong>Pickup Code</strong><span>{selectedOrder.pickup_code}</span></p></article>
-                )}
               </div>
 
               {selectedOrder.delivery_proof_image_url && (
@@ -676,14 +662,16 @@ export default function DeliveryProgress() {
             </section>
           )}
 
-          {selectedOrder.order_status === 'completed' && (
+          {selectedOrder.order_status === 'completed' && !isReturnOrRefund(selectedOrder) && (
             <section className="delivery-card delivery-confirmation" aria-labelledby="delivery-rate-title">
               <h2 id="delivery-rate-title">{selectedOrder.buyer_rating ? 'Your rating' : 'How was your order?'}</h2>
-              <p>{selectedOrder.buyer_rating ? 'You can update your rating and comment anytime.' : 'Rate the items you received — it helps other buyers and the farm.'}</p>
+              <p>{selectedOrder.buyer_rating ? 'Thanks for rating your order.' : 'Rate the items you received — it helps other buyers and the farm.'}</p>
               {selectedOrder.buyer_rating && <StarRating value={selectedOrder.buyer_rating} size={20} />}
-              <div className="delivery-confirmation-actions">
-                <button type="button" className="is-primary" onClick={() => openRateModal(selectedOrder)}>{selectedOrder.buyer_rating ? 'Update rating' : 'Rate this order'}</button>
-              </div>
+              {!selectedOrder.buyer_rating && (
+                <div className="delivery-confirmation-actions">
+                  <button type="button" className="is-primary" onClick={() => openRateModal(selectedOrder)}>Rate this order</button>
+                </div>
+              )}
             </section>
           )}
 
@@ -798,6 +786,14 @@ export default function DeliveryProgress() {
                 </div>
               </div>
             </section>
+          )}
+
+          {selectedOrder.order_status === 'completed' && !selectedOrder.delivery_dispute_status && (
+            <p className="order-report-note">
+              <button type="button" className="order-report-link" onClick={() => { window.location.href = `/buyer/return-request?order=${selectedOrder.id}` }}>
+                Noticed something wrong? Report an issue
+              </button>
+            </p>
           )}
 
         </>}

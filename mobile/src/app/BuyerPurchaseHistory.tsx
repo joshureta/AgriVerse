@@ -61,6 +61,8 @@ const ORDER_FILTERS = [
 type OrderFilter = typeof ORDER_FILTERS[number]['id'];
 
 function isReturnOrRefund(order: BuyerOrder) {
+  // A cancelled order (refunded automatically if it was paid) stays under Cancelled.
+  if (order.order_status === 'cancelled') return false;
   return order.payment_status === 'refunded' || Boolean(order.delivery_dispute_status);
 }
 

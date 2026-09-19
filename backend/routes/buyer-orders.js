@@ -463,10 +463,11 @@ router.post("/:id/rating", async (req, res, next) => {
       .eq("id", id)
       .eq("buyer_id", req.user.id)
       .eq("order_status", "completed")
+      .is("buyer_rating", null)
       .select(orderSelect)
       .maybeSingle();
     if (error) throw error;
-    if (!data) throw httpError(409, "Only completed orders can be rated");
+    if (!data) throw httpError(409, "Only completed orders that haven't been rated yet can be rated");
     return res.json({ order: serializeOrder(data) });
   } catch (error) {
     return next(error);

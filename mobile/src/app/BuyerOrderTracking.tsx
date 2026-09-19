@@ -480,17 +480,6 @@ export default function BuyerOrderTrackingScreen() {
             </View>
           </View>
 
-          {isPickup && order.pickup_code ? (
-            <View style={styles.detailRow}>
-              <View style={styles.detailIconBox}>
-                <MapPinIcon color={GREEN} size={16} />
-              </View>
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>PICKUP CODE</Text>
-                <Text style={styles.detailValue}>{order.pickup_code}</Text>
-              </View>
-            </View>
-          ) : null}
         </View>
 
         {/* CARD 3: ORDER ITEMS & FINANCIAL SUMMARY */}
@@ -588,9 +577,9 @@ export default function BuyerOrderTrackingScreen() {
         {order.order_status === 'ready_for_pickup' ? (
           <View style={[styles.card, styles.pendingReviewCard]}>
             <Text style={styles.pendingReviewTitle}>Ready for pickup</Text>
-            <Text style={styles.pickupCodeText}>{order.pickup_code || '—'}</Text>
+            <Text style={styles.pickupCodeText}>{order.order_number}</Text>
             <Text style={styles.confirmationText}>
-              Show this code to farm staff when you arrive. No courier involved — collect it whenever the farm is open.
+              Show this order number to farm staff when you arrive. No courier involved — collect it whenever the farm is open.
             </Text>
             <View style={[styles.detailRow, { marginTop: 12 }]}>
               <View style={styles.detailIconBox}>

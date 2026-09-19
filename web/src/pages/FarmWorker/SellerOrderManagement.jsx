@@ -355,7 +355,7 @@ export default function SellerOrderManagement() {
               <div className="seller-receipt-heading"><span>Order receipt</span><strong>{selected.order_number}</strong><small>{dateTime(selected.created_at)}</small></div>
               <section>
                 <div className="seller-modal-section-title"><div><h3>Customer &amp; Delivery</h3><small>Recipient and fulfillment details</small></div></div>
-                <dl><div><dt>Customer</dt><dd>{selected.delivery_full_name}</dd></div><div><dt>Mobile</dt><dd>{selected.delivery_mobile_number || 'Not provided'}</dd></div><div><dt>Method</dt><dd>{selected.delivery_method}</dd></div>{selected.delivery_method === 'pickup' ? <div><dt>Pickup Code</dt><dd>{selected.pickup_code || 'Not generated yet'}</dd></div> : <div className="seller-modal-address"><dt>Address</dt><dd>{[selected.delivery_barangay, selected.delivery_city_municipality, selected.delivery_province, selected.delivery_region, selected.delivery_country].filter(Boolean).join(', ') || 'Farm pickup'}</dd></div>}</dl>
+                <dl><div><dt>Customer</dt><dd>{selected.delivery_full_name}</dd></div><div><dt>Mobile</dt><dd>{selected.delivery_mobile_number || 'Not provided'}</dd></div><div><dt>Method</dt><dd>{selected.delivery_method}</dd></div>{selected.delivery_method === 'pickup' ? null : <div className="seller-modal-address"><dt>Address</dt><dd>{[selected.delivery_barangay, selected.delivery_city_municipality, selected.delivery_province, selected.delivery_region, selected.delivery_country].filter(Boolean).join(', ') || 'Farm pickup'}</dd></div>}</dl>
               </section>
               <section className="seller-modal-items">
                 <div className="seller-modal-section-title"><div><h3>Ordered Items</h3><small>{selected.items.length} item{selected.items.length === 1 ? '' : 's'} in this order</small></div></div>
@@ -377,7 +377,7 @@ export default function SellerOrderManagement() {
           </div>
           {availableActions(selected).length > 0 && <footer>{[...availableActions(selected)].sort((first, second) => Number(second.danger) - Number(first.danger)).map((action) => <button className={action.danger ? 'is-danger' : 'is-primary'} type="button" disabled={updating} onClick={() => requestOrderAction(selected, action)} key={action.status}>{actionIcon(action.status)} {action.label}</button>)}</footer>}
           {selected.order_status === 'ready_for_delivery' && !DRIVER_READY_STATUSES.has(selected.delivery_assignment_status) && <footer><small className="seller-driver-pending-note">Waiting for a driver to accept this delivery before it can start.</small></footer>}
-          {selected.order_status === 'ready_for_pickup' && <footer><small className="seller-driver-pending-note">Pickup code <strong>{selected.pickup_code}</strong> — confirm it with the buyer before marking this picked up.</small></footer>}
+          {selected.order_status === 'ready_for_pickup' && <footer><small className="seller-driver-pending-note">Order number <strong>{selected.order_number}</strong> — confirm it with the buyer before marking this picked up.</small></footer>}
         </section>
       </div>}
 
