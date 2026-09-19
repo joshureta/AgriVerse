@@ -219,8 +219,10 @@ router.get("/", async (req, res, next) => {
     let statusId = null;
     if (statusCode) statusId = await lookupIdByCode("task_statuses", statusCode);
 
+    // Latest schedule first. The schedule lives on a related table, so sort the
+    // full (small) result set here and page it afterwards.
     let query = supabase.from("tasks").select(taskSelect, { count: "exact" })
-      .order("created_at", { ascending: false }).range(from, from + pageSize - 1);
+      .order("created_at", { ascending: false });
     if (statusId) query = query.eq("status_id", statusId);
     if (search) query = query.or(`task_name.ilike.%${search}%,description.ilike.%${search}%`);
 
@@ -237,8 +239,12 @@ router.get("/", async (req, res, next) => {
       if (result.error) throw result.error;
     }
     const total = taskResult.count || 0;
+    const scheduleTime = (task) => (task.schedule_start ? new Date(task.schedule_start).getTime() : Number.NEGATIVE_INFINITY);
+    const sortedTasks = (taskResult.data || []).map(serializeTask)
+      .sort((a, b) => scheduleTime(b) - scheduleTime(a))
+      .slice(from, from + pageSize);
     return res.json({
-      tasks: (taskResult.data || []).map(serializeTask),
+      tasks: sortedTasks,
       summary: { total: totalResult.count || 0, inProgress: progressResult.count || 0, completed: completedResult.count || 0, availableWorkers: workersResult.count || 0 },
       pagination: { page, pageSize, total, totalPages: Math.max(Math.ceil(total / pageSize), 1) },
     });

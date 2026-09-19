@@ -91,7 +91,7 @@ router.patch("/vehicles/:id", async (req, res, next) => {
 router.get("/assigned-orders", async (req, res, next) => {
   try {
     const { data, error } = await getSupabase().from("buyer_orders")
-      .select("id, order_number, total_amount, payment_method, order_status, assigned_driver_id, assigned_vehicle_id, delivery_assignment_status, delivery_full_name, delivery_mobile_number, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay, delivery_scheduled_at, delivery_window_end_at, assigned_driver:profiles!buyer_orders_assigned_driver_id_fkey(id, full_name), assigned_vehicle:delivery_vehicles(id, vehicle_name, plate_number)")
+      .select("id, order_number, total_amount, payment_method, payment_status, order_status, assigned_driver_id, assigned_vehicle_id, delivery_assignment_status, delivery_full_name, delivery_mobile_number, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay, delivery_scheduled_at, delivery_window_end_at, driver_assigned_at, delivery_accepted_at, delivery_picked_up_at, delivered_at, delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at, assigned_driver:profiles!buyer_orders_assigned_driver_id_fkey(id, full_name), assigned_vehicle:delivery_vehicles(id, vehicle_name, plate_number), items:buyer_order_items!buyer_order_items_order_id_fkey(id, product_name, weight_label, quantity, unit_price, line_total)")
       .not("assigned_driver_id", "is", null).order("delivery_scheduled_at", { ascending: true });
     if (error) throw error;
     return res.json({ orders: data || [] });
@@ -131,7 +131,7 @@ router.get("/disputes", async (req, res, next) => {
     const supabase = getSupabase();
     const { data, error } = await supabase.from("buyer_orders")
       .select(disputeSelect)
-      .eq("delivery_dispute_status", "open").order("delivery_dispute_created_at", { ascending: true });
+      .eq("delivery_dispute_status", "open").order("delivery_dispute_created_at", { ascending: false });
     if (error) throw error;
     const orders = data || [];
 

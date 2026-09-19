@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ClipboardPlus, Send, X } from 'lucide-react'
+import { Calendar, Camera, Check, ChevronDown, ClipboardPlus, Clock, Info, MapPin, Package, Pencil, Phone, Printer, RotateCcw, Send, Truck, User, X, ZoomIn } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
@@ -83,11 +83,6 @@ function localDateParts(value) {
   return { start_date: local.slice(0, 10), start_time: local.slice(11, 16) }
 }
 
-function durationLabel(minutes) {
-  if (minutes % 60 === 0) return `${minutes / 60} Hour${minutes === 60 ? '' : 's'}`
-  return `${minutes} Minutes`
-}
-
 function formatDeliveryWindow(start, end) {
   if (!start || !end) return 'Schedule pending'
   const formatter = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -101,6 +96,40 @@ function deliveryLocation(order) {
 
 function deliveryAddressSummary(order) {
   return [order.delivery_barangay, order.delivery_city_municipality, order.delivery_province].filter(Boolean).join(' · ') || 'Delivery address'
+}
+
+function formatDeliveryDuration(startTime, endTime) {
+  if (!startTime || !endTime) return null
+  const [sh, sm] = String(startTime).split(':').map(Number)
+  const [eh, em] = String(endTime).split(':').map(Number)
+  if (!Number.isFinite(sh) || !Number.isFinite(sm) || !Number.isFinite(eh) || !Number.isFinite(em)) return null
+  const diff = (eh * 60 + em) - (sh * 60 + sm)
+  if (diff <= 0) return 'Invalid range'
+  const hours = Math.floor(diff / 60)
+  const minutes = diff % 60
+  const parts = []
+  if (hours > 0) parts.push(`${hours} hr${hours > 1 ? 's' : ''}`)
+  if (minutes > 0) parts.push(`${minutes} min${minutes > 1 ? 's' : ''}`)
+  return parts.join(' ') || '0 mins'
+}
+
+function formatTime12(timeStr) {
+  if (!timeStr) return ''
+  const [h, m] = String(timeStr).split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return String(timeStr)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const hour12 = h % 12 || 12
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`
+}
+
+function formatTaskDuration(minutes) {
+  const mins = Number(minutes)
+  if (!Number.isFinite(mins) || mins <= 0) return '—'
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h > 0 && m > 0) return `${h}h ${m}m (${mins} mins)`
+  if (h > 0) return `${h} Hour${h > 1 ? 's' : ''}`
+  return `${mins} Minutes`
 }
 
 function minutesInWindow(startTime, endTime) {
@@ -123,6 +152,27 @@ function isCropWorkerSchedule(workerCategory, startTime, endTime) {
   const start = toMinutes(startTime)
   const end = toMinutes(endTime)
   return (start >= 480 && end <= 710) || (start >= 780 && end <= 960)
+}
+
+function parseDisputeReason(reason) {
+  if (!reason) return { resolutionLabel: 'Refund Only', itemBreakdownText: '', userDescription: '' }
+  let resolutionLabel = 'Refund Only'
+  let itemBreakdownText = ''
+  let userDescription = reason
+
+  const resMatch = reason.match(/\[Requested Resolution:\s*([^\]]+)\]/)
+  if (resMatch) {
+    resolutionLabel = resMatch[1].trim()
+    userDescription = userDescription.replace(resMatch[0], '').trim()
+  }
+
+  const itemsMatch = reason.match(/\[Affected Items:\s*([^\]]+)\]/)
+  if (itemsMatch) {
+    itemBreakdownText = itemsMatch[1].trim()
+    userDescription = userDescription.replace(itemsMatch[0], '').trim()
+  }
+
+  return { resolutionLabel, itemBreakdownText, userDescription }
 }
 
 function formatCropTime(minutes) {
@@ -258,6 +308,8 @@ export default function TaskScheduleManagement() {
   const [disputeResolutionNotes, setDisputeResolutionNotes] = useState('')
   const [disputeRefundAmount, setDisputeRefundAmount] = useState('')
   const [disputeRefundReference, setDisputeRefundReference] = useState('')
+  const [disputeDecision, setDisputeDecision] = useState('refunded')
+  const [disputeActivePhoto, setDisputeActivePhoto] = useState(null)
   const [harvestApprovalForm, setHarvestApprovalForm] = useState({ harvest_small_count: '0', harvest_medium_count: '0', harvest_large_count: '0', harvest_damaged_count: '0' })
   const [harvestRejectionReason, setHarvestRejectionReason] = useState('')
   const [harvestApprovalCount, setHarvestApprovalCount] = useState(0)
@@ -354,6 +406,16 @@ export default function TaskScheduleManagement() {
 
   useEffect(() => { loadHarvestApprovalCount() }, [loadHarvestApprovalCount, refreshKey])
 
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === 'Escape' && disputeActivePhoto) {
+        setDisputeActivePhoto(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [disputeActivePhoto])
+
   function openReviewHarvest(task) {
     setError('')
     setHarvestApprovalForm({
@@ -417,6 +479,8 @@ export default function TaskScheduleManagement() {
       setDisputeResolutionNotes('')
       setDisputeRefundAmount('')
       setDisputeRefundReference('')
+      setDisputeDecision('refunded')
+      setDisputeActivePhoto(null)
       setRefreshKey((key) => key + 1)
     } catch (requestError) {
       setError(requestError.message)
@@ -711,7 +775,7 @@ export default function TaskScheduleManagement() {
   const visibleDeliveryOrders = useMemo(() => {
     const query = search.trim().toLowerCase()
     const requestedStatus = filter.startsWith('delivery:') ? filter.slice('delivery:'.length) : ''
-    return deliveryOrders.filter((order) => (!filter || requestedStatus) && (!requestedStatus || order.delivery_assignment_status === requestedStatus) && (!query || `${order.order_number} ${order.assigned_driver?.full_name || ''} ${deliveryLocation(order)}`.toLowerCase().includes(query)))
+    return [...deliveryOrders].sort((a, b) => new Date(b.delivery_scheduled_at || 0) - new Date(a.delivery_scheduled_at || 0)).filter((order) => (!filter || requestedStatus) && (!requestedStatus || order.delivery_assignment_status === requestedStatus) && (!query || `${order.order_number} ${order.assigned_driver?.full_name || ''} ${deliveryLocation(order)}`.toLowerCase().includes(query)))
   }, [deliveryOrders, filter, search])
 
   const PAGE_SIZE = 10
@@ -787,7 +851,7 @@ export default function TaskScheduleManagement() {
                   const responsibleLabel = order.delivery_dispute_responsible_role === 'seller' ? 'Seller' : 'Driver'
                   const suggestedAmount = order.disputed_item ? (Number(order.disputed_item.unit_price) * Number(order.delivery_dispute_affected_quantity || 0)).toFixed(2) : ''
                   return (
-                  <tr key={`dispute-${order.id}`}><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{responsibleLabel} · {responsibleName}</td><td>{formatSchedule(order.delivery_dispute_created_at)}</td><td>{order.delivery_dispute_reason}</td><td><div className="task-actions"><button type="button" onClick={() => { setDisputeResolutionNotes(''); setDisputeRefundAmount(suggestedAmount); setDisputeRefundReference(''); setModal({ mode: 'review-dispute', order }) }}>Review</button></div></td></tr>
+                  <tr key={`dispute-${order.id}`}><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{responsibleLabel} · {responsibleName}</td><td>{formatSchedule(order.delivery_dispute_created_at)}</td><td>{order.delivery_dispute_reason}</td><td><div className="task-actions"><button type="button" onClick={() => { setDisputeResolutionNotes(''); setDisputeRefundAmount(suggestedAmount); setDisputeRefundReference(''); setDisputeDecision('refunded'); setDisputeActivePhoto(null); setModal({ mode: 'review-dispute', order }) }}>Review</button></div></td></tr>
                   )
                 }) : <tr><td className="tasks-empty" colSpan="6">No open disputes.</td></tr>}</tbody>
               </table>
@@ -866,204 +930,1121 @@ export default function TaskScheduleManagement() {
         </div>
       </section>
 
-      {modal?.mode === 'view' && <div className="task-modal-backdrop">
-        <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-task-title">
-          <TaskModalHeader title="View Task Details" onClose={() => setModal(null)} />
-          <div className="task-reference-body task-view-body">
-            <div className="task-view-grid">
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Category</span>
-                <strong className="task-view-tile-value">{modal.task.category}</strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Priority &amp; Status</span>
-                <div className="task-view-pills">
-                  <span className={`task-priority-badge priority-${modal.task.priority}`}>{modal.task.priority_label}</span>
-                  <span className={`task-status-badge status-${modal.task.status}`}>{modal.task.status_label || statusLabels[modal.task.status]}</span>
-                </div>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Assigned Worker</span>
-                <strong className="task-view-tile-value">{modal.task.assigned_worker?.full_name || 'Not assigned'}</strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Field Location</span>
-                <strong className="task-view-tile-value">{modal.task.field}</strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Schedule</span>
-                <strong className="task-view-tile-value">{formatSchedule(modal.task.schedule_start)}</strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Estimated Duration</span>
-                <strong className="task-view-tile-value">{durationLabel(modal.task.estimated_duration_minutes)}</strong>
-              </div>
-            </div>
-            <section className="task-view-description">
-              <span>Description</span>
-              <p>{modal.task.description || 'No description added.'}</p>
-            </section>
-          </div>
-        </section>
-      </div>}
+      {modal?.mode === 'view' && (() => {
+        const task = modal.task
+        const worker = task.assigned_worker
+        const workerInitials = (worker?.full_name || 'Worker')
+          .split(' ')
+          .filter(Boolean)
+          .map((n) => n[0])
+          .slice(0, 2)
+          .join('')
+          .toUpperCase()
 
-      {modal?.mode === 'view-delivery' && <div className="task-modal-backdrop">
-        <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-delivery-title">
-          <TaskModalHeader title="View Delivery Order" tag="Delivery scheduling" onClose={() => setModal(null)} />
-          <div className="task-reference-body task-view-body">
-            <div className="task-view-grid">
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Order Number</span>
-                <strong className="task-view-tile-value">{modal.order.order_number}</strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Delivery Status</span>
-                <div>
-                  <span className={`task-status-badge status-${modal.order.delivery_assignment_status || 'assigned'}`}>{(modal.order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span>
-                </div>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Driver</span>
-                <strong className="task-view-tile-value">{modal.order.assigned_driver?.full_name || 'Unassigned driver'}</strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Customer</span>
-                <strong className="task-view-tile-value">{modal.order.delivery_full_name || 'Not provided'}</strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Vehicle</span>
-                <strong className="task-view-tile-value">{modal.order.assigned_vehicle ? `${modal.order.assigned_vehicle.vehicle_name} · ${modal.order.assigned_vehicle.plate_number}` : 'Not selected yet'}</strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Payment</span>
-                <strong className="task-view-tile-value">{modal.order.payment_method}</strong>
-              </div>
-              <div className="task-view-tile task-view-tile-full">
-                <span className="task-view-tile-label">Delivery Window</span>
-                <strong className="task-view-tile-value">{formatDeliveryWindow(modal.order.delivery_scheduled_at, modal.order.delivery_window_end_at)}</strong>
-              </div>
-            </div>
-            <section className="task-view-description">
-              <span>Delivery Address</span>
-              <p>{[modal.order.delivery_barangay, modal.order.delivery_city_municipality, modal.order.delivery_province, modal.order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'}</p>
-            </section>
-          </div>
-        </section>
-      </div>}
+        const scheduleDateFormatted = task.schedule_start
+          ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(task.schedule_start))
+          : 'Date pending'
 
-      {modal?.mode === 'review-dispute' && <div className="task-modal-backdrop">
-        <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="review-dispute-title">
-          <TaskModalHeader title="Review Delivery Dispute" tag="Dispute resolution" onClose={() => setModal(null)} />
-          <div className="task-reference-body task-view-body">
-            <div className="task-view-grid">
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Order Number</span>
-                <strong className="task-view-tile-value">{modal.order.order_number}</strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">{modal.order.delivery_dispute_responsible_role === 'seller' ? 'Seller' : 'Driver'}</span>
-                <strong className="task-view-tile-value">
-                  {modal.order.delivery_dispute_responsible_role === 'seller'
-                    ? (modal.order.responsible_seller?.full_name || 'Seller (unidentified)')
-                    : (modal.order.assigned_driver?.full_name || 'Unassigned driver')}
-                </strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Customer</span>
-                <strong className="task-view-tile-value">{modal.order.delivery_full_name || 'Not provided'}</strong>
-              </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Reported</span>
-                <strong className="task-view-tile-value">{formatSchedule(modal.order.delivery_dispute_created_at)}</strong>
-              </div>
-              {modal.order.disputed_item && (
-                <div className="task-view-tile task-view-tile-full">
-                  <span className="task-view-tile-label">Affected Item</span>
-                  <strong className="task-view-tile-value">
-                    {modal.order.disputed_item.product_name} — {modal.order.delivery_dispute_affected_quantity} of {modal.order.disputed_item.quantity} flagged
-                    {' '}(₱{(Number(modal.order.disputed_item.unit_price) * Number(modal.order.delivery_dispute_affected_quantity || 0)).toFixed(2)})
-                  </strong>
+        const timeWindowFormatted = task.schedule?.start_time && task.schedule?.end_time
+          ? `${formatTime12(task.schedule.start_time)} – ${formatTime12(task.schedule.end_time)}`
+          : formatSchedule(task.schedule_start)
+
+        const durationFormatted = formatTaskDuration(task.estimated_duration_minutes)
+        const isHarvest = task.category?.toLowerCase().includes('harvest')
+        const hasHarvestYield = task.harvest_small_count != null || task.harvest_medium_count != null || task.harvest_large_count != null || task.harvest_damaged_count != null
+
+        const isCompleted = task.status === 'completed'
+        const isInProgress = task.status === 'in_progress'
+        const isAwaitingApproval = task.status === 'awaiting_approval'
+        const isScheduled = task.status === 'pending' || task.status === 'scheduled'
+
+        return (
+          <div className="task-modal-backdrop">
+            <section
+              className="task-reference-modal crop-task-details-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="view-crop-task-title"
+            >
+              <TaskModalHeader
+                title={
+                  <span className="delivery-header-title">
+                    <span id="view-crop-task-title">Crop Task Details</span>
+                    <span className="delivery-order-badge">#TASK-{String(task.id).padStart(4, '0')}</span>
+                  </span>
+                }
+                tag="Crop Management & Operations"
+                onClose={() => setModal(null)}
+              />
+
+              <div className="crop-task-details-body">
+                {/* Stepper & Status Bar */}
+                <div className="crop-task-stepper-card">
+                  <div className="crop-task-stepper-track">
+                    <div className={`crop-step-item ${isScheduled || isInProgress || isAwaitingApproval || isCompleted ? 'is-done' : ''}`}>
+                      <div className="crop-step-circle">
+                        <Check size={12} aria-hidden="true" />
+                      </div>
+                      <span className="crop-step-label">Scheduled</span>
+                    </div>
+                    <div className={`crop-step-line ${isInProgress || isAwaitingApproval || isCompleted ? 'is-done' : ''}`} />
+                    <div className={`crop-step-item ${isInProgress ? 'is-active' : isAwaitingApproval || isCompleted ? 'is-done' : ''}`}>
+                      <div className="crop-step-circle">
+                        {isAwaitingApproval || isCompleted ? <Check size={12} aria-hidden="true" /> : '2'}
+                      </div>
+                      <span className="crop-step-label">In Progress</span>
+                    </div>
+                    <div className={`crop-step-line ${isAwaitingApproval || isCompleted ? 'is-done' : ''}`} />
+                    <div className={`crop-step-item ${isAwaitingApproval ? 'is-awaiting' : isCompleted ? 'is-done' : ''}`}>
+                      <div className="crop-step-circle">
+                        {isCompleted ? <Check size={12} aria-hidden="true" /> : isAwaitingApproval ? '!' : '3'}
+                      </div>
+                      <span className="crop-step-label">{isAwaitingApproval ? 'Approval Needed' : 'Completed'}</span>
+                    </div>
+                  </div>
+
+                  <div className="crop-task-status-pills">
+                    <span className={`task-priority-pill priority-${task.priority || 'medium'}`}>
+                      {task.priority_label || 'Normal Priority'}
+                    </span>
+                    <span className={`task-status-pill status-${task.status || 'pending'}`}>
+                      {task.status_label || statusLabels[task.status] || task.status}
+                    </span>
+                  </div>
                 </div>
-              )}
+
+                {/* 2-Column Information Grid */}
+                <div className="crop-task-grid">
+                  {/* Left Column: Field & Worker */}
+                  <div className="crop-task-panel-left">
+                    {/* Field Location Card */}
+                    <div className="crop-task-card">
+                      <div className="crop-card-header">
+                        <MapPin size={15} className="crop-card-icon" aria-hidden="true" />
+                        <h4>Field &amp; Farm Plot</h4>
+                      </div>
+                      <div className="crop-location-box">
+                        <div className="crop-location-pin">
+                          <MapPin size={17} aria-hidden="true" />
+                        </div>
+                        <div className="crop-location-meta">
+                          <strong className="crop-field-name">{task.field || 'General Farm Plot'}</strong>
+                          <span className="crop-field-desc">
+                            {task.schedule?.location || 'Pineapple Plantation · Designated Block'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Assigned Worker Card */}
+                    <div className="crop-task-card">
+                      <div className="crop-card-header">
+                        <User size={15} className="crop-card-icon" aria-hidden="true" />
+                        <h4>Assigned Farm Worker</h4>
+                      </div>
+                      <div className="crop-worker-profile">
+                        <div className="crop-worker-avatar" aria-hidden="true">
+                          {workerInitials}
+                        </div>
+                        <div className="crop-worker-meta">
+                          <strong className="crop-worker-name">{worker?.full_name || 'Unassigned Worker'}</strong>
+                          <span className="crop-worker-role">
+                            {workerCategoryLabels[worker?.worker_category] || 'Crop Management Specialist'}
+                          </span>
+                        </div>
+                        <span className="crop-worker-badge">Assigned</span>
+                      </div>
+                    </div>
+
+                    {/* Category & Task Activity */}
+                    <div className="crop-task-card">
+                      <div className="crop-card-header">
+                        <Package size={15} className="crop-card-icon" aria-hidden="true" />
+                        <h4>Task Activity &amp; Category</h4>
+                      </div>
+                      <div className="crop-category-badge-box">
+                        <span className="crop-category-chip">
+                          {task.category || 'Farm Operations'}
+                        </span>
+                        {task.schedule?.notes && (
+                          <span className="crop-category-subnote">{task.schedule.notes}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Schedule & Output */}
+                  <div className="crop-task-panel-right">
+                    {/* Schedule & Timing Card */}
+                    <div className="crop-task-card">
+                      <div className="crop-card-header">
+                        <Clock size={15} className="crop-card-icon" aria-hidden="true" />
+                        <h4>Schedule &amp; Timing</h4>
+                      </div>
+                      <div className="crop-schedule-box">
+                        <div className="crop-schedule-line">
+                          <Calendar size={14} className="crop-sched-icon" aria-hidden="true" />
+                          <span className="crop-sched-date">{scheduleDateFormatted}</span>
+                        </div>
+                        <div className="crop-schedule-line">
+                          <Clock size={14} className="crop-sched-icon" aria-hidden="true" />
+                          <span className="crop-sched-time">{timeWindowFormatted}</span>
+                        </div>
+                        <div className="crop-duration-strip">
+                          <span>Estimated Duration:</span>
+                          <span className="crop-duration-pill">{durationFormatted}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Harvest Yield Breakdown (when applicable) */}
+                    {(isHarvest || hasHarvestYield) && (
+                      <div className="crop-task-card">
+                        <div className="crop-card-header">
+                          <Package size={15} className="crop-card-icon" aria-hidden="true" />
+                          <h4>Harvest Yield Output</h4>
+                        </div>
+                        <div className="crop-harvest-grid">
+                          <div className="crop-harvest-tile">
+                            <span className="crop-yield-label">Small</span>
+                            <strong className="crop-yield-val">{task.harvest_small_count ?? 0} pcs</strong>
+                          </div>
+                          <div className="crop-harvest-tile">
+                            <span className="crop-yield-label">Medium</span>
+                            <strong className="crop-yield-val">{task.harvest_medium_count ?? 0} pcs</strong>
+                          </div>
+                          <div className="crop-harvest-tile">
+                            <span className="crop-yield-label">Large</span>
+                            <strong className="crop-yield-val">{task.harvest_large_count ?? 0} pcs</strong>
+                          </div>
+                          <div className="crop-harvest-tile is-damaged">
+                            <span className="crop-yield-label">Damaged</span>
+                            <strong className="crop-yield-val">{task.harvest_damaged_count ?? 0} pcs</strong>
+                          </div>
+                        </div>
+
+                        {task.harvest_proof_image_url && (
+                          <div className="crop-proof-preview">
+                            <span className="crop-proof-label">Submitted Harvest Proof</span>
+                            <div
+                              className="crop-proof-img-wrap"
+                              onClick={() => setDisputeActivePhoto({
+                                url: task.harvest_proof_image_url,
+                                title: 'Harvest Proof Photo',
+                                subtitle: `Submitted by ${worker?.full_name || 'Worker'} for Field ${task.field || ''}`,
+                              })}
+                              role="button"
+                              tabIndex={0}
+                              title="Click to zoom full image"
+                            >
+                              <img src={task.harvest_proof_image_url} alt="Harvest Proof" />
+                              <div className="crop-zoom-hint">
+                                <ZoomIn size={14} aria-hidden="true" />
+                                <span>Zoom</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Description & Instructions */}
+                    <div className="crop-task-card">
+                      <div className="crop-card-header">
+                        <ClipboardPlus size={15} className="crop-card-icon" aria-hidden="true" />
+                        <h4>Instructions &amp; Description</h4>
+                      </div>
+                      <div className="crop-description-box">
+                        <p>{task.description || 'No additional instructions provided for this task.'}</p>
+                      </div>
+                    </div>
+
+                    {/* Worker Completion Notes (if recorded) */}
+                    {task.completion_notes && (
+                      <div className="crop-task-card">
+                        <div className="crop-card-header">
+                          <Info size={15} className="crop-card-icon" aria-hidden="true" />
+                          <h4>Worker Completion Notes</h4>
+                        </div>
+                        <div className="crop-completion-notes-box">
+                          <p>{task.completion_notes}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="crop-task-footer">
+                  <div className="crop-footer-left">
+                    {task.status === 'awaiting_approval' && (
+                      <button
+                        type="button"
+                        className="crop-footer-btn is-review"
+                        onClick={() => {
+                          const taskToReview = modal.task
+                          setModal(null)
+                          openReviewHarvest(taskToReview)
+                        }}
+                      >
+                        <Check size={14} aria-hidden="true" />
+                        <span>Review Harvest</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="crop-footer-btn is-edit"
+                      onClick={() => {
+                        const taskToEdit = modal.task
+                        setModal(null)
+                        openEditTask(taskToEdit)
+                      }}
+                    >
+                      <Pencil size={14} aria-hidden="true" />
+                      <span>Edit Task</span>
+                    </button>
+                  </div>
+                  <div className="crop-footer-right">
+                    <button
+                      type="button"
+                      className="crop-footer-btn is-print"
+                      onClick={() => window.print()}
+                    >
+                      <Printer size={14} aria-hidden="true" />
+                      <span>Print Slip</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="crop-footer-btn is-close"
+                      onClick={() => setModal(null)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        )
+      })()}
+
+      {modal?.mode === 'view-delivery' && (() => {
+        const isDelivered = modal.order.delivery_assignment_status === 'delivered' || modal.order.order_status === 'delivered' || modal.order.order_status === 'completed'
+        const isPickedUp = isDelivered || modal.order.delivery_assignment_status === 'picked_up' || modal.order.delivery_assignment_status === 'out_for_delivery'
+        const isAccepted = isPickedUp || modal.order.delivery_assignment_status === 'accepted'
+        const isGcash = modal.order.payment_method === 'gcash'
+        const items = Array.isArray(modal.order.items) ? modal.order.items : []
+        const totalItemsCount = items.reduce((sum, it) => sum + (Number(it.quantity) || 1), 0)
+
+        return (
+          <div className="task-modal-backdrop">
+            <section
+              className="task-reference-modal delivery-details-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="view-delivery-title"
+            >
+              <TaskModalHeader
+                title={
+                  <span className="dispute-header-title">
+                    <span id="view-delivery-title">Delivery Order Details</span>
+                    <span className="dispute-order-pill">#{modal.order.order_number}</span>
+                  </span>
+                }
+                tag="Delivery dispatch &amp; scheduling"
+                onClose={() => setModal(null)}
+              />
+
+              {/* Milestone Progress Stepper */}
+              <div className="delivery-stepper-bar">
+                <div className="delivery-stepper-inner">
+                  {/* Step 1: Assigned */}
+                  <div className="delivery-step is-complete">
+                    <div className="delivery-step-dot">✓</div>
+                    <div className="delivery-step-text">
+                      <strong>Assigned</strong>
+                      <span>{modal.order.driver_assigned_at ? formatSchedule(modal.order.driver_assigned_at) : (modal.order.delivery_scheduled_at ? formatSchedule(modal.order.delivery_scheduled_at) : 'Dispatched')}</span>
+                    </div>
+                  </div>
+                  <div className={`delivery-step-connector ${isAccepted ? 'is-complete' : ''}`} />
+
+                  {/* Step 2: Accepted */}
+                  <div className={`delivery-step ${isAccepted ? 'is-complete' : ''}`}>
+                    <div className="delivery-step-dot">{isAccepted ? '✓' : '2'}</div>
+                    <div className="delivery-step-text">
+                      <strong>Accepted</strong>
+                      <span>{modal.order.delivery_accepted_at ? formatSchedule(modal.order.delivery_accepted_at) : (isAccepted ? 'Accepted' : 'Pending')}</span>
+                    </div>
+                  </div>
+                  <div className={`delivery-step-connector ${isPickedUp ? 'is-complete' : ''}`} />
+
+                  {/* Step 3: Picked Up */}
+                  <div className={`delivery-step ${isPickedUp ? 'is-complete' : ''}`}>
+                    <div className="delivery-step-dot">{isPickedUp ? '✓' : '3'}</div>
+                    <div className="delivery-step-text">
+                      <strong>Picked Up</strong>
+                      <span>{modal.order.delivery_picked_up_at ? formatSchedule(modal.order.delivery_picked_up_at) : (isPickedUp ? 'In Transit' : 'Pending')}</span>
+                    </div>
+                  </div>
+                  <div className={`delivery-step-connector ${isDelivered ? 'is-complete' : ''}`} />
+
+                  {/* Step 4: Delivered */}
+                  <div className={`delivery-step ${isDelivered ? 'is-complete' : ''}`}>
+                    <div className="delivery-step-dot">{isDelivered ? '✓' : '4'}</div>
+                    <div className="delivery-step-text">
+                      <strong>Delivered</strong>
+                      <span>{modal.order.delivered_at ? formatSchedule(modal.order.delivered_at) : modal.order.delivery_proof_submitted_at ? formatSchedule(modal.order.delivery_proof_submitted_at) : (isDelivered ? 'Delivered' : 'Pending')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2-Column Responsive Body */}
+              <div className="delivery-modal-grid custom-scrollbar">
+                
+                {/* LEFT COLUMN: Route, Schedule, Driver & Proof */}
+                <div className="delivery-panel-left">
+                  
+                  {/* Delivery Window Card */}
+                  <div className="delivery-card">
+                    <div className="delivery-card-header">
+                      <span className="delivery-card-title">
+                        <Clock size={14} className="delivery-title-icon" aria-hidden="true" />
+                        Scheduled Delivery Window
+                      </span>
+                      {isDelivered ? (
+                        <span className="delivery-status-pill is-delivered">
+                          <span className="delivery-status-dot" />
+                          Delivered On Time
+                        </span>
+                      ) : modal.order.delivery_assignment_status === 'out_for_delivery' || modal.order.delivery_assignment_status === 'picked_up' ? (
+                        <span className="delivery-status-pill is-transit">
+                          <span className="delivery-status-dot is-pulse" />
+                          Out for Delivery
+                        </span>
+                      ) : modal.order.delivery_assignment_status === 'accepted' ? (
+                        <span className="delivery-status-pill is-accepted">
+                          <span className="delivery-status-dot" />
+                          Driver Accepted
+                        </span>
+                      ) : (
+                        <span className="delivery-status-pill is-assigned">
+                          <span className="delivery-status-dot" />
+                          Scheduled
+                        </span>
+                      )}
+                    </div>
+                    <div className="delivery-window-display">
+                      <strong>{formatDeliveryWindow(modal.order.delivery_scheduled_at, modal.order.delivery_window_end_at)}</strong>
+                      <span>Driver dispatched on designated farm delivery route</span>
+                    </div>
+                  </div>
+
+                  {/* Customer & Driver 2-Grid */}
+                  <div className="delivery-two-cards">
+                    {/* Customer */}
+                    <div className="delivery-card">
+                      <span className="delivery-card-subtitle">Customer Information</span>
+                      <div className="delivery-actor-row">
+                        <div className="delivery-actor-avatar is-buyer">
+                          {(modal.order.delivery_full_name || 'U').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="delivery-actor-meta">
+                          <strong title={modal.order.delivery_full_name}>{modal.order.delivery_full_name || 'Customer'}</strong>
+                          <span>Buyer Account</span>
+                        </div>
+                      </div>
+                      <div className="delivery-actor-footer">
+                        <span>Contact:</span>
+                        <strong>{modal.order.delivery_mobile_number || 'Not provided'}</strong>
+                      </div>
+                    </div>
+
+                    {/* Driver & Vehicle */}
+                    <div className="delivery-card">
+                      <span className="delivery-card-subtitle">Assigned Driver &amp; Vehicle</span>
+                      <div className="delivery-actor-row">
+                        <div className="delivery-actor-avatar is-driver">
+                          <Truck size={18} aria-hidden="true" />
+                        </div>
+                        <div className="delivery-actor-meta">
+                          <strong title={modal.order.assigned_driver?.full_name}>{modal.order.assigned_driver?.full_name || 'Unassigned driver'}</strong>
+                          <span>Farm Logistics Driver</span>
+                        </div>
+                      </div>
+                      <div className="delivery-actor-footer">
+                        <span>Vehicle:</span>
+                        <strong className="delivery-vehicle-tag">
+                          {modal.order.assigned_vehicle
+                            ? `${modal.order.assigned_vehicle.vehicle_name} · ${modal.order.assigned_vehicle.plate_number}`
+                            : 'No vehicle assigned'}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Destination Address Card */}
+                  <div className="delivery-card">
+                    <span className="delivery-card-title">
+                      <MapPin size={14} className="delivery-title-icon" aria-hidden="true" />
+                      Delivery Destination
+                    </span>
+                    <p className="delivery-address-text">
+                      {[modal.order.delivery_barangay, modal.order.delivery_city_municipality, modal.order.delivery_province, modal.order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'}
+                    </p>
+                  </div>
+
+                  {/* Proof of Delivery Card (when Delivered or has Photo) */}
+                  {(modal.order.delivery_proof_image_url || isDelivered) && (
+                    <div className="delivery-card delivery-proof-box">
+                      <div className="delivery-card-header">
+                        <span className="delivery-card-title">
+                          <Camera size={14} className="delivery-title-icon" aria-hidden="true" />
+                          Driver's Proof of Delivery
+                        </span>
+                        {modal.order.delivery_proof_submitted_at && (
+                          <span className="delivery-card-meta">
+                            Submitted {formatSchedule(modal.order.delivery_proof_submitted_at)}
+                          </span>
+                        )}
+                      </div>
+
+                      {modal.order.delivery_proof_image_url ? (
+                        <div className="delivery-proof-layout">
+                          <div
+                            className="delivery-proof-thumbnail-wrap"
+                            onClick={() =>
+                              setDisputeActivePhoto({
+                                url: modal.order.delivery_proof_image_url,
+                                title: "Proof of Delivery — Doorstep Drop-off",
+                                subtitle: `Order #${modal.order.order_number} · Driver: ${modal.order.assigned_driver?.full_name || 'Assigned Driver'}${modal.order.delivery_proof_submitted_at ? ` · ${formatSchedule(modal.order.delivery_proof_submitted_at)}` : ''}`,
+                              })
+                            }
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => e.key === 'Enter' && setDisputeActivePhoto({ url: modal.order.delivery_proof_image_url, title: "Proof of Delivery" })}
+                            title="Click to view full size"
+                          >
+                            <img src={modal.order.delivery_proof_image_url} alt="Proof of delivery" className="delivery-proof-thumbnail" />
+                            <div className="delivery-proof-thumbnail-overlay">
+                              <ZoomIn size={15} /> <span>Enlarge</span>
+                            </div>
+                          </div>
+
+                          <div className="delivery-proof-details">
+                            <span className="delivery-proof-note-label">Driver Drop-off Note:</span>
+                            <p className="delivery-proof-note-text">
+                              {modal.order.delivery_proof_notes ? `"${modal.order.delivery_proof_notes}"` : 'No additional note added by driver.'}
+                            </p>
+                            <div className="delivery-proof-badges">
+                              <span className="delivery-proof-badge-verified">✓ Doorstep Drop-off Verified</span>
+                              <span>·</span>
+                              <span>Logged to tracking history</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="delivery-proof-empty-notice">
+                          <span>Delivery marked completed. Drop-off photo was not attached by driver.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                </div>
+
+                {/* RIGHT COLUMN: Order Items & Financials */}
+                <div className="delivery-panel-right">
+                  <div className="delivery-right-inner">
+                    
+                    {/* Financial Summary Box */}
+                    <div className="delivery-financial-card">
+                      <div className="delivery-financial-top">
+                        <span className="delivery-financial-kicker">Total Order Amount</span>
+                        <span className="delivery-payment-method-badge">
+                          <span className="delivery-payment-dot" />
+                          {isGcash ? 'GCash Paid' : (modal.order.payment_method || 'Cash').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="delivery-financial-amount">
+                        ₱{Number(modal.order.total_amount || 0).toFixed(2)}
+                      </div>
+                      <div className="delivery-financial-meta">
+                        <span>Payment Status:</span>
+                        <strong>{modal.order.payment_status ? modal.order.payment_status.toUpperCase() : (isGcash ? 'PAID' : 'COD / SETTLED')}</strong>
+                      </div>
+                    </div>
+
+                    {/* Order Items Manifest List */}
+                    <div className="delivery-manifest-section">
+                      <div className="delivery-manifest-header">
+                        <span className="delivery-manifest-title">Order Items Manifest</span>
+                        <span className="delivery-manifest-count">
+                          {items.length > 0 ? `${items.length} product${items.length === 1 ? '' : 's'} · ${totalItemsCount} units` : 'Produce Manifest'}
+                        </span>
+                      </div>
+
+                      {items.length > 0 ? (
+                        <div className="delivery-manifest-list">
+                          {items.map((item, idx) => (
+                            <div key={item.id || idx} className="delivery-manifest-row">
+                              <div className="delivery-manifest-item-main">
+                                <span className="delivery-manifest-emoji" aria-hidden="true">🍍</span>
+                                <div className="delivery-manifest-item-meta">
+                                  <strong>{item.product_name}</strong>
+                                  <span>
+                                    Qty: {item.quantity} {item.weight_label ? `(${item.weight_label})` : 'pcs'}
+                                    {item.unit_price && ` · ₱${Number(item.unit_price).toFixed(2)} each`}
+                                  </span>
+                                </div>
+                              </div>
+                              <strong className="delivery-manifest-item-total">
+                                ₱{Number(item.line_total || (Number(item.unit_price || 0) * Number(item.quantity || 1))).toFixed(2)}
+                              </strong>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="delivery-manifest-fallback">
+                          <div className="delivery-manifest-row">
+                            <div className="delivery-manifest-item-main">
+                              <span className="delivery-manifest-emoji" aria-hidden="true">📦</span>
+                              <div className="delivery-manifest-item-meta">
+                                <strong>Fresh Produce Order</strong>
+                                <span>Prepared farm produce package</span>
+                              </div>
+                            </div>
+                            <strong className="delivery-manifest-item-total">
+                              ₱{Number(modal.order.total_amount || 0).toFixed(2)}
+                            </strong>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="delivery-breakdown-card">
+                        <div className="delivery-breakdown-row">
+                          <span>Produce Subtotal</span>
+                          <strong>₱{Number(modal.order.total_amount || 0).toFixed(2)}</strong>
+                        </div>
+                        <div className="delivery-breakdown-row">
+                          <span>Delivery Fee</span>
+                          <span className="is-free">FREE (Farm Dispatch)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Bottom Action Buttons */}
+                  <div className="delivery-modal-footer">
+                    {modal.order.order_status === 'ready_for_delivery' && modal.order.delivery_assignment_status === 'assigned' && (
+                      <button
+                        type="button"
+                        className="delivery-footer-btn is-edit"
+                        onClick={() => {
+                          const orderToEdit = modal.order
+                          setModal(null)
+                          openEditDelivery(orderToEdit)
+                        }}
+                      >
+                        <Pencil size={14} aria-hidden="true" />
+                        <span>Edit Schedule</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="delivery-footer-btn is-print"
+                      onClick={() => window.print()}
+                    >
+                      <Printer size={14} aria-hidden="true" />
+                      <span>Print Slip</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="delivery-footer-btn is-close"
+                      onClick={() => setModal(null)}
+                    >
+                      Close
+                    </button>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </section>
+          </div>
+        )
+      })()}
+
+      {modal?.mode === 'review-dispute' && (() => {
+        const parsedReport = parseDisputeReason(modal.order.delivery_dispute_reason)
+        const suggestedVal = modal.order.disputed_item
+          ? (Number(modal.order.disputed_item.unit_price) * Number(modal.order.delivery_dispute_affected_quantity || 0)).toFixed(2)
+          : null
+        const buyerPhotos = Array.isArray(modal.order.delivery_dispute_photo_urls) ? modal.order.delivery_dispute_photo_urls : []
+        const isGcash = modal.order.payment_method === 'gcash'
+
+        return (
+          <div className="task-modal-backdrop">
+            <section
+              className="task-reference-modal dispute-review-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="review-dispute-title"
+            >
+              <TaskModalHeader
+                title={
+                  <span className="dispute-header-title">
+                    <span id="review-dispute-title">Review Delivery Dispute</span>
+                    <span className="dispute-order-pill">#{modal.order.order_number}</span>
+                  </span>
+                }
+                tag="Dispute resolution"
+                onClose={() => setModal(null)}
+              />
+
+              <div className="dispute-modal-body custom-scrollbar">
+                {/* LEFT COLUMN: Case Context & Evidence */}
+                <div className="dispute-panel-left">
+                  {/* Order & Customer Overview */}
+                  <div>
+                    <span className="dispute-section-kicker">Order &amp; Customer Overview</span>
+                    <div className="dispute-overview-grid">
+                      <div className="dispute-overview-tile">
+                        <span>Customer</span>
+                        <strong title={modal.order.delivery_full_name || 'Not provided'}>
+                          {modal.order.delivery_full_name || 'Not provided'}
+                        </strong>
+                      </div>
+                      <div className="dispute-overview-tile">
+                        <span>{modal.order.delivery_dispute_responsible_role === 'seller' ? 'Seller' : 'Driver'}</span>
+                        <strong
+                          title={
+                            modal.order.delivery_dispute_responsible_role === 'seller'
+                              ? modal.order.responsible_seller?.full_name || 'Seller (unidentified)'
+                              : modal.order.assigned_driver?.full_name || 'Unassigned driver'
+                          }
+                        >
+                          {modal.order.delivery_dispute_responsible_role === 'seller'
+                            ? modal.order.responsible_seller?.full_name || 'Seller (unidentified)'
+                            : modal.order.assigned_driver?.full_name || 'Unassigned driver'}
+                        </strong>
+                      </div>
+                      <div className="dispute-overview-tile">
+                        <span>Payment</span>
+                        <span className="dispute-payment-pill">
+                          <span className="dispute-payment-dot" />
+                          {isGcash ? 'GCash' : (modal.order.payment_method || 'Cash').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="dispute-overview-tile">
+                        <span>Reported</span>
+                        <strong title={formatSchedule(modal.order.delivery_dispute_created_at)}>
+                          {formatSchedule(modal.order.delivery_dispute_created_at)}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Structured Buyer's Claim Card */}
+                  <div className="dispute-claim-card">
+                    <div className="dispute-claim-top">
+                      <div className="dispute-claim-title-wrap">
+                        <span>Customer's Claim</span>
+                        <h4>
+                          {modal.order.delivery_dispute_category
+                            ? modal.order.delivery_dispute_category.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+                            : 'Delivery Issue Report'}
+                        </h4>
+                      </div>
+                      <span className="dispute-resolution-badge">
+                        <RotateCcw size={13} aria-hidden="true" />
+                        Requested: {parsedReport.resolutionLabel}
+                      </span>
+                    </div>
+
+                    {modal.order.disputed_item ? (
+                      <div className="dispute-item-row">
+                        <div className="dispute-item-info">
+                          <div className="dispute-item-icon" aria-hidden="true">🍍</div>
+                          <div>
+                            <strong className="dispute-item-name">{modal.order.disputed_item.product_name}</strong>
+                            <span className="dispute-item-qty">
+                              {modal.order.delivery_dispute_affected_quantity || 1} of {modal.order.disputed_item.quantity} flagged
+                              {modal.order.disputed_item.unit_price && ` · ₱${Number(modal.order.disputed_item.unit_price).toFixed(2)}/unit`}
+                            </span>
+                          </div>
+                        </div>
+                        {suggestedVal && (
+                          <div className="dispute-item-val">
+                            <span>Item Value</span>
+                            <strong>₱{suggestedVal}</strong>
+                          </div>
+                        )}
+                      </div>
+                    ) : parsedReport.itemBreakdownText ? (
+                      <div className="dispute-item-row">
+                        <div className="dispute-item-info">
+                          <div className="dispute-item-icon" aria-hidden="true">📦</div>
+                          <div>
+                            <strong className="dispute-item-name">Flagged Items</strong>
+                            <span className="dispute-item-qty">{parsedReport.itemBreakdownText}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="dispute-buyer-comment-wrap">
+                      <span>Buyer's Description</span>
+                      <p className="dispute-buyer-comment">
+                        {parsedReport.userDescription ? `"${parsedReport.userDescription}"` : 'No additional text remarks provided by customer.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Side-by-Side Photographic Evidence Comparison */}
+                  <div className="dispute-evidence-section">
+                    <div className="dispute-evidence-header">
+                      <span>Photographic Evidence Comparison</span>
+                      <small>Click image to enlarge</small>
+                    </div>
+
+                    <div className="dispute-evidence-compare-grid">
+                      {/* Left: Buyer Evidence */}
+                      <div className="dispute-evidence-box">
+                        <div className="dispute-evidence-box-header">
+                          <span className="dispute-evidence-tag">
+                            <span className="dispute-dot-buyer" />
+                            Buyer Evidence
+                          </span>
+                          <span className="dispute-evidence-meta">
+                            {buyerPhotos.length} photo{buyerPhotos.length === 1 ? '' : 's'}
+                          </span>
+                        </div>
+
+                        {buyerPhotos.length > 0 ? (
+                          <div className="dispute-evidence-thumbs-list">
+                            {buyerPhotos.map((url, index) => (
+                              <div
+                                key={url || index}
+                                className="dispute-evidence-thumb-wrap"
+                                onClick={() =>
+                                  setDisputeActivePhoto({
+                                    url,
+                                    title: `Buyer Evidence (Photo ${index + 1} of ${buyerPhotos.length})`,
+                                    subtitle: `Order #${modal.order.order_number} · Submitted ${formatSchedule(modal.order.delivery_dispute_created_at)}`,
+                                  })
+                                }
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => e.key === 'Enter' && setDisputeActivePhoto({ url, title: `Buyer Evidence (Photo ${index + 1})` })}
+                                title="Click to view full size"
+                              >
+                                <img src={url} alt={`Buyer evidence ${index + 1}`} className="dispute-evidence-thumb" />
+                                <div className="dispute-evidence-thumb-hover">
+                                  <ZoomIn size={15} /> <span>Zoom</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="dispute-evidence-empty">
+                            <span>No buyer photos submitted</span>
+                          </div>
+                        )}
+
+                        <span className="dispute-evidence-subtext">
+                          Submitted {formatSchedule(modal.order.delivery_dispute_created_at)}
+                        </span>
+                      </div>
+
+                      {/* Right: Driver Delivery Proof */}
+                      <div className="dispute-evidence-box">
+                        <div className="dispute-evidence-box-header">
+                          <span className="dispute-evidence-tag">
+                            <span className="dispute-dot-driver" />
+                            Driver Proof
+                          </span>
+                          <span className="dispute-evidence-meta">Doorstep</span>
+                        </div>
+
+                        {modal.order.delivery_proof_image_url ? (
+                          <div
+                            className="dispute-evidence-thumb-wrap"
+                            onClick={() =>
+                              setDisputeActivePhoto({
+                                url: modal.order.delivery_proof_image_url,
+                                title: "Driver's Delivery Proof",
+                                subtitle: `Order #${modal.order.order_number} · ${modal.order.assigned_driver?.full_name ? `Driver: ${modal.order.assigned_driver.full_name}` : 'Drop-off Photo'}`,
+                              })
+                            }
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => e.key === 'Enter' && setDisputeActivePhoto({ url: modal.order.delivery_proof_image_url, title: "Driver's Delivery Proof" })}
+                            title="Click to view full size"
+                          >
+                            <img src={modal.order.delivery_proof_image_url} alt="Driver proof of delivery" className="dispute-evidence-thumb" />
+                            <div className="dispute-evidence-thumb-hover">
+                              <ZoomIn size={15} /> <span>Zoom</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="dispute-evidence-empty">
+                            <span>No driver proof photo recorded</span>
+                          </div>
+                        )}
+
+                        <span className="dispute-evidence-subtext" title={modal.order.delivery_proof_notes || 'Captured upon delivery'}>
+                          {modal.order.delivery_proof_notes ? `Note: "${modal.order.delivery_proof_notes}"` : 'Captured upon delivery'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Responsible party response (if provided) */}
+                  {modal.order.delivery_dispute_response && (
+                    <div className="dispute-response-card">
+                      <div className="dispute-response-header">
+                        <span className="dispute-response-role-badge">
+                          {modal.order.delivery_dispute_responsible_role === 'seller' ? "Seller's Explanation" : "Driver's Explanation"}
+                        </span>
+                        {modal.order.delivery_dispute_response_at && (
+                          <span className="dispute-response-time">{formatSchedule(modal.order.delivery_dispute_response_at)}</span>
+                        )}
+                      </div>
+                      <p className="dispute-response-text">{modal.order.delivery_dispute_response}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* RIGHT COLUMN: Adjudication Decision Panel */}
+                <div className="dispute-panel-right">
+                  <div className="dispute-decision-inner">
+                    <div className="dispute-adjudication-header">
+                      <span className="dispute-section-kicker">Resolution Decision</span>
+                      <h3 className="dispute-section-title">Select Action to Resolve Dispute</h3>
+                    </div>
+
+                    {/* Decision Switcher Tabs */}
+                    <div className="dispute-decision-switcher" role="radiogroup" aria-label="Resolution decision">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={disputeDecision === 'refunded'}
+                        className={`dispute-decision-tab ${disputeDecision === 'refunded' ? 'is-active is-refund' : ''}`}
+                        onClick={() => {
+                          setDisputeDecision('refunded')
+                          if (!disputeResolutionNotes || disputeResolutionNotes.includes('Claim dismissed')) {
+                            setDisputeResolutionNotes('Produce damaged in transit. Approved partial refund of item cost.')
+                          }
+                        }}
+                      >
+                        <Check size={16} aria-hidden="true" />
+                        <span>Approve Refund</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={disputeDecision === 'dismissed'}
+                        className={`dispute-decision-tab ${disputeDecision === 'dismissed' ? 'is-active is-dismiss' : ''}`}
+                        onClick={() => {
+                          setDisputeDecision('dismissed')
+                          if (!disputeResolutionNotes || disputeResolutionNotes.includes('Approved partial refund')) {
+                            setDisputeResolutionNotes('Driver delivery proof confirms produce arrived intact and accepted in good order. Claim dismissed.')
+                          }
+                        }}
+                      >
+                        <X size={16} aria-hidden="true" />
+                        <span>Dismiss Dispute</span>
+                      </button>
+                    </div>
+
+                    {/* Decision Form Content */}
+                    {disputeDecision === 'refunded' ? (
+                      <div className="dispute-form-fields">
+                        <label className="dispute-form-label">
+                          <div className="dispute-label-row">
+                            <span>Refund Amount (₱)</span>
+                            {suggestedVal && <small>Flagged Item: ₱{suggestedVal}</small>}
+                          </div>
+                          <div className="dispute-input-prefix-wrap">
+                            <span className="dispute-input-prefix">₱</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={disputeRefundAmount}
+                              onChange={(event) => setDisputeRefundAmount(event.target.value)}
+                              placeholder="0.00"
+                              className="dispute-number-input"
+                            />
+                          </div>
+                        </label>
+
+                        {isGcash ? (
+                          <div className="dispute-payment-info-box">
+                            <strong>Payment Method: GCash</strong>
+                            <p>
+                              A refund amount of ₱{Number(disputeRefundAmount || 0).toFixed(2)} will be marked in the dispute record.
+                              (PayMongo automated disbursement pending integration; recorded for audit).
+                            </p>
+                          </div>
+                        ) : (
+                          <label className="dispute-form-label">
+                            <div className="dispute-label-row">
+                              <span>Manual Transfer Reference</span>
+                              <small className="is-required">(Required for {modal.order.payment_method || 'Cash'})</small>
+                            </div>
+                            <input
+                              type="text"
+                              value={disputeRefundReference}
+                              onChange={(event) => setDisputeRefundReference(event.target.value)}
+                              maxLength={300}
+                              placeholder="e.g. Cash returned on inspection, or GCash ref #123456"
+                              className="dispute-text-input"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="dispute-dismiss-notice">
+                        <strong>Dismissing Claim:</strong>
+                        <p>No refund will be credited. The order will be finalized as completed. Please state the dismissal reason below.</p>
+                      </div>
+                    )}
+
+                    {/* Resolution Note & Quick Presets */}
+                    <div className="dispute-notes-field">
+                      <div className="dispute-label-row">
+                        <span className="dispute-field-label">Resolution Note (Required)</span>
+                        <small>Visible to customer &amp; records</small>
+                      </div>
+                      <textarea
+                        className="dispute-resolution-textarea"
+                        value={disputeResolutionNotes}
+                        onChange={(event) => setDisputeResolutionNotes(event.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                        placeholder="Explain your decision…"
+                      />
+
+                      <div className="dispute-presets-bar">
+                        <span className="dispute-presets-title">Presets:</span>
+                        {disputeDecision === 'refunded' ? (
+                          <>
+                            <button
+                              type="button"
+                              className="dispute-preset-chip"
+                              onClick={() => setDisputeResolutionNotes('Produce damaged in transit. Approved partial refund of item cost.')}
+                            >
+                              Damage approved
+                            </button>
+                            <button
+                              type="button"
+                              className="dispute-preset-chip"
+                              onClick={() => setDisputeResolutionNotes('Item confirmed spoiled or damaged upon delivery inspection. Full refund approved.')}
+                            >
+                              Spoiled / Damaged
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="dispute-preset-chip"
+                              onClick={() => setDisputeResolutionNotes('Driver delivery proof confirms produce arrived intact and accepted in good order. Claim dismissed.')}
+                            >
+                              Proof intact
+                            </button>
+                            <button
+                              type="button"
+                              className="dispute-preset-chip"
+                              onClick={() => setDisputeResolutionNotes('Dispute evidence does not substantiate product defect or delivery fault. Claim dismissed.')}
+                            >
+                              Unsubstantiated
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {error && <div className="tasks-error" role="alert" style={{ marginTop: '12px', borderRadius: '8px' }}>{error}</div>}
+                  </div>
+
+                  {/* Bottom Action Buttons */}
+                  <div className="dispute-footer-actions">
+                    {disputeDecision === 'refunded' ? (
+                      <button
+                        type="button"
+                        className="dispute-submit-btn is-refund"
+                        disabled={
+                          saving ||
+                          !disputeResolutionNotes.trim() ||
+                          !disputeRefundAmount ||
+                          Number(disputeRefundAmount) <= 0 ||
+                          (!isGcash && !disputeRefundReference.trim())
+                        }
+                        onClick={() => resolveDispute('refunded')}
+                      >
+                        {saving
+                          ? 'Processing Refund…'
+                          : `Confirm Refund ₱${Number(disputeRefundAmount || 0).toFixed(2)}`}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="dispute-submit-btn is-dismiss"
+                        disabled={saving || !disputeResolutionNotes.trim()}
+                        onClick={() => resolveDispute('dismissed')}
+                      >
+                        {saving ? 'Dismissing Dispute…' : 'Dismiss Dispute (Reject Claim)'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="dispute-cancel-btn"
+                      disabled={saving}
+                      onClick={() => setModal(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        )
+      })()}
+
+      {disputeActivePhoto && (
+        <div
+          className="dispute-lightbox-overlay"
+          onClick={() => setDisputeActivePhoto(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Enlarged evidence photo"
+        >
+          <div className="dispute-lightbox-dialog" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="dispute-lightbox-close"
+              onClick={() => setDisputeActivePhoto(null)}
+              aria-label="Close enlarged photo"
+            >
+              <X size={20} />
+            </button>
+            <div className="dispute-lightbox-image-wrap">
+              <img src={disputeActivePhoto.url} alt={disputeActivePhoto.title || 'Evidence photo'} className="dispute-lightbox-img" />
             </div>
-            <section className="task-view-description">
-              <span>Buyer's Report</span>
-              <p>{modal.order.delivery_dispute_reason}</p>
-            </section>
-            {Array.isArray(modal.order.delivery_dispute_photo_urls) && modal.order.delivery_dispute_photo_urls.length > 0 && (
-              <section className="task-view-description">
-                <span>Buyer's Photo Evidence</span>
-                <div className="dispute-evidence-grid">
-                  {modal.order.delivery_dispute_photo_urls.map((url) => (
-                    <img key={url} className="dispute-proof-photo" src={url} alt="Evidence submitted by the buyer" />
-                  ))}
-                </div>
-              </section>
-            )}
-            {modal.order.delivery_proof_image_url && (
-              <section className="task-view-description">
-                <span>Driver's Delivery Proof</span>
-                <img className="dispute-proof-photo" src={modal.order.delivery_proof_image_url} alt="Delivery proof submitted by the driver" />
-                {modal.order.delivery_proof_notes && <p>{modal.order.delivery_proof_notes}</p>}
-              </section>
-            )}
-            {modal.order.delivery_dispute_response && (
-              <section className="task-view-description">
-                <span>{modal.order.delivery_dispute_responsible_role === 'seller' ? "Seller's" : "Driver's"} Response</span>
-                <p>{modal.order.delivery_dispute_response}</p>
-              </section>
-            )}
-            <section className="task-view-description">
-              <span>Refund Amount {modal.order.payment_method !== 'gcash' ? '' : '(recorded only — no PayMongo refund is triggered yet)'}</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={disputeRefundAmount}
-                onChange={(event) => setDisputeRefundAmount(event.target.value)}
-                placeholder="0.00"
-              />
-            </section>
-            {modal.order.payment_method !== 'gcash' && (
-              <section className="task-view-description">
-                <span>Manual Transfer Reference (required for {modal.order.payment_method})</span>
-                <input
-                  type="text"
-                  value={disputeRefundReference}
-                  onChange={(event) => setDisputeRefundReference(event.target.value)}
-                  maxLength={300}
-                  placeholder="e.g. bank reference number, or how the cash was returned"
-                />
-              </section>
-            )}
-            <section className="task-view-description">
-              <span>Resolution Note (required)</span>
-              <textarea
-                className="dispute-resolution-notes"
-                value={disputeResolutionNotes}
-                onChange={(event) => setDisputeResolutionNotes(event.target.value)}
-                rows={3}
-                maxLength={1000}
-                placeholder="Explain your decision…"
-              />
-            </section>
-            {error && <div className="tasks-error" role="alert">{error}</div>}
-            <div className="dispute-resolve-actions">
-              <button
-                type="button"
-                className="is-primary"
-                disabled={saving || !disputeResolutionNotes.trim() || !disputeRefundAmount || (modal.order.payment_method !== 'gcash' && !disputeRefundReference.trim())}
-                onClick={() => resolveDispute('refunded')}
-              >
-                {saving ? 'Saving…' : 'Confirm Refund'}
-              </button>
-              <button type="button" className="is-secondary" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveDispute('dismissed')}>
-                {saving ? 'Saving…' : 'Dismiss'}
-              </button>
+            <div className="dispute-lightbox-footer">
+              <strong>{disputeActivePhoto.title}</strong>
+              {disputeActivePhoto.subtitle && <p>{disputeActivePhoto.subtitle}</p>}
             </div>
           </div>
-        </section>
-      </div>}
+        </div>
+      )}
 
       {modal?.mode === 'review-harvest' && <div className="task-modal-backdrop">
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="review-harvest-title">
@@ -1128,26 +2109,262 @@ export default function TaskScheduleManagement() {
         </section>
       </div>}
 
-      {modal?.mode === 'edit-delivery' && <div className="task-modal-backdrop">
-        <section className="task-reference-modal assign-task-modal" role="dialog" aria-modal="true" aria-labelledby="edit-delivery-title">
-          <TaskModalHeader title="Edit Delivery Order" tag="Delivery scheduling" onClose={() => setModal(null)} />
-          <form className="task-reference-body" onSubmit={saveDeliveryAssignment}>
-            {error && <div className="task-modal-error" role="alert">{error}</div>}
-            <div className="task-dialog-grid">
-              <div className="task-dialog-main">
-                <label><span>Order Number</span><input value={modal.order.order_number} readOnly /></label>
-                <label><span>Customer</span><input value={modal.order.delivery_full_name || ''} readOnly /></label>
-                <label><span>Select Driver</span><select value={deliveryEditForm.driver_id} onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, driver_id: event.target.value })} required><option value="" disabled>Select Driver</option>{options.workers.filter((worker) => worker.worker_category === 'driver').map((worker) => <option value={worker.id} key={worker.id}>{worker.full_name}</option>)}</select></label>
-              </div>
-              <div className="task-dialog-side">
-                <label><span>Delivery Date</span><input type="date" value={deliveryEditForm.delivery_date} onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, delivery_date: event.target.value })} required /></label>
-                <label><span>Delivery Window</span><div className="date-time-pair delivery-time-pair"><DeliveryTimeSelect kind="start" value={deliveryEditForm.start_time} onChange={(event) => { const startTime = event.target.value; const endOptions = deliveryTimeOptions('end', startTime); setDeliveryEditForm({ ...deliveryEditForm, start_time: startTime, end_time: endOptions.some((option) => option.value === deliveryEditForm.end_time) ? deliveryEditForm.end_time : endOptions[0]?.value || '' }) }} /><DeliveryTimeSelect kind="end" startTime={deliveryEditForm.start_time} value={deliveryEditForm.end_time} onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, end_time: event.target.value })} /></div><small>Schedule deliveries only from 7:00 AM to 6:00 PM.</small></label>
-              </div>
-            </div>
-            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving}><Send aria-hidden="true" />{saving ? 'Saving…' : 'Save Delivery'}</button></footer>
-          </form>
-        </section>
-      </div>}
+      {modal?.mode === 'edit-delivery' && (() => {
+        const order = modal.order
+        const drivers = options.workers.filter((worker) => worker.worker_category === 'driver')
+        const currentDriver = drivers.find((d) => String(d.id) === String(deliveryEditForm.driver_id))
+        const buyerInitials = (order.delivery_full_name || 'Buyer')
+          .split(' ')
+          .filter(Boolean)
+          .map((n) => n[0])
+          .slice(0, 2)
+          .join('')
+          .toUpperCase()
+        const fullAddress = [
+          order.delivery_barangay,
+          order.delivery_city_municipality,
+          order.delivery_province,
+          order.delivery_region,
+        ].filter(Boolean).join(', ')
+        const itemsCount = order.items?.length || 1
+        const durationText = formatDeliveryDuration(deliveryEditForm.start_time, deliveryEditForm.end_time)
+        const isMorningActive = deliveryEditForm.start_time === '08:00' && deliveryEditForm.end_time === '12:00'
+        const isAfternoonActive = deliveryEditForm.start_time === '13:00' && deliveryEditForm.end_time === '17:00'
+        const isFullDayActive = deliveryEditForm.start_time === '08:00' && deliveryEditForm.end_time === '17:00'
+
+        return (
+          <div className="task-modal-backdrop">
+            <section
+              className="task-reference-modal edit-delivery-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-delivery-title"
+            >
+              <TaskModalHeader
+                title={
+                  <span className="delivery-header-title">
+                    <span id="edit-delivery-title">Edit Delivery Order</span>
+                    <span className="delivery-order-badge">#{order.order_number}</span>
+                  </span>
+                }
+                tag="Logistics & Dispatch Management"
+                onClose={() => setModal(null)}
+              />
+
+              <form className="edit-delivery-form" onSubmit={saveDeliveryAssignment}>
+                {error && <div className="task-modal-error" role="alert">{error}</div>}
+
+                {/* Top Context Overview Card */}
+                <div className="edit-delivery-context-card">
+                  <div className="context-card-buyer">
+                    <div className="context-avatar-circle" aria-hidden="true">
+                      {buyerInitials}
+                    </div>
+                    <div className="context-buyer-info">
+                      <span className="context-meta-label">Buyer / Recipient</span>
+                      <strong className="context-buyer-name">{order.delivery_full_name || 'Valued Customer'}</strong>
+                      {order.delivery_mobile_number ? (
+                        <a href={`tel:${order.delivery_mobile_number}`} className="context-phone-link">
+                          <Phone size={12} aria-hidden="true" />
+                          <span>{order.delivery_mobile_number}</span>
+                        </a>
+                      ) : (
+                        <span className="context-no-phone">No phone recorded</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="context-card-divider" />
+
+                  <div className="context-card-dest">
+                    <span className="context-meta-label">Destination Address</span>
+                    <div className="context-dest-content">
+                      <MapPin size={14} className="context-pin-icon" aria-hidden="true" />
+                      <span>{fullAddress || 'Destination address on file'}</span>
+                    </div>
+                  </div>
+
+                  <div className="context-card-divider" />
+
+                  <div className="context-card-order">
+                    <span className="context-meta-label">Order & Payment</span>
+                    <div className="context-order-pills">
+                      <span className="context-order-tag">
+                        <Package size={12} aria-hidden="true" />
+                        {itemsCount} {itemsCount === 1 ? 'item' : 'items'} · ₱{Number(order.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                      <span className={`context-pay-tag is-${order.payment_method || 'cod'}`}>
+                        {(order.payment_method || 'cod').toUpperCase()} {order.payment_status ? `(${order.payment_status})` : ''}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main 2-Column Form Grid */}
+                <div className="edit-delivery-grid">
+                  {/* Left: Driver Assignment Card */}
+                  <div className="edit-delivery-card driver-card">
+                    <div className="edit-card-heading">
+                      <Truck size={17} className="edit-heading-icon" aria-hidden="true" />
+                      <h3>Assigned Driver</h3>
+                    </div>
+
+                    <div className="edit-field-block">
+                      <label htmlFor="edit-driver-select" className="edit-field-label">
+                        Select Courier Driver
+                      </label>
+                      <div className="edit-select-wrapper">
+                        <select
+                          id="edit-driver-select"
+                          className="edit-form-select"
+                          value={deliveryEditForm.driver_id}
+                          onChange={(e) => setDeliveryEditForm({ ...deliveryEditForm, driver_id: e.target.value })}
+                          required
+                        >
+                          <option value="" disabled>Select a driver</option>
+                          {drivers.map((driver) => (
+                            <option value={driver.id} key={driver.id}>
+                              {driver.full_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {currentDriver && (
+                      <div className="edit-driver-meta-box">
+                        <div className="edit-driver-avatar">
+                          <User size={15} aria-hidden="true" />
+                        </div>
+                        <div className="edit-driver-details">
+                          <strong>{currentDriver.full_name}</strong>
+                          <span>Verified Fleet Driver</span>
+                        </div>
+                        <span className="edit-driver-status-badge">Active</span>
+                      </div>
+                    )}
+
+                    <div className="edit-driver-reassurance-note">
+                      <Info size={15} className="edit-note-icon" aria-hidden="true" />
+                      <span>
+                        Updating the driver will automatically dispatch a push notification to their device with the updated schedule.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right: Schedule Card */}
+                  <div className="edit-delivery-card schedule-card">
+                    <div className="edit-card-heading">
+                      <Clock size={17} className="edit-heading-icon" aria-hidden="true" />
+                      <h3>Delivery Schedule</h3>
+                    </div>
+
+                    <div className="edit-field-block">
+                      <label htmlFor="edit-delivery-date" className="edit-field-label">
+                        <Calendar size={13} aria-hidden="true" />
+                        <span>Delivery Date</span>
+                      </label>
+                      <input
+                        type="date"
+                        id="edit-delivery-date"
+                        className="edit-form-input"
+                        value={deliveryEditForm.delivery_date}
+                        onChange={(e) => setDeliveryEditForm({ ...deliveryEditForm, delivery_date: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="edit-field-block">
+                      <label className="edit-field-label">
+                        <Clock size={13} aria-hidden="true" />
+                        <span>Delivery Window</span>
+                      </label>
+                      <div className="date-time-pair delivery-time-pair">
+                        <DeliveryTimeSelect
+                          kind="start"
+                          value={deliveryEditForm.start_time}
+                          onChange={(event) => {
+                            const startTime = event.target.value
+                            const endOptions = deliveryTimeOptions('end', startTime)
+                            setDeliveryEditForm({
+                              ...deliveryEditForm,
+                              start_time: startTime,
+                              end_time: endOptions.some((option) => option.value === deliveryEditForm.end_time)
+                                ? deliveryEditForm.end_time
+                                : endOptions[0]?.value || '',
+                            })
+                          }}
+                        />
+                        <DeliveryTimeSelect
+                          kind="end"
+                          startTime={deliveryEditForm.start_time}
+                          value={deliveryEditForm.end_time}
+                          onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, end_time: event.target.value })}
+                        />
+                      </div>
+
+                      {/* Quick Shift Presets */}
+                      <div className="edit-shift-presets">
+                        <span className="presets-label">Quick Presets:</span>
+                        <div className="preset-buttons-wrap">
+                          <button
+                            type="button"
+                            className={`preset-btn ${isMorningActive ? 'is-active' : ''}`}
+                            onClick={() => setDeliveryEditForm((prev) => ({ ...prev, start_time: '08:00', end_time: '12:00' }))}
+                          >
+                            🌅 Morning (8–12)
+                          </button>
+                          <button
+                            type="button"
+                            className={`preset-btn ${isAfternoonActive ? 'is-active' : ''}`}
+                            onClick={() => setDeliveryEditForm((prev) => ({ ...prev, start_time: '13:00', end_time: '17:00' }))}
+                          >
+                            ☀️ Afternoon (1–5)
+                          </button>
+                          <button
+                            type="button"
+                            className={`preset-btn ${isFullDayActive ? 'is-active' : ''}`}
+                            onClick={() => setDeliveryEditForm((prev) => ({ ...prev, start_time: '08:00', end_time: '17:00' }))}
+                          >
+                            📦 Full Day (8–5)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Duration Info */}
+                      <div className="edit-duration-strip">
+                        <span className="duration-label">Calculated Window:</span>
+                        <span className="duration-value-pill">{durationText || 'Custom Window'}</span>
+                      </div>
+                      <small className="edit-schedule-notice">Operating hours: 7:00 AM to 6:00 PM (PST).</small>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Actions */}
+                <footer className="edit-delivery-footer">
+                  <button
+                    type="button"
+                    className="edit-footer-btn is-cancel"
+                    onClick={() => setModal(null)}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="edit-footer-btn is-submit"
+                    disabled={saving || !deliveryEditForm.driver_id || !deliveryEditForm.delivery_date}
+                  >
+                    <Send size={15} aria-hidden="true" />
+                    <span>{saving ? 'Saving Changes…' : 'Save Delivery'}</span>
+                  </button>
+                </footer>
+              </form>
+            </section>
+          </div>
+        )
+      })()}
 
       {(modal?.mode === 'add' || modal?.mode === 'edit') && <div className="task-modal-backdrop">
         <section className="task-reference-modal assign-task-modal" role="dialog" aria-modal="true" aria-labelledby="assign-task-title">
