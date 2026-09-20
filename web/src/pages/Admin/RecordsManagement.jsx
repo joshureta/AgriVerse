@@ -98,8 +98,6 @@ const APPLICATION_METHODS = ['Foliar Spray', 'Soil Application', 'Fertigation']
 const CROP_CONDITIONS = ['Healthy', 'Mild nutrient stress', 'Recovering', 'Healthy']
 const PEST_OBSERVATIONS = ['None observed', 'Mealybug wilt (early stage)', 'Minor leaf spot', 'None observed']
 const RECOMMENDED_ACTIONS = ['Continue routine monitoring', 'Apply targeted pesticide next visit', 'Improve field drainage', 'Continue routine monitoring']
-const MAINTENANCE_TYPES = ['Sucker Removal', 'Leaf Pruning', 'Mulching', 'Staking / Support']
-const POST_HARVEST_PROCESSES = ['Sorting & Grading', 'Washing', 'Packing', 'Cold Storage']
 const INSIGHT_NOTES = [
   'Task completed without issues.',
   'Minor delay due to weather, otherwise smooth.',
@@ -128,10 +126,6 @@ const FERTILIZATION_SAMPLES = [
 function mockCropCondition(task) { return pick(task.id, CROP_CONDITIONS) }
 function mockPestObserved(task) { return pick(task.id + 1, PEST_OBSERVATIONS) }
 function mockRecommendedAction(task) { return pick(task.id + 2, RECOMMENDED_ACTIONS) }
-function mockMaintenanceType(task) { return pick(task.id, MAINTENANCE_TYPES) }
-function mockPlantsCovered(task) { return 40 + (Math.abs(task.id * 11) % 260) }
-function mockProcessType(task) { return pick(task.id, POST_HARVEST_PROCESSES) }
-function mockQuantityProcessed(task) { return `${20 + (Math.abs(task.id * 13) % 180)} pcs` }
 // Real harvest counts, reported by the worker and approved by admin (worker-tasks.js / admin-tasks.js).
 function harvestCounts(task) {
   const orDash = (value) => (value === null || value === undefined ? '—' : value)
@@ -153,8 +147,6 @@ function categoryKind(categoryName) {
   if (key === 'monitoring' || key === 'pest & disease') return 'inspection'
   if (key === 'harvesting') return 'harvesting'
   if (key === 'weeding') return 'weeding'
-  if (key === 'crop maintenance') return 'maintenance'
-  if (key === 'post-harvest' || key === 'post harvest') return 'postharvest'
   return 'generic'
 }
 
@@ -167,8 +159,6 @@ function recordRow(task, kind) {
   if (kind === 'inspection') return [task.field, worker, date, mockCropCondition(task), mockPestObserved(task), mockRecommendedAction(task), mockInsight(task)]
   if (kind === 'harvesting') { const sizes = harvestCounts(task); return [task.field, worker, date, sizes.small, sizes.medium, sizes.large, sizes.damaged, mockInsight(task)] }
   if (kind === 'weeding') return [task.field, worker, date, mockInsight(task)]
-  if (kind === 'maintenance') return [task.field, worker, date, mockMaintenanceType(task), mockPlantsCovered(task), mockInsight(task)]
-  if (kind === 'postharvest') return [task.field, worker, date, mockProcessType(task), mockQuantityProcessed(task), mockInsight(task)]
   return [task.field, worker, formatDate(task.started_at), formatDate(task.completed_at), mockInsight(task)]
 }
 
@@ -179,8 +169,6 @@ const RECORD_COLUMNS = {
   inspection: ['FIELD', 'ASSIGNED INSPECTOR', 'INSPECTION DATE', 'CROP CONDITION', 'PEST/DISEASE OBSERVED', 'RECOMMENDED ACTION', 'INSIGHTS', 'ACTIONS'],
   harvesting: ['FIELD', 'FARM WORKER', 'HARVEST DATE', 'SMALL', 'MEDIUM', 'LARGE', 'DAMAGED', 'INSIGHTS', 'ACTIONS'],
   weeding: ['FIELD', 'FARM WORKER', 'DATE & TIME', 'INSIGHTS', 'ACTIONS'],
-  maintenance: ['FIELD', 'FARM WORKER', 'MAINTENANCE DATE', 'MAINTENANCE TYPE', 'PLANTS COVERED', 'INSIGHTS', 'ACTIONS'],
-  postharvest: ['FIELD', 'FARM WORKER', 'PROCESS DATE', 'PROCESS TYPE', 'QUANTITY PROCESSED', 'INSIGHTS', 'ACTIONS'],
   generic: ['FIELD', 'FARM WORKER', 'DATE STARTED', 'DATE COMPLETED', 'INSIGHTS', 'ACTIONS'],
 }
 
@@ -204,9 +192,8 @@ export default function RecordsManagement() {
     try {
       const data = await apiRequest('/api/admin/tasks/options')
       const allCategories = Array.isArray(data.categories) ? data.categories : []
-      const visibleCategories = allCategories.filter((category) => category.category_name !== 'Post-Harvest')
-      setCategories(visibleCategories)
-      setActiveCategory((current) => current === '' && visibleCategories.length ? visibleCategories[0].id : current)
+      setCategories(allCategories)
+      setActiveCategory((current) => current === '' && allCategories.length ? allCategories[0].id : current)
       setStatuses(Array.isArray(data.statuses) ? data.statuses : [])
     } catch (requestError) {
       setError(requestError.message)
@@ -446,8 +433,6 @@ export default function RecordsManagement() {
               {modal.kind === 'fertilization' && <><div className="task-view-tile"><span className="task-view-tile-label">Fertilizer Type</span><strong className="task-view-tile-value">{mockFertilizerType(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Quantity Applied</span><strong className="task-view-tile-value">{mockQuantityApplied(modal.task)}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Application Method</span><strong className="task-view-tile-value">{mockApplicationMethod(modal.task)}</strong></div></>}
               {modal.kind === 'inspection' && <><div className="task-view-tile"><span className="task-view-tile-label">Crop Condition</span><strong className="task-view-tile-value">{mockCropCondition(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Pest/Disease Observed</span><strong className="task-view-tile-value">{mockPestObserved(modal.task)}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Recommended Action</span><strong className="task-view-tile-value">{mockRecommendedAction(modal.task)}</strong></div></>}
               {modal.kind === 'harvesting' && <><div className="task-view-tile"><span className="task-view-tile-label">Small / Medium / Large</span><strong className="task-view-tile-value">{harvestCounts(modal.task).small} / {harvestCounts(modal.task).medium} / {harvestCounts(modal.task).large}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Damaged</span><strong className="task-view-tile-value">{harvestCounts(modal.task).damaged} damaged</strong></div></>}
-              {modal.kind === 'maintenance' && <><div className="task-view-tile"><span className="task-view-tile-label">Maintenance Type</span><strong className="task-view-tile-value">{mockMaintenanceType(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Plants Covered</span><strong className="task-view-tile-value">{mockPlantsCovered(modal.task)}</strong></div></>}
-              {modal.kind === 'postharvest' && <><div className="task-view-tile"><span className="task-view-tile-label">Process Type</span><strong className="task-view-tile-value">{mockProcessType(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Quantity Processed</span><strong className="task-view-tile-value">{mockQuantityProcessed(modal.task)}</strong></div></>}
               <div className="task-view-tile">
                 <span className="task-view-tile-label">Date Started</span>
                 <strong className="task-view-tile-value">{formatDate(modal.task.started_at)}</strong>
