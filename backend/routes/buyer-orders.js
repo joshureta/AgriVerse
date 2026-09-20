@@ -3,6 +3,7 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { paymongoGet } = require("../lib/paymongo");
 const { uploadImage } = require("../lib/storage");
+const { createDisputeOpenedNotifications } = require("../lib/order-notifications");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("buyer"));
@@ -15,7 +16,7 @@ const orderSelect = [
   "ready_for_pickup_at, pickup_code, picked_up_at, picked_up_by",
   "paymongo_payment_intent_id",
   "delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at",
-  "buyer_confirmed_at, delivery_dispute_status, delivery_dispute_reason, delivery_dispute_created_at, delivery_dispute_resolution, delivery_dispute_resolution_notes",
+  "buyer_confirmed_at, delivery_dispute_status, delivery_dispute_reason, delivery_dispute_created_at, delivery_dispute_resolution, delivery_dispute_resolution_notes, delivery_dispute_resolved_at",
   "delivery_dispute_category, delivery_dispute_item_id, delivery_dispute_affected_quantity, delivery_dispute_photo_urls, delivery_dispute_responsible_role",
   "delivery_dispute_responder_id, delivery_dispute_response, delivery_dispute_response_at",
   "refund_amount, refund_reference, refunded_at",
@@ -398,7 +399,7 @@ router.post("/:id/dispute", async (req, res, next) => {
 
     const { data: order, error: orderLookupError } = await supabase
       .from("buyer_orders")
-      .select("id, order_number, order_status, delivery_method, delivery_dispute_status")
+      .select("id, order_number, order_status, delivery_method, delivery_dispute_status, assigned_driver_id")
       .eq("id", id)
       .eq("buyer_id", req.user.id)
       .maybeSingle();
@@ -443,6 +444,15 @@ router.post("/:id/dispute", async (req, res, next) => {
       .maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "This order cannot be reported right now");
+
+    // The report is already saved, so a failed notification shouldn't turn this into an error response.
+    try {
+      await createDisputeOpenedNotifications({
+        orderId: id, orderNumber: order.order_number, category, responsibleRole, driverId: order.assigned_driver_id,
+      });
+    } catch (notificationError) {
+      console.error("Failed to notify about the new dispute:", notificationError.message);
+    }
     return res.json({ order: serializeOrder(data) });
   } catch (error) {
     return next(error);

@@ -128,6 +128,8 @@ export default function BuyerReturnDetailsScreen() {
   const photos = order?.delivery_dispute_photo_urls || [];
   const isResolved = order?.delivery_dispute_status === 'resolved';
   const isDismissed = isResolved && order?.delivery_dispute_resolution === 'dismissed';
+  // GCash refunds carry an internal "Recorded — …" placeholder; only show a reference a person typed in.
+  const manualRefundReference = order?.refund_reference && !order.refund_reference.startsWith('Recorded') ? order.refund_reference : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -182,6 +184,51 @@ export default function BuyerReturnDetailsScreen() {
                 </View>
               </View>
             </View>
+
+            {isResolved ? (
+              <View style={styles.card}>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>Decision</Text>
+                  <View style={[styles.decisionBadge, isDismissed ? styles.decisionBadgeDismissed : styles.decisionBadgeRefunded]}>
+                    <Text style={[styles.decisionBadgeText, { color: isDismissed ? '#8C1D18' : GREEN }]}>
+                      {isDismissed ? 'Claim dismissed' : 'Refund approved'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.decisionFacts}>
+                  {!isDismissed && order.refund_amount != null ? (
+                    <View>
+                      <Text style={styles.decisionFactLabel}>Refund amount</Text>
+                      <Text style={styles.decisionFactValue}>₱{Number(order.refund_amount).toFixed(2)}</Text>
+                    </View>
+                  ) : null}
+                  {order.delivery_dispute_resolved_at ? (
+                    <View>
+                      <Text style={styles.decisionFactLabel}>Decided on</Text>
+                      <Text style={styles.decisionFactValue}>{formatDate(order.delivery_dispute_resolved_at)}</Text>
+                    </View>
+                  ) : null}
+                  {!isDismissed ? (
+                    <View>
+                      <Text style={styles.decisionFactLabel}>Refund to</Text>
+                      <Text style={styles.decisionFactValue}>{order.payment_method === 'gcash' ? 'Your GCash account' : 'Cash or bank transfer'}</Text>
+                    </View>
+                  ) : null}
+                  {!isDismissed && manualRefundReference ? (
+                    <View>
+                      <Text style={styles.decisionFactLabel}>Reference</Text>
+                      <Text style={styles.decisionFactValue}>{manualRefundReference}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={styles.descriptionWrap}>
+                  <Text style={styles.descriptionLabel}>Note from support</Text>
+                  <Text style={styles.descriptionQuote}>{order.delivery_dispute_resolution_notes || 'No note was added to this decision.'}</Text>
+                </View>
+              </View>
+            ) : null}
 
             <View style={styles.card}>
               <View style={styles.sectionHead}>

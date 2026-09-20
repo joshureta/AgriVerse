@@ -15,6 +15,7 @@ import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import Breadcrumb from '../../components/Breadcrumb.jsx'
 import ProgressStepper from '../../components/ProgressStepper.jsx'
 import { buildReturnSteps } from '../../components/returnSteps.js'
+import ReturnDecision from '../../components/ReturnDecision.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import { loadBuyerOrder } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
@@ -185,6 +186,12 @@ export default function ReturnDetails() {
                   </div>
                 </section>
 
+                <ReturnDecision
+                  order={order}
+                  formatDate={formatDateTime}
+                  paymentLabel={order.payment_method === 'gcash' ? 'Your GCash account' : 'Cash or bank transfer'}
+                />
+
                 <section className="delivery-card return-panel" aria-labelledby="return-produce-title">
                   <div className="return-panel-head">
                     <h2 id="return-produce-title">Affected Produce</h2>
@@ -268,7 +275,7 @@ export default function ReturnDetails() {
                     <article className="order-detail"><span className="delivery-icon-badge"><CalendarDays aria-hidden="true" /></span><p><strong>Order Date</strong><span>{formatDateTime(order.created_at)}</span></p></article>
                     <article className="order-detail">
                       <span className="delivery-icon-badge">{resolved ? <Check aria-hidden="true" /> : <Hourglass aria-hidden="true" />}</span>
-                      <p><strong>Status</strong><span>{resolved ? 'Resolved' : 'Under review'}</span></p>
+                      <p><strong>Status</strong><span>{!resolved ? 'Under review' : order.delivery_dispute_resolution === 'dismissed' ? 'Claim dismissed' : 'Refund approved'}</span></p>
                     </article>
                   </div>
                 </section>

@@ -20,6 +20,7 @@ import {
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import ProgressStepper from '../../components/ProgressStepper.jsx'
 import { buildReturnSteps } from '../../components/returnSteps.js'
+import ReturnDecision from '../../components/ReturnDecision.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import {
   buyerCartQuantity,
@@ -591,6 +592,7 @@ export default function DeliveryProgress() {
               <div className="delivery-return-formal-divider" />
 
               <ProgressStepper steps={buildReturnSteps(selectedOrder, formatShortDate)} />
+              <ReturnDecision order={selectedOrder} compact />
             </section>
           )}
 

@@ -1,7 +1,7 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
-const { createDeliveryAssignedNotification, createDeliveryScheduleUpdatedNotification } = require("../lib/order-notifications");
+const { createDeliveryAssignedNotification, createDeliveryScheduleUpdatedNotification, createDisputeResolvedNotification } = require("../lib/order-notifications");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
@@ -165,7 +165,7 @@ router.post("/:id/resolve-dispute", async (req, res, next) => {
 
     const supabase = getSupabase();
     const { data: order, error: orderError } = await supabase.from("buyer_orders")
-      .select("id, order_status, total_amount, payment_method, delivery_dispute_affected_quantity, disputed_item:buyer_order_items!buyer_orders_delivery_dispute_item_id_fkey(unit_price)")
+      .select("id, order_number, buyer_id, order_status, total_amount, payment_method, delivery_dispute_affected_quantity, disputed_item:buyer_order_items!buyer_orders_delivery_dispute_item_id_fkey(unit_price)")
       // A buyer can also open a dispute on an already-completed order, so both statuses are resolvable.
       .eq("id", id).in("order_status", ["delivered", "completed"]).eq("delivery_dispute_status", "open").maybeSingle();
     if (orderError) throw orderError;
@@ -222,6 +222,15 @@ router.post("/:id/resolve-dispute", async (req, res, next) => {
     await supabase.from("buyer_order_status_history").insert({
       order_id: id, previous_status: order.order_status, new_status: "completed", changed_by: req.user.id, note: notes,
     });
+
+    // The decision is already saved, so a failed notification shouldn't turn this into an error response.
+    try {
+      await createDisputeResolvedNotification({
+        buyerId: order.buyer_id, orderId: id, orderNumber: order.order_number, resolution, refundAmount: data.refund_amount,
+      });
+    } catch (notificationError) {
+      console.error("Failed to notify buyer of dispute resolution:", notificationError.message);
+    }
     return res.json({ order: data });
   } catch (error) { return next(error); }
 });
