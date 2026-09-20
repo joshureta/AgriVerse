@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Calendar, Camera, Check, ChevronDown, ClipboardPlus, Clock, Eye, Info, MapPin, Package, Pencil, Phone, Printer, RotateCcw, Send, Truck, User, X, ZoomIn } from 'lucide-react'
+import { Check, ChevronDown, ClipboardPlus, Eye, Pencil, Printer, X } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
 import workersTaskIcon from '../../assets/task-workers-icon-white.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import { WoField, WoList, WoRadios, WoRow, WoSection, WoSteps, WorkOrderDialog } from '../../components/WorkOrderDialog.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/task-schedule-management.css'
+import '../../styles/work-order-dialogs.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 10
@@ -73,6 +75,13 @@ function formatSchedule(value) {
   return new Intl.DateTimeFormat('en-US', {
     month: '2-digit', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit',
   }).format(date)
+}
+
+function formatLongDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(date)
 }
 
 function localDateParts(value) {
@@ -262,22 +271,6 @@ function SummaryCard({ label, value, icon, className = '' }) {
   return <article className={`task-summary-card ${className}`}><div><span>{label}</span><strong>{value}</strong></div><i aria-hidden="true">{icon}</i></article>
 }
 
-function TaskModalHeader({ title, onClose, tag = 'Task scheduling' }) {
-  return (
-    <header className="task-dialog-header">
-      <div>
-        <p>{tag}</p>
-        <h2>{title}</h2>
-      </div>
-      {onClose && (
-        <button className="task-modal-header-close" type="button" onClick={onClose} aria-label="Close">
-          <X size={18} aria-hidden="true" />
-        </button>
-      )}
-    </header>
-  )
-}
-
 export default function TaskScheduleManagement() {
   const [activeTab, setActiveTab] = useState('tasks')
   const [tasks, setTasks] = useState([])
@@ -313,6 +306,7 @@ export default function TaskScheduleManagement() {
   const [disputeActivePhoto, setDisputeActivePhoto] = useState(null)
   const [harvestApprovalForm, setHarvestApprovalForm] = useState({ harvest_small_count: '0', harvest_medium_count: '0', harvest_large_count: '0', harvest_damaged_count: '0' })
   const [harvestRejectionReason, setHarvestRejectionReason] = useState('')
+  const [harvestDecision, setHarvestDecision] = useState('approve')
   const [harvestApprovalCount, setHarvestApprovalCount] = useState(0)
   const [refreshKey, setRefreshKey] = useState(0)
   const filterRef = useRef(null)
@@ -430,6 +424,7 @@ export default function TaskScheduleManagement() {
       harvest_damaged_count: String(task.harvest_damaged_count ?? 0),
     })
     setHarvestRejectionReason('')
+    setHarvestDecision('approve')
     setModal({ mode: 'review-harvest', task })
   }
 
@@ -841,7 +836,7 @@ export default function TaskScheduleManagement() {
               ))}
             </nav>
             <div className="tasks-table-wrap">
-              <table className="tasks-table">
+              <table className="tasks-table dispute-table">
                 <thead><tr><th>ORDER NUMBER</th><th>CUSTOMER</th><th>RESPONSIBLE</th><th>REPORTED</th><th>REASON</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
                 <tbody>{visibleDisputes.length ? visibleDisputes.map((order) => {
                   const isResolved = order.delivery_dispute_status === 'resolved'
@@ -853,10 +848,30 @@ export default function TaskScheduleManagement() {
                     : (order.assigned_driver?.full_name || 'Unassigned driver')
                   const responsibleLabel = order.delivery_dispute_responsible_role === 'seller' ? 'Seller' : 'Driver'
                   const suggestedAmount = order.disputed_item ? (Number(order.disputed_item.unit_price) * Number(order.delivery_dispute_affected_quantity || 0)).toFixed(2) : ''
+                  const parsedReason = parseDisputeReason(order.delivery_dispute_reason)
+                  const reasonSummary = parsedReason.userDescription || (order.delivery_dispute_category ? order.delivery_dispute_category.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) : 'Delivery issue report')
+                  const reasonDetail = [`Requested: ${parsedReason.resolutionLabel}`, parsedReason.itemBreakdownText].filter(Boolean).join(' · ')
                   return (
-                  <tr key={`dispute-${order.id}`}><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{responsibleLabel} · {responsibleName}</td><td>{formatSchedule(order.delivery_dispute_created_at)}</td><td>{order.delivery_dispute_reason}</td>
-                    <td><span className={`task-status-badge ${isResolved ? 'status-resolved' : 'status-open-dispute'}`}>{isResolved ? 'Resolved' : 'Open'}</span>{isResolved && (outcome || order.delivery_dispute_resolved_at) && <small className="dispute-outcome" title={order.delivery_dispute_resolution_notes || undefined}>{[outcome, order.delivery_dispute_resolved_at && formatSchedule(order.delivery_dispute_resolved_at)].filter(Boolean).join(' · ')}</small>}</td>
-                    <td>{isResolved ? <span className="dispute-no-action">—</span> : <div className="task-actions"><button type="button" onClick={() => { setDisputeResolutionNotes(''); setDisputeRefundAmount(suggestedAmount); setDisputeRefundReference(''); setDisputeDecision('refunded'); setDisputeActivePhoto(null); setModal({ mode: 'review-dispute', order }) }}>Review</button></div>}</td></tr>
+                  <tr key={`dispute-${order.id}`}>
+                    <td><strong>{order.order_number}</strong></td>
+                    <td>{order.delivery_full_name}</td>
+                    <td>{responsibleLabel} · {responsibleName}</td>
+                    <td>{formatSchedule(order.delivery_dispute_created_at)}</td>
+                    <td className="dispute-reason-cell" title={`${reasonSummary} (${reasonDetail})`}>
+                      <strong>{reasonSummary}</strong>
+                      <small>{reasonDetail}</small>
+                    </td>
+                    <td><span className={`task-status-badge ${isResolved ? 'status-resolved' : 'status-open-dispute'}`}>{isResolved ? 'Resolved' : 'Open'}</span>{isResolved && (outcome || order.delivery_dispute_resolved_at) && <small className="dispute-outcome" title={order.delivery_dispute_resolution_notes || undefined}>{outcome}{outcome && order.delivery_dispute_resolved_at ? <br /> : null}{order.delivery_dispute_resolved_at ? formatSchedule(order.delivery_dispute_resolved_at) : null}</small>}</td>
+                    <td>
+                      <div className="task-actions">
+                        {isResolved ? (
+                          <button className="task-view" type="button" onClick={() => { setDisputeActivePhoto(null); setModal({ mode: 'review-dispute', order }) }} aria-label={`View resolved dispute ${order.order_number}`}><Eye aria-hidden="true" size={14} /> View</button>
+                        ) : (
+                          <button type="button" onClick={() => { setDisputeResolutionNotes(''); setDisputeRefundAmount(suggestedAmount); setDisputeRefundReference(''); setDisputeDecision('refunded'); setDisputeActivePhoto(null); setModal({ mode: 'review-dispute', order }) }}>Review</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
                   )
                 }) : <tr><td className="tasks-empty" colSpan="7">{disputeFilter === 'resolved' ? 'No resolved disputes yet.' : disputeFilter === 'open' ? 'No open disputes.' : 'No disputes.'}</td></tr>}</tbody>
               </table>
@@ -947,1090 +962,473 @@ export default function TaskScheduleManagement() {
       {modal?.mode === 'view' && (() => {
         const task = modal.task
         const worker = task.assigned_worker
-        const workerInitials = (worker?.full_name || 'Worker')
-          .split(' ')
-          .filter(Boolean)
-          .map((n) => n[0])
-          .slice(0, 2)
-          .join('')
-          .toUpperCase()
-
-        const scheduleDateFormatted = task.schedule_start
-          ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(task.schedule_start))
-          : 'Date pending'
-
-        const timeWindowFormatted = task.schedule?.start_time && task.schedule?.end_time
-          ? `${formatTime12(task.schedule.start_time)} – ${formatTime12(task.schedule.end_time)}`
-          : formatSchedule(task.schedule_start)
-
-        const durationFormatted = formatTaskDuration(task.estimated_duration_minutes)
         const isHarvest = task.category?.toLowerCase().includes('harvest')
         const hasHarvestYield = task.harvest_small_count != null || task.harvest_medium_count != null || task.harvest_large_count != null || task.harvest_damaged_count != null
-
         const isCompleted = task.status === 'completed'
         const isInProgress = task.status === 'in_progress'
         const isAwaitingApproval = task.status === 'awaiting_approval'
         const isScheduled = task.status === 'pending' || task.status === 'scheduled'
+        const timeWindow = task.schedule?.start_time && task.schedule?.end_time
+          ? `${formatTime12(task.schedule.start_time)} – ${formatTime12(task.schedule.end_time)}`
+          : formatSchedule(task.schedule_start)
+        const [smallCount, mediumCount, largeCount, damagedCount] = [task.harvest_small_count, task.harvest_medium_count, task.harvest_large_count, task.harvest_damaged_count].map((count) => Number(count) || 0)
+        const steps = [
+          { label: 'Scheduled', note: task.created_at ? formatSchedule(task.created_at) : 'Scheduled', state: isScheduled ? 'is-now' : 'is-done' },
+          { label: 'In progress', note: task.started_at ? `Started ${formatSchedule(task.started_at)}` : isInProgress ? 'In progress' : 'Not started', state: isInProgress ? 'is-now' : isAwaitingApproval || isCompleted ? 'is-done' : '' },
+          {
+            label: isAwaitingApproval ? 'Approval needed' : 'Completed',
+            note: isCompleted ? (task.approved_at ? `Approved ${formatSchedule(task.approved_at)}` : task.completed_at ? formatSchedule(task.completed_at) : 'Completed') : isAwaitingApproval ? 'Waiting for review' : task.schedule?.end_time ? `Expected ${formatTime12(task.schedule.end_time)}` : 'Pending',
+            state: isCompleted ? 'is-done' : isAwaitingApproval ? 'is-now' : '',
+          },
+        ]
 
         return (
-          <div className="task-modal-backdrop">
-            <section
-              className="task-reference-modal crop-task-details-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="view-crop-task-title"
-            >
-              <TaskModalHeader
-                title={
-                  <span className="delivery-header-title">
-                    <span id="view-crop-task-title">Crop Task Details</span>
-                    <span className="delivery-order-badge">#TASK-{String(task.id).padStart(4, '0')}</span>
-                  </span>
-                }
-                tag="Crop Management & Operations"
-                onClose={() => setModal(null)}
-              />
+          <WorkOrderDialog
+            eyebrow="Work order"
+            id={`#TASK-${String(task.id).padStart(4, '0')}`}
+            title={task.category || 'Farm Operations'}
+            titleId="view-crop-task-title"
+            sub={task.created_at ? `Created ${formatSchedule(task.created_at)}` : null}
+            steps={<WoSteps items={steps} />}
+            onClose={() => setModal(null)}
+            footerNote={<button type="button" className="wo-btn is-link" onClick={() => window.print()}><Printer size={15} aria-hidden="true" />Print slip</button>}
+            footer={<>
+              <button type="button" className="wo-btn" onClick={() => setModal(null)}>Close</button>
+              {isAwaitingApproval && (
+                <button type="button" className="wo-btn is-primary" onClick={() => { const taskToReview = modal.task; setModal(null); openReviewHarvest(taskToReview) }}>
+                  <Check size={15} aria-hidden="true" />Review harvest
+                </button>
+              )}
+              <button type="button" className="wo-btn is-primary" onClick={() => { const taskToEdit = modal.task; setModal(null); openEditTask(taskToEdit) }}>
+                <Pencil size={14} aria-hidden="true" />Edit task
+              </button>
+            </>}
+          >
+            <div className="wo-two is-even">
+              <WoSection title="Assignment">
+                <WoList>
+                  <WoRow label="Assigned to">{worker?.full_name || 'Unassigned worker'}</WoRow>
+                  <WoRow label="Role">{workerCategoryLabels[worker?.worker_category] || 'Crop Management Worker'}</WoRow>
+                  <WoRow label="Category">{task.category || 'Farm Operations'}</WoRow>
+                  <WoRow label="Field">{task.field || 'General Farm Plot'}</WoRow>
+                  <WoRow label="Location">{task.schedule?.location || 'Pineapple Plantation · Designated Block'}</WoRow>
+                </WoList>
+              </WoSection>
+              <WoSection title="Schedule">
+                <WoList>
+                  <WoRow label="Date">{task.schedule_start ? formatLongDate(task.schedule_start) : 'Date pending'}</WoRow>
+                  <WoRow label="Time">{timeWindow}</WoRow>
+                  <WoRow label="Duration">{formatTaskDuration(task.estimated_duration_minutes)}</WoRow>
+                  <WoRow label="Priority"><span className={`wo-priority is-${task.priority || 'medium'}`}>{task.priority_label || 'Normal'}</span></WoRow>
+                  <WoRow label="Created">{task.created_at ? formatSchedule(task.created_at) : '—'}</WoRow>
+                </WoList>
+              </WoSection>
+            </div>
 
-              <div className="crop-task-details-body">
-                {/* Stepper & Status Bar */}
-                <div className="crop-task-stepper-card">
-                  <div className="crop-task-stepper-track">
-                    <div className={`crop-step-item ${isScheduled || isInProgress || isAwaitingApproval || isCompleted ? 'is-done' : ''}`}>
-                      <div className="crop-step-circle">
-                        <Check size={12} aria-hidden="true" />
-                      </div>
-                      <span className="crop-step-label">Scheduled</span>
-                    </div>
-                    <div className={`crop-step-line ${isInProgress || isAwaitingApproval || isCompleted ? 'is-done' : ''}`} />
-                    <div className={`crop-step-item ${isInProgress ? 'is-active' : isAwaitingApproval || isCompleted ? 'is-done' : ''}`}>
-                      <div className="crop-step-circle">
-                        {isAwaitingApproval || isCompleted ? <Check size={12} aria-hidden="true" /> : '2'}
-                      </div>
-                      <span className="crop-step-label">In Progress</span>
-                    </div>
-                    <div className={`crop-step-line ${isAwaitingApproval || isCompleted ? 'is-done' : ''}`} />
-                    <div className={`crop-step-item ${isAwaitingApproval ? 'is-awaiting' : isCompleted ? 'is-done' : ''}`}>
-                      <div className="crop-step-circle">
-                        {isCompleted ? <Check size={12} aria-hidden="true" /> : isAwaitingApproval ? '!' : '3'}
-                      </div>
-                      <span className="crop-step-label">{isAwaitingApproval ? 'Approval Needed' : 'Completed'}</span>
-                    </div>
-                  </div>
-
-                  <div className="crop-task-status-pills">
-                    <span className={`task-priority-pill priority-${task.priority || 'medium'}`}>
-                      {task.priority_label || 'Normal Priority'}
-                    </span>
-                    <span className={`task-status-pill status-${task.status || 'pending'}`}>
-                      {task.status_label || statusLabels[task.status] || task.status}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 2-Column Information Grid */}
-                <div className="crop-task-grid">
-                  {/* Left Column: Field & Worker */}
-                  <div className="crop-task-panel-left">
-                    {/* Field Location Card */}
-                    <div className="crop-task-card">
-                      <div className="crop-card-header">
-                        <MapPin size={15} className="crop-card-icon" aria-hidden="true" />
-                        <h4>Field &amp; Farm Plot</h4>
-                      </div>
-                      <div className="crop-location-box">
-                        <div className="crop-location-pin">
-                          <MapPin size={17} aria-hidden="true" />
-                        </div>
-                        <div className="crop-location-meta">
-                          <strong className="crop-field-name">{task.field || 'General Farm Plot'}</strong>
-                          <span className="crop-field-desc">
-                            {task.schedule?.location || 'Pineapple Plantation · Designated Block'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Assigned Worker Card */}
-                    <div className="crop-task-card">
-                      <div className="crop-card-header">
-                        <User size={15} className="crop-card-icon" aria-hidden="true" />
-                        <h4>Assigned Farm Worker</h4>
-                      </div>
-                      <div className="crop-worker-profile">
-                        <div className="crop-worker-avatar" aria-hidden="true">
-                          {workerInitials}
-                        </div>
-                        <div className="crop-worker-meta">
-                          <strong className="crop-worker-name">{worker?.full_name || 'Unassigned Worker'}</strong>
-                          <span className="crop-worker-role">
-                            {workerCategoryLabels[worker?.worker_category] || 'Crop Management Specialist'}
-                          </span>
-                        </div>
-                        <span className="crop-worker-badge">Assigned</span>
-                      </div>
-                    </div>
-
-                    {/* Category & Task Activity */}
-                    <div className="crop-task-card">
-                      <div className="crop-card-header">
-                        <Package size={15} className="crop-card-icon" aria-hidden="true" />
-                        <h4>Task Activity &amp; Category</h4>
-                      </div>
-                      <div className="crop-category-badge-box">
-                        <span className="crop-category-chip">
-                          {task.category || 'Farm Operations'}
-                        </span>
-                        {task.schedule?.notes && (
-                          <span className="crop-category-subnote">{task.schedule.notes}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column: Schedule & Output */}
-                  <div className="crop-task-panel-right">
-                    {/* Schedule & Timing Card */}
-                    <div className="crop-task-card">
-                      <div className="crop-card-header">
-                        <Clock size={15} className="crop-card-icon" aria-hidden="true" />
-                        <h4>Schedule &amp; Timing</h4>
-                      </div>
-                      <div className="crop-schedule-box">
-                        <div className="crop-schedule-line">
-                          <Calendar size={14} className="crop-sched-icon" aria-hidden="true" />
-                          <span className="crop-sched-date">{scheduleDateFormatted}</span>
-                        </div>
-                        <div className="crop-schedule-line">
-                          <Clock size={14} className="crop-sched-icon" aria-hidden="true" />
-                          <span className="crop-sched-time">{timeWindowFormatted}</span>
-                        </div>
-                        <div className="crop-duration-strip">
-                          <span>Estimated Duration:</span>
-                          <span className="crop-duration-pill">{durationFormatted}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Harvest Yield Breakdown (when applicable) */}
-                    {(isHarvest || hasHarvestYield) && (
-                      <div className="crop-task-card">
-                        <div className="crop-card-header">
-                          <Package size={15} className="crop-card-icon" aria-hidden="true" />
-                          <h4>Harvest Yield Output</h4>
-                        </div>
-                        <div className="crop-harvest-grid">
-                          <div className="crop-harvest-tile">
-                            <span className="crop-yield-label">Small</span>
-                            <strong className="crop-yield-val">{task.harvest_small_count ?? 0} pcs</strong>
-                          </div>
-                          <div className="crop-harvest-tile">
-                            <span className="crop-yield-label">Medium</span>
-                            <strong className="crop-yield-val">{task.harvest_medium_count ?? 0} pcs</strong>
-                          </div>
-                          <div className="crop-harvest-tile">
-                            <span className="crop-yield-label">Large</span>
-                            <strong className="crop-yield-val">{task.harvest_large_count ?? 0} pcs</strong>
-                          </div>
-                          <div className="crop-harvest-tile is-damaged">
-                            <span className="crop-yield-label">Damaged</span>
-                            <strong className="crop-yield-val">{task.harvest_damaged_count ?? 0} pcs</strong>
-                          </div>
-                        </div>
-
-                        {task.harvest_proof_image_url && (
-                          <div className="crop-proof-preview">
-                            <span className="crop-proof-label">Submitted Harvest Proof</span>
-                            <div
-                              className="crop-proof-img-wrap"
-                              onClick={() => setDisputeActivePhoto({
-                                url: task.harvest_proof_image_url,
-                                title: 'Harvest Proof Photo',
-                                subtitle: `Submitted by ${worker?.full_name || 'Worker'} for Field ${task.field || ''}`,
-                              })}
-                              role="button"
-                              tabIndex={0}
-                              title="Click to zoom full image"
-                            >
-                              <img src={task.harvest_proof_image_url} alt="Harvest Proof" />
-                              <div className="crop-zoom-hint">
-                                <ZoomIn size={14} aria-hidden="true" />
-                                <span>Zoom</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Description & Instructions */}
-                    <div className="crop-task-card">
-                      <div className="crop-card-header">
-                        <ClipboardPlus size={15} className="crop-card-icon" aria-hidden="true" />
-                        <h4>Instructions &amp; Description</h4>
-                      </div>
-                      <div className="crop-description-box">
-                        <p>{task.description || 'No additional instructions provided for this task.'}</p>
-                      </div>
-                    </div>
-
-                    {/* Worker Completion Notes (if recorded) */}
-                    {task.completion_notes && (
-                      <div className="crop-task-card">
-                        <div className="crop-card-header">
-                          <Info size={15} className="crop-card-icon" aria-hidden="true" />
-                          <h4>Worker Completion Notes</h4>
-                        </div>
-                        <div className="crop-completion-notes-box">
-                          <p>{task.completion_notes}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Footer Actions */}
-                <div className="crop-task-footer">
-                  <div className="crop-footer-left">
-                    {task.status === 'awaiting_approval' && (
-                      <button
-                        type="button"
-                        className="crop-footer-btn is-review"
-                        onClick={() => {
-                          const taskToReview = modal.task
-                          setModal(null)
-                          openReviewHarvest(taskToReview)
-                        }}
-                      >
-                        <Check size={14} aria-hidden="true" />
-                        <span>Review Harvest</span>
-                      </button>
-                    )}
+            {(isHarvest || hasHarvestYield) && (
+              <WoSection title="Harvest output">
+                <WoList>
+                  <WoRow label="Small">{smallCount} pcs</WoRow>
+                  <WoRow label="Medium">{mediumCount} pcs</WoRow>
+                  <WoRow label="Large">{largeCount} pcs</WoRow>
+                  <WoRow label="Damaged"><span className="wo-high">{damagedCount} pcs</span></WoRow>
+                  <WoRow label="Total"><strong>{smallCount + mediumCount + largeCount + damagedCount} pcs</strong></WoRow>
+                </WoList>
+                {task.harvest_proof_image_url && (
+                  <p className="wo-fine">
+                    Proof photo submitted by the worker{' '}
                     <button
                       type="button"
-                      className="crop-footer-btn is-edit"
-                      onClick={() => {
-                        const taskToEdit = modal.task
-                        setModal(null)
-                        openEditTask(taskToEdit)
-                      }}
+                      onClick={() => setDisputeActivePhoto({
+                        url: task.harvest_proof_image_url,
+                        title: 'Harvest Proof Photo',
+                        subtitle: `Submitted by ${worker?.full_name || 'Worker'} for ${task.field || 'the field'}`,
+                      })}
                     >
-                      <Pencil size={14} aria-hidden="true" />
-                      <span>Edit Task</span>
+                      View photo
                     </button>
-                  </div>
-                  <div className="crop-footer-right">
-                    <button
-                      type="button"
-                      className="crop-footer-btn is-print"
-                      onClick={() => window.print()}
-                    >
-                      <Printer size={14} aria-hidden="true" />
-                      <span>Print Slip</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="crop-footer-btn is-close"
-                      onClick={() => setModal(null)}
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
+                  </p>
+                )}
+              </WoSection>
+            )}
+
+            <WoSection title="Instructions">
+              <p className="wo-prose">{task.description || 'No additional instructions provided for this task.'}</p>
+            </WoSection>
+
+            {task.completion_notes && (
+              <WoSection title="Worker completion notes">
+                <p className="wo-prose">{task.completion_notes}</p>
+              </WoSection>
+            )}
+          </WorkOrderDialog>
         )
       })()}
 
       {modal?.mode === 'view-delivery' && (() => {
-        const isDelivered = modal.order.delivery_assignment_status === 'delivered' || modal.order.order_status === 'delivered' || modal.order.order_status === 'completed'
-        const isPickedUp = isDelivered || modal.order.delivery_assignment_status === 'picked_up' || modal.order.delivery_assignment_status === 'out_for_delivery'
-        const isAccepted = isPickedUp || modal.order.delivery_assignment_status === 'accepted'
-        const isGcash = modal.order.payment_method === 'gcash'
-        const items = Array.isArray(modal.order.items) ? modal.order.items : []
-        const totalItemsCount = items.reduce((sum, it) => sum + (Number(it.quantity) || 1), 0)
+        const order = modal.order
+        const isDelivered = order.delivery_assignment_status === 'delivered' || order.order_status === 'delivered' || order.order_status === 'completed'
+        const isPickedUp = isDelivered || order.delivery_assignment_status === 'picked_up' || order.delivery_assignment_status === 'out_for_delivery'
+        const isAccepted = isPickedUp || order.delivery_assignment_status === 'accepted'
+        const isGcash = order.payment_method === 'gcash'
+        const items = Array.isArray(order.items) ? order.items : []
+        const reached = [true, isAccepted, isPickedUp, isDelivered]
+        const firstOpen = reached.findIndex((done) => !done)
+        const stepState = (index) => (reached[index] ? 'is-done' : index === firstOpen ? 'is-now' : '')
+        const steps = [
+          { label: 'Assigned', note: order.driver_assigned_at ? formatSchedule(order.driver_assigned_at) : (order.delivery_scheduled_at ? formatSchedule(order.delivery_scheduled_at) : 'Dispatched'), state: stepState(0) },
+          { label: 'Accepted', note: order.delivery_accepted_at ? formatSchedule(order.delivery_accepted_at) : (isAccepted ? 'Accepted' : 'Pending'), state: stepState(1) },
+          { label: 'Picked up', note: order.delivery_picked_up_at ? formatSchedule(order.delivery_picked_up_at) : (isPickedUp ? 'In transit' : 'Pending'), state: stepState(2) },
+          { label: 'Delivered', note: order.delivered_at ? formatSchedule(order.delivered_at) : order.delivery_proof_submitted_at ? formatSchedule(order.delivery_proof_submitted_at) : (isDelivered ? 'Delivered' : 'Pending'), state: stepState(3) },
+        ]
+        const address = [order.delivery_barangay, order.delivery_city_municipality, order.delivery_province, order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'
+        const canEdit = order.order_status === 'ready_for_delivery' && order.delivery_assignment_status === 'assigned'
 
         return (
-          <div className="task-modal-backdrop">
-            <section
-              className="task-reference-modal delivery-details-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="view-delivery-title"
-            >
-              <TaskModalHeader
-                title={
-                  <span className="dispute-header-title">
-                    <span id="view-delivery-title">Delivery Order Details</span>
-                    <span className="dispute-order-pill">#{modal.order.order_number}</span>
-                  </span>
-                }
-                tag="Delivery dispatch &amp; scheduling"
-                onClose={() => setModal(null)}
-              />
-
-              {/* Milestone Progress Stepper */}
-              <div className="delivery-stepper-bar">
-                <div className="delivery-stepper-inner">
-                  {/* Step 1: Assigned */}
-                  <div className="delivery-step is-complete">
-                    <div className="delivery-step-dot">✓</div>
-                    <div className="delivery-step-text">
-                      <strong>Assigned</strong>
-                      <span>{modal.order.driver_assigned_at ? formatSchedule(modal.order.driver_assigned_at) : (modal.order.delivery_scheduled_at ? formatSchedule(modal.order.delivery_scheduled_at) : 'Dispatched')}</span>
-                    </div>
-                  </div>
-                  <div className={`delivery-step-connector ${isAccepted ? 'is-complete' : ''}`} />
-
-                  {/* Step 2: Accepted */}
-                  <div className={`delivery-step ${isAccepted ? 'is-complete' : ''}`}>
-                    <div className="delivery-step-dot">{isAccepted ? '✓' : '2'}</div>
-                    <div className="delivery-step-text">
-                      <strong>Accepted</strong>
-                      <span>{modal.order.delivery_accepted_at ? formatSchedule(modal.order.delivery_accepted_at) : (isAccepted ? 'Accepted' : 'Pending')}</span>
-                    </div>
-                  </div>
-                  <div className={`delivery-step-connector ${isPickedUp ? 'is-complete' : ''}`} />
-
-                  {/* Step 3: Picked Up */}
-                  <div className={`delivery-step ${isPickedUp ? 'is-complete' : ''}`}>
-                    <div className="delivery-step-dot">{isPickedUp ? '✓' : '3'}</div>
-                    <div className="delivery-step-text">
-                      <strong>Picked Up</strong>
-                      <span>{modal.order.delivery_picked_up_at ? formatSchedule(modal.order.delivery_picked_up_at) : (isPickedUp ? 'In Transit' : 'Pending')}</span>
-                    </div>
-                  </div>
-                  <div className={`delivery-step-connector ${isDelivered ? 'is-complete' : ''}`} />
-
-                  {/* Step 4: Delivered */}
-                  <div className={`delivery-step ${isDelivered ? 'is-complete' : ''}`}>
-                    <div className="delivery-step-dot">{isDelivered ? '✓' : '4'}</div>
-                    <div className="delivery-step-text">
-                      <strong>Delivered</strong>
-                      <span>{modal.order.delivered_at ? formatSchedule(modal.order.delivered_at) : modal.order.delivery_proof_submitted_at ? formatSchedule(modal.order.delivery_proof_submitted_at) : (isDelivered ? 'Delivered' : 'Pending')}</span>
-                    </div>
-                  </div>
-                </div>
+          <WorkOrderDialog
+            eyebrow="Delivery order"
+            id={`#${order.order_number}`}
+            title="Delivery Order Details"
+            titleId="view-delivery-title"
+            sub={isDelivered && order.delivered_at ? `Delivered ${formatSchedule(order.delivered_at)}` : order.driver_assigned_at ? `Assigned ${formatSchedule(order.driver_assigned_at)}` : null}
+            steps={<WoSteps items={steps} />}
+            onClose={() => setModal(null)}
+            footerNote={<button type="button" className="wo-btn is-link" onClick={() => window.print()}><Printer size={15} aria-hidden="true" />Print slip</button>}
+            footer={<>
+              <button type="button" className="wo-btn" onClick={() => setModal(null)}>Close</button>
+              {canEdit && (
+                <button type="button" className="wo-btn is-primary" onClick={() => { const orderToEdit = order; setModal(null); openEditDelivery(orderToEdit) }}>
+                  <Pencil size={14} aria-hidden="true" />Edit schedule
+                </button>
+              )}
+            </>}
+          >
+            <div className="wo-two is-even">
+              <div>
+                <WoSection title="Recipient">
+                  <WoList>
+                    <WoRow label="Name">{order.delivery_full_name || 'Customer'}</WoRow>
+                    <WoRow label="Mobile">{order.delivery_mobile_number || 'Not provided'}</WoRow>
+                    <WoRow label="Address">{address}</WoRow>
+                  </WoList>
+                </WoSection>
+                <WoSection title="Driver and vehicle">
+                  <WoList>
+                    <WoRow label="Driver">{order.assigned_driver?.full_name || 'Unassigned driver'}</WoRow>
+                    <WoRow label="Vehicle">{order.assigned_vehicle ? `${order.assigned_vehicle.vehicle_name} · ${order.assigned_vehicle.plate_number}` : 'No vehicle assigned'}</WoRow>
+                  </WoList>
+                </WoSection>
               </div>
+              <div>
+                <WoSection title="Schedule">
+                  <WoList>
+                    <WoRow label="Window">{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</WoRow>
+                  </WoList>
+                </WoSection>
+                <WoSection title="Payment">
+                  <WoList>
+                    <WoRow label="Method">{isGcash ? 'GCash' : (order.payment_method || 'Cash').toUpperCase()}</WoRow>
+                    <WoRow label="Status">{order.payment_status ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1) : (isGcash ? 'Paid' : 'COD / settled')}</WoRow>
+                    <WoRow label="Total"><strong>₱{Number(order.total_amount || 0).toFixed(2)}</strong></WoRow>
+                  </WoList>
+                </WoSection>
+              </div>
+            </div>
 
-              {/* 2-Column Responsive Body */}
-              <div className="delivery-modal-grid custom-scrollbar">
-                
-                {/* LEFT COLUMN: Route, Schedule, Driver & Proof */}
-                <div className="delivery-panel-left">
-                  
-                  {/* Delivery Window Card */}
-                  <div className="delivery-card">
-                    <div className="delivery-card-header">
-                      <span className="delivery-card-title">
-                        <Clock size={14} className="delivery-title-icon" aria-hidden="true" />
-                        Scheduled Delivery Window
-                      </span>
-                      {isDelivered ? (
-                        <span className="delivery-status-pill is-delivered">
-                          <span className="delivery-status-dot" />
-                          Delivered On Time
-                        </span>
-                      ) : modal.order.delivery_assignment_status === 'out_for_delivery' || modal.order.delivery_assignment_status === 'picked_up' ? (
-                        <span className="delivery-status-pill is-transit">
-                          <span className="delivery-status-dot is-pulse" />
-                          Out for Delivery
-                        </span>
-                      ) : modal.order.delivery_assignment_status === 'accepted' ? (
-                        <span className="delivery-status-pill is-accepted">
-                          <span className="delivery-status-dot" />
-                          Driver Accepted
-                        </span>
-                      ) : (
-                        <span className="delivery-status-pill is-assigned">
-                          <span className="delivery-status-dot" />
-                          Scheduled
-                        </span>
-                      )}
-                    </div>
-                    <div className="delivery-window-display">
-                      <strong>{formatDeliveryWindow(modal.order.delivery_scheduled_at, modal.order.delivery_window_end_at)}</strong>
-                      <span>Driver dispatched on designated farm delivery route</span>
-                    </div>
-                  </div>
-
-                  {/* Customer & Driver 2-Grid */}
-                  <div className="delivery-two-cards">
-                    {/* Customer */}
-                    <div className="delivery-card">
-                      <span className="delivery-card-subtitle">Customer Information</span>
-                      <div className="delivery-actor-row">
-                        <div className="delivery-actor-avatar is-buyer">
-                          {(modal.order.delivery_full_name || 'U').slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="delivery-actor-meta">
-                          <strong title={modal.order.delivery_full_name}>{modal.order.delivery_full_name || 'Customer'}</strong>
-                          <span>Buyer Account</span>
-                        </div>
-                      </div>
-                      <div className="delivery-actor-footer">
-                        <span>Contact:</span>
-                        <strong>{modal.order.delivery_mobile_number || 'Not provided'}</strong>
-                      </div>
-                    </div>
-
-                    {/* Driver & Vehicle */}
-                    <div className="delivery-card">
-                      <span className="delivery-card-subtitle">Assigned Driver &amp; Vehicle</span>
-                      <div className="delivery-actor-row">
-                        <div className="delivery-actor-avatar is-driver">
-                          <Truck size={18} aria-hidden="true" />
-                        </div>
-                        <div className="delivery-actor-meta">
-                          <strong title={modal.order.assigned_driver?.full_name}>{modal.order.assigned_driver?.full_name || 'Unassigned driver'}</strong>
-                          <span>Farm Logistics Driver</span>
-                        </div>
-                      </div>
-                      <div className="delivery-actor-footer">
-                        <span>Vehicle:</span>
-                        <strong className="delivery-vehicle-tag">
-                          {modal.order.assigned_vehicle
-                            ? `${modal.order.assigned_vehicle.vehicle_name} · ${modal.order.assigned_vehicle.plate_number}`
-                            : 'No vehicle assigned'}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Destination Address Card */}
-                  <div className="delivery-card">
-                    <span className="delivery-card-title">
-                      <MapPin size={14} className="delivery-title-icon" aria-hidden="true" />
-                      Delivery Destination
-                    </span>
-                    <p className="delivery-address-text">
-                      {[modal.order.delivery_barangay, modal.order.delivery_city_municipality, modal.order.delivery_province, modal.order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'}
-                    </p>
-                  </div>
-
-                  {/* Proof of Delivery Card (when Delivered or has Photo) */}
-                  {(modal.order.delivery_proof_image_url || isDelivered) && (
-                    <div className="delivery-card delivery-proof-box">
-                      <div className="delivery-card-header">
-                        <span className="delivery-card-title">
-                          <Camera size={14} className="delivery-title-icon" aria-hidden="true" />
-                          Driver's Proof of Delivery
-                        </span>
-                        {modal.order.delivery_proof_submitted_at && (
-                          <span className="delivery-card-meta">
-                            Submitted {formatSchedule(modal.order.delivery_proof_submitted_at)}
-                          </span>
-                        )}
-                      </div>
-
-                      {modal.order.delivery_proof_image_url ? (
-                        <div className="delivery-proof-layout">
-                          <div
-                            className="delivery-proof-thumbnail-wrap"
-                            onClick={() =>
-                              setDisputeActivePhoto({
-                                url: modal.order.delivery_proof_image_url,
-                                title: "Proof of Delivery — Doorstep Drop-off",
-                                subtitle: `Order #${modal.order.order_number} · Driver: ${modal.order.assigned_driver?.full_name || 'Assigned Driver'}${modal.order.delivery_proof_submitted_at ? ` · ${formatSchedule(modal.order.delivery_proof_submitted_at)}` : ''}`,
-                              })
-                            }
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => e.key === 'Enter' && setDisputeActivePhoto({ url: modal.order.delivery_proof_image_url, title: "Proof of Delivery" })}
-                            title="Click to view full size"
-                          >
-                            <img src={modal.order.delivery_proof_image_url} alt="Proof of delivery" className="delivery-proof-thumbnail" />
-                            <div className="delivery-proof-thumbnail-overlay">
-                              <ZoomIn size={15} /> <span>Enlarge</span>
-                            </div>
-                          </div>
-
-                          <div className="delivery-proof-details">
-                            <span className="delivery-proof-note-label">Driver Drop-off Note:</span>
-                            <p className="delivery-proof-note-text">
-                              {modal.order.delivery_proof_notes ? `"${modal.order.delivery_proof_notes}"` : 'No additional note added by driver.'}
-                            </p>
-                            <div className="delivery-proof-badges">
-                              <span className="delivery-proof-badge-verified">✓ Doorstep Drop-off Verified</span>
-                              <span>·</span>
-                              <span>Logged to tracking history</span>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="delivery-proof-empty-notice">
-                          <span>Delivery marked completed. Drop-off photo was not attached by driver.</span>
-                        </div>
-                      )}
-                    </div>
+            <WoSection title="Items">
+              <table className="wo-table">
+                <thead><tr><th>Item</th><th>Size</th><th className="r">Qty</th><th className="r">Unit price</th><th className="r">Total</th></tr></thead>
+                <tbody>
+                  {items.length > 0 ? items.map((item, index) => (
+                    <tr key={item.id || index}>
+                      <td>{item.product_name}</td>
+                      <td>{item.weight_label || '—'}</td>
+                      <td className="r">{item.quantity}</td>
+                      <td className="r">{item.unit_price ? `₱${Number(item.unit_price).toFixed(2)}` : '—'}</td>
+                      <td className="r"><strong>₱{Number(item.line_total || (Number(item.unit_price || 0) * Number(item.quantity || 1))).toFixed(2)}</strong></td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td>Fresh Produce Order</td><td>—</td><td className="r">—</td><td className="r">—</td>
+                      <td className="r"><strong>₱{Number(order.total_amount || 0).toFixed(2)}</strong></td>
+                    </tr>
                   )}
+                </tbody>
+              </table>
+            </WoSection>
 
-                </div>
-
-                {/* RIGHT COLUMN: Order Items & Financials */}
-                <div className="delivery-panel-right">
-                  <div className="delivery-right-inner">
-                    
-                    {/* Financial Summary Box */}
-                    <div className="delivery-financial-card">
-                      <div className="delivery-financial-top">
-                        <span className="delivery-financial-kicker">Total Order Amount</span>
-                        <span className="delivery-payment-method-badge">
-                          <span className="delivery-payment-dot" />
-                          {isGcash ? 'GCash Paid' : (modal.order.payment_method || 'Cash').toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="delivery-financial-amount">
-                        ₱{Number(modal.order.total_amount || 0).toFixed(2)}
-                      </div>
-                      <div className="delivery-financial-meta">
-                        <span>Payment Status:</span>
-                        <strong>{modal.order.payment_status ? modal.order.payment_status.toUpperCase() : (isGcash ? 'PAID' : 'COD / SETTLED')}</strong>
-                      </div>
-                    </div>
-
-                    {/* Order Items Manifest List */}
-                    <div className="delivery-manifest-section">
-                      <div className="delivery-manifest-header">
-                        <span className="delivery-manifest-title">Order Items Manifest</span>
-                        <span className="delivery-manifest-count">
-                          {items.length > 0 ? `${items.length} product${items.length === 1 ? '' : 's'} · ${totalItemsCount} units` : 'Produce Manifest'}
-                        </span>
-                      </div>
-
-                      {items.length > 0 ? (
-                        <div className="delivery-manifest-list">
-                          {items.map((item, idx) => (
-                            <div key={item.id || idx} className="delivery-manifest-row">
-                              <div className="delivery-manifest-item-main">
-                                <span className="delivery-manifest-emoji" aria-hidden="true">🍍</span>
-                                <div className="delivery-manifest-item-meta">
-                                  <strong>{item.product_name}</strong>
-                                  <span>
-                                    Qty: {item.quantity} {item.weight_label ? `(${item.weight_label})` : 'pcs'}
-                                    {item.unit_price && ` · ₱${Number(item.unit_price).toFixed(2)} each`}
-                                  </span>
-                                </div>
-                              </div>
-                              <strong className="delivery-manifest-item-total">
-                                ₱{Number(item.line_total || (Number(item.unit_price || 0) * Number(item.quantity || 1))).toFixed(2)}
-                              </strong>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="delivery-manifest-fallback">
-                          <div className="delivery-manifest-row">
-                            <div className="delivery-manifest-item-main">
-                              <span className="delivery-manifest-emoji" aria-hidden="true">📦</span>
-                              <div className="delivery-manifest-item-meta">
-                                <strong>Fresh Produce Order</strong>
-                                <span>Prepared farm produce package</span>
-                              </div>
-                            </div>
-                            <strong className="delivery-manifest-item-total">
-                              ₱{Number(modal.order.total_amount || 0).toFixed(2)}
-                            </strong>
-                          </div>
-                        </div>
+            {(order.delivery_proof_image_url || isDelivered) && (
+              <WoSection title="Proof of delivery">
+                {order.delivery_proof_image_url ? (
+                  <div className="wo-proof">
+                    <button
+                      type="button"
+                      className="wo-photo is-thumb"
+                      aria-label="View proof of delivery full size"
+                      onClick={() => setDisputeActivePhoto({
+                        url: order.delivery_proof_image_url,
+                        title: 'Proof of Delivery',
+                        subtitle: `Order #${order.order_number} · Driver: ${order.assigned_driver?.full_name || 'Assigned Driver'}${order.delivery_proof_submitted_at ? ` · ${formatSchedule(order.delivery_proof_submitted_at)}` : ''}`,
+                      })}
+                    >
+                      <img src={order.delivery_proof_image_url} alt="Proof of delivery" />
+                    </button>
+                    <div>
+                      <p className="wo-prose">{order.delivery_proof_notes || 'No additional note added by the driver.'}</p>
+                      {order.delivery_proof_submitted_at && (
+                        <p className="wo-fine">Submitted {formatSchedule(order.delivery_proof_submitted_at)}{order.assigned_driver?.full_name ? ` by ${order.assigned_driver.full_name}` : ''}</p>
                       )}
-
-                      <div className="delivery-breakdown-card">
-                        <div className="delivery-breakdown-row">
-                          <span>Produce Subtotal</span>
-                          <strong>₱{Number(modal.order.total_amount || 0).toFixed(2)}</strong>
-                        </div>
-                        <div className="delivery-breakdown-row">
-                          <span>Delivery Fee</span>
-                          <span className="is-free">FREE (Farm Dispatch)</span>
-                        </div>
-                      </div>
                     </div>
-
                   </div>
-
-                  {/* Bottom Action Buttons */}
-                  <div className="delivery-modal-footer">
-                    {modal.order.order_status === 'ready_for_delivery' && modal.order.delivery_assignment_status === 'assigned' && (
-                      <button
-                        type="button"
-                        className="delivery-footer-btn is-edit"
-                        onClick={() => {
-                          const orderToEdit = modal.order
-                          setModal(null)
-                          openEditDelivery(orderToEdit)
-                        }}
-                      >
-                        <Pencil size={14} aria-hidden="true" />
-                        <span>Edit Schedule</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="delivery-footer-btn is-print"
-                      onClick={() => window.print()}
-                    >
-                      <Printer size={14} aria-hidden="true" />
-                      <span>Print Slip</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="delivery-footer-btn is-close"
-                      onClick={() => setModal(null)}
-                    >
-                      Close
-                    </button>
-                  </div>
-
-                </div>
-
-              </div>
-
-            </section>
-          </div>
+                ) : (
+                  <p className="wo-empty">Delivery marked completed. No drop-off photo was attached by the driver.</p>
+                )}
+              </WoSection>
+            )}
+          </WorkOrderDialog>
         )
       })()}
 
       {modal?.mode === 'review-dispute' && (() => {
-        const parsedReport = parseDisputeReason(modal.order.delivery_dispute_reason)
-        const suggestedVal = modal.order.disputed_item
-          ? (Number(modal.order.disputed_item.unit_price) * Number(modal.order.delivery_dispute_affected_quantity || 0)).toFixed(2)
+        const order = modal.order
+        const parsedReport = parseDisputeReason(order.delivery_dispute_reason)
+        const suggestedVal = order.disputed_item
+          ? (Number(order.disputed_item.unit_price) * Number(order.delivery_dispute_affected_quantity || 0)).toFixed(2)
           : null
-        const buyerPhotos = Array.isArray(modal.order.delivery_dispute_photo_urls) ? modal.order.delivery_dispute_photo_urls : []
-        const isGcash = modal.order.payment_method === 'gcash'
+        const buyerPhotos = Array.isArray(order.delivery_dispute_photo_urls) ? order.delivery_dispute_photo_urls : []
+        const isGcash = order.payment_method === 'gcash'
+        const isSeller = order.delivery_dispute_responsible_role === 'seller'
+        const responsibleName = isSeller
+          ? order.responsible_seller?.full_name || 'Seller (unidentified)'
+          : order.assigned_driver?.full_name || 'Unassigned driver'
+        const claimTitle = order.delivery_dispute_category
+          ? order.delivery_dispute_category.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+          : 'Delivery issue report'
+        const refunding = disputeDecision === 'refunded'
+        const resolved = order.delivery_dispute_status === 'resolved'
+        const resolutionOutcome = order.delivery_dispute_resolution === 'refunded'
+          ? `Refunded${order.refund_amount != null ? ` ₱${Number(order.refund_amount).toFixed(2)}` : ''}`
+          : order.delivery_dispute_resolution === 'dismissed' ? 'Claim dismissed' : 'Resolved'
+        const chooseDecision = (decision) => {
+          setDisputeDecision(decision)
+          if (decision === 'refunded' && (!disputeResolutionNotes || disputeResolutionNotes.includes('Claim dismissed'))) {
+            setDisputeResolutionNotes('Produce damaged in transit. Approved partial refund of item cost.')
+          }
+          if (decision === 'dismissed' && (!disputeResolutionNotes || disputeResolutionNotes.includes('Approved partial refund'))) {
+            setDisputeResolutionNotes('Driver delivery proof confirms produce arrived intact and accepted in good order. Claim dismissed.')
+          }
+        }
+        const refundInvalid = saving
+          || !disputeResolutionNotes.trim()
+          || !disputeRefundAmount
+          || Number(disputeRefundAmount) <= 0
+          || Number(disputeRefundAmount) > Number(order.total_amount)
+          || (!isGcash && !disputeRefundReference.trim())
+        const presets = refunding
+          ? [
+            ['Damage approved', 'Produce damaged in transit. Approved partial refund of item cost.'],
+            ['Spoiled or damaged', 'Item confirmed spoiled or damaged upon delivery inspection. Full refund approved.'],
+          ]
+          : [
+            ['Proof intact', 'Driver delivery proof confirms produce arrived intact and accepted in good order. Claim dismissed.'],
+            ['Unsubstantiated', 'Dispute evidence does not substantiate product defect or delivery fault. Claim dismissed.'],
+          ]
 
         return (
-          <div className="task-modal-backdrop">
-            <section
-              className="task-reference-modal dispute-review-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="review-dispute-title"
-            >
-              <TaskModalHeader
-                title={
-                  <span className="dispute-header-title">
-                    <span id="review-dispute-title">Review Delivery Dispute</span>
-                    <span className="dispute-order-pill">#{modal.order.order_number}</span>
-                  </span>
-                }
-                tag="Dispute resolution"
-                onClose={() => setModal(null)}
-              />
+          <WorkOrderDialog
+            size="wide"
+            eyebrow="Dispute resolution"
+            id={`#${order.order_number}`}
+            title={resolved ? 'Dispute Details' : 'Review Delivery Dispute'}
+            titleId="review-dispute-title"
+            sub={`Reported ${formatSchedule(order.delivery_dispute_created_at)}${order.delivery_full_name ? ` by ${order.delivery_full_name}` : ''}${resolved && order.delivery_dispute_resolved_at ? ` · Resolved ${formatSchedule(order.delivery_dispute_resolved_at)}` : ''}`}
+            onClose={() => setModal(null)}
+            footerNote={resolved ? 'This dispute is closed.' : 'The customer is notified of the decision.'}
+            footer={resolved ? (
+              <button type="button" className="wo-btn" onClick={() => setModal(null)}>Close</button>
+            ) : (<>
+              <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Cancel</button>
+              {refunding ? (
+                <button type="button" className="wo-btn is-primary" disabled={refundInvalid} onClick={() => resolveDispute('refunded')}>
+                  {saving ? 'Processing refund…' : `Confirm refund ₱${Number(disputeRefundAmount || 0).toFixed(2)}`}
+                </button>
+              ) : (
+                <button type="button" className="wo-btn is-danger" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveDispute('dismissed')}>
+                  {saving ? 'Dismissing…' : 'Dismiss claim'}
+                </button>
+              )}
+            </>)}
+          >
+            <div className="wo-two">
+              <div>
+                <WoSection title="Order">
+                  <WoList>
+                    <WoRow label="Customer">{order.delivery_full_name || 'Not provided'}</WoRow>
+                    <WoRow label={isSeller ? 'Seller' : 'Driver'}>{responsibleName}</WoRow>
+                    <WoRow label="Payment">{isGcash ? 'GCash' : (order.payment_method || 'Cash').toUpperCase()}{order.payment_status ? `, ${order.payment_status}` : ''}</WoRow>
+                    <WoRow label="Reported">{formatSchedule(order.delivery_dispute_created_at)}</WoRow>
+                  </WoList>
+                </WoSection>
 
-              <div className="dispute-modal-body custom-scrollbar">
-                {/* LEFT COLUMN: Case Context & Evidence */}
-                <div className="dispute-panel-left">
-                  {/* Order & Customer Overview */}
-                  <div>
-                    <span className="dispute-section-kicker">Order &amp; Customer Overview</span>
-                    <div className="dispute-overview-grid">
-                      <div className="dispute-overview-tile">
-                        <span>Customer</span>
-                        <strong title={modal.order.delivery_full_name || 'Not provided'}>
-                          {modal.order.delivery_full_name || 'Not provided'}
-                        </strong>
-                      </div>
-                      <div className="dispute-overview-tile">
-                        <span>{modal.order.delivery_dispute_responsible_role === 'seller' ? 'Seller' : 'Driver'}</span>
-                        <strong
-                          title={
-                            modal.order.delivery_dispute_responsible_role === 'seller'
-                              ? modal.order.responsible_seller?.full_name || 'Seller (unidentified)'
-                              : modal.order.assigned_driver?.full_name || 'Unassigned driver'
-                          }
-                        >
-                          {modal.order.delivery_dispute_responsible_role === 'seller'
-                            ? modal.order.responsible_seller?.full_name || 'Seller (unidentified)'
-                            : modal.order.assigned_driver?.full_name || 'Unassigned driver'}
-                        </strong>
-                      </div>
-                      <div className="dispute-overview-tile">
-                        <span>Payment</span>
-                        <span className="dispute-payment-pill">
-                          <span className="dispute-payment-dot" />
-                          {isGcash ? 'GCash' : (modal.order.payment_method || 'Cash').toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="dispute-overview-tile">
-                        <span>Reported</span>
-                        <strong title={formatSchedule(modal.order.delivery_dispute_created_at)}>
-                          {formatSchedule(modal.order.delivery_dispute_created_at)}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Structured Buyer's Claim Card */}
-                  <div className="dispute-claim-card">
-                    <div className="dispute-claim-top">
-                      <div className="dispute-claim-title-wrap">
-                        <span>Customer's Claim</span>
-                        <h4>
-                          {modal.order.delivery_dispute_category
-                            ? modal.order.delivery_dispute_category.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
-                            : 'Delivery Issue Report'}
-                        </h4>
-                      </div>
-                      <span className="dispute-resolution-badge">
-                        <RotateCcw size={13} aria-hidden="true" />
-                        Requested: {parsedReport.resolutionLabel}
-                      </span>
-                    </div>
-
-                    {modal.order.disputed_item ? (
-                      <div className="dispute-item-row">
-                        <div className="dispute-item-info">
-                          <div className="dispute-item-icon" aria-hidden="true">🍍</div>
-                          <div>
-                            <strong className="dispute-item-name">{modal.order.disputed_item.product_name}</strong>
-                            <span className="dispute-item-qty">
-                              {modal.order.delivery_dispute_affected_quantity || 1} of {modal.order.disputed_item.quantity} flagged
-                              {modal.order.disputed_item.unit_price && ` · ₱${Number(modal.order.disputed_item.unit_price).toFixed(2)}/unit`}
-                            </span>
-                          </div>
-                        </div>
-                        {suggestedVal && (
-                          <div className="dispute-item-val">
-                            <span>Item Value</span>
-                            <strong>₱{suggestedVal}</strong>
-                          </div>
-                        )}
-                      </div>
+                <WoSection title="Customer's claim">
+                  <WoList>
+                    <WoRow label="Issue">{claimTitle}</WoRow>
+                    <WoRow label="Requested">{parsedReport.resolutionLabel}</WoRow>
+                    {order.disputed_item ? (
+                      <>
+                        <WoRow label="Item">
+                          {order.disputed_item.product_name}, {order.delivery_dispute_affected_quantity || 1} of {order.disputed_item.quantity} flagged{order.disputed_item.unit_price ? ` at ₱${Number(order.disputed_item.unit_price).toFixed(2)} each` : ''}
+                        </WoRow>
+                        {suggestedVal && <WoRow label="Item value"><strong>₱{suggestedVal}</strong></WoRow>}
+                      </>
                     ) : parsedReport.itemBreakdownText ? (
-                      <div className="dispute-item-row">
-                        <div className="dispute-item-info">
-                          <div className="dispute-item-icon" aria-hidden="true">📦</div>
-                          <div>
-                            <strong className="dispute-item-name">Flagged Items</strong>
-                            <span className="dispute-item-qty">{parsedReport.itemBreakdownText}</span>
-                          </div>
-                        </div>
-                      </div>
+                      <WoRow label="Flagged items">{parsedReport.itemBreakdownText}</WoRow>
                     ) : null}
+                  </WoList>
+                  <p className="wo-quote">{parsedReport.userDescription ? `“${parsedReport.userDescription}”` : 'No additional text remarks provided by the customer.'}</p>
+                </WoSection>
 
-                    <div className="dispute-buyer-comment-wrap">
-                      <span>Buyer's Description</span>
-                      <p className="dispute-buyer-comment">
-                        {parsedReport.userDescription ? `"${parsedReport.userDescription}"` : 'No additional text remarks provided by customer.'}
-                      </p>
+                <WoSection title="Evidence">
+                  <p className="wo-hint">Customer's photos{buyerPhotos.length > 0 ? ` (${buyerPhotos.length})` : ''}</p>
+                  {buyerPhotos.length > 0 ? (
+                    <div className="wo-thumbs">
+                      {buyerPhotos.map((url, index) => (
+                        <button
+                          type="button"
+                          className="wo-photo is-thumb"
+                          key={url || index}
+                          aria-label={`View buyer evidence photo ${index + 1} full size`}
+                          onClick={() => setDisputeActivePhoto({
+                            url,
+                            title: `Buyer Evidence (Photo ${index + 1} of ${buyerPhotos.length})`,
+                            subtitle: `Order #${order.order_number} · Submitted ${formatSchedule(order.delivery_dispute_created_at)}`,
+                          })}
+                        >
+                          <img src={url} alt={`Buyer evidence ${index + 1}`} />
+                        </button>
+                      ))}
                     </div>
-                  </div>
-
-                  {/* Side-by-Side Photographic Evidence Comparison */}
-                  <div className="dispute-evidence-section">
-                    <div className="dispute-evidence-header">
-                      <span>Photographic Evidence Comparison</span>
-                      <small>Click image to enlarge</small>
-                    </div>
-
-                    <div className="dispute-evidence-compare-grid">
-                      {/* Left: Buyer Evidence */}
-                      <div className="dispute-evidence-box">
-                        <div className="dispute-evidence-box-header">
-                          <span className="dispute-evidence-tag">
-                            <span className="dispute-dot-buyer" />
-                            Buyer Evidence
-                          </span>
-                          <span className="dispute-evidence-meta">
-                            {buyerPhotos.length} photo{buyerPhotos.length === 1 ? '' : 's'}
-                          </span>
-                        </div>
-
-                        {buyerPhotos.length > 0 ? (
-                          <div className="dispute-evidence-thumbs-list">
-                            {buyerPhotos.map((url, index) => (
-                              <div
-                                key={url || index}
-                                className="dispute-evidence-thumb-wrap"
-                                onClick={() =>
-                                  setDisputeActivePhoto({
-                                    url,
-                                    title: `Buyer Evidence (Photo ${index + 1} of ${buyerPhotos.length})`,
-                                    subtitle: `Order #${modal.order.order_number} · Submitted ${formatSchedule(modal.order.delivery_dispute_created_at)}`,
-                                  })
-                                }
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => e.key === 'Enter' && setDisputeActivePhoto({ url, title: `Buyer Evidence (Photo ${index + 1})` })}
-                                title="Click to view full size"
-                              >
-                                <img src={url} alt={`Buyer evidence ${index + 1}`} className="dispute-evidence-thumb" />
-                                <div className="dispute-evidence-thumb-hover">
-                                  <ZoomIn size={15} /> <span>Zoom</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="dispute-evidence-empty">
-                            <span>No buyer photos submitted</span>
-                          </div>
-                        )}
-
-                        <span className="dispute-evidence-subtext">
-                          Submitted {formatSchedule(modal.order.delivery_dispute_created_at)}
-                        </span>
-                      </div>
-
-                      {/* Right: Driver Delivery Proof */}
-                      <div className="dispute-evidence-box">
-                        <div className="dispute-evidence-box-header">
-                          <span className="dispute-evidence-tag">
-                            <span className="dispute-dot-driver" />
-                            Driver Proof
-                          </span>
-                          <span className="dispute-evidence-meta">Doorstep</span>
-                        </div>
-
-                        {modal.order.delivery_proof_image_url ? (
-                          <div
-                            className="dispute-evidence-thumb-wrap"
-                            onClick={() =>
-                              setDisputeActivePhoto({
-                                url: modal.order.delivery_proof_image_url,
-                                title: "Driver's Delivery Proof",
-                                subtitle: `Order #${modal.order.order_number} · ${modal.order.assigned_driver?.full_name ? `Driver: ${modal.order.assigned_driver.full_name}` : 'Drop-off Photo'}`,
-                              })
-                            }
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => e.key === 'Enter' && setDisputeActivePhoto({ url: modal.order.delivery_proof_image_url, title: "Driver's Delivery Proof" })}
-                            title="Click to view full size"
-                          >
-                            <img src={modal.order.delivery_proof_image_url} alt="Driver proof of delivery" className="dispute-evidence-thumb" />
-                            <div className="dispute-evidence-thumb-hover">
-                              <ZoomIn size={15} /> <span>Zoom</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="dispute-evidence-empty">
-                            <span>No driver proof photo recorded</span>
-                          </div>
-                        )}
-
-                        <span className="dispute-evidence-subtext" title={modal.order.delivery_proof_notes || 'Captured upon delivery'}>
-                          {modal.order.delivery_proof_notes ? `Note: "${modal.order.delivery_proof_notes}"` : 'Captured upon delivery'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Responsible party response (if provided) */}
-                  {modal.order.delivery_dispute_response && (
-                    <div className="dispute-response-card">
-                      <div className="dispute-response-header">
-                        <span className="dispute-response-role-badge">
-                          {modal.order.delivery_dispute_responsible_role === 'seller' ? "Seller's Explanation" : "Driver's Explanation"}
-                        </span>
-                        {modal.order.delivery_dispute_response_at && (
-                          <span className="dispute-response-time">{formatSchedule(modal.order.delivery_dispute_response_at)}</span>
-                        )}
-                      </div>
-                      <p className="dispute-response-text">{modal.order.delivery_dispute_response}</p>
-                    </div>
+                  ) : (
+                    <p className="wo-empty">No buyer photos submitted.</p>
                   )}
-                </div>
 
-                {/* RIGHT COLUMN: Adjudication Decision Panel */}
-                <div className="dispute-panel-right">
-                  <div className="dispute-decision-inner">
-                    <div className="dispute-adjudication-header">
-                      <span className="dispute-section-kicker">Resolution Decision</span>
-                      <h3 className="dispute-section-title">Select Action to Resolve Dispute</h3>
-                    </div>
-
-                    {/* Decision Switcher Tabs */}
-                    <div className="dispute-decision-switcher" role="radiogroup" aria-label="Resolution decision">
+                  <p className="wo-hint" style={{ marginTop: 12 }}>Driver's delivery proof</p>
+                  {order.delivery_proof_image_url ? (
+                    <div className="wo-proof">
                       <button
                         type="button"
-                        role="radio"
-                        aria-checked={disputeDecision === 'refunded'}
-                        className={`dispute-decision-tab ${disputeDecision === 'refunded' ? 'is-active is-refund' : ''}`}
-                        onClick={() => {
-                          setDisputeDecision('refunded')
-                          if (!disputeResolutionNotes || disputeResolutionNotes.includes('Claim dismissed')) {
-                            setDisputeResolutionNotes('Produce damaged in transit. Approved partial refund of item cost.')
-                          }
-                        }}
+                        className="wo-photo is-thumb"
+                        aria-label="View driver proof of delivery full size"
+                        onClick={() => setDisputeActivePhoto({
+                          url: order.delivery_proof_image_url,
+                          title: "Driver's Delivery Proof",
+                          subtitle: `Order #${order.order_number} · ${order.assigned_driver?.full_name ? `Driver: ${order.assigned_driver.full_name}` : 'Drop-off photo'}`,
+                        })}
                       >
-                        <Check size={16} aria-hidden="true" />
-                        <span>Approve Refund</span>
+                        <img src={order.delivery_proof_image_url} alt="Driver proof of delivery" />
                       </button>
-
-                      <button
-                        type="button"
-                        role="radio"
-                        aria-checked={disputeDecision === 'dismissed'}
-                        className={`dispute-decision-tab ${disputeDecision === 'dismissed' ? 'is-active is-dismiss' : ''}`}
-                        onClick={() => {
-                          setDisputeDecision('dismissed')
-                          if (!disputeResolutionNotes || disputeResolutionNotes.includes('Approved partial refund')) {
-                            setDisputeResolutionNotes('Driver delivery proof confirms produce arrived intact and accepted in good order. Claim dismissed.')
-                          }
-                        }}
-                      >
-                        <X size={16} aria-hidden="true" />
-                        <span>Dismiss Dispute</span>
-                      </button>
+                      <p className="wo-prose">{order.delivery_proof_notes || 'Captured upon delivery.'}</p>
                     </div>
+                  ) : (
+                    <p className="wo-empty">No driver proof photo recorded.</p>
+                  )}
 
-                    {/* Decision Form Content */}
-                    {disputeDecision === 'refunded' ? (
-                      <div className="dispute-form-fields">
-                        <label className="dispute-form-label">
-                          <div className="dispute-label-row">
-                            <span>Refund Amount (₱)</span>
-                            {suggestedVal && <small>Flagged Item: ₱{suggestedVal} · Order total: ₱{Number(modal.order.total_amount).toFixed(2)}</small>}
-                          </div>
-                          <div className="dispute-input-prefix-wrap">
-                            <span className="dispute-input-prefix">₱</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max={Number(modal.order.total_amount) || undefined}
-                              step="0.01"
-                              value={disputeRefundAmount}
-                              onChange={(event) => setDisputeRefundAmount(event.target.value)}
-                              placeholder="0.00"
-                              className="dispute-number-input"
-                            />
-                          </div>
-                        </label>
+                  {order.delivery_dispute_response && (
+                    <>
+                      <p className="wo-hint" style={{ marginTop: 12 }}>
+                        {isSeller ? "Seller's explanation" : "Driver's explanation"}
+                        {order.delivery_dispute_response_at ? ` · ${formatSchedule(order.delivery_dispute_response_at)}` : ''}
+                      </p>
+                      <p className="wo-prose">{order.delivery_dispute_response}</p>
+                    </>
+                  )}
+                </WoSection>
+              </div>
 
-                        {isGcash ? (
-                          <div className="dispute-payment-info-box">
-                            <strong>Payment Method: GCash</strong>
-                            <p>
-                              A refund amount of ₱{Number(disputeRefundAmount || 0).toFixed(2)} will be marked in the dispute record.
-                              (PayMongo automated disbursement pending integration; recorded for audit).
-                            </p>
-                          </div>
-                        ) : (
-                          <label className="dispute-form-label">
-                            <div className="dispute-label-row">
-                              <span>Manual Transfer Reference</span>
-                              <small className="is-required">(Required for {modal.order.payment_method || 'Cash'})</small>
-                            </div>
-                            <input
-                              type="text"
-                              value={disputeRefundReference}
-                              onChange={(event) => setDisputeRefundReference(event.target.value)}
-                              maxLength={300}
-                              placeholder="e.g. Cash returned on inspection, or GCash ref #123456"
-                              className="dispute-text-input"
-                            />
-                          </label>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="dispute-dismiss-notice">
-                        <strong>Dismissing Claim:</strong>
-                        <p>No refund will be credited. The order will be finalized as completed. Please state the dismissal reason below.</p>
-                      </div>
-                    )}
+              <div>
+                {resolved ? (
+                  <WoSection title="Resolution">
+                    <WoList>
+                      <WoRow label="Outcome"><strong>{resolutionOutcome}</strong></WoRow>
+                      <WoRow label="Resolved">{order.delivery_dispute_resolved_at ? formatSchedule(order.delivery_dispute_resolved_at) : '—'}</WoRow>
+                    </WoList>
+                    <p className="wo-hint" style={{ marginTop: 12 }}>Resolution note</p>
+                    <p className="wo-prose">{order.delivery_dispute_resolution_notes || 'No note was recorded.'}</p>
+                  </WoSection>
+                ) : (
+                <WoSection title="Decision">
+                  <WoRadios
+                    label="Resolution decision"
+                    options={[{ value: 'refunded', label: 'Approve refund' }, { value: 'dismissed', label: 'Dismiss claim' }]}
+                    value={disputeDecision}
+                    onChange={chooseDecision}
+                  />
 
-                    {/* Resolution Note & Quick Presets */}
-                    <div className="dispute-notes-field">
-                      <div className="dispute-label-row">
-                        <span className="dispute-field-label">Resolution Note (Required)</span>
-                        <small>Visible to customer &amp; records</small>
-                      </div>
+                  {refunding ? (
+                    <div className="wo-grid is-one">
+                      <WoField label="Refund amount" htmlFor="dispute-refund-amount" hint={suggestedVal ? `Flagged item ₱${suggestedVal} · Order total ₱${Number(order.total_amount).toFixed(2)}` : null}>
+                        <div className="wo-money">
+                          <span aria-hidden="true">₱</span>
+                          <input
+                            id="dispute-refund-amount"
+                            className="wo-input"
+                            type="number"
+                            min="0"
+                            max={Number(order.total_amount) || undefined}
+                            step="0.01"
+                            value={disputeRefundAmount}
+                            onChange={(event) => setDisputeRefundAmount(event.target.value)}
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </WoField>
+                      {isGcash ? (
+                        <p className="wo-note">
+                          Paid with GCash. A refund of ₱{Number(disputeRefundAmount || 0).toFixed(2)} will be recorded in the dispute record for audit (PayMongo automated disbursement is pending integration).
+                        </p>
+                      ) : (
+                        <WoField label={`Manual transfer reference (required for ${order.payment_method || 'cash'})`} htmlFor="dispute-refund-reference">
+                          <input
+                            id="dispute-refund-reference"
+                            className="wo-input"
+                            type="text"
+                            value={disputeRefundReference}
+                            onChange={(event) => setDisputeRefundReference(event.target.value)}
+                            maxLength={300}
+                            placeholder="e.g. Cash returned on inspection, or GCash ref #123456"
+                          />
+                        </WoField>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="wo-note">No refund will be credited. The order will be finalized as completed. State the dismissal reason below.</p>
+                  )}
+
+                  <div className="wo-grid is-one">
+                    <WoField label="Resolution note (required, visible to the customer and records)" htmlFor="dispute-resolution-notes">
                       <textarea
-                        className="dispute-resolution-textarea"
+                        id="dispute-resolution-notes"
+                        className="wo-input"
                         value={disputeResolutionNotes}
                         onChange={(event) => setDisputeResolutionNotes(event.target.value)}
                         rows={3}
                         maxLength={1000}
                         placeholder="Explain your decision…"
                       />
-
-                      <div className="dispute-presets-bar">
-                        <span className="dispute-presets-title">Presets:</span>
-                        {disputeDecision === 'refunded' ? (
-                          <>
-                            <button
-                              type="button"
-                              className="dispute-preset-chip"
-                              onClick={() => setDisputeResolutionNotes('Produce damaged in transit. Approved partial refund of item cost.')}
-                            >
-                              Damage approved
-                            </button>
-                            <button
-                              type="button"
-                              className="dispute-preset-chip"
-                              onClick={() => setDisputeResolutionNotes('Item confirmed spoiled or damaged upon delivery inspection. Full refund approved.')}
-                            >
-                              Spoiled / Damaged
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className="dispute-preset-chip"
-                              onClick={() => setDisputeResolutionNotes('Driver delivery proof confirms produce arrived intact and accepted in good order. Claim dismissed.')}
-                            >
-                              Proof intact
-                            </button>
-                            <button
-                              type="button"
-                              className="dispute-preset-chip"
-                              onClick={() => setDisputeResolutionNotes('Dispute evidence does not substantiate product defect or delivery fault. Claim dismissed.')}
-                            >
-                              Unsubstantiated
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {error && <div className="tasks-error" role="alert" style={{ marginTop: '12px', borderRadius: '8px' }}>{error}</div>}
+                    </WoField>
                   </div>
-
-                  {/* Bottom Action Buttons */}
-                  <div className="dispute-footer-actions">
-                    {disputeDecision === 'refunded' ? (
-                      <button
-                        type="button"
-                        className="dispute-submit-btn is-refund"
-                        disabled={
-                          saving ||
-                          !disputeResolutionNotes.trim() ||
-                          !disputeRefundAmount ||
-                          Number(disputeRefundAmount) <= 0 ||
-                          Number(disputeRefundAmount) > Number(modal.order.total_amount) ||
-                          (!isGcash && !disputeRefundReference.trim())
-                        }
-                        onClick={() => resolveDispute('refunded')}
-                      >
-                        {saving
-                          ? 'Processing Refund…'
-                          : `Confirm Refund ₱${Number(disputeRefundAmount || 0).toFixed(2)}`}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="dispute-submit-btn is-dismiss"
-                        disabled={saving || !disputeResolutionNotes.trim()}
-                        onClick={() => resolveDispute('dismissed')}
-                      >
-                        {saving ? 'Dismissing Dispute…' : 'Dismiss Dispute (Reject Claim)'}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="dispute-cancel-btn"
-                      disabled={saving}
-                      onClick={() => setModal(null)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+                  <p className="wo-links">
+                    <span>Presets</span>
+                    {presets.map(([label, text]) => (
+                      <button type="button" key={label} onClick={() => setDisputeResolutionNotes(text)}>{label}</button>
+                    ))}
+                  </p>
+                  {error && <p className="wo-error" role="alert">{error}</p>}
+                </WoSection>
+                )}
               </div>
-            </section>
-          </div>
+            </div>
+          </WorkOrderDialog>
         )
       })()}
 
@@ -2062,375 +1460,529 @@ export default function TaskScheduleManagement() {
         </div>
       )}
 
-      {modal?.mode === 'review-harvest' && <div className="task-modal-backdrop">
-        <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="review-harvest-title">
-          <TaskModalHeader title="Review Harvest Report" tag="Harvest approval" onClose={() => setModal(null)} />
-          <div className="task-reference-body task-view-body">
-            <div className="task-view-grid">
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Field</span>
-                <strong className="task-view-tile-value">{modal.task.field}</strong>
+      {modal?.mode === 'review-harvest' && (() => {
+        const task = modal.task
+        const counts = {
+          small: Number(harvestApprovalForm.harvest_small_count) || 0,
+          medium: Number(harvestApprovalForm.harvest_medium_count) || 0,
+          large: Number(harvestApprovalForm.harvest_large_count) || 0,
+          damaged: Number(harvestApprovalForm.harvest_damaged_count) || 0,
+        }
+        const sellable = counts.small + counts.medium + counts.large
+        const total = sellable + counts.damaged
+        const damagedShare = total > 0 ? ((counts.damaged / total) * 100).toFixed(1) : '0.0'
+        const rejecting = harvestDecision === 'reject'
+        const worker = task.assigned_worker
+        const countField = (key, label) => (
+          <WoField label={label} htmlFor={`harvest-${key}`} key={key}>
+            <input
+              id={`harvest-${key}`}
+              className="wo-input"
+              type="number"
+              min="0"
+              value={harvestApprovalForm[`harvest_${key}_count`]}
+              onChange={(event) => setHarvestApprovalForm({ ...harvestApprovalForm, [`harvest_${key}_count`]: event.target.value })}
+            />
+          </WoField>
+        )
+        const rejectionPresets = [
+          ['Recount needed', 'Please recount the harvest and submit the report again.'],
+          ['Photo unclear', 'The proof photo is unclear. Please retake it and submit the report again.'],
+          ['Wrong field', 'The proof photo does not match this field. Please check and submit again.'],
+        ]
+
+        return (
+          <WorkOrderDialog
+            size="wide"
+            eyebrow="Harvest approval"
+            id={`#TASK-${String(task.id).padStart(4, '0')}`}
+            title="Review Harvest Report"
+            titleId="review-harvest-title"
+            sub={task.completed_at ? `Submitted ${formatSchedule(task.completed_at)}${worker?.full_name ? ` by ${worker.full_name}` : ''}` : null}
+            onClose={() => setModal(null)}
+            footerNote={rejecting ? 'Nothing is added to Inventory.' : `Adds ${sellable} pcs to Inventory.`}
+            footer={<>
+              <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Cancel</button>
+              {rejecting ? (
+                <button type="button" className="wo-btn is-danger" disabled={saving || !harvestRejectionReason.trim()} onClick={rejectHarvest}>
+                  {saving ? 'Saving…' : 'Send back to worker'}
+                </button>
+              ) : (
+                <button type="button" className="wo-btn is-primary" disabled={saving} onClick={approveHarvest}>
+                  <Check size={15} aria-hidden="true" />{saving ? 'Saving…' : 'Approve & Add to Inventory'}
+                </button>
+              )}
+            </>}
+          >
+            <div className="wo-two">
+              <div>
+                <WoSection title="Task">
+                  <WoList>
+                    <WoRow label="Farm worker">{worker?.full_name || 'Unassigned worker'}</WoRow>
+                    <WoRow label="Field">{task.field || '—'}</WoRow>
+                    <WoRow label="Category">{task.category || '—'}</WoRow>
+                    <WoRow label="Priority"><span className={`wo-priority is-${task.priority || 'medium'}`}>{task.priority_label || 'Normal'}</span></WoRow>
+                    <WoRow label="Scheduled">{task.schedule?.start_time && task.schedule?.end_time ? `${formatSchedule(task.schedule_start)} – ${formatTime12(task.schedule.end_time)}` : formatSchedule(task.schedule_start)}</WoRow>
+                    <WoRow label="Finished">{formatSchedule(task.completed_at)}</WoRow>
+                  </WoList>
+                </WoSection>
+                {task.harvest_proof_image_url && (
+                  <WoSection title="Worker's proof photo">
+                    <button
+                      type="button"
+                      className="wo-photo is-tall"
+                      aria-label="View harvest proof photo full size"
+                      onClick={() => setDisputeActivePhoto({
+                        url: task.harvest_proof_image_url,
+                        title: 'Harvest Proof Photo',
+                        subtitle: `Submitted by ${worker?.full_name || 'Worker'} for ${task.field || 'the field'}`,
+                      })}
+                    >
+                      <img src={task.harvest_proof_image_url} alt="Harvest proof submitted by the worker" />
+                    </button>
+                  </WoSection>
+                )}
+                {task.completion_notes && (
+                  <WoSection title="Worker's notes">
+                    <p className="wo-prose">{task.completion_notes}</p>
+                  </WoSection>
+                )}
               </div>
-              <div className="task-view-tile">
-                <span className="task-view-tile-label">Farm Worker</span>
-                <strong className="task-view-tile-value">{modal.task.assigned_worker?.full_name || 'Unassigned worker'}</strong>
-              </div>
-              <div className="task-view-tile task-view-tile-full">
-                <span className="task-view-tile-label">Finished</span>
-                <strong className="task-view-tile-value">{formatSchedule(modal.task.completed_at)}</strong>
+
+              <div>
+                <WoSection title="Harvest counts">
+                  <p className="wo-hint">Editable before you decide.</p>
+                  <div className="wo-grid">
+                    {countField('small', 'Small')}
+                    {countField('medium', 'Medium')}
+                    {countField('large', 'Large')}
+                    {countField('damaged', 'Damaged')}
+                  </div>
+                  <WoList>
+                    <WoRow label="Total harvested">{total} pcs</WoRow>
+                    <WoRow label="Added to Inventory">{sellable} pcs (Small {counts.small}, Medium {counts.medium}, Large {counts.large})</WoRow>
+                    <WoRow label="Damaged">{counts.damaged} pcs, {damagedShare}%, recorded but not added</WoRow>
+                  </WoList>
+                </WoSection>
+                <WoSection title="Decision">
+                  <WoRadios
+                    label="Harvest decision"
+                    options={[{ value: 'approve', label: 'Approve' }, { value: 'reject', label: 'Send back' }]}
+                    value={harvestDecision}
+                    onChange={setHarvestDecision}
+                  />
+                  {rejecting ? (
+                    <>
+                      <div className="wo-grid is-one">
+                        <WoField label="Reason for sending back (required)" htmlFor="harvest-rejection-reason">
+                          <textarea
+                            id="harvest-rejection-reason"
+                            className="wo-input"
+                            value={harvestRejectionReason}
+                            onChange={(event) => setHarvestRejectionReason(event.target.value)}
+                            rows={3}
+                            maxLength={1000}
+                            placeholder="Explain what needs to be corrected…"
+                          />
+                        </WoField>
+                      </div>
+                      <p className="wo-links">
+                        <span>Presets</span>
+                        {rejectionPresets.map(([label, text]) => (
+                          <button type="button" key={label} onClick={() => setHarvestRejectionReason(text)}>{label}</button>
+                        ))}
+                      </p>
+                      <p className="wo-note">The task returns to In Progress and the worker sees your reason.</p>
+                    </>
+                  ) : (
+                    <p className="wo-note">Approving adds the counts to Inventory and marks the task Completed.</p>
+                  )}
+                  {error && <p className="wo-error" role="alert">{error}</p>}
+                </WoSection>
               </div>
             </div>
-            {modal.task.harvest_proof_image_url && (
-              <section className="task-view-description">
-                <span>Worker's Proof Photo</span>
-                <img className="dispute-proof-photo" src={modal.task.harvest_proof_image_url} alt="Harvest proof submitted by the worker" />
-              </section>
-            )}
-            {modal.task.completion_notes && (
-              <section className="task-view-description">
-                <span>Worker's Notes</span>
-                <p>{modal.task.completion_notes}</p>
-              </section>
-            )}
-            <section className="task-view-description">
-              <span>Reported Counts (editable before approving)</span>
-              <div className="harvest-approval-counts">
-                <label><span>Small</span><input type="number" min="0" value={harvestApprovalForm.harvest_small_count} onChange={(event) => setHarvestApprovalForm({ ...harvestApprovalForm, harvest_small_count: event.target.value })} /></label>
-                <label><span>Medium</span><input type="number" min="0" value={harvestApprovalForm.harvest_medium_count} onChange={(event) => setHarvestApprovalForm({ ...harvestApprovalForm, harvest_medium_count: event.target.value })} /></label>
-                <label><span>Large</span><input type="number" min="0" value={harvestApprovalForm.harvest_large_count} onChange={(event) => setHarvestApprovalForm({ ...harvestApprovalForm, harvest_large_count: event.target.value })} /></label>
-                <label><span>Damaged</span><input type="number" min="0" value={harvestApprovalForm.harvest_damaged_count} onChange={(event) => setHarvestApprovalForm({ ...harvestApprovalForm, harvest_damaged_count: event.target.value })} /></label>
-              </div>
-            </section>
-            <section className="task-view-description">
-              <span>Rejection Reason (required only to reject)</span>
-              <textarea
-                className="dispute-resolution-notes"
-                value={harvestRejectionReason}
-                onChange={(event) => setHarvestRejectionReason(event.target.value)}
-                rows={3}
-                maxLength={1000}
-                placeholder="Explain what needs to be corrected…"
-              />
-            </section>
-            {error && <div className="tasks-error" role="alert">{error}</div>}
-            <div className="dispute-resolve-actions">
-              <button type="button" className="is-primary" disabled={saving} onClick={approveHarvest}>
-                {saving ? 'Saving…' : 'Approve & Add to Inventory'}
-              </button>
-              <button type="button" className="is-secondary" disabled={saving || !harvestRejectionReason.trim()} onClick={rejectHarvest}>
-                {saving ? 'Saving…' : 'Reject'}
-              </button>
-            </div>
-          </div>
-        </section>
-      </div>}
+          </WorkOrderDialog>
+        )
+      })()}
 
       {modal?.mode === 'edit-delivery' && (() => {
         const order = modal.order
         const drivers = options.workers.filter((worker) => worker.worker_category === 'driver')
-        const currentDriver = drivers.find((d) => String(d.id) === String(deliveryEditForm.driver_id))
-        const buyerInitials = (order.delivery_full_name || 'Buyer')
-          .split(' ')
-          .filter(Boolean)
-          .map((n) => n[0])
-          .slice(0, 2)
-          .join('')
-          .toUpperCase()
-        const fullAddress = [
-          order.delivery_barangay,
-          order.delivery_city_municipality,
-          order.delivery_province,
-          order.delivery_region,
-        ].filter(Boolean).join(', ')
+        const currentDriver = drivers.find((driver) => String(driver.id) === String(deliveryEditForm.driver_id))
+        const fullAddress = [order.delivery_barangay, order.delivery_city_municipality, order.delivery_province, order.delivery_region].filter(Boolean).join(', ')
         const itemsCount = order.items?.length || 1
         const durationText = formatDeliveryDuration(deliveryEditForm.start_time, deliveryEditForm.end_time)
         const isMorningActive = deliveryEditForm.start_time === '08:00' && deliveryEditForm.end_time === '12:00'
         const isAfternoonActive = deliveryEditForm.start_time === '13:00' && deliveryEditForm.end_time === '17:00'
         const isFullDayActive = deliveryEditForm.start_time === '08:00' && deliveryEditForm.end_time === '17:00'
+        const presetValue = isMorningActive ? 'morning' : isAfternoonActive ? 'afternoon' : isFullDayActive ? 'full' : 'custom'
+        const presetTimes = { morning: ['08:00', '12:00'], afternoon: ['13:00', '17:00'], full: ['08:00', '17:00'] }
 
         return (
-          <div className="task-modal-backdrop">
-            <section
-              className="task-reference-modal edit-delivery-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="edit-delivery-title"
-            >
-              <TaskModalHeader
-                title={
-                  <span className="delivery-header-title">
-                    <span id="edit-delivery-title">Edit Delivery Order</span>
-                    <span className="delivery-order-badge">#{order.order_number}</span>
-                  </span>
-                }
-                tag="Logistics & Dispatch Management"
-                onClose={() => setModal(null)}
-              />
+          <WorkOrderDialog
+            size="form"
+            eyebrow="Edit delivery"
+            id={`#${order.order_number}`}
+            title="Edit Delivery Order"
+            titleId="edit-delivery-title"
+            sub={order.driver_assigned_at ? `Assigned ${formatSchedule(order.driver_assigned_at)}` : null}
+            onClose={() => setModal(null)}
+            onSubmit={saveDeliveryAssignment}
+            footerNote="Changing the driver notifies them of the updated schedule."
+            footer={<>
+              <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Cancel</button>
+              <button type="submit" className="wo-btn is-primary" disabled={saving || !deliveryEditForm.driver_id || !deliveryEditForm.delivery_date}>
+                {saving ? 'Saving changes…' : 'Save delivery'}
+              </button>
+            </>}
+          >
+            {error && <p className="wo-error" role="alert">{error}</p>}
+            <WoSection title="Order">
+              <WoList>
+                <WoRow label="Recipient">{order.delivery_full_name || 'Valued customer'}{order.delivery_mobile_number ? ` · ${order.delivery_mobile_number}` : ''}</WoRow>
+                <WoRow label="Address">{fullAddress || 'Destination address on file'}</WoRow>
+                <WoRow label="Order">
+                  {itemsCount} {itemsCount === 1 ? 'item' : 'items'} · ₱{Number(order.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · {(order.payment_method || 'cod').toUpperCase()}{order.payment_status ? `, ${order.payment_status}` : ''}
+                </WoRow>
+              </WoList>
+            </WoSection>
 
-              <form className="edit-delivery-form" onSubmit={saveDeliveryAssignment}>
-                {error && <div className="task-modal-error" role="alert">{error}</div>}
-
-                {/* Top Context Overview Card */}
-                <div className="edit-delivery-context-card">
-                  <div className="context-card-buyer">
-                    <div className="context-avatar-circle" aria-hidden="true">
-                      {buyerInitials}
-                    </div>
-                    <div className="context-buyer-info">
-                      <span className="context-meta-label">Buyer / Recipient</span>
-                      <strong className="context-buyer-name">{order.delivery_full_name || 'Valued Customer'}</strong>
-                      {order.delivery_mobile_number ? (
-                        <a href={`tel:${order.delivery_mobile_number}`} className="context-phone-link">
-                          <Phone size={12} aria-hidden="true" />
-                          <span>{order.delivery_mobile_number}</span>
-                        </a>
-                      ) : (
-                        <span className="context-no-phone">No phone recorded</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="context-card-divider" />
-
-                  <div className="context-card-dest">
-                    <span className="context-meta-label">Destination Address</span>
-                    <div className="context-dest-content">
-                      <MapPin size={14} className="context-pin-icon" aria-hidden="true" />
-                      <span>{fullAddress || 'Destination address on file'}</span>
-                    </div>
-                  </div>
-
-                  <div className="context-card-divider" />
-
-                  <div className="context-card-order">
-                    <span className="context-meta-label">Order & Payment</span>
-                    <div className="context-order-pills">
-                      <span className="context-order-tag">
-                        <Package size={12} aria-hidden="true" />
-                        {itemsCount} {itemsCount === 1 ? 'item' : 'items'} · ₱{Number(order.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                      <span className={`context-pay-tag is-${order.payment_method || 'cod'}`}>
-                        {(order.payment_method || 'cod').toUpperCase()} {order.payment_status ? `(${order.payment_status})` : ''}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Main 2-Column Form Grid */}
-                <div className="edit-delivery-grid">
-                  {/* Left: Driver Assignment Card */}
-                  <div className="edit-delivery-card driver-card">
-                    <div className="edit-card-heading">
-                      <Truck size={17} className="edit-heading-icon" aria-hidden="true" />
-                      <h3>Assigned Driver</h3>
-                    </div>
-
-                    <div className="edit-field-block">
-                      <label htmlFor="edit-driver-select" className="edit-field-label">
-                        Select Courier Driver
-                      </label>
-                      <div className="edit-select-wrapper">
-                        <select
-                          id="edit-driver-select"
-                          className="edit-form-select"
-                          value={deliveryEditForm.driver_id}
-                          onChange={(e) => setDeliveryEditForm({ ...deliveryEditForm, driver_id: e.target.value })}
-                          required
-                        >
-                          <option value="" disabled>Select a driver</option>
-                          {drivers.map((driver) => (
-                            <option value={driver.id} key={driver.id}>
-                              {driver.full_name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {currentDriver && (
-                      <div className="edit-driver-meta-box">
-                        <div className="edit-driver-avatar">
-                          <User size={15} aria-hidden="true" />
-                        </div>
-                        <div className="edit-driver-details">
-                          <strong>{currentDriver.full_name}</strong>
-                          <span>Verified Fleet Driver</span>
-                        </div>
-                        <span className="edit-driver-status-badge">Active</span>
-                      </div>
-                    )}
-
-                    <div className="edit-driver-reassurance-note">
-                      <Info size={15} className="edit-note-icon" aria-hidden="true" />
-                      <span>
-                        Updating the driver will automatically dispatch a push notification to their device with the updated schedule.
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Right: Schedule Card */}
-                  <div className="edit-delivery-card schedule-card">
-                    <div className="edit-card-heading">
-                      <Clock size={17} className="edit-heading-icon" aria-hidden="true" />
-                      <h3>Delivery Schedule</h3>
-                    </div>
-
-                    <div className="edit-field-block">
-                      <label htmlFor="edit-delivery-date" className="edit-field-label">
-                        <Calendar size={13} aria-hidden="true" />
-                        <span>Delivery Date</span>
-                      </label>
-                      <input
-                        type="date"
-                        id="edit-delivery-date"
-                        className="edit-form-input"
-                        value={deliveryEditForm.delivery_date}
-                        onChange={(e) => setDeliveryEditForm({ ...deliveryEditForm, delivery_date: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="edit-field-block">
-                      <label className="edit-field-label">
-                        <Clock size={13} aria-hidden="true" />
-                        <span>Delivery Window</span>
-                      </label>
-                      <div className="date-time-pair delivery-time-pair">
-                        <DeliveryTimeSelect
-                          kind="start"
-                          value={deliveryEditForm.start_time}
-                          onChange={(event) => {
-                            const startTime = event.target.value
-                            const endOptions = deliveryTimeOptions('end', startTime)
-                            setDeliveryEditForm({
-                              ...deliveryEditForm,
-                              start_time: startTime,
-                              end_time: endOptions.some((option) => option.value === deliveryEditForm.end_time)
-                                ? deliveryEditForm.end_time
-                                : endOptions[0]?.value || '',
-                            })
-                          }}
-                        />
-                        <DeliveryTimeSelect
-                          kind="end"
-                          startTime={deliveryEditForm.start_time}
-                          value={deliveryEditForm.end_time}
-                          onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, end_time: event.target.value })}
-                        />
-                      </div>
-
-                      {/* Quick Shift Presets */}
-                      <div className="edit-shift-presets">
-                        <span className="presets-label">Quick Presets:</span>
-                        <div className="preset-buttons-wrap">
-                          <button
-                            type="button"
-                            className={`preset-btn ${isMorningActive ? 'is-active' : ''}`}
-                            onClick={() => setDeliveryEditForm((prev) => ({ ...prev, start_time: '08:00', end_time: '12:00' }))}
-                          >
-                            🌅 Morning (8–12)
-                          </button>
-                          <button
-                            type="button"
-                            className={`preset-btn ${isAfternoonActive ? 'is-active' : ''}`}
-                            onClick={() => setDeliveryEditForm((prev) => ({ ...prev, start_time: '13:00', end_time: '17:00' }))}
-                          >
-                            ☀️ Afternoon (1–5)
-                          </button>
-                          <button
-                            type="button"
-                            className={`preset-btn ${isFullDayActive ? 'is-active' : ''}`}
-                            onClick={() => setDeliveryEditForm((prev) => ({ ...prev, start_time: '08:00', end_time: '17:00' }))}
-                          >
-                            📦 Full Day (8–5)
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Duration Info */}
-                      <div className="edit-duration-strip">
-                        <span className="duration-label">Calculated Window:</span>
-                        <span className="duration-value-pill">{durationText || 'Custom Window'}</span>
-                      </div>
-                      <small className="edit-schedule-notice">Operating hours: 7:00 AM to 6:00 PM (PST).</small>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Actions */}
-                <footer className="edit-delivery-footer">
-                  <button
-                    type="button"
-                    className="edit-footer-btn is-cancel"
-                    onClick={() => setModal(null)}
-                    disabled={saving}
+            <WoSection title="Driver">
+              <div className="wo-grid">
+                <WoField label="Courier driver" htmlFor="edit-driver-select" hint={currentDriver ? 'Verified fleet driver' : null}>
+                  <select
+                    id="edit-driver-select"
+                    className="wo-input"
+                    value={deliveryEditForm.driver_id}
+                    onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, driver_id: event.target.value })}
+                    required
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="edit-footer-btn is-submit"
-                    disabled={saving || !deliveryEditForm.driver_id || !deliveryEditForm.delivery_date}
-                  >
-                    <Send size={15} aria-hidden="true" />
-                    <span>{saving ? 'Saving Changes…' : 'Save Delivery'}</span>
-                  </button>
-                </footer>
-              </form>
-            </section>
-          </div>
+                    <option value="" disabled>Select a driver</option>
+                    {drivers.map((driver) => (
+                      <option value={driver.id} key={driver.id}>{driver.full_name}</option>
+                    ))}
+                  </select>
+                </WoField>
+              </div>
+            </WoSection>
+
+            <WoSection title="Schedule">
+              <div className="wo-grid">
+                <WoField label="Delivery date" htmlFor="edit-delivery-date">
+                  <input
+                    type="date"
+                    id="edit-delivery-date"
+                    className="wo-input"
+                    value={deliveryEditForm.delivery_date}
+                    onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, delivery_date: event.target.value })}
+                    required
+                  />
+                </WoField>
+                <WoField label="Delivery window" hint="Operating hours: 7:00 AM to 6:00 PM.">
+                  <div className="wo-time">
+                    <DeliveryTimeSelect
+                      kind="start"
+                      value={deliveryEditForm.start_time}
+                      onChange={(event) => {
+                        const startTime = event.target.value
+                        const endOptions = deliveryTimeOptions('end', startTime)
+                        setDeliveryEditForm({
+                          ...deliveryEditForm,
+                          start_time: startTime,
+                          end_time: endOptions.some((option) => option.value === deliveryEditForm.end_time)
+                            ? deliveryEditForm.end_time
+                            : endOptions[0]?.value || '',
+                        })
+                      }}
+                    />
+                    <em>to</em>
+                    <DeliveryTimeSelect
+                      kind="end"
+                      startTime={deliveryEditForm.start_time}
+                      value={deliveryEditForm.end_time}
+                      onChange={(event) => setDeliveryEditForm({ ...deliveryEditForm, end_time: event.target.value })}
+                    />
+                  </div>
+                </WoField>
+                <WoField label="Quick presets" wide>
+                  <WoRadios
+                    label="Quick presets"
+                    options={[{ value: 'morning', label: 'Morning 8–12' }, { value: 'afternoon', label: 'Afternoon 1–5' }, { value: 'full', label: 'Full day 8–5' }, { value: 'custom', label: 'Custom' }]}
+                    value={presetValue}
+                    onChange={(value) => {
+                      if (presetTimes[value]) setDeliveryEditForm((previous) => ({ ...previous, start_time: presetTimes[value][0], end_time: presetTimes[value][1] }))
+                    }}
+                  />
+                </WoField>
+              </div>
+              <p className="wo-summary">Calculated window: {durationText || 'Custom window'}</p>
+            </WoSection>
+          </WorkOrderDialog>
         )
       })()}
 
-      {(modal?.mode === 'add' || modal?.mode === 'edit') && <div className="task-modal-backdrop">
-        <section className="task-reference-modal assign-task-modal" role="dialog" aria-modal="true" aria-labelledby="assign-task-title">
-          <TaskModalHeader title={assigningDriver ? 'Assign Delivery Order' : modal.mode === 'add' ? 'Assign New Task' : 'Edit Task'} tag={assigningDriver ? 'Delivery assignment' : 'Task scheduling'} onClose={() => setModal(null)} />
-          <form className="task-reference-body" onSubmit={saveTask}>
-            {error && <div className="task-modal-error" role="alert">{error}</div>}
-            <div className="task-dialog-grid">
-              <div className="task-dialog-main">
-                <label><span>Farm Worker Category</span><select value={form.worker_category} onChange={(event) => { const workerCategory = event.target.value; const firstWorker = options.workers.find((worker) => worker.worker_category === workerCategory); setForm({ ...form, worker_category: workerCategory, assigned_worker_id: firstWorker?.id || '', ...(workerCategory === 'crop_management_worker' ? { start_time: '08:00', end_time: '09:00' } : {}) }) }} required><option value="" disabled>Select Worker Category</option>{availableWorkerCategories.map((category) => <option value={category} key={category}>{workerCategoryLabels[category] || category}</option>)}</select></label>
-                <label><span>{assigningDriver ? 'Select Driver' : 'Select Worker'}</span><select value={form.assigned_worker_id} onChange={(event) => setForm({ ...form, assigned_worker_id: event.target.value })} required><option value="" disabled>{assigningDriver ? 'Select Driver' : 'Select Worker'}</option>{visibleWorkers.map((worker) => <option value={worker.id} key={worker.id}>{worker.full_name}</option>)}</select></label>
-                {!assigningDriver && <label><span>Select Task Category</span><select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="" disabled>Select Task Category</option>{options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>}
-                {assigningDriver ? <label><span>Select Ready Order</span><select value={deliveryForm.order_id} onChange={(event) => setDeliveryForm({ ...deliveryForm, order_id: event.target.value })} required><option value="" disabled>Select Order</option>{readyOrders.map((order) => <option value={order.id} key={order.id}>{order.order_number} — {order.delivery_full_name}</option>)}</select>{!readyOrders.length && <small>No ready delivery orders are available.</small>}</label> : <label><span>Select Field</span><select value={form.field_id} onChange={(event) => setForm({ ...form, field_id: event.target.value })} required><option value="" disabled>Select Field</option>{options.fields.map((field) => <option value={field.id} key={field.id}>{field.field_name}</option>)}</select></label>}
-              </div>
-              <div className="task-dialog-side">
-                {assigningDriver ? <><label><span>Delivery Date</span><input type="date" value={deliveryForm.delivery_date} onChange={(event) => setDeliveryForm({ ...deliveryForm, delivery_date: event.target.value })} required /></label><label><span>Delivery Window</span><div className="date-time-pair delivery-time-pair"><DeliveryTimeSelect kind="start" value={deliveryForm.start_time} onChange={(event) => { const startTime = event.target.value; const endOptions = deliveryTimeOptions('end', startTime); setDeliveryForm({ ...deliveryForm, start_time: startTime, end_time: endOptions.some((option) => option.value === deliveryForm.end_time) ? deliveryForm.end_time : endOptions[0]?.value || '' }) }} /><DeliveryTimeSelect kind="end" startTime={deliveryForm.start_time} value={deliveryForm.end_time} onChange={(event) => setDeliveryForm({ ...deliveryForm, end_time: event.target.value })} /></div><small>Schedule deliveries only from 7:00 AM to 6:00 PM.</small></label></> : <><label><span>Priority Level</span><select value={form.priority_id} onChange={(event) => setForm({ ...form, priority_id: event.target.value })} required><option value="" disabled>Select Level</option>{options.priorities.map((priority) => <option value={priority.id} key={priority.id}>{priority.priority_name}</option>)}</select></label>
-                {modal.mode === 'edit' && <label><span>Status Level</span><select value={form.status_id} onChange={(event) => setForm({ ...form, status_id: event.target.value })}>{options.statuses.map((status) => <option value={status.id} key={status.id}>{status.status_name}</option>)}</select></label>}
-                <label><span>Task Date</span><input type="date" value={form.start_date} onChange={(event) => setForm({ ...form, start_date: event.target.value })} required /></label>
-                <label><span>Task Window</span><div className="date-time-pair">{form.worker_category === 'crop_management_worker' ? <><CropTaskTimeSelect kind="start" value={form.start_time} onChange={(event) => { const startTime = event.target.value; const endOptions = cropTimeOptions('end', startTime); setForm({ ...form, start_time: startTime, end_time: endOptions.some((option) => option.value === form.end_time) ? form.end_time : endOptions[0]?.value || '' }) }} /><CropTaskTimeSelect kind="end" startTime={form.start_time} value={form.end_time} onChange={(event) => setForm({ ...form, end_time: event.target.value })} /></> : <><input type="time" min="07:00" max="17:59" value={form.start_time} onChange={(event) => setForm({ ...form, start_time: event.target.value })} required /><input type="time" min="07:01" max="18:00" value={form.end_time} onChange={(event) => setForm({ ...form, end_time: event.target.value })} required /></>}</div>{form.worker_category === 'crop_management_worker' && <small>Crop-management work: 8:00 AM–11:50 AM and 1:00 PM–4:00 PM. Lunch break: 11:50 AM–1:00 PM.</small>}</label></>}
-              </div>
-            </div>
-            {!assigningDriver && <label className="task-description"><span>Description <em>(optional)</em></span><textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Add task instructions, objectives, or notes (optional)" maxLength="2000" /></label>}
-            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving || (assigningDriver && (!deliveryForm.order_id || !deliveryForm.delivery_date))}><Send aria-hidden="true" />{saving ? 'Saving…' : assigningDriver ? 'Assign Order' : modal.mode === 'add' ? 'Assign Task' : 'Save Task'}</button></footer>
-          </form>
-        </section>
-      </div>}
+      {(modal?.mode === 'add' || modal?.mode === 'edit') && (() => {
+        const editingTask = modal.mode === 'edit'
+        const isCropWorker = form.worker_category === 'crop_management_worker'
+        const summaryDate = assigningDriver ? deliveryForm.delivery_date : form.start_date
+        const summaryStart = assigningDriver ? deliveryForm.start_time : form.start_time
+        const summaryEnd = assigningDriver ? deliveryForm.end_time : form.end_time
+        const summaryDuration = formatDeliveryDuration(summaryStart, summaryEnd)
+        const summaryLine = summaryDate
+          ? [formatLongDate(`${summaryDate}T12:00:00`), summaryStart && summaryEnd ? `${formatTime12(summaryStart)} – ${formatTime12(summaryEnd)}` : null, summaryDuration].filter(Boolean).join(' · ')
+          : ''
+        const selectedReadyOrder = readyOrders.find((order) => String(order.id) === String(deliveryForm.order_id))
 
-      {modal?.mode === 'setting' && <div className="task-modal-backdrop">
-        <section className="task-reference-modal task-setting-modal" role="dialog" aria-modal="true">
-          <TaskModalHeader title={`${modal.value ? 'Edit' : 'Add'} ${modal.type === 'categories' ? 'Task Category' : 'Field / Location'}`} tag="Settings setup" onClose={() => setModal(null)} />
-          <form className="task-reference-body" onSubmit={saveSetting}>
-            {error && <div className="task-modal-error" role="alert">{error}</div>}
-            <label><span>{modal.type === 'categories' ? 'Category name' : 'Field or location name'}</span><input autoFocus value={settingsForm.name} onChange={(event) => setSettingsForm({ ...settingsForm, name: event.target.value })} maxLength="120" required /></label>
-            {modal.type === 'categories' && <label className="task-description"><span>Description <em>(optional)</em></span><textarea value={settingsForm.description} onChange={(event) => setSettingsForm({ ...settingsForm, description: event.target.value })} placeholder="What kind of tasks belong in this category?" maxLength="500" /></label>}
-            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button></footer>
-          </form>
-        </section>
-      </div>}
+        return (
+          <WorkOrderDialog
+            size={assigningDriver ? 'form' : undefined}
+            eyebrow={assigningDriver ? 'New delivery assignment' : editingTask ? 'Edit work order' : 'New work order'}
+            id={editingTask ? `#TASK-${String(modal.task.id).padStart(4, '0')}` : null}
+            title={assigningDriver ? 'Assign Delivery Order' : editingTask ? 'Edit Task' : 'Assign New Task'}
+            titleId="assign-task-title"
+            sub={editingTask ? [modal.task.category, modal.task.field].filter(Boolean).join(', ') : assigningDriver ? 'Choose a driver and a ready order, then set the delivery window' : 'Issue a work order to a farm worker'}
+            onClose={() => setModal(null)}
+            onSubmit={saveTask}
+            footerNote={editingTask && modal.task.updated_at ? `Last updated ${formatSchedule(modal.task.updated_at)}` : assigningDriver ? 'Deliveries run from 7:00 AM to 6:00 PM' : 'All fields except description are required'}
+            footer={<>
+              <button type="button" className="wo-btn" onClick={() => setModal(null)}>Cancel</button>
+              <button type="submit" className="wo-btn is-primary" disabled={saving || (assigningDriver && (!deliveryForm.order_id || !deliveryForm.delivery_date))}>
+                {saving ? 'Saving…' : assigningDriver ? 'Assign order' : editingTask ? 'Save task' : 'Assign task'}
+              </button>
+            </>}
+          >
+            {error && <p className="wo-error" role="alert">{error}</p>}
 
-      {modal?.mode === 'vehicle' && <div className="task-modal-backdrop">
-        <section className="task-reference-modal task-setting-modal" role="dialog" aria-modal="true">
-          <TaskModalHeader title={modal.vehicle ? 'Edit Vehicle' : 'Add Vehicle'} tag="Fleet management" onClose={() => setModal(null)} />
-          <form className="task-reference-body" onSubmit={saveVehicle}>
-            {error && <div className="task-modal-error" role="alert">{error}</div>}
-            <label><span>Vehicle name</span><input autoFocus value={vehicleForm.vehicle_name} onChange={(event) => setVehicleForm({ ...vehicleForm, vehicle_name: event.target.value })} maxLength="120" required /></label>
-            <label><span>Plate number</span><input value={vehicleForm.plate_number} onChange={(event) => setVehicleForm({ ...vehicleForm, plate_number: event.target.value })} maxLength="30" required /></label>
-            <label><span>Status</span><select value={vehicleForm.status} onChange={(event) => setVehicleForm({ ...vehicleForm, status: event.target.value })}>{Object.entries(vehicleStatusLabels).map(([code, label]) => <option value={code} key={code}>{label}</option>)}</select></label>
-            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="assign-task-submit" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button></footer>
-          </form>
-        </section>
-      </div>}
+            <WoSection title={assigningDriver ? 'Driver' : 'Assignee'}>
+              <div className="wo-grid">
+                <WoField label="Farm worker category" htmlFor="task-worker-category">
+                  <select
+                    id="task-worker-category"
+                    className="wo-input"
+                    value={form.worker_category}
+                    onChange={(event) => {
+                      const workerCategory = event.target.value
+                      const firstWorker = options.workers.find((worker) => worker.worker_category === workerCategory)
+                      setForm({ ...form, worker_category: workerCategory, assigned_worker_id: firstWorker?.id || '', ...(workerCategory === 'crop_management_worker' ? { start_time: '08:00', end_time: '09:00' } : {}) })
+                    }}
+                    required
+                  >
+                    <option value="" disabled>Select worker category</option>
+                    {availableWorkerCategories.map((category) => <option value={category} key={category}>{workerCategoryLabels[category] || category}</option>)}
+                  </select>
+                </WoField>
+                <WoField label={assigningDriver ? 'Select driver' : 'Worker'} htmlFor="task-worker">
+                  <select
+                    id="task-worker"
+                    className="wo-input"
+                    value={form.assigned_worker_id}
+                    onChange={(event) => setForm({ ...form, assigned_worker_id: event.target.value })}
+                    required
+                  >
+                    <option value="" disabled>{assigningDriver ? 'Select driver' : 'Select worker'}</option>
+                    {visibleWorkers.map((worker) => <option value={worker.id} key={worker.id}>{worker.full_name}</option>)}
+                  </select>
+                </WoField>
+              </div>
+            </WoSection>
+
+            {assigningDriver ? (
+              <WoSection title="Order">
+                <div className="wo-grid">
+                  <WoField
+                    label="Ready order"
+                    htmlFor="task-ready-order"
+                    wide
+                    hint={!readyOrders.length ? 'No ready delivery orders are available.' : selectedReadyOrder ? [selectedReadyOrder.delivery_barangay, selectedReadyOrder.delivery_city_municipality].filter(Boolean).join(', ') : null}
+                  >
+                    <select
+                      id="task-ready-order"
+                      className="wo-input"
+                      value={deliveryForm.order_id}
+                      onChange={(event) => setDeliveryForm({ ...deliveryForm, order_id: event.target.value })}
+                      required
+                    >
+                      <option value="" disabled>Select order</option>
+                      {readyOrders.map((order) => <option value={order.id} key={order.id}>{order.order_number} — {order.delivery_full_name}</option>)}
+                    </select>
+                  </WoField>
+                </div>
+              </WoSection>
+            ) : (
+              <WoSection title="Task">
+                <div className="wo-grid">
+                  <WoField label="Task category" htmlFor="task-category">
+                    <select id="task-category" className="wo-input" value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required>
+                      <option value="" disabled>Select task category</option>
+                      {options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}
+                    </select>
+                  </WoField>
+                  <WoField label="Field / location" htmlFor="task-field">
+                    <select id="task-field" className="wo-input" value={form.field_id} onChange={(event) => setForm({ ...form, field_id: event.target.value })} required>
+                      <option value="" disabled>Select field</option>
+                      {options.fields.map((field) => <option value={field.id} key={field.id}>{field.field_name}</option>)}
+                    </select>
+                  </WoField>
+                  <WoField label="Priority" wide={!editingTask}>
+                    <WoRadios
+                      label="Priority"
+                      options={options.priorities.map((priority) => ({ value: priority.id, label: priority.priority_name }))}
+                      value={form.priority_id}
+                      onChange={(value) => setForm({ ...form, priority_id: value })}
+                    />
+                  </WoField>
+                  {editingTask && (
+                    <WoField label="Status" htmlFor="task-status">
+                      <select id="task-status" className="wo-input" value={form.status_id} onChange={(event) => setForm({ ...form, status_id: event.target.value })}>
+                        {options.statuses.map((status) => <option value={status.id} key={status.id}>{status.status_name}</option>)}
+                      </select>
+                    </WoField>
+                  )}
+                </div>
+              </WoSection>
+            )}
+
+            <WoSection title="Schedule">
+              <div className="wo-grid">
+                {assigningDriver ? (
+                  <>
+                    <WoField label="Delivery date" htmlFor="task-delivery-date">
+                      <input id="task-delivery-date" className="wo-input" type="date" value={deliveryForm.delivery_date} onChange={(event) => setDeliveryForm({ ...deliveryForm, delivery_date: event.target.value })} required />
+                    </WoField>
+                    <WoField label="Delivery window" hint="Schedule deliveries only from 7:00 AM to 6:00 PM.">
+                      <div className="wo-time">
+                        <DeliveryTimeSelect
+                          kind="start"
+                          value={deliveryForm.start_time}
+                          onChange={(event) => {
+                            const startTime = event.target.value
+                            const endOptions = deliveryTimeOptions('end', startTime)
+                            setDeliveryForm({ ...deliveryForm, start_time: startTime, end_time: endOptions.some((option) => option.value === deliveryForm.end_time) ? deliveryForm.end_time : endOptions[0]?.value || '' })
+                          }}
+                        />
+                        <em>to</em>
+                        <DeliveryTimeSelect kind="end" startTime={deliveryForm.start_time} value={deliveryForm.end_time} onChange={(event) => setDeliveryForm({ ...deliveryForm, end_time: event.target.value })} />
+                      </div>
+                    </WoField>
+                  </>
+                ) : (
+                  <>
+                    <WoField label="Task date" htmlFor="task-date">
+                      <input id="task-date" className="wo-input" type="date" value={form.start_date} onChange={(event) => setForm({ ...form, start_date: event.target.value })} required />
+                    </WoField>
+                    <WoField label="Task window" hint={isCropWorker ? 'Crop work hours: 8:00 AM – 11:50 AM and 1:00 PM – 4:00 PM. Lunch break: 11:50 AM – 1:00 PM.' : null}>
+                      <div className="wo-time">
+                        {isCropWorker ? (
+                          <>
+                            <CropTaskTimeSelect
+                              kind="start"
+                              value={form.start_time}
+                              onChange={(event) => {
+                                const startTime = event.target.value
+                                const endOptions = cropTimeOptions('end', startTime)
+                                setForm({ ...form, start_time: startTime, end_time: endOptions.some((option) => option.value === form.end_time) ? form.end_time : endOptions[0]?.value || '' })
+                              }}
+                            />
+                            <em>to</em>
+                            <CropTaskTimeSelect kind="end" startTime={form.start_time} value={form.end_time} onChange={(event) => setForm({ ...form, end_time: event.target.value })} />
+                          </>
+                        ) : (
+                          <>
+                            <input className="wo-input" type="time" aria-label="Start time" min="07:00" max="17:59" value={form.start_time} onChange={(event) => setForm({ ...form, start_time: event.target.value })} required />
+                            <em>to</em>
+                            <input className="wo-input" type="time" aria-label="End time" min="07:01" max="18:00" value={form.end_time} onChange={(event) => setForm({ ...form, end_time: event.target.value })} required />
+                          </>
+                        )}
+                      </div>
+                    </WoField>
+                  </>
+                )}
+              </div>
+              {summaryLine && <p className="wo-summary">{summaryLine}</p>}
+            </WoSection>
+
+            {!assigningDriver && (
+              <WoSection title="Instructions">
+                <div className="wo-grid is-one">
+                  <WoField label="Description (optional)" htmlFor="task-description">
+                    <textarea
+                      id="task-description"
+                      className="wo-input"
+                      value={form.description}
+                      onChange={(event) => setForm({ ...form, description: event.target.value })}
+                      placeholder="Add task instructions, objectives, or notes"
+                      maxLength="2000"
+                      rows={3}
+                    />
+                  </WoField>
+                </div>
+              </WoSection>
+            )}
+          </WorkOrderDialog>
+        )
+      })()}
+
+      {modal?.mode === 'setting' && (
+        <WorkOrderDialog
+          size="narrow"
+          eyebrow="Settings"
+          title={`${modal.value ? 'Edit' : 'Add'} ${modal.type === 'categories' ? 'Task Category' : 'Field / Location'}`}
+          titleId="setting-dialog-title"
+          onClose={() => setModal(null)}
+          onSubmit={saveSetting}
+          footerNote={null}
+          footer={<>
+            <button type="button" className="wo-btn" onClick={() => setModal(null)}>Cancel</button>
+            <button type="submit" className="wo-btn is-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+          </>}
+        >
+          {error && <p className="wo-error" role="alert">{error}</p>}
+          <div className="wo-grid is-one">
+            <WoField label={modal.type === 'categories' ? 'Category name' : 'Field or location name'} htmlFor="setting-name">
+              <input id="setting-name" className="wo-input" autoFocus value={settingsForm.name} onChange={(event) => setSettingsForm({ ...settingsForm, name: event.target.value })} maxLength="120" required />
+            </WoField>
+            {modal.type === 'categories' && (
+              <WoField label="Description (optional)" htmlFor="setting-description">
+                <textarea id="setting-description" className="wo-input" value={settingsForm.description} onChange={(event) => setSettingsForm({ ...settingsForm, description: event.target.value })} placeholder="What kind of tasks belong in this category?" maxLength="500" rows={3} />
+              </WoField>
+            )}
+          </div>
+        </WorkOrderDialog>
+      )}
+
+      {modal?.mode === 'vehicle' && (
+        <WorkOrderDialog
+          size="narrow"
+          eyebrow="Fleet management"
+          title={modal.vehicle ? 'Edit Vehicle' : 'Add Vehicle'}
+          titleId="vehicle-dialog-title"
+          onClose={() => setModal(null)}
+          onSubmit={saveVehicle}
+          footerNote={null}
+          footer={<>
+            <button type="button" className="wo-btn" onClick={() => setModal(null)}>Cancel</button>
+            <button type="submit" className="wo-btn is-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+          </>}
+        >
+          {error && <p className="wo-error" role="alert">{error}</p>}
+          <div className="wo-grid is-one">
+            <WoField label="Vehicle name" htmlFor="vehicle-name">
+              <input id="vehicle-name" className="wo-input" autoFocus value={vehicleForm.vehicle_name} onChange={(event) => setVehicleForm({ ...vehicleForm, vehicle_name: event.target.value })} maxLength="120" required />
+            </WoField>
+            <WoField label="Plate number" htmlFor="vehicle-plate">
+              <input id="vehicle-plate" className="wo-input" value={vehicleForm.plate_number} onChange={(event) => setVehicleForm({ ...vehicleForm, plate_number: event.target.value })} maxLength="30" required />
+            </WoField>
+            <WoField label="Status">
+              <WoRadios
+                label="Vehicle status"
+                options={Object.entries(vehicleStatusLabels).map(([code, label]) => ({ value: code, label }))}
+                value={vehicleForm.status}
+                onChange={(value) => setVehicleForm({ ...vehicleForm, status: value })}
+              />
+            </WoField>
+          </div>
+        </WorkOrderDialog>
+      )}
     </main>
   )
 }
