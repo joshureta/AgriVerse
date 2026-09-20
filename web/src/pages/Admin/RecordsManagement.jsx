@@ -289,7 +289,6 @@ export default function RecordsManagement() {
         <div className="task-schedule-content records-content">
           <header className="task-page-heading records-page-heading">
             <div>
-              <span className="records-eyebrow">Records & reports</span>
               <h1>Farm records</h1>
               <p>Review farm activities and delivery history in one place.</p>
             </div>
