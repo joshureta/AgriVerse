@@ -56,6 +56,7 @@ export default function ReturnRequest() {
   const [photos, setPhotos] = useState([])
   const [photoPreviews, setPhotoPreviews] = useState([])
   const [submitting, setSubmitting] = useState(false)
+  const [validationErrors, setValidationErrors] = useState({})
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +95,7 @@ export default function ReturnRequest() {
   }, [photos])
 
   function toggleItemSelection(item) {
+    setValidationErrors((current) => ({ ...current, items: '' }))
     setSelectedItems((prev) => {
       const next = { ...prev }
       if (next[item.id]) {
@@ -130,6 +132,7 @@ export default function ReturnRequest() {
   function handlePhotoSelect(event) {
     const selected = Array.from(event.target.files || [])
     if (!selected.length) return
+    setValidationErrors((current) => ({ ...current, photos: '' }))
     setPhotos((current) => [...current, ...selected].slice(0, 6))
     event.target.value = ''
   }
@@ -159,11 +162,32 @@ export default function ReturnRequest() {
     return Math.min(total, Number(order.total_amount))
   }, [order, selectedItems])
 
-  const ready = Boolean(category && selectedCount > 0 && reason.trim() && photos.length > 0)
+  function validateReport() {
+    const nextErrors = {}
+    if (!category) nextErrors.category = 'Choose what happened to your delivery.'
+    if (selectedCount === 0) nextErrors.items = 'Select at least one affected item.'
+    if (!reason.trim()) nextErrors.reason = 'Describe what went wrong with the delivery.'
+    if (photos.length === 0) nextErrors.photos = 'Add at least one photo as evidence.'
+    return nextErrors
+  }
 
   async function submit(event) {
     if (event) event.preventDefault()
-    if (!ready || submitting) return
+    if (submitting) return
+
+    const nextErrors = validateReport()
+    setValidationErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) {
+      const firstIncompleteStep = nextErrors.category
+        ? 'return-step-1'
+        : nextErrors.items || nextErrors.reason
+          ? 'return-step-2'
+          : 'return-step-3'
+      window.requestAnimationFrame(() => {
+        document.getElementById(firstIncompleteStep)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
+      return
+    }
 
     setSubmitting(true)
     setError('')
@@ -235,12 +259,20 @@ export default function ReturnRequest() {
             <div className="order-detail-layout">
               <form className="order-detail-main" onSubmit={submit}>
                 {/* STEP 1: What happened? */}
-                <section className="delivery-card return-panel" aria-labelledby="return-step-1">
+                <section
+                  className={`delivery-card return-panel ${validationErrors.category ? 'has-validation-error' : ''}`}
+                  aria-labelledby="return-step-1"
+                >
                   <span className="return-step-label">Step 1 of 3</span>
                   <h2 id="return-step-1">What happened?</h2>
                   <p className="return-panel-help">Choose the issue that best matches your delivery.</p>
 
-                  <div className="return-issue-tiles" role="group" aria-label="Issue type">
+                  <div
+                    className={`return-issue-tiles ${validationErrors.category ? 'is-missing' : ''}`}
+                    role="group"
+                    aria-label="Issue type"
+                    aria-invalid={Boolean(validationErrors.category)}
+                  >
                     {issues.map((issue) => {
                       const IconComponent = issue.icon
                       const isSelected = category === issue.value
@@ -249,7 +281,10 @@ export default function ReturnRequest() {
                           key={issue.value}
                           type="button"
                           className={`return-issue-tile ${isSelected ? 'is-selected' : ''}`}
-                          onClick={() => setCategory(issue.value)}
+                          onClick={() => {
+                            setCategory(issue.value)
+                            setValidationErrors((current) => ({ ...current, category: '' }))
+                          }}
                         >
                           <div className="return-issue-tile-head">
                             <div className="return-issue-icon">
@@ -267,10 +302,16 @@ export default function ReturnRequest() {
                       )
                     })}
                   </div>
+                  {validationErrors.category && (
+                    <p className="return-validation-error" role="alert">{validationErrors.category}</p>
+                  )}
                 </section>
 
                 {/* STEP 2: Affected items and description */}
-                <section className="delivery-card return-panel" aria-labelledby="return-step-2">
+                <section
+                  className={`delivery-card return-panel ${validationErrors.items || validationErrors.reason ? 'has-validation-error' : ''}`}
+                  aria-labelledby="return-step-2"
+                >
                   <div className="return-panel-head">
                     <div>
                       <span className="return-step-label">Step 2 of 3</span>
@@ -287,7 +328,7 @@ export default function ReturnRequest() {
                     )}
                   </div>
 
-                  <div className="return-items-list">
+                  <div className={`return-items-list ${validationErrors.items ? 'is-missing' : ''}`}>
                     {order.items.map((item) => {
                       const isSelected = Boolean(selectedItems[item.id] && selectedItems[item.id] > 0)
                       const currentQty = selectedItems[item.id] || 0
@@ -351,6 +392,9 @@ export default function ReturnRequest() {
                       )
                     })}
                   </div>
+                  {validationErrors.items && (
+                    <p className="return-validation-error" role="alert">{validationErrors.items}</p>
+                  )}
 
                   <div className="return-describe">
                     <div className="return-describe-head">
@@ -361,27 +405,69 @@ export default function ReturnRequest() {
                       id="return-reason"
                       className="return-textarea-box"
                       maxLength={1000}
-                      onChange={(event) => setReason(event.target.value)}
+                      onChange={(event) => {
+                        setReason(event.target.value)
+                        if (event.target.value.trim()) {
+                          setValidationErrors((current) => ({ ...current, reason: '' }))
+                        }
+                      }}
                       placeholder="For example: two pineapples arrived bruised and leaking."
                       rows={4}
                       value={reason}
+                      aria-invalid={Boolean(validationErrors.reason)}
                       required
                     />
+                    {validationErrors.reason && (
+                      <p className="return-validation-error" role="alert">{validationErrors.reason}</p>
+                    )}
                   </div>
                 </section>
 
                 {/* STEP 3: Photo evidence and resolution */}
-                <section className="delivery-card return-panel" aria-labelledby="return-step-3">
+                <section
+                  className={`delivery-card return-panel ${validationErrors.photos ? 'has-validation-error' : ''}`}
+                  aria-labelledby="return-step-3"
+                >
                   <span className="return-step-label">Step 3 of 3</span>
                   <h2 id="return-step-3">Photo evidence and resolution</h2>
+                  {validationErrors.photos && (
+                    <p className="return-validation-error" role="alert">{validationErrors.photos}</p>
+                  )}
 
-                  <label className="return-photo-picker" htmlFor="return-photos">
-                    <Camera />
-                    <span>
-                      <strong>Add photo evidence (Required)</strong>
-                      <small>Up to 6 photos showing produce damage, packaging condition, and delivery receipt.</small>
-                    </span>
-                  </label>
+                  <div className={`return-photo-evidence-box ${validationErrors.photos ? 'is-missing' : ''}`}>
+                    <label className="return-photo-picker" htmlFor="return-photos">
+                      <Camera />
+                      <span>
+                        <strong>{photos.length > 0 ? 'Add more photo evidence' : 'Add photo evidence (Required)'}</strong>
+                        {photos.length === 0 && (
+                          <small>Up to 6 photos showing produce damage, packaging condition, and delivery receipt.</small>
+                        )}
+                      </span>
+                    </label>
+
+                    {photos.length > 0 && (
+                      <div className="return-photo-selection">
+                        <div className="return-photo-thumbnails">
+                          {photoPreviews.map((url, idx) => (
+                            <div className="return-photo-thumb" key={url}>
+                              <img src={url} alt={`Evidence ${idx + 1}`} />
+                              <button
+                                type="button"
+                                className="return-photo-remove"
+                                onClick={() => removePhoto(idx)}
+                                title="Remove photo"
+                              >
+                                <X />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="delivery-evidence-help">
+                          {photos.length} photo{photos.length === 1 ? '' : 's'} selected (maximum 6).
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
                   <input
                     id="return-photos"
@@ -391,29 +477,6 @@ export default function ReturnRequest() {
                     onChange={handlePhotoSelect}
                     type="file"
                   />
-
-                  {photos.length > 0 && (
-                    <div style={{ marginTop: '10px' }}>
-                      <div className="return-photo-thumbnails">
-                        {photoPreviews.map((url, idx) => (
-                          <div className="return-photo-thumb" key={url}>
-                            <img src={url} alt={`Evidence ${idx + 1}`} />
-                            <button
-                              type="button"
-                              className="return-photo-remove"
-                              onClick={() => removePhoto(idx)}
-                              title="Remove photo"
-                            >
-                              <X />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="delivery-evidence-help" style={{ marginTop: '6px' }}>
-                        {photos.length} photo{photos.length === 1 ? '' : 's'} selected (maximum 6).
-                      </p>
-                    </div>
-                  )}
 
                   <span className="return-resolution-label">Preferred resolution</span>
                   <div className="return-resolution-options">
@@ -527,7 +590,7 @@ export default function ReturnRequest() {
                     <button
                       type="button"
                       className="return-submit-btn"
-                      disabled={!ready || submitting}
+                      disabled={submitting}
                       onClick={submit}
                     >
                       {submitting ? 'Submitting…' : 'Submit report'}
