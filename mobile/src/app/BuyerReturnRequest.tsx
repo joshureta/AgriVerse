@@ -15,7 +15,6 @@ const issues: { value: DisputeCategory; label: string; help: string }[] = [
   { value: 'wrong_quantity', label: 'Wrong quantity', help: 'You received fewer items' },
 ];
 
-type Resolution = 'refund' | 'replacement';
 type Photo = { uri: string; base64: string; mime: string };
 
 export default function BuyerReturnRequest() {
@@ -25,7 +24,6 @@ export default function BuyerReturnRequest() {
   const [error, setError] = useState('');
 
   const [category, setCategory] = useState<DisputeCategory | ''>('');
-  const [resolution, setResolution] = useState<Resolution>('refund');
   const [itemId, setItemId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
@@ -70,9 +68,7 @@ export default function BuyerReturnRequest() {
     setSubmitting(true);
     setError('');
     try {
-      const resolutionPrefix = resolution === 'replacement'
-        ? '[Requested Resolution: Replacement Fruit]\n'
-        : '[Requested Resolution: Refund Only]\n';
+      const resolutionPrefix = '[Requested Resolution: Refund Only]\n';
       const itemsPrefix = item ? `[Affected Items: ${item.product_name} (${quantity} pcs)]\n\n` : '';
       const fullReason = `${resolutionPrefix}${itemsPrefix}${reason.trim()}`.slice(0, 1000);
 
@@ -135,35 +131,16 @@ export default function BuyerReturnRequest() {
               ))}
             </View>
 
-            <Text style={[styles.disputeFieldLabel, { marginTop: 16 }]}>STEP 2 OF 4 — Preferred resolution</Text>
-            <Pressable
-              accessibilityRole="radio"
-              accessibilityState={{ selected: resolution === 'refund' }}
-              onPress={() => setResolution('refund')}
-              style={[styles.resCard, resolution === 'refund' && styles.resCardSelected]}>
-              <View style={[styles.resRadio, resolution === 'refund' && styles.resRadioSelected]}>
-                {resolution === 'refund' ? <View style={styles.resRadioDot} /> : null}
+            <Text style={[styles.disputeFieldLabel, { marginTop: 16 }]}>STEP 2 OF 4 — Resolution</Text>
+            <View style={[styles.resCard, styles.resCardSelected]}>
+              <View style={[styles.resRadio, styles.resRadioSelected]}>
+                <View style={styles.resRadioDot} />
               </View>
               <View style={styles.resBody}>
-                <Text style={styles.resBodyTitle}>
-                  Refund Only<Text style={styles.resBadge}>  Recommended</Text>
-                </Text>
-                <Text style={styles.resBodySub}>Refunded to your original payment method.</Text>
+                <Text style={styles.resBodyTitle}>Refund Only</Text>
+                <Text style={styles.resBodySub}>If approved, refunded to your original payment method. No fruit return needed.</Text>
               </View>
-            </Pressable>
-            <Pressable
-              accessibilityRole="radio"
-              accessibilityState={{ selected: resolution === 'replacement' }}
-              onPress={() => setResolution('replacement')}
-              style={[styles.resCard, resolution === 'replacement' && styles.resCardSelected]}>
-              <View style={[styles.resRadio, resolution === 'replacement' && styles.resRadioSelected]}>
-                {resolution === 'replacement' ? <View style={styles.resRadioDot} /> : null}
-              </View>
-              <View style={styles.resBody}>
-                <Text style={styles.resBodyTitle}>Replacement Fruit</Text>
-                <Text style={styles.resBodySub}>New pineapples scheduled on the next farm delivery route.</Text>
-              </View>
-            </Pressable>
+            </View>
 
             <Text style={styles.disputeFieldLabel}>STEP 3 — Affected item</Text>
             <View style={styles.chipRow}>
