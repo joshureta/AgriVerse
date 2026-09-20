@@ -278,12 +278,6 @@ const StoreIcon = ({ color = '#176b32', size = 17 }: { color?: string; size?: nu
     <Path d="M2 7h20" />
   </Glyph>
 );
-const FileTextIcon = ({ color, size = 18 }: { color: string; size?: number }) => (
-  <Glyph color={color} size={size}>
-    <Path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-    <Path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8" />
-  </Glyph>
-);
 const HourglassIcon = ({ color, size = 18 }: { color: string; size?: number }) => (
   <Glyph color={color} size={size}>
     <Path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
@@ -301,7 +295,17 @@ const XIcon = ({ color, size = 18 }: { color: string; size?: number }) => (
     <Path d="M18 6 6 18M6 6l12 12" />
   </Glyph>
 );
-const OpenBoxIcon = ({ color = '#173b21', size = 22 }: { color?: string; size?: number }) => <PackingIcon color={color} size={size} />;
+const ChevronRightIcon = ({ color = '#1f7438', size = 16 }: { color?: string; size?: number }) => (
+  <Glyph color={color} size={size} stroke={2.4}>
+    <Path d="m9 18 6-6-6-6" />
+  </Glyph>
+);
+const BellIcon = ({ color = '#5a695d', size = 15 }: { color?: string; size?: number }) => (
+  <Glyph color={color} size={size}>
+    <Path d="M10.268 21a2 2 0 0 0 3.464 0" />
+    <Path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .738-1.674C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+  </Glyph>
+);
 
 type Step = { key: 'placed' | 'confirmed' | 'transit' | 'ready_pickup' | 'delivered'; label: string; date: string | null; estimated?: boolean };
 
@@ -399,23 +403,23 @@ type ReturnStep = { key: string; label: string; sub: string; state: 'done' | 'cu
 function buildReturnSteps(order: BuyerOrder): ReturnStep[] {
   const resolved = order.delivery_dispute_status === 'resolved';
   const dismissed = resolved && order.delivery_dispute_resolution === 'dismissed';
-  const decisionSub = !resolved ? '1–2 business days' : dismissed ? 'Claim dismissed' : 'Refund approved';
+  const decisionSub = !resolved ? '1–2 days' : dismissed ? 'Dismissed' : 'Approved';
   return [
     {
       key: 'submitted',
-      label: 'Report submitted',
-      sub: order.delivery_dispute_created_at ? formatShortDate(order.delivery_dispute_created_at) : 'Submitted',
+      label: 'Submitted',
+      sub: order.delivery_dispute_created_at ? formatShortDate(order.delivery_dispute_created_at) : 'Done',
       state: 'done',
-      icon: (color) => <FileTextIcon color={color} />,
+      icon: (color) => <CheckIcon color={color} size={15} />,
     },
-    { key: 'decision', label: 'Return decision', sub: decisionSub, state: resolved ? 'done' : 'current', icon: (color) => <HourglassIcon color={color} /> },
+    { key: 'decision', label: 'Decision', sub: decisionSub, state: resolved ? 'done' : 'current', icon: (color) => <HourglassIcon color={color} size={15} /> },
     dismissed
-      ? { key: 'refund', label: 'No refund', sub: 'Not approved', state: 'declined', icon: (color) => <XIcon color={color} /> }
-      : { key: 'refund', label: 'Refund completed', sub: resolved ? 'Completed' : 'Pending', state: resolved ? 'done' : '', icon: (color) => <BanknoteIcon color={color} /> },
+      ? { key: 'refund', label: 'No refund', sub: 'Not approved', state: 'declined', icon: (color) => <XIcon color={color} size={15} /> }
+      : { key: 'refund', label: 'Refund', sub: resolved ? 'Completed' : 'Pending', state: resolved ? 'done' : '', icon: (color) => <BanknoteIcon color={color} size={15} /> },
   ];
 }
 
-function WebStepper({ steps }: { steps: ReturnStep[] }) {
+function ReturnStepper({ steps }: { steps: ReturnStep[] }) {
   return (
     <View style={w.stepper}>
       {steps.map((step, index) => {
@@ -435,7 +439,7 @@ function WebStepper({ steps }: { steps: ReturnStep[] }) {
                 {step.icon(iconColor)}
               </View>
             </View>
-            <Text style={[w.stepLabel, (step.state === 'done' || step.state === 'current' || step.state === 'declined') && w.stepLabelOn]}>{step.label}</Text>
+            <Text style={[w.stepLabel, step.state !== '' && w.stepLabelOn]}>{step.label}</Text>
             <Text style={w.stepSub}>{step.sub}</Text>
           </View>
         );
@@ -444,12 +448,22 @@ function WebStepper({ steps }: { steps: ReturnStep[] }) {
   );
 }
 
+// Status-first summary of a return request: pill + link on one row, short title, detail chips,
+// a compact three-step progress line, and a footer that says what happens next.
 function ReturnCard({ order }: { order: BuyerOrder }) {
   const category = DISPUTE_CATEGORY_OPTIONS.find((option) => option.value === order.delivery_dispute_category)?.label || 'Damaged produce';
   const photoCount = Array.isArray(order.delivery_dispute_photo_urls) ? order.delivery_dispute_photo_urls.length : 0;
   const resolved = order.delivery_dispute_status === 'resolved';
   const dismissed = resolved && order.delivery_dispute_resolution === 'dismissed';
   const notes = order.delivery_dispute_resolution_notes;
+  const pillLabel = !resolved ? 'Under review' : dismissed ? 'Claim dismissed' : 'Refund approved';
+  const pillStyle = !resolved ? w.pillReview : dismissed ? w.pillDismissed : w.pillApproved;
+  const pillTextStyle = !resolved ? w.pillReviewText : dismissed ? w.pillDismissedText : w.pillApprovedText;
+  const chips = [
+    category,
+    order.delivery_dispute_affected_quantity ? `${order.delivery_dispute_affected_quantity} affected` : '',
+    photoCount > 0 ? `${photoCount} photo${photoCount > 1 ? 's' : ''}` : '',
+  ].filter(Boolean);
 
   return (
     <Pressable
@@ -457,34 +471,43 @@ function ReturnCard({ order }: { order: BuyerOrder }) {
       accessibilityLabel="View return request details"
       onPress={() => router.push({ pathname: '/BuyerReturnDetails', params: { id: String(order.id) } })}
       style={w.returnCard}>
-      <View style={w.returnTop}>
-        <View style={w.returnLeft}>
-          <View style={w.returnIcon}>
-            <OpenBoxIcon />
-          </View>
-          <View style={w.returnHeadings}>
-            <Text style={w.returnTitle}>{order.delivery_dispute_status === 'open' ? 'We’re reviewing your return request' : 'Update on your return request'}</Text>
-            <Text style={w.returnSub}>
-              {category}
-              {order.delivery_dispute_affected_quantity ? ` · ${order.delivery_dispute_affected_quantity} affected` : ''}
-              {photoCount > 0 ? ` · ${photoCount} photo${photoCount > 1 ? 's' : ''} attached` : ''}
-            </Text>
-          </View>
+      <View style={w.returnTopRow}>
+        <View style={[w.pill, pillStyle]}>
+          {resolved ? null : <View style={w.pillDot} />}
+          <Text style={[w.pillText, pillTextStyle]}>{pillLabel}</Text>
         </View>
-        <Text style={w.returnView}>View details</Text>
+        <View style={w.returnView}>
+          <Text style={w.returnViewText}>View details</Text>
+          <ChevronRightIcon />
+        </View>
       </View>
-      <View style={w.returnDivider} />
-      <WebStepper steps={buildReturnSteps(order)} />
-      {resolved ? (
-        <View style={w.decision}>
-          <View style={[w.decisionBadge, dismissed ? w.decisionBadgeDismissed : w.decisionBadgeRefund]}>
-            {dismissed ? <XIcon color="#8c1d18" size={13} /> : <CheckIcon color="#176b32" />}
-            <Text style={[w.decisionBadgeText, { color: dismissed ? '#8c1d18' : '#176b32' }]}>{dismissed ? 'Claim dismissed' : 'Refund approved'}</Text>
+
+      <Text style={w.returnTitle}>{resolved ? 'Update on your return' : 'We’re reviewing your return'}</Text>
+      <View style={w.chipRow}>
+        {chips.map((chip) => (
+          <View key={chip} style={w.chip}>
+            <Text style={w.chipText}>{chip}</Text>
           </View>
-          {!dismissed && order.refund_amount != null ? <Text style={w.decisionAmount}>{formatPeso(order.refund_amount)}</Text> : null}
-          {notes ? <Text style={w.decisionNote}>{notes}</Text> : null}
-        </View>
-      ) : null}
+        ))}
+      </View>
+
+      <ReturnStepper steps={buildReturnSteps(order)} />
+
+      <View style={w.returnFooter}>
+        {resolved ? (
+          <View style={{ flex: 1 }}>
+            {!dismissed && order.refund_amount != null ? <Text style={w.footerAmount}>Refund of {formatPeso(order.refund_amount)}</Text> : null}
+            {notes ? <Text style={w.footerText}>{notes}</Text> : null}
+            {!notes && dismissed ? <Text style={w.footerText}>Your request wasn&apos;t approved. Open the details to see why.</Text> : null}
+            {!notes && !dismissed && order.refund_amount == null ? <Text style={w.footerText}>Your request was approved.</Text> : null}
+          </View>
+        ) : (
+          <>
+            <BellIcon />
+            <Text style={w.footerText}>We&apos;ll notify you as soon as there&apos;s a decision.</Text>
+          </>
+        )}
+      </View>
     </Pressable>
   );
 }

@@ -377,7 +377,7 @@ export default function RecordsManagement() {
                           <td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td>
                           <td><span className={`task-status status-${order.delivery_assignment_status || 'assigned'}`}>{(order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span></td>
                           <td><small>{mockDeliveryInsight(order)}</small></td>
-                          <td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}><Eye aria-hidden="true" size={14} /> View</button></div></td>
+                          <td><div className="task-actions"><button className="task-view" type="button" onClick={() => setModal({ mode: 'view-delivery', order })} aria-label={`View delivery ${order.order_number}`}><Eye aria-hidden="true" size={14} /> View</button></div></td>
                         </tr>
                       ))
                       : paginated.map((task) => {
@@ -385,7 +385,7 @@ export default function RecordsManagement() {
                         return (
                           <tr key={`task-${task.id}`}>
                             {row.map((cell, index) => <td key={index}>{index === row.length - 1 ? <small>{cell}</small> : cell}</td>)}
-                            <td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-task', task, kind })}><Eye aria-hidden="true" size={14} /> View</button></div></td>
+                            <td><div className="task-actions"><button className="task-view" type="button" onClick={() => setModal({ mode: 'view-task', task, kind })} aria-label={`View ${kind} record`}><Eye aria-hidden="true" size={14} /> View</button></div></td>
                           </tr>
                         )
                       })}

@@ -68,36 +68,35 @@
 .records-category-section {
   overflow: hidden;
   border-radius: 15px 15px 0 0;
-  padding: 16px 16px 0;
   background: #fff;
 }
 
 .records-tabs {
-  min-height: auto;
+  min-height: 40px;
   align-items: flex-end;
   gap: 0;
   overflow-x: auto;
-  margin: 0 -16px;
+  margin: 0;
   border: 0;
-  border-bottom: 1px solid #dfe7dc;
-  padding: 0 16px;
+  border-bottom: 1px solid #e3eae0;
+  padding: 7px 12px 0;
   background: #fff;
   scrollbar-width: thin;
   scrollbar-color: #cadbc6 transparent;
 }
 
 .records-tabs button {
-  min-height: 42px;
+  min-height: 33px;
   flex: 0 0 auto;
-  margin-bottom: -1px;
+  margin: 0;
   border: 1px solid transparent;
-  border-bottom-color: #dfe7dc;
-  border-radius: 7px 7px 0 0;
-  padding: 0 16px;
-  color: #607066;
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  padding: 0 13px;
+  color: #819087;
   background: transparent;
-  font-size: 10px;
-  font-weight: 750;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .records-tabs button:hover {
@@ -106,7 +105,7 @@
 }
 
 .records-tabs button.is-active {
-  border-color: #dfe7dc;
+  border-color: #e3eae0;
   border-bottom-color: #fff;
   color: var(--records-green);
   background: #fff;
@@ -294,7 +293,7 @@
   top: 0;
   padding: 13px 16px;
   color: #fff;
-  background: var(--records-green-dark);
+  background: #146d32;
   font-family: var(--heading);
   font-size: 9px;
   letter-spacing: .045em;
@@ -353,15 +352,21 @@
   gap: 5px;
   border: 1px solid #bcd4be;
   border-radius: 7px;
-  color: var(--records-green);
-  background: #fff;
+  color: #fff;
+  background: var(--records-green);
   font-size: 10px;
 }
 
 .records-panel .task-actions button:hover {
-  border-color: var(--records-green);
-  color: #fff;
-  background: var(--records-green);
+  border-color: var(--records-green-dark);
+  background: var(--records-green-dark);
+}
+
+.records-panel .task-actions .task-view {
+  width: auto;
+  min-width: 65px;
+  height: 32px;
+  padding: 0 8px;
 }
 
 .records-panel .tasks-empty {
