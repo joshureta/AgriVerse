@@ -305,6 +305,7 @@ export default function TaskScheduleManagement() {
   const [vehicles, setVehicles] = useState([])
   const [vehicleForm, setVehicleForm] = useState(emptyVehicleForm)
   const [disputeOrders, setDisputeOrders] = useState([])
+  const [disputeFilter, setDisputeFilter] = useState('all')
   const [disputeResolutionNotes, setDisputeResolutionNotes] = useState('')
   const [disputeRefundAmount, setDisputeRefundAmount] = useState('')
   const [disputeRefundReference, setDisputeRefundReference] = useState('')
@@ -392,8 +393,12 @@ export default function TaskScheduleManagement() {
   }, [])
 
   useEffect(() => {
-    if (workView === 'disputes') loadDisputeOrders()
-  }, [loadDisputeOrders, refreshKey, workView])
+    loadDisputeOrders()
+  }, [loadDisputeOrders, refreshKey])
+
+  const openDisputeCount = disputeOrders.filter((order) => order.delivery_dispute_status === 'open').length
+  const resolvedDisputeCount = disputeOrders.length - openDisputeCount
+  const visibleDisputes = disputeFilter === 'all' ? disputeOrders : disputeOrders.filter((order) => order.delivery_dispute_status === disputeFilter)
 
   const loadHarvestApprovalCount = useCallback(async () => {
     try {
@@ -528,7 +533,7 @@ export default function TaskScheduleManagement() {
   useEffect(() => {
     if (activeTab === 'archive') loadArchivedSettings()
     else if (activeTab === 'fleet') loadVehicles()
-    else if (activeTab !== 'tasks') loadSettings()
+    else if (activeTab !== 'tasks' && activeTab !== 'disputes') loadSettings()
   }, [activeTab, loadArchivedSettings, loadSettings, loadVehicles])
 
   function openVehicleModal(vehicle = null) {
@@ -770,7 +775,7 @@ export default function TaskScheduleManagement() {
     : { title: 'Fields & Locations', itemLabel: 'Location', resource: 'fields', nameKey: 'field_name', searchLabel: 'Search fields and locations', empty: 'No fields or locations found.' }
   const settingsSearch = search.trim().toLowerCase()
   const settingsSource = activeTab === 'archive' ? archivedSettings : settingsValues
-  const visibleSettings = activeTab === 'tasks' ? [] : settingsSource[settingsConfig.resource].filter((value) => !settingsSearch || `${value[settingsConfig.nameKey]} ${value.description || ''}`.toLowerCase().includes(settingsSearch))
+  const visibleSettings = activeTab === 'tasks' || activeTab === 'disputes' ? [] : settingsSource[settingsConfig.resource].filter((value) => !settingsSearch || `${value[settingsConfig.nameKey]} ${value.description || ''}`.toLowerCase().includes(settingsSearch))
   const visibleVehicles = vehicles.filter((vehicle) => !settingsSearch || `${vehicle.vehicle_name} ${vehicle.plate_number}`.toLowerCase().includes(settingsSearch))
   const visibleDeliveryOrders = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -825,41 +830,52 @@ export default function TaskScheduleManagement() {
               <button className={activeTab === 'fields' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fields'); setSearch(''); setPage(1) }}>Fields &amp; Locations</button>
               <button className={activeTab === 'categories' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('categories'); setSearch(''); setPage(1) }}>Task Categories</button>
               <button className={activeTab === 'fleet' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fleet'); setSearch(''); setPage(1) }}>Fleet</button>
+              <button className={activeTab === 'disputes' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('disputes'); setSearch(''); setPage(1) }}>Disputes{openDisputeCount > 0 ? ` (${openDisputeCount})` : ''}</button>
               <button className={activeTab === 'archive' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('archive'); setSearch(''); setPage(1) }}>Archived Items</button>
             </nav>
-            {activeTab === 'tasks' ? <>
-            <nav className="task-work-type-tabs" aria-label="Work type view">
-              <button className={workView === 'all' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('all'); setPage(1) }}>All</button>
-              <button className={workView === 'crop' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('crop'); setPage(1) }}>Crop Management</button>
-              <button className={workView === 'deliveries' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('deliveries'); setPage(1) }}>Driver Deliveries</button>
-              <button className={workView === 'disputes' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('disputes'); setPage(1) }}>Disputes{disputeOrders.length > 0 ? ` (${disputeOrders.length})` : ''}</button>
-            </nav>
-            {workView !== 'disputes' && <div className="tasks-toolbar">
-              <div className="task-filter" ref={filterRef}><button type="button" onClick={() => setFilterOpen((open) => !open)} aria-haspopup="listbox" aria-expanded={filterOpen}><span>Filter by</span><i aria-hidden="true" /></button>{filterOpen && <div className="task-filter-menu" role="listbox" aria-label="Filter work by status"><p>Filter crop tasks</p>{[{ id: 'all', code: '', status_name: 'All statuses' }, ...options.statuses].map((status) => <button type="button" role="option" aria-selected={filter === status.code} className={filter === status.code ? 'is-selected' : ''} key={status.id} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>)}<p className="task-filter-group">Filter delivery status</p>{driverDeliveryStatuses.map((status) => <button type="button" role="option" aria-selected={filter === status.code} className={filter === status.code ? 'is-selected' : ''} key={status.code} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>)}</div>}</div>
-              <label className="task-search"><span className="sr-only">Search tasks</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search tasks" /><span aria-hidden="true" /></label>
-              <button className="assign-task-toolbar-button" type="button" onClick={openNewTask} disabled={!options.workers.length}><span>＋</span>Assign New Task</button>
-            </div>}
+            {activeTab === 'disputes' ? <>
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
-            {workView === 'disputes' ? <>
+            <nav className="dispute-status-filter" aria-label="Filter disputes by status">
+              {[{ id: 'all', label: 'All', count: disputeOrders.length }, { id: 'open', label: 'Open', count: openDisputeCount }, { id: 'resolved', label: 'Resolved', count: resolvedDisputeCount }].map((option) => (
+                <button key={option.id} type="button" className={disputeFilter === option.id ? 'is-active' : ''} aria-pressed={disputeFilter === option.id} onClick={() => setDisputeFilter(option.id)}>{option.label} <span>{option.count}</span></button>
+              ))}
+            </nav>
             <div className="tasks-table-wrap">
               <table className="tasks-table">
-                <thead><tr><th>ORDER NUMBER</th><th>CUSTOMER</th><th>RESPONSIBLE</th><th>REPORTED</th><th>REASON</th><th>ACTIONS</th></tr></thead>
-                <tbody>{disputeOrders.length ? disputeOrders.map((order) => {
+                <thead><tr><th>ORDER NUMBER</th><th>CUSTOMER</th><th>RESPONSIBLE</th><th>REPORTED</th><th>REASON</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                <tbody>{visibleDisputes.length ? visibleDisputes.map((order) => {
+                  const isResolved = order.delivery_dispute_status === 'resolved'
+                  const outcome = order.delivery_dispute_resolution === 'refunded'
+                    ? `Refunded${order.refund_amount != null ? ` ₱${Number(order.refund_amount).toFixed(2)}` : ''}`
+                    : order.delivery_dispute_resolution === 'dismissed' ? 'Claim dismissed' : ''
                   const responsibleName = order.delivery_dispute_responsible_role === 'seller'
                     ? (order.responsible_seller?.full_name || 'Seller (unidentified)')
                     : (order.assigned_driver?.full_name || 'Unassigned driver')
                   const responsibleLabel = order.delivery_dispute_responsible_role === 'seller' ? 'Seller' : 'Driver'
                   const suggestedAmount = order.disputed_item ? (Number(order.disputed_item.unit_price) * Number(order.delivery_dispute_affected_quantity || 0)).toFixed(2) : ''
                   return (
-                  <tr key={`dispute-${order.id}`}><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{responsibleLabel} · {responsibleName}</td><td>{formatSchedule(order.delivery_dispute_created_at)}</td><td>{order.delivery_dispute_reason}</td><td><div className="task-actions"><button type="button" onClick={() => { setDisputeResolutionNotes(''); setDisputeRefundAmount(suggestedAmount); setDisputeRefundReference(''); setDisputeDecision('refunded'); setDisputeActivePhoto(null); setModal({ mode: 'review-dispute', order }) }}>Review</button></div></td></tr>
+                  <tr key={`dispute-${order.id}`}><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{responsibleLabel} · {responsibleName}</td><td>{formatSchedule(order.delivery_dispute_created_at)}</td><td>{order.delivery_dispute_reason}</td>
+                    <td><span className={`task-status-badge ${isResolved ? 'status-resolved' : 'status-open-dispute'}`}>{isResolved ? 'Resolved' : 'Open'}</span>{isResolved && (outcome || order.delivery_dispute_resolved_at) && <small className="dispute-outcome" title={order.delivery_dispute_resolution_notes || undefined}>{[outcome, order.delivery_dispute_resolved_at && formatSchedule(order.delivery_dispute_resolved_at)].filter(Boolean).join(' · ')}</small>}</td>
+                    <td>{isResolved ? <span className="dispute-no-action">—</span> : <div className="task-actions"><button type="button" onClick={() => { setDisputeResolutionNotes(''); setDisputeRefundAmount(suggestedAmount); setDisputeRefundReference(''); setDisputeDecision('refunded'); setDisputeActivePhoto(null); setModal({ mode: 'review-dispute', order }) }}>Review</button></div>}</td></tr>
                   )
-                }) : <tr><td className="tasks-empty" colSpan="6">No open disputes.</td></tr>}</tbody>
+                }) : <tr><td className="tasks-empty" colSpan="7">{disputeFilter === 'resolved' ? 'No resolved disputes yet.' : disputeFilter === 'open' ? 'No open disputes.' : 'No disputes.'}</td></tr>}</tbody>
               </table>
             </div>
             <footer className="task-pagination">
-              <span>{disputeOrders.length} open dispute{disputeOrders.length === 1 ? '' : 's'}</span>
+              <span>{openDisputeCount} open · {resolvedDisputeCount} resolved</span>
             </footer>
-            </> : <>
+            </> : activeTab === 'tasks' ? <>
+            <nav className="task-work-type-tabs" aria-label="Work type view">
+              <button className={workView === 'all' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('all'); setPage(1) }}>All</button>
+              <button className={workView === 'crop' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('crop'); setPage(1) }}>Crop Management</button>
+              <button className={workView === 'deliveries' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('deliveries'); setPage(1) }}>Driver Deliveries</button>
+            </nav>
+            <div className="tasks-toolbar">
+              <div className="task-filter" ref={filterRef}><button type="button" onClick={() => setFilterOpen((open) => !open)} aria-haspopup="listbox" aria-expanded={filterOpen}><span>Filter by</span><i aria-hidden="true" /></button>{filterOpen && <div className="task-filter-menu" role="listbox" aria-label="Filter work by status"><p>Filter crop tasks</p>{[{ id: 'all', code: '', status_name: 'All statuses' }, ...options.statuses].map((status) => <button type="button" role="option" aria-selected={filter === status.code} className={filter === status.code ? 'is-selected' : ''} key={status.id} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>)}<p className="task-filter-group">Filter delivery status</p>{driverDeliveryStatuses.map((status) => <button type="button" role="option" aria-selected={filter === status.code} className={filter === status.code ? 'is-selected' : ''} key={status.code} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>)}</div>}</div>
+              <label className="task-search"><span className="sr-only">Search tasks</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search tasks" /><span aria-hidden="true" /></label>
+              <button className="assign-task-toolbar-button" type="button" onClick={openNewTask} disabled={!options.workers.length}><span>＋</span>Assign New Task</button>
+            </div>
+            {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
             <div className="tasks-table-wrap">
               <table className="tasks-table">
                 <thead>{workView === 'deliveries'
@@ -887,7 +903,6 @@ export default function TaskScheduleManagement() {
                 <button type="button" disabled={(workView === 'deliveries' ? page >= deliveryTotalPages : page >= (pagination.totalPages || 1)) || loading} onClick={() => setPage((v) => v + 1)}>Next →</button>
               </div>
             </footer>
-            </>}
             </> : activeTab === 'fleet' ? <>
               <div className="task-settings-toolbar">
                 <label className="task-search"><span className="sr-only">Search fleet vehicles</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search fleet vehicles" /><span aria-hidden="true" /></label>
