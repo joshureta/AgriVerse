@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileText, X } from 'lucide-react'
+import { ChevronDown, Download, Eye, Info, Search, SlidersHorizontal, X } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/task-schedule-management.css'
+import '../../styles/records-management.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 10
@@ -270,6 +271,9 @@ export default function RecordsManagement() {
   )
   const kind = activeCategory === '' ? 'generic' : categoryKind(activeCategoryName)
   const columns = RECORD_COLUMNS[kind]
+  const activeStatusName = statuses.find((status) => status.code === statusFilter)?.status_name || 'All statuses'
+  const firstVisibleRecord = records.length ? (page - 1) * PAGE_SIZE + 1 : 0
+  const lastVisibleRecord = Math.min(page * PAGE_SIZE, records.length)
 
   function generateReport() {
     if (isDeliveryTab) {
@@ -291,42 +295,51 @@ export default function RecordsManagement() {
   }
 
   return (
-    <main className="admin-dashboard task-schedule-page">
+    <main className="admin-dashboard task-schedule-page records-page">
       <AdminSidebar active="records" />
       <section className="admin-workspace">
         <AdminTopbar />
-        <div className="task-schedule-content">
-          <header className="task-page-heading">
+        <div className="task-schedule-content records-content">
+          <header className="task-page-heading records-page-heading">
             <div>
-              <h1>Farm Records Management</h1>
-              <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
-                Review completed and ongoing farm activity and delivery history
-              </p>
+              <span className="records-eyebrow">Records & reports</span>
+              <h1>Farm records</h1>
+              <p>Review farm activities and delivery history in one place.</p>
             </div>
             <button type="button" onClick={generateReport} disabled={loading || !records.length}>
-              <FileText aria-hidden="true" size={15} /> Generate Report
+              <Download aria-hidden="true" size={16} /> Export CSV
             </button>
           </header>
 
-          <section className="tasks-panel">
-            <nav className="task-management-tabs" aria-label="Record category">
-              {categories.map((category) => (
-                <button
-                  className={String(activeCategory) === String(category.id) ? 'is-active' : ''}
-                  type="button"
-                  key={category.id}
-                  onClick={() => setActiveCategory(category.id)}
-                >
-                  {category.category_name}
-                </button>
-              ))}
-              <button className={isDeliveryTab ? 'is-active' : ''} type="button" onClick={() => setActiveCategory('delivery')}>Delivery</button>
-            </nav>
+          <section className="tasks-panel records-panel">
+            <div className="records-category-section">
+              <nav className="task-management-tabs records-tabs" aria-label="Record category">
+                {categories.map((category) => (
+                  <button
+                    className={String(activeCategory) === String(category.id) ? 'is-active' : ''}
+                    type="button"
+                    key={category.id}
+                    onClick={() => setActiveCategory(category.id)}
+                  >
+                    {category.category_name}
+                  </button>
+                ))}
+                <button className={isDeliveryTab ? 'is-active' : ''} type="button" onClick={() => setActiveCategory('delivery')}>Delivery</button>
+              </nav>
+            </div>
 
-            <div className="tasks-toolbar">
+            <div className="tasks-toolbar records-toolbar">
+              <label className="task-search records-search">
+                <Search aria-hidden="true" size={17} />
+                <span className="sr-only">Search records</span>
+                <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search field, worker, order, or customer…" />
+                {search && <button type="button" onClick={() => setSearch('')} aria-label="Clear search"><X aria-hidden="true" size={15} /></button>}
+              </label>
               <div className="task-filter">
                 <button type="button" onClick={() => setFilterOpen((open) => !open)} aria-haspopup="listbox" aria-expanded={filterOpen} disabled={isDeliveryTab}>
-                  <span>Filter by</span><i aria-hidden="true" />
+                  <SlidersHorizontal aria-hidden="true" size={15} />
+                  <span>{isDeliveryTab ? 'All delivery statuses' : activeStatusName}</span>
+                  <ChevronDown className="records-filter-chevron" aria-hidden="true" size={15} />
                 </button>
                 {filterOpen && !isDeliveryTab && (
                   <div className="task-filter-menu" role="listbox" aria-label="Filter records by status">
@@ -347,18 +360,14 @@ export default function RecordsManagement() {
                   </div>
                 )}
               </div>
-              <label className="task-search">
-                <span className="sr-only">Search records</span>
-                <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search records" />
-                <span aria-hidden="true" />
-              </label>
             </div>
 
             {error && <div className="tasks-error" role="alert">{error}</div>}
             {!error && (
-              <div className="tasks-error" role="status" style={{ color: '#8a6d1d', background: '#fff8e6', borderTopColor: '#f3dfa0' }}>
-                Preview mode: Field/worker/dates are real, and Harvesting's Small/Medium/Large/Damaged counts are real once a worker reports and admin approves them. Other category-specific columns (plant counts, fertilizer, inspection notes, insights) are still mock sample data — this data isn't captured by the app yet.
-              </div>
+              <details className="records-data-note">
+                <summary><Info aria-hidden="true" size={16} /><span>About this data</span><small>Some category details are preview data</small><ChevronDown aria-hidden="true" size={15} /></summary>
+                <p>Field, worker, and date information is live. Approved harvesting counts are also live. Plant counts, fertilizer details, inspection notes, and insights are sample values until those fields are captured by the app.</p>
+              </details>
             )}
 
             <div className="tasks-table-wrap">
@@ -381,7 +390,7 @@ export default function RecordsManagement() {
                           <td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td>
                           <td><span className={`task-status status-${order.delivery_assignment_status || 'assigned'}`}>{(order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span></td>
                           <td><small>{mockDeliveryInsight(order)}</small></td>
-                          <td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}>View</button></div></td>
+                          <td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}><Eye aria-hidden="true" size={14} /> View</button></div></td>
                         </tr>
                       ))
                       : paginated.map((task) => {
@@ -389,7 +398,7 @@ export default function RecordsManagement() {
                         return (
                           <tr key={`task-${task.id}`}>
                             {row.map((cell, index) => <td key={index}>{index === row.length - 1 ? <small>{cell}</small> : cell}</td>)}
-                            <td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-task', task, kind })}>View</button></div></td>
+                            <td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-task', task, kind })}><Eye aria-hidden="true" size={14} /> View</button></div></td>
                           </tr>
                         )
                       })}
@@ -399,7 +408,7 @@ export default function RecordsManagement() {
             </div>
 
             <footer className="task-pagination">
-              <span>{records.length} record{records.length === 1 ? '' : 's'}</span>
+              <span>Showing {firstVisibleRecord}–{lastVisibleRecord} of {records.length}</span>
               <div>
                 <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button>
                 <strong>{page} / {totalPages}</strong>
