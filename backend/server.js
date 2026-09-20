@@ -25,6 +25,7 @@ const buyerMessagesRouter = require("./routes/buyer-messages");
 const adminMessagesRouter = require("./routes/admin-messages");
 const weatherRouter = require("./routes/weather");
 const notificationsRouter = require("./routes/notifications");
+const adminDashboardRouter = require("./routes/admin-dashboard");
 
 const app = express();
 
@@ -103,6 +104,7 @@ app.use("/api/worker/tasks", workerTasksRouter);
 app.use("/api/admin/lookups", adminLookupsRouter);
 app.use("/api/admin/schedules", adminSchedulesRouter);
 app.use("/api/admin/deliveries", adminDeliveriesRouter);
+app.use("/api/admin/dashboard", adminDashboardRouter);
 app.use("/api/buyer/products", buyerProductsRouter);
 app.use("/api/buyer/orders", buyerOrdersRouter);
 app.use("/api/buyer/payments", buyerPaymentsRouter);
