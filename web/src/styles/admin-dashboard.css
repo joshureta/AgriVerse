@@ -587,19 +587,25 @@
   font-weight: 900;
 }
 
+.stat-icon svg {
+  width: 29px;
+  height: 29px;
+  display: block;
+}
+
 .stat-workers {
   color: #287c3f;
   background: #e0f1dd;
 }
 
 .stat-harvest {
-  color: #917116;
-  background: #fff3ba;
+  color: #916b08;
+  background: linear-gradient(145deg, #fff6c9, #f9e28a);
 }
 
 .stat-sales {
   color: white;
-  background: #3d91dc;
+  background: linear-gradient(145deg, #4d9b53, #196c35);
 }
 
 .admin-stat-card > div {
@@ -611,15 +617,17 @@
   min-height: 29px;
   margin: 0;
   color: #39463c;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   line-height: 1.35;
+  font-family: var(--heading);
 }
 
 .admin-stat-card strong {
   margin-top: 2px;
   color: #111c14;
-  font-size: 20px;
+  font-size: 22px;
+  font-family: var(--heading);
 }
 
 .admin-stat-card strong em {
@@ -631,7 +639,7 @@
 .admin-stat-card small {
   margin-top: 3px;
   color: #89928b;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .admin-panel {
@@ -657,15 +665,16 @@
 
 .panel-heading span {
   color: #263329;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
+  font-family: var(--heading);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .panel-heading strong {
   color: #7d887f;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
 }
 
@@ -680,8 +689,141 @@
 }
 
 .revenue-panel {
-  min-height: 270px;
+  min-height: 300px;
+  overflow: hidden;
+  font-family: var(--sans);
 }
+
+.revenue-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.revenue-period-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #d9e5d5;
+  border-radius: 8px;
+  background: #f5f9f2;
+}
+
+.revenue-period-filter button {
+  min-width: 48px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #66756a;
+  background: transparent;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.revenue-period-filter button:hover {
+  color: var(--admin-green);
+  background: #eaf3e6;
+}
+
+.revenue-period-filter button.is-active {
+  color: #fff;
+  background: var(--admin-green);
+  box-shadow: 0 2px 7px rgba(25, 108, 53, 0.22);
+}
+
+.revenue-trend {
+  height: 178px;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  padding: 13px 24px 16px 10px;
+}
+
+.revenue-trend-scale {
+  height: 136px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #8a958c;
+  font-size: 10px;
+  text-align: right;
+}
+
+.revenue-trend-plot {
+  min-width: 0;
+  height: 136px;
+  position: relative;
+  border-bottom: 1px solid #d8e1d5;
+  background: repeating-linear-gradient(to bottom, #e3e7e1 0, #e3e7e1 1px, transparent 1px, transparent 33.333%);
+}
+
+.revenue-trend-plot svg { width: 100%; height: 100%; overflow: visible; }
+.revenue-series polyline { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.revenue-series circle { fill: currentColor; stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.revenue-series.is-gross { color: #78b83d; }
+.revenue-series.is-net { color: #196c35; }
+.revenue-series.is-refunds { color: #d9a51d; }
+
+.revenue-trend-labels {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--week-columns, 5), minmax(0, 1fr));
+}
+
+.revenue-trend-labels span { display: grid; justify-items: center; gap: 1px; }
+.revenue-trend-labels strong { color: #536257; font-family: var(--heading); font-size: 11px; }
+.revenue-trend-labels small { color: #929c94; font-size: 9px; }
+
+.revenue-line-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 2px 20px 0 68px;
+}
+
+.revenue-line-legend > span { display: inline-flex; align-items: center; gap: 5px; color: #68756c; font-size: 11px; }
+.revenue-line-legend i { width: 18px; height: 2px; border-radius: 999px; background: currentColor; }
+.revenue-line-legend strong { color: #38483d; font-size: 11px; }
+.revenue-line-legend .is-gross i { color: #78b83d; }
+.revenue-line-legend .is-net i { color: #196c35; }
+.revenue-line-legend .is-refunds i { color: #d9a51d; }
+
+.revenue-footnote {
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 9px 20px 13px 68px;
+  color: #7b877e;
+  font-size: 11px;
+}
+
+.revenue-footnote strong { color: #32473a; }
+
+.revenue-state {
+  min-height: 210px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #758078;
+  font-size: 10px;
+}
+
+.revenue-state.is-error { color: #a23c34; }
+.revenue-state button { border: 1px solid #d3ded0; border-radius: 7px; padding: 6px 10px; color: #236d38; background: #fff; font: inherit; font-weight: 800; cursor: pointer; }
 
 .chart-legend {
   display: flex !important;
@@ -1108,6 +1250,21 @@
     padding-inline: 14px;
   }
 
+  .revenue-panel .panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .revenue-heading-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .revenue-period-filter button {
+    min-width: 44px;
+    padding-inline: 8px;
+  }
+
   .chart-legend {
     display: none !important;
   }
@@ -1116,6 +1273,11 @@
     padding-right: 15px;
     padding-left: 10px;
   }
+
+  .revenue-trend { grid-template-columns: 42px minmax(0, 1fr); padding-right: 12px; }
+  .revenue-line-legend, .revenue-footnote { margin-left: 52px; }
+  .revenue-trend-labels.is-year small { display: none; }
+  .revenue-trend-labels.is-year strong { font-size: 8px; }
 }
 
 /* ========================================================================= */
