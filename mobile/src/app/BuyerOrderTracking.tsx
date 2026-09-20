@@ -1,6 +1,7 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Image, Linking, Modal, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerCancelOrderModal } from '@/components/buyer-cancel-order-modal';
@@ -11,7 +12,10 @@ import {
   confirmBuyerOrderReceipt,
   DisputeCategory,
   loadBuyerOrder,
+  readBuyerCart,
+  writeBuyerCart,
 } from '@/lib/buyer-marketplace';
+import { w } from '@/styles/buyer-order-details.styles';
 import { GREEN, styles } from '@/styles/buyer-order-tracking.styles';
 
 const DISPUTE_CATEGORY_OPTIONS: { value: DisputeCategory; label: string }[] = [
@@ -45,6 +49,11 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(value));
 }
 
+function formatShortDate(value: string | null) {
+  if (!value) return '';
+  return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(new Date(value));
+}
+
 function formatDateTime(value: string | null) {
   if (!value) return 'Pending';
   return new Intl.DateTimeFormat('en-PH', {
@@ -54,6 +63,10 @@ function formatDateTime(value: string | null) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(value));
+}
+
+function formatPeso(value: number | null | undefined) {
+  return `₱${Number(value || 0).toFixed(2)}`;
 }
 
 function getDeliveryAddress(order: BuyerOrder) {
@@ -85,6 +98,12 @@ function getStatusLabel(status: BuyerOrder['order_status']) {
     default:
       return status;
   }
+}
+
+// A cancelled order (refunded automatically if it was paid) is not a return.
+function isReturnOrRefund(order: BuyerOrder) {
+  if (order.order_status === 'cancelled') return false;
+  return order.payment_status === 'refunded' || Boolean(order.delivery_dispute_status);
 }
 
 function ReceiptIcon({ color = GREEN, size = 16 }: { color?: string; size?: number }) {
@@ -216,6 +235,74 @@ function PlantIcon({ color = GREEN, size = 16 }: { color?: string; size?: number
   );
 }
 
+// Extra icons for the web-style cards. Same stroke style as above, drawn through one wrapper.
+function Glyph({ color, size = 18, stroke = 2, children }: { color: string; size?: number; stroke?: number; children: ReactNode }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </Svg>
+  );
+}
+
+const CameraIcon = ({ color = GREEN, size = 15 }: { color?: string; size?: number }) => (
+  <Glyph color={color} size={size}>
+    <Path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+    <Circle cx={12} cy={13} r={3} />
+  </Glyph>
+);
+const ExpandIcon = ({ color = '#173b21', size = 14 }: { color?: string; size?: number }) => (
+  <Glyph color={color} size={size}>
+    <Path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+  </Glyph>
+);
+const CloseIcon = ({ color = '#ffffff', size = 20 }: { color?: string; size?: number }) => (
+  <Glyph color={color} size={size} stroke={2.4}>
+    <Path d="M18 6 6 18M6 6l12 12" />
+  </Glyph>
+);
+const ChevronLeftIcon = ({ color = '#237538', size = 22 }: { color?: string; size?: number }) => (
+  <Glyph color={color} size={size} stroke={2.4}>
+    <Path d="m15 18-6-6 6-6" />
+  </Glyph>
+);
+const CheckIcon = ({ color = '#ffffff', size = 13 }: { color?: string; size?: number }) => (
+  <Glyph color={color} size={size} stroke={2.6}>
+    <Path d="M20 6 9 17l-5-5" />
+  </Glyph>
+);
+const StoreIcon = ({ color = '#176b32', size = 17 }: { color?: string; size?: number }) => (
+  <Glyph color={color} size={size}>
+    <Path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+    <Path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <Path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+    <Path d="M2 7h20" />
+  </Glyph>
+);
+const FileTextIcon = ({ color, size = 18 }: { color: string; size?: number }) => (
+  <Glyph color={color} size={size}>
+    <Path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+    <Path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8" />
+  </Glyph>
+);
+const HourglassIcon = ({ color, size = 18 }: { color: string; size?: number }) => (
+  <Glyph color={color} size={size}>
+    <Path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+  </Glyph>
+);
+const BanknoteIcon = ({ color, size = 18 }: { color: string; size?: number }) => (
+  <Glyph color={color} size={size}>
+    <Rect width={20} height={12} x={2} y={6} rx={2} />
+    <Circle cx={12} cy={12} r={2} />
+    <Path d="M6 12h.01M18 12h.01" />
+  </Glyph>
+);
+const XIcon = ({ color, size = 18 }: { color: string; size?: number }) => (
+  <Glyph color={color} size={size}>
+    <Path d="M18 6 6 18M6 6l12 12" />
+  </Glyph>
+);
+const OpenBoxIcon = ({ color = '#173b21', size = 22 }: { color?: string; size?: number }) => <PackingIcon color={color} size={size} />;
+
 type Step = { key: 'placed' | 'confirmed' | 'transit' | 'ready_pickup' | 'delivered'; label: string; date: string | null; estimated?: boolean };
 
 function buildSteps(order: BuyerOrder): Step[] {
@@ -305,6 +392,351 @@ function DeliveryStepper({ order }: { order: BuyerOrder }) {
   );
 }
 
+// ---------- Web-style pieces ----------
+
+type ReturnStep = { key: string; label: string; sub: string; state: 'done' | 'current' | 'declined' | ''; icon: (color: string) => ReactNode };
+
+function buildReturnSteps(order: BuyerOrder): ReturnStep[] {
+  const resolved = order.delivery_dispute_status === 'resolved';
+  const dismissed = resolved && order.delivery_dispute_resolution === 'dismissed';
+  const decisionSub = !resolved ? '1–2 business days' : dismissed ? 'Claim dismissed' : 'Refund approved';
+  return [
+    {
+      key: 'submitted',
+      label: 'Report submitted',
+      sub: order.delivery_dispute_created_at ? formatShortDate(order.delivery_dispute_created_at) : 'Submitted',
+      state: 'done',
+      icon: (color) => <FileTextIcon color={color} />,
+    },
+    { key: 'decision', label: 'Return decision', sub: decisionSub, state: resolved ? 'done' : 'current', icon: (color) => <HourglassIcon color={color} /> },
+    dismissed
+      ? { key: 'refund', label: 'No refund', sub: 'Not approved', state: 'declined', icon: (color) => <XIcon color={color} /> }
+      : { key: 'refund', label: 'Refund completed', sub: resolved ? 'Completed' : 'Pending', state: resolved ? 'done' : '', icon: (color) => <BanknoteIcon color={color} /> },
+  ];
+}
+
+function WebStepper({ steps }: { steps: ReturnStep[] }) {
+  return (
+    <View style={w.stepper}>
+      {steps.map((step, index) => {
+        const iconColor = step.state === 'done' || step.state === 'declined' ? '#ffffff' : step.state === 'current' ? '#176b32' : '#8a968b';
+        const lineOn = step.state === 'done' || step.state === 'current' || step.state === 'declined';
+        return (
+          <View key={step.key} style={w.stepCol}>
+            {index > 0 ? <View style={[w.stepLine, lineOn && w.stepLineOn]} /> : null}
+            <View style={[w.stepRing, step.state === 'current' && w.stepRingCurrent]}>
+              <View
+                style={[
+                  w.stepNode,
+                  step.state === 'done' && w.stepNodeDone,
+                  step.state === 'current' && w.stepNodeCurrent,
+                  step.state === 'declined' && w.stepNodeDeclined,
+                ]}>
+                {step.icon(iconColor)}
+              </View>
+            </View>
+            <Text style={[w.stepLabel, (step.state === 'done' || step.state === 'current' || step.state === 'declined') && w.stepLabelOn]}>{step.label}</Text>
+            <Text style={w.stepSub}>{step.sub}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function ReturnCard({ order }: { order: BuyerOrder }) {
+  const category = DISPUTE_CATEGORY_OPTIONS.find((option) => option.value === order.delivery_dispute_category)?.label || 'Damaged produce';
+  const photoCount = Array.isArray(order.delivery_dispute_photo_urls) ? order.delivery_dispute_photo_urls.length : 0;
+  const resolved = order.delivery_dispute_status === 'resolved';
+  const dismissed = resolved && order.delivery_dispute_resolution === 'dismissed';
+  const notes = order.delivery_dispute_resolution_notes;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="View return request details"
+      onPress={() => router.push({ pathname: '/BuyerReturnDetails', params: { id: String(order.id) } })}
+      style={w.returnCard}>
+      <View style={w.returnTop}>
+        <View style={w.returnLeft}>
+          <View style={w.returnIcon}>
+            <OpenBoxIcon />
+          </View>
+          <View style={w.returnHeadings}>
+            <Text style={w.returnTitle}>{order.delivery_dispute_status === 'open' ? 'We’re reviewing your return request' : 'Update on your return request'}</Text>
+            <Text style={w.returnSub}>
+              {category}
+              {order.delivery_dispute_affected_quantity ? ` · ${order.delivery_dispute_affected_quantity} affected` : ''}
+              {photoCount > 0 ? ` · ${photoCount} photo${photoCount > 1 ? 's' : ''} attached` : ''}
+            </Text>
+          </View>
+        </View>
+        <Text style={w.returnView}>View details</Text>
+      </View>
+      <View style={w.returnDivider} />
+      <WebStepper steps={buildReturnSteps(order)} />
+      {resolved ? (
+        <View style={w.decision}>
+          <View style={[w.decisionBadge, dismissed ? w.decisionBadgeDismissed : w.decisionBadgeRefund]}>
+            {dismissed ? <XIcon color="#8c1d18" size={13} /> : <CheckIcon color="#176b32" />}
+            <Text style={[w.decisionBadgeText, { color: dismissed ? '#8c1d18' : '#176b32' }]}>{dismissed ? 'Claim dismissed' : 'Refund approved'}</Text>
+          </View>
+          {!dismissed && order.refund_amount != null ? <Text style={w.decisionAmount}>{formatPeso(order.refund_amount)}</Text> : null}
+          {notes ? <Text style={w.decisionNote}>{notes}</Text> : null}
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+function IconBadge({ children }: { children: ReactNode }) {
+  return (
+    <LinearGradient colors={['#4d9f48', '#27783a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={w.badge}>
+      {children}
+    </LinearGradient>
+  );
+}
+
+function DetailRow({ icon, label, value, first }: { icon: ReactNode; label: string; value: string; first?: boolean }) {
+  return (
+    <View style={[w.detailRow, first && w.detailRowFirst]}>
+      <IconBadge>{icon}</IconBadge>
+      <View style={w.detailText}>
+        <Text style={w.detailLabel}>{label}</Text>
+        <Text style={w.detailValue}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+function OrderDetailsCard({ order, onOpenProof }: { order: BuyerOrder; onOpenProof: () => void }) {
+  const isPickup = order.delivery_method === 'pickup';
+  return (
+    <View style={[w.card, w.tintCard]}>
+      <Text style={w.cardHeading}>Order Details</Text>
+      <View style={w.detailList}>
+        <DetailRow first icon={<ReceiptIcon color="#ffffff" size={22} />} label="Order Number" value={order.order_number} />
+        <DetailRow icon={<CalendarIcon color="#ffffff" size={22} />} label="Order Date" value={formatDateTime(order.created_at)} />
+        <DetailRow
+          icon={<TransitTruckIcon color="#ffffff" size={22} />}
+          label="Est. Delivery"
+          value={isPickup ? 'On-site pickup' : formatDate(order.estimated_delivery_at)}
+        />
+      </View>
+
+      {order.delivery_proof_image_url ? (
+        <View style={w.proof}>
+          <View style={w.proofLabelRow}>
+            <CameraIcon />
+            <Text style={w.proofLabel}>Proof of delivery</Text>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="View full proof of delivery photo" onPress={onOpenProof} style={w.proofPhoto}>
+            <Image accessibilityIgnoresInvertColors source={{ uri: order.delivery_proof_image_url }} style={w.proofImage} resizeMode="cover" />
+            <View style={w.proofZoom}>
+              <ExpandIcon />
+            </View>
+          </Pressable>
+          {order.delivery_proof_notes ? (
+            <Text style={w.proofNote}>
+              <Text style={w.proofNoteBold}>Driver note:</Text> “{order.delivery_proof_notes}”
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function OrderItemsCard({ order }: { order: BuyerOrder }) {
+  return (
+    <View style={[w.card, w.tintCard]}>
+      <Text style={w.cardHeading}>Order Items</Text>
+      <View style={w.itemList}>
+        {order.items.map((item) => (
+          <View key={item.id} style={w.item}>
+            <Image accessibilityIgnoresInvertColors source={require('@/assets/images/pineapple-product.png')} style={w.itemImage} />
+            <View style={{ flex: 1 }}>
+              <Text style={w.itemName}>{item.product_name}</Text>
+              <Text style={w.itemMeta}>
+                {item.weight_label} · {item.quantity} {item.quantity === 1 ? 'piece' : 'pieces'}
+              </Text>
+              <Text style={w.itemPrice}>{formatPeso(item.line_total)}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+      <View style={w.costRow}>
+        <Text style={w.costLabel}>Shipping</Text>
+        <Text style={w.costValue}>{formatPeso(order.shipping_fee)}</Text>
+      </View>
+      <View style={w.totalBar}>
+        <Text style={w.totalLabel}>Total</Text>
+        <Text style={w.totalValue}>{formatPeso(order.total_amount)}</Text>
+      </View>
+    </View>
+  );
+}
+
+function PickupTicket({ order }: { order: BuyerOrder }) {
+  return (
+    <View style={[w.card, w.ticket]}>
+      <Text style={w.ticketLabel}>Order number</Text>
+      <Text style={w.ticketCode}>{order.order_number}</Text>
+      <Text style={w.ticketCopy}>
+        Show this order number to farm staff when you arrive. No need to wait for a courier — collect it whenever the farm is open.
+      </Text>
+      <View style={w.ticketMeta}>
+        <View style={w.ticketMetaRow}>
+          <StoreIcon />
+          <View>
+            <Text style={w.ticketMetaTitle}>JToledo Trading Farm</Text>
+            <Text style={w.ticketMetaSub}>Tagaytay City, Cavite</Text>
+          </View>
+        </View>
+        <View style={w.ticketMetaRow}>
+          <CalendarIcon color="#176b32" size={17} />
+          <View>
+            <Text style={w.ticketMetaTitle}>Pickup hours</Text>
+            <Text style={w.ticketMetaSub}>Mon – Sat, 8:00 AM – 5:00 PM</Text>
+          </View>
+        </View>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => Linking.openURL('https://www.google.com/maps/search/?api=1&query=JToledo+Trading+Farm+Tagaytay+City')}
+        style={w.ticketButton}>
+        <MapPinIcon color="#ffffff" size={15} />
+        <Text style={w.ticketButtonText}>Get Directions</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function RatingCard({ order }: { order: BuyerOrder }) {
+  const rated = Boolean(order.buyer_rating);
+  const value = order.buyer_rating || 0;
+  return (
+    <View style={[w.card, w.rateCard]}>
+      <View style={w.rateText}>
+        <Text style={w.rateTitle}>{rated ? 'Your rating' : 'How was your order?'}</Text>
+        <Text style={w.rateCopy}>{rated ? 'Thanks for rating your order.' : 'Tap a star to rate — it helps other buyers and the farm.'}</Text>
+      </View>
+      <View style={w.stars}>
+        {[1, 2, 3, 4, 5].map((star) =>
+          rated ? (
+            <Text key={star} style={[w.star, star <= value && w.starFilled]}>★</Text>
+          ) : (
+            <Pressable
+              accessibilityLabel={`${star} star${star === 1 ? '' : 's'}`}
+              accessibilityRole="button"
+              hitSlop={4}
+              key={star}
+              onPress={() => router.push({ pathname: '/BuyerRateOrder', params: { id: String(order.id), rating: String(star) } })}>
+              <Text style={w.star}>★</Text>
+            </Pressable>
+          ),
+        )}
+      </View>
+    </View>
+  );
+}
+
+function CancelledReceipt({
+  order,
+  onShowDetails,
+  onBuyAgain,
+  buyingAgain,
+}: {
+  order: BuyerOrder;
+  onShowDetails: () => void;
+  onBuyAgain: () => void;
+  buyingAgain: boolean;
+}) {
+  const canBuyAgain = order.items.some((item) => item.pineapple_size_id);
+  const paymentLabel = PAYMENT_METHOD_LABELS[order.payment_method] || order.payment_method;
+  return (
+    <>
+      <View style={[w.card, w.receiptCard]}>
+        <View style={w.receiptHero}>
+          <XIcon color="#b13b3b" size={26} />
+        </View>
+        <Text style={w.receiptTitle}>Order cancelled</Text>
+        <Text style={w.receiptWhen}>
+          {order.cancelled_at ? formatDateTime(order.cancelled_at) : 'Cancellation time unavailable'} · {order.order_number}
+        </Text>
+        <View style={w.facts}>
+          <View style={w.fact}>
+            <Text style={w.factLabel}>Reason</Text>
+            <Text style={w.factValue}>{order.cancellation_reason || 'Not specified'}</Text>
+          </View>
+          <View style={w.fact}>
+            <Text style={w.factLabel}>Payment</Text>
+            <Text style={w.factValue}>{paymentLabel}</Text>
+          </View>
+          <View style={w.fact}>
+            <Text style={w.factLabel}>Placed</Text>
+            <Text style={w.factValue}>{formatDateTime(order.created_at)}</Text>
+          </View>
+          {order.refund_amount != null ? (
+            <View style={w.fact}>
+              <Text style={w.factLabel}>Refund</Text>
+              <Text style={w.factValue}>{formatPeso(order.refund_amount)} · Refund requested</Text>
+            </View>
+          ) : null}
+        </View>
+        {order.refund_amount != null ? (
+          <Text style={w.refundNote}>We&apos;ll return the refund to your {paymentLabel}, the payment method you used.</Text>
+        ) : null}
+      </View>
+
+      <View style={[w.card, { padding: 20 }]}>
+        <Text style={w.itemsHeading}>Items</Text>
+        <View style={w.tableHead}>
+          <View style={w.colThumb} />
+          <Text style={[w.tableHeadText, w.colItem]}>Item</Text>
+          <Text style={[w.tableHeadText, w.colQty]}>Qty</Text>
+          <Text style={[w.tableHeadText, w.colPrice]}>Price</Text>
+        </View>
+        {order.items.map((item) => (
+          <View key={item.id} style={w.tableRow}>
+            <Image accessibilityIgnoresInvertColors source={require('@/assets/images/pineapple-product.png')} style={w.tableThumb} />
+            <View style={w.colItem}>
+              <Text style={w.tableName}>{item.product_name}</Text>
+              <Text style={w.tableMeta}>{item.weight_label}</Text>
+            </View>
+            <Text style={[w.tableCell, w.colQty]}>×{item.quantity}</Text>
+            <Text style={[w.tableCell, w.colPrice]}>{formatPeso(item.line_total)}</Text>
+          </View>
+        ))}
+        <View style={w.sumRow}>
+          <Text style={w.sumText}>Shipping</Text>
+          <Text style={w.sumText}>{formatPeso(order.shipping_fee)}</Text>
+        </View>
+        <View style={[w.sumRow, w.sumTotal]}>
+          <Text style={w.sumTotalText}>Total</Text>
+          <Text style={w.sumTotalText}>{formatPeso(order.total_amount)}</Text>
+        </View>
+      </View>
+
+      <View style={w.bigButtons}>
+        <Pressable accessibilityRole="button" onPress={onShowDetails} style={[w.bigButton, w.bigButtonOutline]}>
+          <ReceiptIcon color="#26743a" size={20} />
+          <Text style={[w.bigButtonText, w.bigButtonOutlineText]}>Order details</Text>
+        </Pressable>
+        {canBuyAgain ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={buyingAgain}
+            onPress={onBuyAgain}
+            style={[w.bigButton, w.bigButtonFilled, buyingAgain && w.buttonDisabled]}>
+            {buyingAgain ? <ActivityIndicator color="#ffffff" /> : <Text style={[w.bigButtonText, w.bigButtonFilledText]}>Buy again</Text>}
+          </Pressable>
+        ) : null}
+      </View>
+    </>
+  );
+}
+
 export default function BuyerOrderTrackingScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
 
@@ -314,6 +746,9 @@ export default function BuyerOrderTrackingScreen() {
   const [confirming, setConfirming] = useState(false);
   const [actionError, setActionError] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showPreCancelDetails, setShowPreCancelDetails] = useState(false);
+  const [viewingProof, setViewingProof] = useState(false);
+  const [buyingAgain, setBuyingAgain] = useState(false);
 
   const loadOrder = useCallback(async () => {
     if (!id) {
@@ -350,9 +785,38 @@ export default function BuyerOrderTrackingScreen() {
     }
   }
 
+  // Adds the order's items to the saved cart; the cart screen re-checks them against live stock.
+  async function handleBuyAgain() {
+    if (!order) return;
+    setBuyingAgain(true);
+    try {
+      const cart = await readBuyerCart();
+      const merged = cart.map((item) => ({ ...item }));
+      order.items.forEach((item) => {
+        if (!item.pineapple_size_id) return;
+        const existing = merged.find((entry) => entry.product_id === item.pineapple_size_id);
+        if (existing) {
+          existing.quantity = (Number(existing.quantity) || 0) + item.quantity;
+        } else {
+          merged.push({
+            product_id: item.pineapple_size_id,
+            quantity: item.quantity,
+            size_name: item.product_name,
+            weight: item.weight_label,
+            price: item.unit_price,
+          });
+        }
+      });
+      await writeBuyerCart(merged);
+      router.push('/BuyerCart' as never);
+    } finally {
+      setBuyingAgain(false);
+    }
+  }
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={w.safeArea}>
         <BuyerHeader showBack />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={GREEN} size="large" />
@@ -363,7 +827,7 @@ export default function BuyerOrderTrackingScreen() {
 
   if (error || !order) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={w.safeArea}>
         <BuyerHeader showBack />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
           <Text style={{ color: '#a33d35', fontSize: 13, textAlign: 'center' }}>{error || 'Order not found.'}</Text>
@@ -373,299 +837,208 @@ export default function BuyerOrderTrackingScreen() {
   }
 
   const isPickup = order.delivery_method === 'pickup';
+  const isCancelled = order.order_status === 'cancelled';
   const destinationCity = isPickup ? 'Tagaytay City' : order.delivery_city_municipality || 'Delivery Address';
   const destinationAddress = isPickup ? 'JToledo Trading Farm, Tagaytay City' : getDeliveryAddress(order) || 'Address not provided';
+  const showReceipt = isCancelled && !showPreCancelDetails;
+  const returnOrRefund = isReturnOrRefund(order);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={w.safeArea}>
       <BuyerHeader showBack />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* CARD 1: DELIVERY ROUTE & PROGRESS STEPPER */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.sectionTitle}>Delivery Route</Text>
-            <View style={styles.statusPill}>
-              <Text style={styles.statusPillText}>{getStatusLabel(order.order_status)}</Text>
-            </View>
-          </View>
+      <ScrollView contentContainerStyle={w.scrollContent} showsVerticalScrollIndicator={false}>
+        <Text style={w.title}>Order {order.order_number}</Text>
 
-          {/* Clean Vertical Route */}
-          <View style={styles.verticalRouteBox}>
-            {/* Origin Farm */}
-            <View style={styles.routeItemRow}>
-              <View style={styles.originIconCircle}>
-                <PlantIcon color="#ffffff" size={15} />
+        {showReceipt ? (
+          <CancelledReceipt
+            buyingAgain={buyingAgain}
+            onBuyAgain={handleBuyAgain}
+            onShowDetails={() => setShowPreCancelDetails(true)}
+            order={order}
+          />
+        ) : (
+          <>
+            {isCancelled ? (
+              <Pressable accessibilityRole="button" onPress={() => setShowPreCancelDetails(false)} style={w.backToCancellation}>
+                <ChevronLeftIcon color="#26743a" size={18} />
+                <Text style={w.backToCancellationText}>Back to cancellation</Text>
+              </Pressable>
+            ) : null}
+
+            {order.delivery_dispute_status ? <ReturnCard order={order} /> : null}
+
+            {/* DELIVERY ROUTE & PROGRESS STEPPER (unchanged) */}
+            <View style={[styles.card, { marginBottom: 20 }]}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.sectionTitle}>Delivery Route</Text>
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>{getStatusLabel(order.order_status)}</Text>
+                </View>
               </View>
-              <View style={styles.routeItemContent}>
-                <Text style={styles.routeItemHeader}>FARM ORIGIN</Text>
-                <Text style={styles.routeItemTitle}>Tagaytay City</Text>
-                <Text style={styles.routeItemSubtitle}>JToledo Trading Farm</Text>
+
+              {/* Clean Vertical Route */}
+              <View style={styles.verticalRouteBox}>
+                {/* Origin Farm */}
+                <View style={styles.routeItemRow}>
+                  <View style={styles.originIconCircle}>
+                    <PlantIcon color="#ffffff" size={15} />
+                  </View>
+                  <View style={styles.routeItemContent}>
+                    <Text style={styles.routeItemHeader}>FARM ORIGIN</Text>
+                    <Text style={styles.routeItemTitle}>Tagaytay City</Text>
+                    <Text style={styles.routeItemSubtitle}>JToledo Trading Farm</Text>
+                  </View>
+                </View>
+
+                {/* Subtle Vertical Connector Line */}
+                <View style={styles.verticalConnectorLine} />
+
+                {/* Destination Buyer */}
+                <View style={styles.routeItemRow}>
+                  <View style={styles.destinationIconCircle}>
+                    <MapPinIcon color={GREEN} size={15} />
+                  </View>
+                  <View style={styles.routeItemContent}>
+                    <Text style={styles.routeItemHeader}>{isPickup ? 'FARM PICKUP LOCATION' : 'DELIVERY ADDRESS'}</Text>
+                    <Text style={styles.routeItemTitle}>{destinationCity}</Text>
+                    <Text style={styles.routeItemSubtitle}>{destinationAddress}</Text>
+                  </View>
+                </View>
               </View>
+
+              {isCancelled ? (
+                <View style={styles.cancellationPanel}>
+                  <View style={styles.cancellationRow}>
+                    <Text style={styles.cancellationLabel}>Requested by</Text>
+                    <Text style={styles.cancellationValue}>You</Text>
+                  </View>
+                  <View style={styles.cancellationRow}>
+                    <Text style={styles.cancellationLabel}>Requested at</Text>
+                    <Text style={styles.cancellationValue}>{formatDateTime(order.cancelled_at)}</Text>
+                  </View>
+                  <View style={styles.cancellationRow}>
+                    <Text style={styles.cancellationLabel}>Reason</Text>
+                    <Text style={styles.cancellationValue}>{order.cancellation_reason || 'Not specified'}</Text>
+                  </View>
+                  <View style={[styles.cancellationRow, styles.cancellationRowLast]}>
+                    <Text style={styles.cancellationLabel}>Payment method</Text>
+                    <Text style={styles.cancellationValue}>{PAYMENT_METHOD_LABELS[order.payment_method]}</Text>
+                  </View>
+                </View>
+              ) : (
+                <DeliveryStepper order={order} />
+              )}
             </View>
 
-            {/* Subtle Vertical Connector Line */}
-            <View style={styles.verticalConnectorLine} />
+            {order.order_status === 'ready_for_pickup' ? <PickupTicket order={order} /> : null}
 
-            {/* Destination Buyer */}
-            <View style={styles.routeItemRow}>
-              <View style={styles.destinationIconCircle}>
-                <MapPinIcon color={GREEN} size={15} />
-              </View>
-              <View style={styles.routeItemContent}>
-                <Text style={styles.routeItemHeader}>{isPickup ? 'FARM PICKUP LOCATION' : 'DELIVERY ADDRESS'}</Text>
-                <Text style={styles.routeItemTitle}>{destinationCity}</Text>
-                <Text style={styles.routeItemSubtitle}>{destinationAddress}</Text>
-              </View>
-            </View>
-          </View>
+            <OrderDetailsCard onOpenProof={() => setViewingProof(true)} order={order} />
+            <OrderItemsCard order={order} />
 
-          {order.order_status === 'cancelled' ? (
-            <View style={styles.cancellationPanel}>
-              <View style={styles.cancellationRow}>
-                <Text style={styles.cancellationLabel}>Requested by</Text>
-                <Text style={styles.cancellationValue}>You</Text>
-              </View>
-              <View style={styles.cancellationRow}>
-                <Text style={styles.cancellationLabel}>Requested at</Text>
-                <Text style={styles.cancellationValue}>{formatDateTime(order.cancelled_at)}</Text>
-              </View>
-              <View style={styles.cancellationRow}>
-                <Text style={styles.cancellationLabel}>Reason</Text>
-                <Text style={styles.cancellationValue}>{order.cancellation_reason || 'Not specified'}</Text>
-              </View>
-              <View style={[styles.cancellationRow, styles.cancellationRowLast]}>
-                <Text style={styles.cancellationLabel}>Payment method</Text>
-                <Text style={styles.cancellationValue}>{PAYMENT_METHOD_LABELS[order.payment_method]}</Text>
-              </View>
-            </View>
-          ) : (
-            <DeliveryStepper order={order} />
-          )}
-        </View>
-
-        {/* CARD 2: ORDER DETAILS (Adapted from Web Architecture) */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Order Details</Text>
-
-          <View style={[styles.detailRow, { marginTop: 12 }]}>
-            <View style={styles.detailIconBox}>
-              <ReceiptIcon color={GREEN} size={16} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>ORDER NUMBER</Text>
-              <Text style={styles.detailValue}>{order.order_number}</Text>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconBox}>
-              <CalendarIcon color={GREEN} size={16} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>ORDER DATE</Text>
-              <Text style={styles.detailValue}>{formatDateTime(order.created_at)}</Text>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconBox}>
-              <TransitTruckIcon color={GREEN} size={16} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{isPickup ? 'PICKUP SCHEDULE' : 'ESTIMATED DELIVERY'}</Text>
-              <Text style={styles.detailValue}>
-                {isPickup ? 'Ready for on-site pickup' : formatDate(order.estimated_delivery_at)}
-              </Text>
-            </View>
-          </View>
-
-        </View>
-
-        {/* CARD 3: ORDER ITEMS & FINANCIAL SUMMARY */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.sectionTitle}>Order Items</Text>
-            <View style={styles.countBadge}>
-              <Text style={styles.countBadgeText}>
-                {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
-              </Text>
-            </View>
-          </View>
-
-          {order.items.map((item, idx) => (
-            <View key={item.id} style={[styles.itemRow, idx > 0 && styles.itemRowBorderTop]}>
-              <View style={styles.itemIconBox}>
-                <Image accessibilityIgnoresInvertColors source={require('@/assets/images/pineapple-product.png')} style={styles.itemImage} />
-              </View>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{item.product_name}</Text>
-                <Text style={styles.itemMeta}>
-                  {item.weight_label} · {item.quantity} {item.quantity === 1 ? 'piece' : 'pieces'}
+            {/* CANCEL (PENDING/CONFIRMED ONLY) */}
+            {canCancelBuyerOrder(order) ? (
+              <View style={[w.card, w.actionCard]}>
+                <Text style={w.actionTitle}>Need to cancel this order?</Text>
+                <Text style={w.actionText}>
+                  This order hasn&apos;t started preparing yet, so you can still cancel it
+                  {order.payment_method === 'gcash' && order.payment_status === 'paid' ? ' for a full refund to your GCash.' : '.'}
                 </Text>
-              </View>
-              <Text style={styles.itemPrice}>₱{item.line_total.toFixed(2)}</Text>
-            </View>
-          ))}
-
-          {/* Financial Breakdown */}
-          <View style={styles.financialSummary}>
-            <View style={styles.summaryLine}>
-              <Text style={styles.summaryLabel}>Shipping Fee</Text>
-              <Text style={styles.summaryValue}>₱{(order.shipping_fee || 0).toFixed(2)}</Text>
-            </View>
-            <View style={[styles.summaryLine, styles.totalLine]}>
-              <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalValue}>₱{Number(order.total_amount || 0).toFixed(2)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* CARD 4: CANCEL ORDER (PENDING/CONFIRMED ONLY) */}
-        {canCancelBuyerOrder(order) ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Need to cancel this order?</Text>
-            <Text style={styles.confirmationText}>
-              This order hasn&apos;t started preparing yet, so you can still cancel it
-              {order.payment_method === 'gcash' && order.payment_status === 'paid'
-                ? ' for a full refund to your GCash.'
-                : '.'}
-            </Text>
-            <View style={styles.actionRow}>
-              <Pressable onPress={() => setShowCancelModal(true)} style={styles.dangerButton}>
-                <Text style={styles.dangerButtonText}>Cancel Order</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
-
-        {/* DELIVERY PROOF PHOTO (IF PRESENT) */}
-        {order.delivery_proof_image_url ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Delivery Photo</Text>
-            <Image accessibilityIgnoresInvertColors source={{ uri: order.delivery_proof_image_url }} style={styles.proofImage} />
-            {order.delivery_proof_notes ? <Text style={styles.proofNote}>{order.delivery_proof_notes}</Text> : null}
-          </View>
-        ) : null}
-
-        {/* CONFIRM RECEIPT / DISPUTE ACTIONS (IF DELIVERED) */}
-        {order.order_status === 'delivered' && order.delivery_dispute_status !== 'open' ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Did you receive your order?</Text>
-            <Text style={styles.confirmationText}>
-              Confirm everything arrived as expected, or report a problem while the delivery details are still fresh.
-            </Text>
-            {actionError ? <Text style={styles.actionErrorText}>{actionError}</Text> : null}
-            <View style={styles.actionRow}>
-              <Pressable
-                disabled={confirming}
-                onPress={handleConfirmReceipt}
-                style={[styles.primaryButton, confirming && styles.buttonDisabled]}>
-                {confirming ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={styles.primaryButtonText}>Confirm Receipt</Text>}
-              </Pressable>
-              <Pressable
-                disabled={confirming}
-                onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })}
-                style={[styles.secondaryButton, confirming && styles.buttonDisabled]}>
-                <Text style={styles.secondaryButtonText}>Report an issue</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
-
-        {/* READY FOR PICKUP TICKET */}
-        {order.order_status === 'ready_for_pickup' ? (
-          <View style={[styles.card, styles.pendingReviewCard]}>
-            <Text style={styles.pendingReviewTitle}>Ready for pickup</Text>
-            <Text style={styles.pickupCodeText}>{order.order_number}</Text>
-            <Text style={styles.confirmationText}>
-              Show this order number to farm staff when you arrive. No courier involved — collect it whenever the farm is open.
-            </Text>
-            <View style={[styles.detailRow, { marginTop: 12 }]}>
-              <View style={styles.detailIconBox}>
-                <MapPinIcon color={GREEN} size={16} />
-              </View>
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>PICKUP LOCATION</Text>
-                <Text style={styles.detailValue}>JToledo Trading Farm, Tagaytay City</Text>
-              </View>
-            </View>
-            <View style={styles.detailRow}>
-              <View style={styles.detailIconBox}>
-                <CalendarIcon color={GREEN} size={16} />
-              </View>
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>PICKUP HOURS</Text>
-                <Text style={styles.detailValue}>Mon – Sat, 8:00 AM – 5:00 PM</Text>
-              </View>
-            </View>
-            <View style={styles.actionRow}>
-              <Pressable
-                onPress={() => Linking.openURL('https://www.google.com/maps/search/?api=1&query=JToledo+Trading+Farm+Tagaytay+City')}
-                style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Get Directions</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
-
-        {/* PICKED UP AT THE FARM (PICKUP ORDERS REACHING COMPLETED) */}
-        {order.delivery_method === 'pickup' && order.order_status === 'completed' ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Picked up at the farm</Text>
-            <Text style={styles.confirmationText}>
-              {order.picked_up_at ? `Verified at the counter on ${formatDateTime(order.picked_up_at)}.` : 'Verified at the counter.'} There&apos;s no confirm-receipt step for pickup orders — you inspected it in person.
-            </Text>
-            {!order.delivery_dispute_status ? (
-              <View style={styles.actionRow}>
-                <Pressable
-                  onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })}
-                  style={styles.secondaryButton}>
-                  <Text style={styles.secondaryButtonText}>Report an issue</Text>
-                </Pressable>
+                <View style={w.actionButtons}>
+                  <Pressable accessibilityRole="button" onPress={() => setShowCancelModal(true)} style={[w.button, w.buttonDanger]}>
+                    <Text style={[w.buttonText, w.buttonDangerText]}>Cancel Order</Text>
+                  </Pressable>
+                </View>
               </View>
             ) : null}
-          </View>
-        ) : null}
 
-        {order.delivery_dispute_status ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="View return request details"
-            onPress={() => router.push({ pathname: '/BuyerReturnDetails', params: { id: String(order.id) } })}
-            style={[styles.card, styles.returnStatusCard]}>
-            <View style={styles.returnStatusHead}>
-              <View style={styles.returnStatusIcon}><Text>↻</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.returnStatusTitle}>{order.delivery_dispute_status === 'open' ? 'We’re reviewing your return request' : 'Update on your return request'}</Text>
-                <Text style={styles.returnStatusCopy}>{order.delivery_dispute_status === 'open' ? 'We’ll review your report and evidence within 1–2 business days.' : order.delivery_dispute_resolution_notes || 'Your return request has been resolved.'}</Text>
+            {/* CONFIRM RECEIPT / REPORT AN ISSUE (IF DELIVERED) */}
+            {order.order_status === 'delivered' && order.delivery_dispute_status !== 'open' ? (
+              <View style={[w.card, w.actionCard]}>
+                <Text style={w.actionTitle}>Did you receive your order?</Text>
+                <Text style={w.actionText}>
+                  Confirm everything arrived as expected, or report a problem while the delivery details are still fresh.
+                </Text>
+                {actionError ? <Text style={w.actionErrorText}>{actionError}</Text> : null}
+                <View style={w.actionButtons}>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={confirming}
+                    onPress={handleConfirmReceipt}
+                    style={[w.button, w.buttonPrimary, confirming && w.buttonDisabled]}>
+                    {confirming ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={[w.buttonText, w.buttonPrimaryText]}>Confirm Receipt</Text>}
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={confirming}
+                    onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })}
+                    style={[w.button, w.buttonSecondary, confirming && w.buttonDisabled]}>
+                    <Text style={[w.buttonText, w.buttonSecondaryText]}>Report an Issue</Text>
+                  </Pressable>
+                </View>
               </View>
-            </View>
-            <View style={styles.returnSteps}>
-              <Text style={styles.returnStepDone}>1  Report submitted</Text>
-              <Text style={order.delivery_dispute_status === 'resolved' ? styles.returnStepDone : styles.returnStepCurrent}>2  Decision</Text>
-              <Text style={order.delivery_dispute_resolution === 'refunded' ? styles.returnStepDone : styles.returnStep}>3  Refund</Text>
-            </View>
-            <View style={styles.returnFacts}>
-              <View style={styles.returnFact}><Text style={styles.returnFactLabel}>Reported issue</Text><Text style={styles.returnFactValue}>{DISPUTE_CATEGORY_OPTIONS.find((option) => option.value === order.delivery_dispute_category)?.label || 'Delivery issue'}</Text></View>
-              <View style={styles.returnFact}><Text style={styles.returnFactLabel}>Affected item</Text><Text style={styles.returnFactValue}>{order.items.find((item) => item.id === order.delivery_dispute_item_id)?.product_name || 'Order item'}{order.delivery_dispute_affected_quantity ? ` · ${order.delivery_dispute_affected_quantity} affected` : ''}</Text></View>
-              {order.refund_amount != null ? <View style={styles.returnFact}><Text style={styles.returnFactLabel}>Refund amount</Text><Text style={styles.returnFactValue}>₱{Number(order.refund_amount).toFixed(2)}</Text></View> : null}
-            </View>
-            {order.delivery_dispute_reason ? <Text style={styles.returnReason}>{order.delivery_dispute_reason}</Text> : null}
-            <Text style={styles.returnViewDetails}>View full details ›</Text>
-          </Pressable>
-        ) : null}
+            ) : null}
+
+            {/* RATING + REPORT LINK (COMPLETED DELIVERY ORDERS WITHOUT A RETURN) */}
+            {order.order_status === 'completed' && !returnOrRefund && !isPickup ? (
+              <>
+                <RatingCard order={order} />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })}>
+                  <Text style={w.reportNote}>Noticed something wrong? Report an issue</Text>
+                </Pressable>
+              </>
+            ) : null}
+
+            {/* PICKED UP AT THE FARM (PICKUP ORDERS REACHING COMPLETED) */}
+            {isPickup && order.order_status === 'completed' ? (
+              <>
+                {!returnOrRefund ? <RatingCard order={order} /> : null}
+                <View style={[w.card, w.actionCard]}>
+                  <Text style={w.actionTitle}>Picked up at the farm</Text>
+                  <Text style={w.actionText}>
+                    {order.picked_up_at ? `Verified at the counter on ${formatDateTime(order.picked_up_at)}.` : 'Verified at the counter.'} There&apos;s no
+                    confirm-receipt step for pickup orders — you inspected it in person.
+                  </Text>
+                  {!order.delivery_dispute_status ? (
+                    <View style={w.actionButtons}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })}
+                        style={[w.button, w.buttonSecondary]}>
+                        <Text style={[w.buttonText, w.buttonSecondaryText]}>Report an issue</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
+              </>
+            ) : null}
+          </>
+        )}
       </ScrollView>
 
       <BuyerCancelOrderModal
         onCancelled={(updated) => {
           setOrder(updated);
           setShowCancelModal(false);
+          setShowPreCancelDetails(false);
         }}
         onClose={() => setShowCancelModal(false)}
         order={showCancelModal ? order : null}
       />
+
+      <Modal animationType="fade" onRequestClose={() => setViewingProof(false)} transparent visible={viewingProof && Boolean(order.delivery_proof_image_url)}>
+        <Pressable accessibilityLabel="Close photo preview" onPress={() => setViewingProof(false)} style={w.lightbox}>
+          {order.delivery_proof_image_url ? (
+            <Image accessibilityIgnoresInvertColors resizeMode="contain" source={{ uri: order.delivery_proof_image_url }} style={w.lightboxImage} />
+          ) : null}
+          {order.delivery_proof_notes ? <Text style={w.lightboxCaption}>Driver note: {order.delivery_proof_notes}</Text> : null}
+          <View style={w.lightboxClose}>
+            <CloseIcon />
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
-

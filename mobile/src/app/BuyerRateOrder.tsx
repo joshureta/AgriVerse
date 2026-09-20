@@ -7,8 +7,8 @@ import { BuyerOrder, loadBuyerOrder, rateBuyerOrder } from '@/lib/buyer-marketpl
 import { GREEN, styles } from '@/styles/buyer-purchase-history.styles';
 
 export default function BuyerRateOrder() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
-  const [order, setOrder] = useState<BuyerOrder | null>(null); const [rating, setRating] = useState(0); const [comment, setComment] = useState(''); const [loading, setLoading] = useState(true); const [submitted, setSubmitted] = useState(false); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState('');
+  const { id, rating: initialRating } = useLocalSearchParams<{ id?: string; rating?: string }>();
+  const [order, setOrder] = useState<BuyerOrder | null>(null); const [rating, setRating] = useState(Math.min(5, Math.max(0, Number(initialRating) || 0))); const [comment, setComment] = useState(''); const [loading, setLoading] = useState(true); const [submitted, setSubmitted] = useState(false); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState('');
   const load = useCallback(async () => { if (id) { try { setOrder(await loadBuyerOrder(Number(id))); } catch {} } setLoading(false); }, [id]);
   useEffect(() => { load(); }, [load]);
   async function submit() { if (!order || !rating) return; setSubmitting(true); setError(''); try { await rateBuyerOrder(order.id, rating, comment); setSubmitted(true); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not submit your rating.'); } finally { setSubmitting(false); } }
