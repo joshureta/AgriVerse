@@ -249,6 +249,7 @@ export default function DeliveryProgress() {
   const [cancelError, setCancelError] = useState('')
   const [rateTarget, setRateTarget] = useState(null)
   const [rateValue, setRateValue] = useState(0)
+  const [rateCardHover, setRateCardHover] = useState(0)
   const [rateHoverValue, setRateHoverValue] = useState(0)
   const [rateComment, setRateComment] = useState('')
   const [rateSubmitting, setRateSubmitting] = useState(false)
@@ -381,9 +382,10 @@ export default function DeliveryProgress() {
     window.location.href = '/buyer/cart'
   }
 
-  function openRateModal(order) {
+  // initialValue lets a click on a star in the order card open the window with that star already chosen.
+  function openRateModal(order, initialValue = order.buyer_rating || 0) {
     setRateTarget(order)
-    setRateValue(order.buyer_rating || 0)
+    setRateValue(initialValue)
     setRateHoverValue(0)
     setRateComment(order.buyer_rating_comment || '')
     setRateError('')
@@ -732,6 +734,28 @@ export default function DeliveryProgress() {
               <div className="delivery-order-cost"><span>Shipping</span><strong>PHP {selectedOrder.shipping_fee.toLocaleString()}</strong></div>
               <div className="delivery-total"><span>Total</span><strong>PHP {selectedOrder.total_amount.toLocaleString()}</strong></div>
             </section>
+
+            {selectedOrder.order_status === 'completed' && !isReturnOrRefund(selectedOrder) && (
+              <section className="delivery-card delivery-rate-wide" aria-labelledby="delivery-rate-title">
+                <div className="delivery-rate-text">
+                  <h2 id="delivery-rate-title">{selectedOrder.buyer_rating ? 'Your rating' : 'How was your order?'}</h2>
+                  <p>{selectedOrder.buyer_rating ? 'Thanks for rating your order.' : 'Tap a star to rate — it helps other buyers and the farm.'}</p>
+                </div>
+                <div className="delivery-rate-actions">
+                  {selectedOrder.buyer_rating ? (
+                    <StarRating value={selectedOrder.buyer_rating} size={26} />
+                  ) : (
+                    <StarRating
+                      value={rateCardHover}
+                      size={26}
+                      interactive
+                      onHover={setRateCardHover}
+                      onSelect={(stars) => { setRateCardHover(0); openRateModal(selectedOrder, stars) }}
+                    />
+                  )}
+                </div>
+              </section>
+            )}
           </div>
 
           <aside className="order-detail-side">
@@ -823,19 +847,11 @@ export default function DeliveryProgress() {
             )}
 
             {selectedOrder.order_status === 'completed' && !isReturnOrRefund(selectedOrder) && (
-              <section className="delivery-card delivery-confirmation delivery-rate-card" aria-labelledby="delivery-rate-title">
-                <h2 id="delivery-rate-title">{selectedOrder.buyer_rating ? 'Your rating' : 'How was your order?'}</h2>
-                <p>{selectedOrder.buyer_rating ? 'Thanks for rating your order.' : 'Rate the items you received — it helps other buyers and the farm.'}</p>
-                {selectedOrder.buyer_rating && <StarRating value={selectedOrder.buyer_rating} size={20} />}
-                {!selectedOrder.buyer_rating && (
-                  <div className="delivery-confirmation-actions">
-                    <button type="button" className="is-primary" onClick={() => openRateModal(selectedOrder)}>Rate this order</button>
-                  </div>
-                )}
+              <p className="order-report-note">
                 <button type="button" className="order-report-link" onClick={() => { window.location.href = `/buyer/return-request?order=${selectedOrder.id}` }}>
                   Noticed something wrong? Report an issue
                 </button>
-              </section>
+              </p>
             )}
           </aside>
           </div>

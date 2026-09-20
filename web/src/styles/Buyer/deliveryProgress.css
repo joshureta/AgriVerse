@@ -531,7 +531,7 @@ a.delivery-back-button { text-decoration: none; }
 .pickup-directions-btn svg { width: 15px; }
 
 /* Report-an-issue link at the bottom of a completed order */
-.delivery-rate-card .order-report-link { align-self: center; margin-top: 16px; }
+.order-report-note { margin: 0; text-align: center; }
 .order-report-link { border: 0; background: none; padding: 0; color: #5a695d; font: inherit; font-size: 12.5px; font-weight: 750; text-decoration: underline; cursor: pointer; }
 .order-report-link:hover { color: #176b32; }
 
@@ -1430,20 +1430,21 @@ a.delivery-back-button { text-decoration: none; }
 .order-detail-side .order-detail { padding: 12px 16px; }
 
 
-.delivery-rate-card,
 .delivery-receipt-card,
 .delivery-cancel-card { padding: 20px 22px; }
-.delivery-rate-card { text-align: center; }
-.delivery-rate-card .star-rating { display: flex; justify-content: center; margin-top: 12px; }
-.delivery-rate-card h2,
 .delivery-receipt-card h2,
 .delivery-cancel-card h2 { font-size: 16px; }
-.delivery-rate-card .delivery-confirmation-actions,
 .delivery-receipt-card .delivery-confirmation-actions,
 .delivery-cancel-card .delivery-confirmation-actions { flex-direction: column; margin-top: 14px; gap: 10px; }
-.delivery-rate-card .delivery-confirmation-actions button,
 .delivery-receipt-card .delivery-confirmation-actions button,
 .delivery-cancel-card .delivery-confirmation-actions button { width: 100%; }
+
+/* Rating card: wide, under Order Items */
+.delivery-rate-wide { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 20px 26px; }
+.delivery-rate-wide h2 { font-size: 17px; }
+.delivery-rate-wide p { margin: 4px 0 0; color: #5a695d; font-size: 12px; line-height: 1.5; }
+.delivery-rate-actions { display: flex; align-items: center; gap: 16px; }
+
 
 .order-details,
 .order-items {
