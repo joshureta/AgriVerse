@@ -17,6 +17,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react-native';
 
 import { ConvexDomeCap } from '@/components/convex-dome-cap';
 import { useAuth } from '@/context/auth-context';
@@ -80,9 +81,10 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
         <View style={[styles.cardContainer, embedded && styles.embeddedCardContainer]}>
           {!embedded ? (
             <View style={styles.domeCap}>
-              <ConvexDomeCap color="#FFFFFF" height={34} />
+              <ConvexDomeCap color="#FFFFFF" height={54} />
             </View>
           ) : null}
+
           <View style={[styles.card, embedded && styles.embeddedCard]}>
             {/* Bottom-left leaf decoration matching web */}
             <View pointerEvents="none" style={styles.leafContainer}>
@@ -95,9 +97,9 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
 
             {/* FIXED HEADER: Remains intact and does not scroll */}
             <View style={[styles.fixedHeader, embedded && styles.embeddedFixedHeader]}>
-              <Text style={styles.kicker}>Welcome back</Text>
+              <Text style={styles.kicker}>WELCOME BACK!</Text>
               <Text style={styles.title}>Sign in to your{`\n`}account</Text>
-              <Text style={styles.subtitle}>Enter your Toledo Trading credentials to continue.</Text>
+              <Text style={styles.subtitle}>Enter your account details</Text>
             </View>
 
             {/* SCROLLABLE CONTENT: Only content below header scrolls */}
@@ -111,24 +113,28 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
               {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
 
               <Text style={styles.label}>Email address</Text>
-              <TextInput
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                onFocus={() => {
-                  setFocusedField('email');
-                  scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-                }}
-                onBlur={() => setFocusedField(null)}
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                placeholderTextColor="#7f8982"
-                style={[styles.input, focusedField === 'email' && styles.inputFocused]}
-                value={email}
-              />
+              <View style={[styles.inputRow, focusedField === 'email' && styles.inputFocused]}>
+                <Mail color="#9CAF97" size={19} strokeWidth={2} />
+                <TextInput
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  onFocus={() => {
+                    setFocusedField('email');
+                    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                  }}
+                  onBlur={() => setFocusedField(null)}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor="#9A9DA2"
+                  style={styles.input}
+                  value={email}
+                />
+              </View>
 
               <Text style={styles.label}>Password</Text>
               <View style={[styles.passwordRow, focusedField === 'password' && styles.passwordRowFocused]}>
+                <LockKeyhole color="#9CAF97" size={19} strokeWidth={2} />
                 <TextInput
                   autoCapitalize="none"
                   autoComplete="current-password"
@@ -150,7 +156,7 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
                   hitSlop={8}
                   onPress={() => setShowPassword((value) => !value)}
                   style={styles.eyeButton}>
-                  <Text style={styles.eyeText}>{showPassword ? 'Hide' : 'Show'}</Text>
+                  {showPassword ? <EyeOff color="#9A9DA2" size={19} /> : <Eye color="#9A9DA2" size={19} />}
                 </Pressable>
               </View>
 
@@ -196,9 +202,9 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
               </Pressable>
 
               <View style={styles.registerRow}>
-                <Text style={styles.registerPrompt}>Don't have an account? </Text>
+                <Text style={styles.registerPrompt}>Don’t have an account? </Text>
                 <Pressable accessibilityRole="link" hitSlop={8} onPress={onSignUp ?? (() => router.replace('/signup'))}>
-                  <Text style={styles.registerLink}>Sign up</Text>
+                  <Text style={styles.registerLink}>Sign Up</Text>
                 </Pressable>
               </View>
             </ScrollView>

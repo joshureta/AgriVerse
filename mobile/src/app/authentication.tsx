@@ -25,16 +25,16 @@ type AuthChoice = 'login' | 'signup';
 export default function AuthenticationScreen() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const { height } = useWindowDimensions();
-  const panelHeight = Math.max(360, Math.min(height * 0.50, 440));
+  const panelHeight = Math.max(430, Math.min(height * 0.58, 500));
   const [choice, setChoice] = useState<AuthChoice | null>(mode === 'login' ? 'login' : null);
   const [signUpStep, setSignUpStep] = useState(0);
   const keyboardOffset = useRef(new Animated.Value(0)).current;
   const [keyboardActive, setKeyboardActive] = useState(false);
 
-  const loginPanelHeight = Math.max(440, Math.min(height * 0.56, 480));
-  const signupPersonalHeight = Math.max(490, Math.min(height * 0.65, 550));
-  const signupSecurityHeight = Math.max(470, Math.min(height * 0.61, 515));
-  const signupLocationHeight = Math.max(540, Math.min(height - 24, height * 0.78));
+  const loginPanelHeight = Math.max(535, Math.min(height * 0.68, 600));
+  const signupPersonalHeight = Math.max(590, Math.min(height * 0.74, 650));
+  const signupSecurityHeight = Math.max(560, Math.min(height * 0.70, 620));
+  const signupLocationHeight = Math.max(610, Math.min(height - 18, height * 0.80));
 
   const signupPanelHeight =
     signUpStep === 1
@@ -136,9 +136,9 @@ export default function AuthenticationScreen() {
             transform: [{ translateY: keyboardOffset }],
           },
         ]}>
-        {/* Convex Dome Arch Cap */}
+        {/* Soft agricultural wave connecting the farm hero to the form. */}
         <View style={styles.domeCap}>
-          <ConvexDomeCap color="#FFFFFF" height={34} />
+          <ConvexDomeCap color="#FEFFFB" height={54} />
         </View>
 
         {/* Panel Body */}
@@ -162,7 +162,7 @@ export default function AuthenticationScreen() {
 
               <Text style={styles.kicker}>TOLEDO TRADING</Text>
               <Text style={styles.title}>Set up your account</Text>
-              <Text style={styles.subtitle}>Choose how you'd like to get started with AgriVerse.</Text>
+              <Text style={styles.subtitle}>Choose how you’d like to get started with AgriVerse.</Text>
 
               <Pressable
                 accessibilityRole="button"
