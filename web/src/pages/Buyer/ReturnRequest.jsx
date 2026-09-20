@@ -52,7 +52,6 @@ export default function ReturnRequest() {
   // Map of itemId -> affectedQuantity (number)
   const [selectedItems, setSelectedItems] = useState({})
   const [reason, setReason] = useState('')
-  const [resolution, setResolution] = useState('refund')
   const [photos, setPhotos] = useState([])
   const [photoPreviews, setPhotoPreviews] = useState([])
   const [submitting, setSubmitting] = useState(false)
@@ -203,9 +202,7 @@ export default function ReturnRequest() {
         })
         .join(', ')
 
-      const resolutionPrefix = resolution === 'replacement'
-        ? '[Requested Resolution: Replacement Fruit]\n'
-        : '[Requested Resolution: Refund Only]\n'
+      const resolutionPrefix = '[Requested Resolution: Refund Only]\n'
       const itemsPrefix = `[Affected Items: ${itemsBreakdown}]\n\n`
       const fullReason = `${resolutionPrefix}${itemsPrefix}${reason.trim()}`.slice(0, 1000)
 
@@ -478,42 +475,16 @@ export default function ReturnRequest() {
                     type="file"
                   />
 
-                  <span className="return-resolution-label">Preferred resolution</span>
+                  <span className="return-resolution-label">Resolution</span>
                   <div className="return-resolution-options">
-                    <label className={`return-resolution-card ${resolution === 'refund' ? 'is-selected' : ''}`}>
-                      <input
-                        type="radio"
-                        name="resolution"
-                        value="refund"
-                        checked={resolution === 'refund'}
-                        onChange={() => setResolution('refund')}
-                      />
+                    <div className="return-resolution-card is-selected">
                       <div>
-                        <strong>
-                          Refund Only
-                          <span className="return-resolution-badge">Recommended</span>
-                        </strong>
+                        <strong>Refund Only</strong>
                         <p>
-                          Full refund of PHP {estimatedRefund.toLocaleString()} credited back to your payment account within 24–48 hours. No fruit return needed.
+                          If approved, PHP {estimatedRefund.toLocaleString()} is refunded to your original payment method. Our team reviews requests within 1–2 business days. No fruit return needed.
                         </p>
                       </div>
-                    </label>
-
-                    <label className={`return-resolution-card ${resolution === 'replacement' ? 'is-selected' : ''}`}>
-                      <input
-                        type="radio"
-                        name="resolution"
-                        value="replacement"
-                        checked={resolution === 'replacement'}
-                        onChange={() => setResolution('replacement')}
-                      />
-                      <div>
-                        <strong>Replacement Fruit</strong>
-                        <p>
-                          Replacement pineapples will be scheduled and dispatched on the next farm delivery route.
-                        </p>
-                      </div>
-                    </label>
+                    </div>
                   </div>
                 </section>
               </form>
@@ -566,9 +537,7 @@ export default function ReturnRequest() {
                     )}
                     <div className="return-total-row">
                       <span>Resolution</span>
-                      <span style={{ fontWeight: '700', color: '#176d34' }}>
-                        {resolution === 'refund' ? 'Refund Only' : 'Replacement'}
-                      </span>
+                      <span style={{ fontWeight: '700', color: '#176d34' }}>Refund Only</span>
                     </div>
                     <div className="return-total-row is-grand">
                       <span>Estimated Refund</span>
