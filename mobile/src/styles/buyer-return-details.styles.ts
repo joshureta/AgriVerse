@@ -101,6 +101,7 @@ export const styles = StyleSheet.create({
     marginBottom: 5,
   },
   stepDotDone: { backgroundColor: GREEN },
+  stepDotDeclined: { backgroundColor: '#B3261E' },
   stepDotPending: { backgroundColor: '#E5EDE7', borderWidth: 1, borderColor: CARD_BORDER },
   stepDotText: { fontSize: 10, fontWeight: '800', color: TEXT_MUTED },
   stepLabel: { fontSize: 9.5, fontWeight: '700', color: DARK_GREEN, textAlign: 'center' },

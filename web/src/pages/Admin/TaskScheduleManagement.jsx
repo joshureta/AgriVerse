@@ -1867,13 +1867,14 @@ export default function TaskScheduleManagement() {
                         <label className="dispute-form-label">
                           <div className="dispute-label-row">
                             <span>Refund Amount (₱)</span>
-                            {suggestedVal && <small>Flagged Item: ₱{suggestedVal}</small>}
+                            {suggestedVal && <small>Flagged Item: ₱{suggestedVal} · Order total: ₱{Number(modal.order.total_amount).toFixed(2)}</small>}
                           </div>
                           <div className="dispute-input-prefix-wrap">
                             <span className="dispute-input-prefix">₱</span>
                             <input
                               type="number"
                               min="0"
+                              max={Number(modal.order.total_amount) || undefined}
                               step="0.01"
                               value={disputeRefundAmount}
                               onChange={(event) => setDisputeRefundAmount(event.target.value)}
@@ -1984,6 +1985,7 @@ export default function TaskScheduleManagement() {
                           !disputeResolutionNotes.trim() ||
                           !disputeRefundAmount ||
                           Number(disputeRefundAmount) <= 0 ||
+                          Number(disputeRefundAmount) > Number(modal.order.total_amount) ||
                           (!isGcash && !disputeRefundReference.trim())
                         }
                         onClick={() => resolveDispute('refunded')}

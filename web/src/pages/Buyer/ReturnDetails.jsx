@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Banknote,
   CalendarDays,
   Check,
   ChevronLeft,
   ExternalLink,
-  FileText,
   Hourglass,
   MessageSquare,
   PackageOpen,
@@ -16,6 +14,7 @@ import {
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import Breadcrumb from '../../components/Breadcrumb.jsx'
 import ProgressStepper from '../../components/ProgressStepper.jsx'
+import { buildReturnSteps } from '../../components/returnSteps.js'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import { loadBuyerOrder } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
@@ -180,28 +179,8 @@ export default function ReturnDetails() {
                   <h2 id="return-progress-title">Return Progress</h2>
                   <div className="return-panel-stepper">
                     <ProgressStepper
-                      steps={[
-                        {
-                          icon: FileText,
-                          label: 'Report submitted',
-                          sub: order.delivery_dispute_created_at
-                            ? new Date(order.delivery_dispute_created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                            : 'Submitted',
-                          state: 'done',
-                        },
-                        {
-                          icon: Hourglass,
-                          label: 'Return decision',
-                          sub: resolved ? 'Decision reached' : '1–2 business days',
-                          state: resolved ? 'done' : 'current',
-                        },
-                        {
-                          icon: Banknote,
-                          label: 'Refund completed',
-                          sub: resolved ? 'Completed' : 'Pending',
-                          state: resolved ? 'done' : '',
-                        },
-                      ]}
+                      steps={buildReturnSteps(order, (value) =>
+                        new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}
                     />
                   </div>
                 </section>

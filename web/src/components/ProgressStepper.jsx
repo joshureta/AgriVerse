@@ -1,6 +1,6 @@
 // One stepper for both the order progress and the return progress so they read as a family.
 // Styles live in styles/Buyer/deliveryProgress.css.
-// state: 'done' | 'current' | '' (pending)
+// state: 'done' | 'current' | 'declined' | '' (pending)
 export default function ProgressStepper({ steps }) {
   return (
     <ol className="progress-stepper" style={{ '--steps': steps.length }}>

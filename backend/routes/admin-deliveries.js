@@ -165,8 +165,9 @@ router.post("/:id/resolve-dispute", async (req, res, next) => {
 
     const supabase = getSupabase();
     const { data: order, error: orderError } = await supabase.from("buyer_orders")
-      .select("id, payment_method, delivery_dispute_affected_quantity, disputed_item:buyer_order_items!buyer_orders_delivery_dispute_item_id_fkey(unit_price)")
-      .eq("id", id).eq("order_status", "delivered").eq("delivery_dispute_status", "open").maybeSingle();
+      .select("id, order_status, total_amount, payment_method, delivery_dispute_affected_quantity, disputed_item:buyer_order_items!buyer_orders_delivery_dispute_item_id_fkey(unit_price)")
+      // A buyer can also open a dispute on an already-completed order, so both statuses are resolvable.
+      .eq("id", id).in("order_status", ["delivered", "completed"]).eq("delivery_dispute_status", "open").maybeSingle();
     if (orderError) throw orderError;
     if (!order) throw httpError(409, "This dispute is no longer open");
 
@@ -177,15 +178,22 @@ router.post("/:id/resolve-dispute", async (req, res, next) => {
       delivery_dispute_resolved_by: req.user.id,
       delivery_dispute_resolved_at: now,
       delivery_dispute_resolution_notes: notes,
-      order_status: "completed",
-      completed_at: now,
-      completed_via: "dispute_resolved",
     };
+    // Only a still-"delivered" order gets closed out here; a completed order keeps its original completion details.
+    if (order.order_status === "delivered") {
+      update.order_status = "completed";
+      update.completed_at = now;
+      update.completed_via = "dispute_resolved";
+    }
 
     if (resolution === "refunded") {
       const defaultAmount = order.disputed_item ? Number(order.disputed_item.unit_price) * Number(order.delivery_dispute_affected_quantity || 0) : NaN;
       const refundAmount = req.body.refund_amount != null && req.body.refund_amount !== "" ? Number(req.body.refund_amount) : defaultAmount;
       if (!Number.isFinite(refundAmount) || refundAmount <= 0) throw httpError(400, "Enter a valid refund amount");
+      const orderTotal = Number(order.total_amount);
+      if (Number.isFinite(orderTotal) && refundAmount > orderTotal) {
+        throw httpError(400, `Refund can't be more than the order total (PHP ${orderTotal.toLocaleString()})`);
+      }
 
       let refundReference;
       if (order.payment_method === "gcash") {
@@ -205,14 +213,14 @@ router.post("/:id/resolve-dispute", async (req, res, next) => {
     }
 
     const { data, error } = await supabase.from("buyer_orders").update(update)
-      .eq("id", id).eq("order_status", "delivered").eq("delivery_dispute_status", "open")
+      .eq("id", id).eq("order_status", order.order_status).eq("delivery_dispute_status", "open")
       .select("id, order_number, order_status, payment_status, delivery_dispute_status, delivery_dispute_resolution, refund_amount, refund_reference")
       .maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "This dispute is no longer open");
 
     await supabase.from("buyer_order_status_history").insert({
-      order_id: id, previous_status: "delivered", new_status: "completed", changed_by: req.user.id, note: notes,
+      order_id: id, previous_status: order.order_status, new_status: "completed", changed_by: req.user.id, note: notes,
     });
     return res.json({ order: data });
   } catch (error) { return next(error); }

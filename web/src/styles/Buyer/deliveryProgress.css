@@ -440,6 +440,9 @@ a.delivery-back-button { text-decoration: none; }
 
 .progress-step.is-done .progress-node { border-color: #27823f; color: #fff; background: #27823f; }
 .progress-step.is-current .progress-node { border-color: #27823f; color: #176b32; box-shadow: 0 0 0 4px rgba(51, 139, 63, .14); }
+.progress-step.is-declined:not(:first-child)::before { background: #27823f; }
+.progress-step.is-declined .progress-node { border-color: #b3261e; color: #fff; background: #b3261e; }
+.progress-step.is-declined strong { color: #8c1d18; }
 
 .progress-step strong { display: block; color: #8a968b; font-size: 12px; font-weight: 750; }
 .progress-step.is-done strong,

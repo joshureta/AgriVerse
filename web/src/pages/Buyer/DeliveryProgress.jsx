@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Banknote,
   CalendarDays,
   Camera,
   Check,
   ChevronLeft,
   ChevronRight,
-  FileText,
-  Hourglass,
   MapPin,
   Maximize2,
   PackageCheck,
@@ -22,6 +19,7 @@ import {
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import ProgressStepper from '../../components/ProgressStepper.jsx'
+import { buildReturnSteps } from '../../components/returnSteps.js'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import {
   buyerCartQuantity,
@@ -592,28 +590,7 @@ export default function DeliveryProgress() {
 
               <div className="delivery-return-formal-divider" />
 
-              <ProgressStepper
-                steps={[
-                  {
-                    icon: FileText,
-                    label: 'Report submitted',
-                    sub: selectedOrder.delivery_dispute_created_at ? formatShortDate(selectedOrder.delivery_dispute_created_at) : 'Submitted',
-                    state: 'done',
-                  },
-                  {
-                    icon: Hourglass,
-                    label: 'Return decision',
-                    sub: selectedOrder.delivery_dispute_status === 'resolved' ? 'Completed' : '1–2 business days',
-                    state: selectedOrder.delivery_dispute_status === 'resolved' ? 'done' : 'current',
-                  },
-                  {
-                    icon: Banknote,
-                    label: 'Refund completed',
-                    sub: selectedOrder.delivery_dispute_status === 'resolved' ? 'Completed' : 'Pending',
-                    state: selectedOrder.delivery_dispute_status === 'resolved' ? 'done' : '',
-                  },
-                ]}
-              />
+              <ProgressStepper steps={buildReturnSteps(selectedOrder, formatShortDate)} />
             </section>
           )}
 

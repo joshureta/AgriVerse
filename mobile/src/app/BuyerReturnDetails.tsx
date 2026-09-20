@@ -127,6 +127,7 @@ export default function BuyerReturnDetailsScreen() {
   }, [order, affectedItems]);
   const photos = order?.delivery_dispute_photo_urls || [];
   const isResolved = order?.delivery_dispute_status === 'resolved';
+  const isDismissed = isResolved && order?.delivery_dispute_resolution === 'dismissed';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -174,10 +175,10 @@ export default function BuyerReturnDetailsScreen() {
                   <Text style={[styles.stepLabel, !isResolved && styles.stepLabelPending]}>Return decision</Text>
                 </View>
                 <View style={styles.step}>
-                  <View style={[styles.stepDot, isResolved ? styles.stepDotDone : styles.stepDotPending]}>
-                    <Text style={[styles.stepDotText, isResolved && { color: '#fff' }]}>{isResolved ? '✓' : '3'}</Text>
+                  <View style={[styles.stepDot, isDismissed ? styles.stepDotDeclined : isResolved ? styles.stepDotDone : styles.stepDotPending]}>
+                    <Text style={[styles.stepDotText, isResolved && { color: '#fff' }]}>{isDismissed ? '✕' : isResolved ? '✓' : '3'}</Text>
                   </View>
-                  <Text style={[styles.stepLabel, !isResolved && styles.stepLabelPending]}>Refund completed</Text>
+                  <Text style={[styles.stepLabel, !isResolved && styles.stepLabelPending]}>{isDismissed ? 'No refund' : 'Refund completed'}</Text>
                 </View>
               </View>
             </View>
