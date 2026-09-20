@@ -122,6 +122,7 @@ const disputeSelect = [
   "delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at",
   "delivery_dispute_reason, delivery_dispute_created_at, delivery_dispute_category, delivery_dispute_affected_quantity",
   "delivery_dispute_photo_urls, delivery_dispute_responsible_role, delivery_dispute_responder_id, delivery_dispute_response, delivery_dispute_response_at",
+  "delivery_dispute_status, delivery_dispute_resolution, delivery_dispute_resolution_notes, delivery_dispute_resolved_at, refund_amount",
   "assigned_driver:profiles!buyer_orders_assigned_driver_id_fkey(id, full_name)",
   "disputed_item:buyer_order_items!buyer_orders_delivery_dispute_item_id_fkey(id, product_name, quantity, unit_price)",
 ].join(",");
@@ -129,11 +130,17 @@ const disputeSelect = [
 router.get("/disputes", async (req, res, next) => {
   try {
     const supabase = getSupabase();
-    const { data, error } = await supabase.from("buyer_orders")
-      .select(disputeSelect)
-      .eq("delivery_dispute_status", "open").order("delivery_dispute_created_at", { ascending: false });
-    if (error) throw error;
-    const orders = data || [];
+    // Open and resolved disputes share one list (the page filters by delivery_dispute_status).
+    // Open ones are never capped; resolved history is limited to the most recent.
+    const [openResult, resolvedResult] = await Promise.all([
+      supabase.from("buyer_orders").select(disputeSelect)
+        .eq("delivery_dispute_status", "open").order("delivery_dispute_created_at", { ascending: false }),
+      supabase.from("buyer_orders").select(disputeSelect)
+        .eq("delivery_dispute_status", "resolved").order("delivery_dispute_resolved_at", { ascending: false }).limit(100),
+    ]);
+    if (openResult.error) throw openResult.error;
+    if (resolvedResult.error) throw resolvedResult.error;
+    const orders = [...(openResult.data || []), ...(resolvedResult.data || [])];
 
     // The driver comes straight off the order, but there's no per-order seller
     // column — so "who prepared this" is read off the status-history trail instead.
