@@ -2,12 +2,13 @@ const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { assertCropTaskSchedule } = require("../lib/crop-work-hours");
+const { ACTIVITY_TYPES, readActivityType } = require("../lib/task-details");
 
 const router = express.Router();
 const taskSelect = [
   "id, task_name, description, estimated_duration_minutes, created_at, updated_at",
   "assigned_worker_id, category_id, field_id, priority_id, status_id",
-  "started_at, completed_at, completion_notes",
+  "started_at, completed_at, completion_notes, activity_type",
   "harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count",
   "harvest_proof_image_url, harvest_proof_image_name",
   "harvest_rejection_reason, harvest_rejected_at, approved_at",
@@ -17,6 +18,13 @@ const taskSelect = [
   "priority:task_priorities!tasks_priority_id_fkey(id, priority_name, code, status)",
   "task_status:task_statuses!tasks_status_id_fkey(id, status_name, code, status)",
   "schedules(id, schedule_date, start_time, end_time, location, notes, status_id, schedule_status:schedule_statuses!schedules_status_id_fkey(id, status_name, code, status))",
+].join(",");
+
+// Records also shows the proof photo (migration 033) and what the worker entered (migration 034).
+const recordsSelect = [
+  taskSelect,
+  "completion_proof_image_url, details, inventory_quantity",
+  "inventory_item:inventory_items!tasks_inventory_item_id_fkey(id, item_name, unit:measurement_units!inventory_items_unit_id_fkey(abbreviation))",
 ].join(",");
 
 router.use(requireAuth, requireRole("admin"));
@@ -151,6 +159,7 @@ async function readTaskBody(body) {
       task_name: String(body.task_name || description || `${category.category_name} - ${field.field_name}`).trim().slice(0, 160),
       estimated_duration_minutes: duration,
       description,
+      activity_type: readActivityType(category.category_name, body.activity_type),
     },
     schedule: {
       schedule_date: scheduleDate,
@@ -260,6 +269,8 @@ router.get("/records", async (req, res, next) => {
     const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 10, 1), 200);
     const from = (page - 1) * pageSize;
     const search = String(req.query.search || "").trim().replace(/[,%()]/g, "");
+    const activityType = String(req.query.activity_type || "").trim();
+    if (activityType && !ACTIVITY_TYPES.includes(activityType)) throw httpError(400, "Invalid activity type");
     const supabase = getSupabase();
     const completedId = await lookupIdByCode("task_statuses", "completed");
     const categoryId = req.query.category_id ? readId(req.query.category_id, "Category") : null;
@@ -282,8 +293,9 @@ router.get("/records", async (req, res, next) => {
     }
 
     const buildQuery = () => {
-      let query = supabase.from("tasks").select(taskSelect, { count: "exact" }).eq("status_id", completedId);
+      let query = supabase.from("tasks").select(recordsSelect, { count: "exact" }).eq("status_id", completedId);
       if (categoryId) query = query.eq("category_id", categoryId);
+      if (activityType) query = query.eq("activity_type", activityType);
       if (matchFilter) query = query.or(matchFilter);
       return query;
     };
@@ -332,6 +344,17 @@ router.patch("/:id", async (req, res, next) => {
   try {
     const id = readTaskId(req.params.id);
     const payload = await readTaskBody(req.body);
+    const { data: current, error: currentError } = await getSupabase().from("tasks")
+      .select("category_id, activity_type, inventory_item_id, task_status:task_statuses!tasks_status_id_fkey(code)")
+      .eq("id", id).maybeSingle();
+    if (currentError) throwDatabaseError(currentError);
+    if (!current) throw httpError(404, "Task was not found");
+    if (current.task_status?.code !== "pending" && current.activity_type !== payload.task.activity_type) {
+      throw httpError(400, "The activity cannot be changed after the task has started.");
+    }
+    if (current.inventory_item_id && current.category_id !== payload.task.category_id) {
+      throw httpError(400, "The category cannot be changed after supplies were taken for this task.");
+    }
     const { error: taskError } = await getSupabase().from("tasks").update(payload.task).eq("id", id);
     if (taskError) throwDatabaseError(taskError);
     const { error: scheduleError } = await getSupabase().from("schedules")

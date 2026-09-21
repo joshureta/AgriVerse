@@ -7,6 +7,7 @@ const {
 } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { assertCropWorkerCanWork } = require("../lib/crop-work-hours");
+const { collectsInspectionDetails, readInspectionDetails, requiredInventoryKind } = require("../lib/task-details");
 
 const router = express.Router();
 const statuses = new Set(["pending", "in_progress", "awaiting_approval", "completed"]);
@@ -14,6 +15,8 @@ const taskSelect = [
   "id, task_name, assigned_worker_id, description, estimated_duration_minutes, started_at, completed_at, completion_notes, created_at, updated_at",
   "harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count",
   "harvest_rejection_reason, harvest_rejected_at, approved_at, harvest_proof_image_url",
+  "activity_type, details, inventory_item_id, inventory_quantity",
+  "inventory_item:inventory_items!tasks_inventory_item_id_fkey(id, item_name, unit:measurement_units!inventory_items_unit_id_fkey(abbreviation))",
   "category:task_categories!tasks_category_id_fkey(id, category_name)",
   "field:farm_fields!tasks_field_id_fkey(id, field_name)",
   "priority:task_priorities!tasks_priority_id_fkey(id, priority_name, code)",
@@ -140,6 +143,24 @@ router.get("/", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+// Fertilizers or pesticides a worker can pick when starting a task. Out-of-stock items are listed but marked unavailable.
+router.get("/inventory-options", async (req, res, next) => {
+  try {
+    const kind = String(req.query.type || "").trim();
+    if (!["fertilizer", "pesticide"].includes(kind)) throw httpError(400, "type must be fertilizer or pesticide");
+    const { data, error } = await getSupabase().from("inventory_items")
+      .select("id, item_name, quantity, unit:measurement_units!inventory_items_unit_id_fkey(abbreviation), category:inventory_categories!inventory_items_inventory_category_id_fkey!inner(code)")
+      .eq("category.code", kind).is("archived_at", null).order("item_name");
+    if (error) throw error;
+    return res.json({
+      items: (data || []).map((item) => ({
+        id: item.id, name: item.item_name, quantity: item.quantity,
+        unit: item.unit?.abbreviation || "", available: item.quantity > 0,
+      })),
+    });
+  } catch (error) { return next(error); }
+});
+
 router.get("/:id", async (req, res, next) => {
   try {
     const { data, error } = await getSupabase().from("tasks").select(taskSelect)
@@ -195,7 +216,7 @@ router.post("/:id/complete", async (req, res, next) => {
     if (completionNotes.length > 2000) throw httpError(400, "Insights must not exceed 2000 characters");
 
     const { data: existingTask, error: existingTaskError } = await getSupabase().from("tasks")
-      .select("id, field_id, category:task_categories!tasks_category_id_fkey(category_name), field:farm_fields!tasks_field_id_fkey(field_name)")
+      .select("id, field_id, activity_type, category:task_categories!tasks_category_id_fkey(category_name), field:farm_fields!tasks_field_id_fkey(field_name)")
       .eq("id", taskId).eq("assigned_worker_id", req.user.id).maybeSingle();
     if (existingTaskError) throw existingTaskError;
     if (!existingTask) throw httpError(404, "Assigned task was not found");
@@ -203,6 +224,8 @@ router.post("/:id/complete", async (req, res, next) => {
     const fieldName = existingTask.field?.field_name || "Field A";
     const isHarvestingTask = categoryName === "Harvesting";
     const harvestCounts = isHarvestingTask ? readHarvestCounts(req.body) : {};
+    const inspectionDetails = collectsInspectionDetails(categoryName, existingTask.activity_type)
+      ? readInspectionDetails(req.body.details) : null;
 
     const rawImage = req.body.image || req.body.photo;
     const hasPhoto = Boolean(rawImage && typeof rawImage === "string");
@@ -226,6 +249,7 @@ router.post("/:id/complete", async (req, res, next) => {
       completed_at: completedAt.toISOString(),
       completion_notes: completionNotes || null,
       ...harvestCounts,
+      ...(inspectionDetails ? { details: inspectionDetails } : {}),
     };
     if (isHarvestingTask) {
       updatePayload.harvest_proof_image_url = uploadResult?.imageUrl || null;
@@ -234,6 +258,9 @@ router.post("/:id/complete", async (req, res, next) => {
       updatePayload.harvest_proof_image_mime = mimeType;
       updatePayload.harvest_rejection_reason = null;
       updatePayload.harvest_rejected_at = null;
+    } else if (uploadResult) {
+      updatePayload.completion_proof_image_url = uploadResult.imageUrl || null;
+      updatePayload.completion_proof_image_storage_path = uploadResult.storagePath || null;
     }
 
     const { data, error } = await getSupabase().from("tasks").update(updatePayload)
@@ -285,7 +312,7 @@ router.patch("/:id/status", async (req, res, next) => {
     const taskId = readTaskId(req.params.id);
     const statusIds = await getStatusIds();
     const { data: currentTask, error: readError } = await getSupabase().from("tasks")
-      .select("id, status_id, task_status:task_statuses(code), category:task_categories!tasks_category_id_fkey(category_name)")
+      .select("id, status_id, activity_type, task_status:task_statuses(code), category:task_categories!tasks_category_id_fkey(category_name)")
       .eq("id", taskId).eq("assigned_worker_id", req.user.id).maybeSingle();
     if (readError) throw readError;
     if (!currentTask) throw httpError(404, "Assigned task was not found");
@@ -298,6 +325,28 @@ router.patch("/:id/status", async (req, res, next) => {
       throw httpError(409, "Harvesting tasks must be submitted with harvest counts and a photo for admin approval");
     }
     assertCropWorkerCanWork(req.profile);
+
+    // Fertilization and Pest & Disease Action take supplies from inventory as the task starts.
+    const supplyKind = status === "in_progress"
+      ? requiredInventoryKind(currentTask.category?.category_name, currentTask.activity_type) : null;
+    if (supplyKind) {
+      const itemId = Number(req.body.inventory_item_id);
+      const quantity = Number(req.body.quantity);
+      if (!Number.isSafeInteger(itemId) || itemId < 1) throw httpError(400, `Choose the ${supplyKind} to use`);
+      if (!Number.isSafeInteger(quantity) || quantity < 1) throw httpError(400, "Amount must be a whole number of at least 1");
+      const { error: startError } = await getSupabase().rpc("start_task_with_item", {
+        p_task_id: taskId, p_worker_id: req.user.id, p_item_id: itemId, p_quantity: quantity,
+      });
+      if (startError) {
+        if (/insufficient stock/i.test(startError.message)) throw httpError(409, "Not enough stock left. Choose another item or a smaller amount.");
+        if (/not pending|was not found|does not use|not a /i.test(startError.message)) throw httpError(409, startError.message);
+        throw startError;
+      }
+      await syncScheduleStatus(taskId, status);
+      const { data: startedTask, error: fetchError } = await getSupabase().from("tasks").select(taskSelect).eq("id", taskId).single();
+      if (fetchError) throw fetchError;
+      return res.json({ task: serializeTask(startedTask) });
+    }
 
     const updatePayload = { status_id: statusIds[status] };
     if (status === "in_progress") {

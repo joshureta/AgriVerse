@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, Download, Eye, Info, Search, X } from 'lucide-react'
+import { Download, Eye, Search, X } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
@@ -44,22 +44,23 @@ async function apiRequest(path, options = {}, retry = true) {
   }
 }
 
-function requestKeyOf(categoryId, search, page) {
-  return `${categoryId}|${search}|${page}`
+function requestKeyOf(categoryId, search, page, activity) {
+  return `${categoryId}|${search}|${page}|${activity}`
 }
 
-function recordsPath({ categoryId, search, page, pageSize }) {
+function recordsPath({ categoryId, search, page, pageSize, activity }) {
   const params = new URLSearchParams({ category_id: String(categoryId), search, page: String(page), pageSize: String(pageSize) })
+  if (activity) params.set('activity_type', activity)
   return `/api/admin/tasks/records?${params}`
 }
 
 // Export CSV needs every matching record, not just the visible page, so walk all pages.
-async function loadAllRecordTasks(categoryId, search) {
+async function loadAllRecordTasks(categoryId, search, activity) {
   const tasks = []
   let page = 1
   let totalPages = 1
   do {
-    const data = await apiRequest(recordsPath({ categoryId, search, page, pageSize: EXPORT_PAGE_SIZE }))
+    const data = await apiRequest(recordsPath({ categoryId, search, page, pageSize: EXPORT_PAGE_SIZE, activity }))
     tasks.push(...(Array.isArray(data.tasks) ? data.tasks : []))
     totalPages = data.pagination?.totalPages || 1
     page += 1
@@ -103,6 +104,15 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url)
 }
 
+function ProofPhoto({ url, alt }) {
+  if (!url) return <p>No photo proof was attached.</p>
+  return (
+    <a className="records-proof" href={url} target="_blank" rel="noreferrer" aria-label={`Open ${alt} full size`}>
+      <img src={url} alt={alt} loading="lazy" />
+    </a>
+  )
+}
+
 function TaskModalHeader({ title, onClose, tag = 'Farm records' }) {
   return (
     <header className="task-dialog-header">
@@ -119,31 +129,6 @@ function TaskModalHeader({ title, onClose, tag = 'Farm records' }) {
   )
 }
 
-// Mock data generators — these fields aren't tracked in the database yet.
-// They're deterministic per task/order id so the mockup looks realistic on reload.
-function pick(seed, options) { return options[Math.abs(seed) % options.length] }
-const FERTILIZER_TYPES = ['Organic Compost', 'Urea 46-0-0', 'Complete 14-14-14', 'Potassium Sulfate']
-const APPLICATION_METHODS = ['Foliar Spray', 'Soil Application', 'Fertigation']
-const CROP_CONDITIONS = ['Healthy', 'Mild nutrient stress', 'Recovering', 'Healthy']
-const PEST_OBSERVATIONS = ['None observed', 'Mealybug wilt (early stage)', 'Minor leaf spot', 'None observed']
-const RECOMMENDED_ACTIONS = ['Continue routine monitoring', 'Apply targeted pesticide next visit', 'Improve field drainage', 'Continue routine monitoring']
-
-function mockNumberOfPlants(task) { return 80 + (Math.abs(task.id * 37) % 420) }
-function mockFertilizerType(task) { return pick(task.id, FERTILIZER_TYPES) }
-function mockQuantityApplied(task) { return `${5 + (Math.abs(task.id * 3) % 40)} kg` }
-function mockApplicationMethod(task) { return pick(task.id + 3, APPLICATION_METHODS) }
-
-// Sample fertilization records — shown only when no real Fertilization tasks exist yet,
-// so the layout can be reviewed before any real task uses this category.
-const FERTILIZATION_SAMPLES = [
-  { id: -101, field: 'Field A', assigned_worker: { full_name: 'batman' }, schedule_start: '2026-08-18T07:00:00+08:00', status: 'completed', status_label: 'Completed', category: 'Fertilization', description: null, started_at: '2026-08-18T07:05:00+08:00', completed_at: '2026-08-18T08:10:00+08:00' },
-  { id: -102, field: 'Field B', assigned_worker: { full_name: 'Aldrich Kawaguchi' }, schedule_start: '2026-08-21T07:30:00+08:00', status: 'completed', status_label: 'Completed', category: 'Fertilization', description: null, started_at: '2026-08-21T07:32:00+08:00', completed_at: '2026-08-21T08:40:00+08:00' },
-  { id: -103, field: 'Field C', assigned_worker: { full_name: 'spiderman' }, schedule_start: '2026-08-24T08:00:00+08:00', status: 'pending', status_label: 'Pending', category: 'Fertilization', description: null, started_at: null, completed_at: null },
-]
-const FERTILIZATION_COMPLETED_SAMPLES = FERTILIZATION_SAMPLES.filter((task) => task.status === 'completed')
-function mockCropCondition(task) { return pick(task.id, CROP_CONDITIONS) }
-function mockPestObserved(task) { return pick(task.id + 1, PEST_OBSERVATIONS) }
-function mockRecommendedAction(task) { return pick(task.id + 2, RECOMMENDED_ACTIONS) }
 // Real harvest counts, reported by the worker and approved by admin (worker-tasks.js / admin-tasks.js).
 function harvestCounts(task) {
   const orDash = (value) => (value === null || value === undefined ? '—' : value)
@@ -155,12 +140,21 @@ function harvestCounts(task) {
   }
 }
 
-function categoryKind(categoryName) {
+// What the worker entered: inspection answers on completion, supplies taken when the task started.
+function detailText(task, key) { return task.details?.[key] || '—' }
+function suppliesName(task) { return task.inventory_item?.item_name || '—' }
+function suppliesAmount(task) {
+  if (!task.inventory_quantity) return '—'
+  return `${task.inventory_quantity} ${task.inventory_item?.unit?.abbreviation || ''}`.trim()
+}
+
+function categoryKind(categoryName, activityType) {
   const key = String(categoryName || '').trim().toLowerCase()
   if (key === 'planting') return 'planting'
   if (key === 'fertilization') return 'fertilization'
   if (key === 'irrigation') return 'irrigation'
-  if (key === 'monitoring' || key === 'pest & disease') return 'inspection'
+  if (key === 'monitoring') return 'inspection'
+  if (key === 'pest & disease') return activityType === 'action' ? 'pestaction' : 'inspection'
   if (key === 'harvesting') return 'harvesting'
   if (key === 'weeding') return 'weeding'
   return 'generic'
@@ -170,20 +164,22 @@ function recordRow(task, kind) {
   const worker = task.assigned_worker?.full_name || 'Unassigned worker'
   const date = formatDate(task.completed_at)
   const insight = insightText(task.completion_notes)
-  if (kind === 'planting') return [task.field, worker, date, mockNumberOfPlants(task), insight]
-  if (kind === 'fertilization') return [task.field, worker, date, mockFertilizerType(task), mockQuantityApplied(task), mockApplicationMethod(task), insight]
+  if (kind === 'planting') return [task.field, worker, date, insight]
+  if (kind === 'fertilization') return [task.field, worker, date, suppliesName(task), suppliesAmount(task), insight]
   if (kind === 'irrigation') return [task.field, worker, date, insight]
-  if (kind === 'inspection') return [task.field, worker, date, mockCropCondition(task), mockPestObserved(task), mockRecommendedAction(task), insight]
+  if (kind === 'inspection') return [task.field, worker, date, detailText(task, 'crop_condition'), detailText(task, 'pest_observed'), detailText(task, 'recommended_action'), insight]
+  if (kind === 'pestaction') return [task.field, worker, date, suppliesName(task), suppliesAmount(task), insight]
   if (kind === 'harvesting') { const sizes = harvestCounts(task); return [task.field, worker, date, sizes.small, sizes.medium, sizes.large, sizes.damaged, insight] }
   if (kind === 'weeding') return [task.field, worker, date, insight]
   return [task.field, worker, formatDate(task.started_at), date, insight]
 }
 
 const RECORD_COLUMNS = {
-  planting: ['FIELD', 'FARM WORKER', 'PLANTING DATE', 'NUMBER OF PLANTS', 'INSIGHTS', 'ACTIONS'],
-  fertilization: ['FIELD', 'FARM WORKER', 'APPLICATION DATE', 'FERTILIZER TYPE', 'QUANTITY APPLIED', 'METHOD', 'INSIGHTS', 'ACTIONS'],
+  planting: ['FIELD', 'FARM WORKER', 'PLANTING DATE', 'INSIGHTS', 'ACTIONS'],
+  fertilization: ['FIELD', 'FARM WORKER', 'APPLICATION DATE', 'FERTILIZER', 'AMOUNT USED', 'INSIGHTS', 'ACTIONS'],
   irrigation: ['FIELD', 'FARM WORKER', 'DATE & TIME', 'INSIGHTS', 'ACTIONS'],
   inspection: ['FIELD', 'ASSIGNED INSPECTOR', 'INSPECTION DATE', 'CROP CONDITION', 'PEST/DISEASE OBSERVED', 'RECOMMENDED ACTION', 'INSIGHTS', 'ACTIONS'],
+  pestaction: ['FIELD', 'FARM WORKER', 'ACTION DATE', 'PESTICIDE', 'AMOUNT USED', 'INSIGHTS', 'ACTIONS'],
   harvesting: ['FIELD', 'FARM WORKER', 'HARVEST DATE', 'SMALL', 'MEDIUM', 'LARGE', 'DAMAGED', 'INSIGHTS', 'ACTIONS'],
   weeding: ['FIELD', 'FARM WORKER', 'DATE & TIME', 'INSIGHTS', 'ACTIONS'],
   generic: ['FIELD', 'FARM WORKER', 'DATE STARTED', 'DATE COMPLETED', 'INSIGHTS', 'ACTIONS'],
@@ -192,6 +188,7 @@ const RECORD_COLUMNS = {
 export default function RecordsManagement() {
   const [categories, setCategories] = useState([])
   const [activeCategory, setActiveCategory] = useState('')
+  const [activityTab, setActivityTab] = useState('inspection')
   const [optionsState, setOptionsState] = useState({ loaded: false, error: '' })
   const [result, setResult] = useState({ key: '', tasks: [], total: 0, pages: 1, error: '' })
   const [deliveryOrders, setDeliveryOrders] = useState([])
@@ -205,8 +202,15 @@ export default function RecordsManagement() {
   const [modal, setModal] = useState(null)
 
   const isDeliveryTab = activeCategory === 'delivery'
+  const activeCategoryName = useMemo(
+    () => categories.find((category) => String(category.id) === String(activeCategory))?.category_name || '',
+    [categories, activeCategory],
+  )
+  // Pest & Disease splits into Inspection and Action records, each with its own columns.
+  const isPestAndDiseaseTab = activeCategoryName === 'Pest & Disease'
+  const activityFilter = isPestAndDiseaseTab ? activityTab : ''
   // The loaded page is only valid for the category, search, and page it was requested with.
-  const requestKey = requestKeyOf(activeCategory, debouncedSearch, page)
+  const requestKey = requestKeyOf(activeCategory, debouncedSearch, page, activityFilter)
 
   useEffect(() => {
     let cancelled = false
@@ -239,8 +243,8 @@ export default function RecordsManagement() {
   useEffect(() => {
     if (isDeliveryTab || activeCategory === '') return undefined
     let cancelled = false
-    const key = requestKeyOf(activeCategory, debouncedSearch, page)
-    apiRequest(recordsPath({ categoryId: activeCategory, search: debouncedSearch, page, pageSize: PAGE_SIZE }))
+    const key = requestKeyOf(activeCategory, debouncedSearch, page, activityFilter)
+    apiRequest(recordsPath({ categoryId: activeCategory, search: debouncedSearch, page, pageSize: PAGE_SIZE, activity: activityFilter }))
       .then((data) => {
         if (cancelled) return
         const total = data.pagination?.total || 0
@@ -254,10 +258,16 @@ export default function RecordsManagement() {
       })
       .catch((requestError) => { if (!cancelled) setResult({ key, tasks: [], total: 0, pages: 1, error: requestError.message }) })
     return () => { cancelled = true }
-  }, [activeCategory, debouncedSearch, page, isDeliveryTab])
+  }, [activeCategory, debouncedSearch, page, activityFilter, isDeliveryTab])
 
   function selectCategory(id) {
     setActiveCategory(id)
+    setPage(1)
+    setExportError('')
+  }
+
+  function selectActivity(value) {
+    setActivityTab(value)
     setPage(1)
     setExportError('')
   }
@@ -267,17 +277,9 @@ export default function RecordsManagement() {
     setPage(1)
   }
 
-  const fertilizationCategoryId = useMemo(
-    () => categories.find((category) => category.category_name === 'Fertilization')?.id,
-    [categories],
-  )
-  const isFertilizationTab = fertilizationCategoryId != null && String(activeCategory) === String(fertilizationCategoryId)
-
   const taskLoading = activeCategory === '' ? !optionsState.loaded : result.key !== requestKey
   const loading = isDeliveryTab ? deliveryLoading : taskLoading
   const error = isDeliveryTab ? deliveryError : (optionsState.error || (taskLoading ? '' : result.error) || exportError)
-  // Sample rows stand in until the Fertilization tab has a real completed task.
-  const showSamples = isFertilizationTab && !taskLoading && !error && result.total === 0 && !debouncedSearch
 
   const filteredDeliveries = useMemo(() => {
     if (!isDeliveryTab) return []
@@ -287,18 +289,11 @@ export default function RecordsManagement() {
       .sort((first, second) => new Date(second.delivery_scheduled_at || 0) - new Date(first.delivery_scheduled_at || 0))
   }, [deliveryOrders, search, isDeliveryTab])
 
-  const taskRows = showSamples ? FERTILIZATION_COMPLETED_SAMPLES : result.tasks
-  const recordCount = isDeliveryTab ? filteredDeliveries.length : (showSamples ? taskRows.length : result.total)
-  const totalPages = isDeliveryTab
-    ? Math.max(1, Math.ceil(filteredDeliveries.length / PAGE_SIZE))
-    : (showSamples ? 1 : result.pages)
-  const paginated = isDeliveryTab ? filteredDeliveries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : taskRows
+  const recordCount = isDeliveryTab ? filteredDeliveries.length : result.total
+  const totalPages = isDeliveryTab ? Math.max(1, Math.ceil(filteredDeliveries.length / PAGE_SIZE)) : result.pages
+  const paginated = isDeliveryTab ? filteredDeliveries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : result.tasks
 
-  const activeCategoryName = useMemo(
-    () => categories.find((category) => String(category.id) === String(activeCategory))?.category_name || '',
-    [categories, activeCategory],
-  )
-  const kind = activeCategory === '' ? 'generic' : categoryKind(activeCategoryName)
+  const kind = activeCategory === '' ? 'generic' : categoryKind(activeCategoryName, activityFilter)
   const columns = RECORD_COLUMNS[kind]
   const firstVisibleRecord = recordCount ? (page - 1) * PAGE_SIZE + 1 : 0
   const lastVisibleRecord = Math.min(page * PAGE_SIZE, recordCount)
@@ -322,7 +317,7 @@ export default function RecordsManagement() {
     setExporting(true)
     setExportError('')
     try {
-      const exportTasks = showSamples ? taskRows : await loadAllRecordTasks(activeCategory, search.trim())
+      const exportTasks = await loadAllRecordTasks(activeCategory, search.trim(), activityFilter)
       downloadCsv('farm-records.csv', [columns.slice(0, -1), ...exportTasks.map((task) => recordRow(task, kind))])
     } catch (requestError) {
       setExportError(requestError.message)
@@ -362,6 +357,13 @@ export default function RecordsManagement() {
                 ))}
                 <button className={isDeliveryTab ? 'is-active' : ''} type="button" onClick={() => selectCategory('delivery')}>Delivery</button>
               </nav>
+              {isPestAndDiseaseTab && (
+                <div className="records-subtabs" role="tablist" aria-label="Pest and disease activity">
+                  {[['inspection', 'Inspection'], ['action', 'Action']].map(([value, label]) => (
+                    <button type="button" role="tab" aria-selected={activityTab === value} className={activityTab === value ? 'is-active' : ''} key={value} onClick={() => selectActivity(value)}>{label}</button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="tasks-toolbar records-toolbar">
@@ -374,13 +376,6 @@ export default function RecordsManagement() {
             </div>
 
             {error && <div className="tasks-error" role="alert">{error}</div>}
-            {!error && (
-              <details className="records-data-note">
-                <summary><Info aria-hidden="true" size={16} /><span>About this data</span><small>Some category details are preview data</small><ChevronDown aria-hidden="true" size={15} /></summary>
-                <p>Field, worker, completion date, insights, and approved harvesting counts are live. Plant counts, fertilizer details, and crop inspection findings are sample values until those fields are captured by the app.</p>
-              </details>
-            )}
-
             <div className="tasks-table-wrap">
               <table className="tasks-table" style={{ tableLayout: 'auto' }}>
                 <thead>
@@ -453,9 +448,10 @@ export default function RecordsManagement() {
                 <span className="task-view-tile-label">Field</span>
                 <strong className="task-view-tile-value">{modal.task.field}</strong>
               </div>
-              {modal.kind === 'planting' && <div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Number of Plants</span><strong className="task-view-tile-value">{mockNumberOfPlants(modal.task)}</strong></div>}
-              {modal.kind === 'fertilization' && <><div className="task-view-tile"><span className="task-view-tile-label">Fertilizer Type</span><strong className="task-view-tile-value">{mockFertilizerType(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Quantity Applied</span><strong className="task-view-tile-value">{mockQuantityApplied(modal.task)}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Application Method</span><strong className="task-view-tile-value">{mockApplicationMethod(modal.task)}</strong></div></>}
-              {modal.kind === 'inspection' && <><div className="task-view-tile"><span className="task-view-tile-label">Crop Condition</span><strong className="task-view-tile-value">{mockCropCondition(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Pest/Disease Observed</span><strong className="task-view-tile-value">{mockPestObserved(modal.task)}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Recommended Action</span><strong className="task-view-tile-value">{mockRecommendedAction(modal.task)}</strong></div></>}
+              {modal.task.activity_type && <div className="task-view-tile"><span className="task-view-tile-label">Activity</span><strong className="task-view-tile-value">{modal.task.activity_type === 'action' ? 'Action' : 'Inspection'}</strong></div>}
+              {modal.kind === 'fertilization' && <><div className="task-view-tile"><span className="task-view-tile-label">Fertilizer</span><strong className="task-view-tile-value">{suppliesName(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Amount Used</span><strong className="task-view-tile-value">{suppliesAmount(modal.task)}</strong></div></>}
+              {modal.kind === 'pestaction' && <><div className="task-view-tile"><span className="task-view-tile-label">Pesticide</span><strong className="task-view-tile-value">{suppliesName(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Amount Used</span><strong className="task-view-tile-value">{suppliesAmount(modal.task)}</strong></div></>}
+              {modal.kind === 'inspection' && <><div className="task-view-tile"><span className="task-view-tile-label">Crop Condition</span><strong className="task-view-tile-value">{detailText(modal.task, 'crop_condition')}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Pest/Disease Observed</span><strong className="task-view-tile-value">{detailText(modal.task, 'pest_observed')}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Recommended Action</span><strong className="task-view-tile-value">{detailText(modal.task, 'recommended_action')}</strong></div></>}
               {modal.kind === 'harvesting' && <><div className="task-view-tile"><span className="task-view-tile-label">Small / Medium / Large</span><strong className="task-view-tile-value">{harvestCounts(modal.task).small} / {harvestCounts(modal.task).medium} / {harvestCounts(modal.task).large}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Damaged</span><strong className="task-view-tile-value">{harvestCounts(modal.task).damaged} damaged</strong></div></>}
               <div className="task-view-tile">
                 <span className="task-view-tile-label">Date Started</span>
@@ -467,6 +463,7 @@ export default function RecordsManagement() {
               </div>
             </div>
             <section className="task-view-description"><span>Insights</span><p>{insightText(modal.task.completion_notes, 'No insights were added.')}</p></section>
+            <section className="task-view-description"><span>Photo proof</span><ProofPhoto url={modal.task.harvest_proof_image_url || modal.task.completion_proof_image_url} alt="Photo proof of completed work" /></section>
           </div>
         </section>
       </div>}
@@ -501,6 +498,7 @@ export default function RecordsManagement() {
             </div>
             <section className="task-view-description"><span>Delivery Address</span><p>{[modal.order.delivery_barangay, modal.order.delivery_city_municipality, modal.order.delivery_province, modal.order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'}</p></section>
             <section className="task-view-description"><span>Insights</span><p>{insightText(modal.order.delivery_proof_notes, 'No insights were added.')}</p></section>
+            <section className="task-view-description"><span>Photo proof</span><ProofPhoto url={modal.order.delivery_proof_image_url} alt="Proof of delivery" /></section>
           </div>
         </section>
       </div>}

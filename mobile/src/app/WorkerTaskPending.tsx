@@ -18,7 +18,9 @@ import { useAuth } from '@/context/auth-context';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { apiRequest } from '@/lib/api';
+import { TaskSuppliesSheet } from '@/components/task-supplies-sheet';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
+import { activityLabel, supplyKindFor, type ActivityType } from '@/lib/task-supplies';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
@@ -31,6 +33,7 @@ type WorkerTaskRecord = {
   schedule_start: string;
   estimated_duration_minutes: number;
   description: string | null;
+  activity_type?: ActivityType | null;
 };
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
@@ -368,6 +371,11 @@ function TaskCard({
                 {priorityTheme.label}
               </Text>
             </View>
+            {activityLabel(task.activity_type) ? (
+              <View style={[styles.priorityPill, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]}>
+                <Text style={[styles.priorityPillText, { color: '#0369A1' }]}>{activityLabel(task.activity_type)}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -450,6 +458,8 @@ export default function WorkerTaskPending() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [suppliesTask, setSuppliesTask] = useState<WorkerTaskRecord | null>(null);
+  const [suppliesError, setSuppliesError] = useState('');
 
   const loadTasks = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -476,19 +486,33 @@ export default function WorkerTaskPending() {
     .filter((task) => `${task.category} ${task.field} ${task.description || ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase()));
   const workAllowed = canWorkCropTaskNow();
 
-  async function updateTaskStatus(task: WorkerTaskRecord, status: TaskStatus) {
+  // Fertilization and Pest & Disease Action take supplies from inventory, so Start opens the picker first.
+  function handleStatusChange(task: WorkerTaskRecord, status: TaskStatus) {
+    if (status === 'in_progress' && supplyKindFor(task.category, task.activity_type)) {
+      setSuppliesError('');
+      setSuppliesTask(task);
+      return;
+    }
+    updateTaskStatus(task, status);
+  }
+
+  async function updateTaskStatus(task: WorkerTaskRecord, status: TaskStatus, supplies?: { itemId: number; quantity: number }) {
     setBusyId(task.id);
     setError('');
+    setSuppliesError('');
     try {
       const result = await apiRequest<{ task: WorkerTaskRecord }>(`/api/worker/tasks/${task.id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...(supplies ? { inventory_item_id: supplies.itemId, quantity: supplies.quantity } : {}) }),
       });
+      setSuppliesTask(null);
       setTasks((current) => current.filter((item) => item.id !== task.id));
       setSummary((current) => ({ ...current, pending: Math.max(0, current.pending - 1), active: current.active + 1 }));
       if (result.task.status === 'in_progress') router.replace('/WorkerTaskActive');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not update this task.');
+      const message = caught instanceof Error ? caught.message : 'Could not update this task.';
+      if (supplies) setSuppliesError(message);
+      else setError(message);
     } finally {
       setBusyId(null);
     }
@@ -572,7 +596,7 @@ export default function WorkerTaskPending() {
                 expanded={expandedId === task.id}
                 key={task.id}
                 onExpand={() => setExpandedId((current) => (current === task.id ? null : task.id))}
-                onStatusChange={(status) => updateTaskStatus(task, status)}
+                onStatusChange={(status) => handleStatusChange(task, status)}
                 task={task}
                 workAllowed={workAllowed}
               />
@@ -587,6 +611,18 @@ export default function WorkerTaskPending() {
           )}
         </ScrollView>
       </View>
+
+      {suppliesTask && supplyKindFor(suppliesTask.category, suppliesTask.activity_type) ? (
+        <TaskSuppliesSheet
+          error={suppliesError}
+          kind={supplyKindFor(suppliesTask.category, suppliesTask.activity_type)!}
+          onCancel={() => setSuppliesTask(null)}
+          onConfirm={(itemId, quantity) => updateTaskStatus(suppliesTask, 'in_progress', { itemId, quantity })}
+          submitting={busyId === suppliesTask.id}
+          title={`${suppliesTask.category} · ${suppliesTask.field}`}
+          visible
+        />
+      ) : null}
 
       <WorkerBottomNavigation activeTab="tasks" />
     </SafeAreaView>

@@ -14,7 +14,7 @@ import '../../styles/work-order-dialogs.css'
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 10
 const emptyForm = {
-  assigned_worker_id: '', worker_category: '', category_id: '', field_id: '', priority_id: '', status_id: '',
+  assigned_worker_id: '', worker_category: '', category_id: '', activity_type: '', field_id: '', priority_id: '', status_id: '',
   start_date: '', start_time: '07:00', end_time: '08:00', estimated_duration_minutes: '60', description: '',
 }
 const emptyOptions = {
@@ -327,6 +327,7 @@ export default function TaskScheduleManagement() {
     [form.worker_category, options.workers],
   )
   const assigningDriver = modal?.mode === 'add' && selectedWorker?.worker_category === 'driver'
+  const isPestAndDisease = options.categories.find((category) => String(category.id) === String(form.category_id))?.category_name === 'Pest & Disease'
   const isDriverStatusFilter = filter.startsWith('delivery:')
 
   const loadTasks = useCallback(async () => {
@@ -586,6 +587,7 @@ export default function TaskScheduleManagement() {
       assigned_worker_id: task.assigned_worker_id,
       worker_category: task.assigned_worker?.worker_category || '',
       category_id: task.category_id,
+      activity_type: task.activity_type || '',
       field_id: task.field_id,
       priority_id: task.priority_id,
       status_id: task.status_id,
@@ -646,11 +648,13 @@ export default function TaskScheduleManagement() {
       if (!isCropWorkerSchedule(form.worker_category, form.start_time, form.end_time)) {
         throw new Error('Crop-management tasks must be scheduled entirely from 8:00 AM–11:50 AM or 1:00 PM–4:00 PM. Lunch break is 11:50 AM–1:00 PM.')
       }
+      if (isPestAndDisease && !form.activity_type) throw new Error('Choose Inspection or Action for Pest & Disease tasks.')
       await apiRequest(editing ? `/api/admin/tasks/${modal.task.id}` : '/api/admin/tasks', {
         method: editing ? 'PATCH' : 'POST',
         body: JSON.stringify({
           assigned_worker_id: form.assigned_worker_id,
           category_id: Number(form.category_id),
+          activity_type: isPestAndDisease ? form.activity_type : '',
           field_id: Number(form.field_id),
           priority_id: Number(form.priority_id),
           status_id: Number(form.status_id),
@@ -1010,6 +1014,7 @@ export default function TaskScheduleManagement() {
                   <WoRow label="Assigned to">{worker?.full_name || 'Unassigned worker'}</WoRow>
                   <WoRow label="Role">{workerCategoryLabels[worker?.worker_category] || 'Crop Management Worker'}</WoRow>
                   <WoRow label="Category">{task.category || 'Farm Operations'}</WoRow>
+                  {task.activity_type && <WoRow label="Activity">{task.activity_type === 'action' ? 'Action' : 'Inspection'}</WoRow>}
                   <WoRow label="Field">{task.field || 'General Farm Plot'}</WoRow>
                   <WoRow label="Location">{task.schedule?.location || 'Pineapple Plantation · Designated Block'}</WoRow>
                 </WoList>
@@ -1521,6 +1526,7 @@ export default function TaskScheduleManagement() {
                     <WoRow label="Farm worker">{worker?.full_name || 'Unassigned worker'}</WoRow>
                     <WoRow label="Field">{task.field || '—'}</WoRow>
                     <WoRow label="Category">{task.category || '—'}</WoRow>
+                    {task.activity_type && <WoRow label="Activity">{task.activity_type === 'action' ? 'Action' : 'Inspection'}</WoRow>}
                     <WoRow label="Priority"><span className={`wo-priority is-${task.priority || 'medium'}`}>{task.priority_label || 'Normal'}</span></WoRow>
                     <WoRow label="Scheduled">{task.schedule?.start_time && task.schedule?.end_time ? `${formatSchedule(task.schedule_start)} – ${formatTime12(task.schedule.end_time)}` : formatSchedule(task.schedule_start)}</WoRow>
                     <WoRow label="Finished">{formatSchedule(task.completed_at)}</WoRow>
@@ -1812,11 +1818,28 @@ export default function TaskScheduleManagement() {
               <WoSection title="Task">
                 <div className="wo-grid">
                   <WoField label="Task category" htmlFor="task-category">
-                    <select id="task-category" className="wo-input" value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required>
+                    <select id="task-category" className="wo-input" value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value, activity_type: '' })} required>
                       <option value="" disabled>Select task category</option>
                       {options.categories.map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}
                     </select>
                   </WoField>
+                  {isPestAndDisease && (
+                    <WoField label="Activity" wide>
+                      {editingTask && modal.task.status !== 'pending' ? (
+                        <>
+                          <p className="wo-prose">{form.activity_type === 'action' ? 'Action' : 'Inspection'}</p>
+                          <p className="wo-fine">Locked because the worker already started this task.</p>
+                        </>
+                      ) : (
+                        <WoRadios
+                          label="Activity"
+                          options={[{ value: 'inspection', label: 'Inspection' }, { value: 'action', label: 'Action' }]}
+                          value={form.activity_type}
+                          onChange={(value) => setForm({ ...form, activity_type: value })}
+                        />
+                      )}
+                    </WoField>
+                  )}
                   <WoField label="Field / location" htmlFor="task-field">
                     <select id="task-field" className="wo-input" value={form.field_id} onChange={(event) => setForm({ ...form, field_id: event.target.value })} required>
                       <option value="" disabled>Select field</option>

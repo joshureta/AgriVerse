@@ -112,6 +112,36 @@
   box-shadow: none;
 }
 
+.records-subtabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #e3eae0;
+  padding: 10px 14px;
+  background: #fbfcfa;
+}
+
+.records-subtabs button {
+  min-height: 30px;
+  border: 1px solid #ccdccc;
+  border-radius: 999px;
+  padding: 0 14px;
+  color: #6b7c72;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.records-subtabs button:hover {
+  color: var(--records-green);
+  border-color: #85af8c;
+}
+
+.records-subtabs button.is-active {
+  border-color: var(--records-green);
+  color: #fff;
+  background: var(--records-green);
+}
+
 .records-toolbar {
   display: flex;
   align-items: center;
@@ -166,56 +196,21 @@
   background: var(--records-green-soft);
 }
 
-.records-data-note {
-  border-bottom: 1px solid #e7ede4;
-  background: #fffdf7;
+.records-proof {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  overflow: hidden;
+  border: 1px solid #dfe8dc;
+  border-radius: 10px;
+  background: #f4f7f2;
 }
 
-.records-data-note summary {
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-sizing: border-box;
-  padding: 8px 18px;
-  color: #6a5b25;
-  cursor: pointer;
-  list-style: none;
-}
-
-.records-data-note summary::-webkit-details-marker {
-  display: none;
-}
-
-.records-data-note summary > svg:first-child {
-  color: #a88317;
-}
-
-.records-data-note summary span {
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.records-data-note summary small {
-  color: #988653;
-  font-size: 9px;
-}
-
-.records-data-note summary > svg:last-child {
-  margin-left: auto;
-  transition: transform 160ms ease;
-}
-
-.records-data-note[open] summary > svg:last-child {
-  transform: rotate(180deg);
-}
-
-.records-data-note p {
-  margin: 0;
-  padding: 0 42px 13px;
-  color: #796b3e;
-  font-size: 10px;
-  line-height: 1.6;
+.records-proof img {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
 }
 
 .records-panel .tasks-error {
@@ -381,22 +376,10 @@
     padding-inline: 14px;
   }
 
-  .records-data-note summary small {
-    display: none;
-  }
-
   .records-toolbar {
     padding-inline: 14px;
   }
 
-
-  .records-data-note summary {
-    padding-inline: 14px;
-  }
-
-  .records-data-note p {
-    padding-inline: 38px 14px;
-  }
 
   .records-panel .task-pagination {
     gap: 10px;

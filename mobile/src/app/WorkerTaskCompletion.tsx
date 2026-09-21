@@ -13,6 +13,7 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -22,8 +23,15 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
+import {
+  collectsInspection,
+  INSPECTION_QUESTIONS,
+  suppliesSummary,
+  type InspectionDetails,
+  type TaskSupplyFields,
+} from '@/lib/task-supplies';
 
-type WorkerTask = {
+type WorkerTask = TaskSupplyFields & {
   id: number;
   category: string;
   field: string;
@@ -327,6 +335,7 @@ export default function WorkerTaskCompletionScreen() {
   const { loading: authLoading, profile } = useAuth();
   const [task, setTask] = useState<WorkerTask | null>(passedTask);
   const [insights, setInsights] = useState('');
+  const [inspection, setInspection] = useState<Partial<InspectionDetails>>({});
 
   // Harvest counts (Harvesting tasks only - 2x2 grid)
   const [smallCount, setSmallCount] = useState('');
@@ -462,6 +471,11 @@ export default function WorkerTaskCompletionScreen() {
       setError('Insights must not exceed 2000 characters.');
       return;
     }
+    const needsInspection = collectsInspection(task.category, task.activity_type);
+    if (needsInspection && INSPECTION_QUESTIONS.some((question) => !inspection[question.key])) {
+      setError('Answer every inspection question before completing the task.');
+      return;
+    }
 
     let harvestFields: Record<string, number> = {};
     if (isHarvesting) {
@@ -493,6 +507,7 @@ export default function WorkerTaskCompletionScreen() {
           image_mime: photoMime,
           image_name: photoName || `${task.category} Proof Photo`,
           ...harvestFields,
+          ...(needsInspection ? { details: inspection } : {}),
         }),
       });
       router.replace('/WorkerTaskCompleted');
@@ -616,6 +631,40 @@ export default function WorkerTaskCompletionScreen() {
                     </Text>
                   </View>
                 )}
+
+                {/* Supplies taken when the task was started (Fertilization, Pest & Disease Action) */}
+                {suppliesSummary(task) ? (
+                  <View style={extra.suppliesBox}>
+                    <Text style={extra.label}>Supplies taken</Text>
+                    <Text style={extra.suppliesText}>{suppliesSummary(task)}</Text>
+                  </View>
+                ) : null}
+
+                {/* Inspection questions (Monitoring, Pest & Disease Inspection) */}
+                {collectsInspection(task.category, task.activity_type) ? (
+                  <View style={extra.section}>
+                    {INSPECTION_QUESTIONS.map((question) => (
+                      <View key={question.key} style={extra.question}>
+                        <Text style={extra.label}>{question.label}</Text>
+                        <View style={extra.chips}>
+                          {question.options.map((option) => {
+                            const selected = inspection[question.key] === option;
+                            return (
+                              <Pressable
+                                accessibilityRole="button"
+                                accessibilityState={{ selected }}
+                                key={option}
+                                onPress={() => setInspection((current) => ({ ...current, [question.key]: option }))}
+                                style={[extra.chip, selected && extra.chipSelected]}>
+                                <Text style={[extra.chipText, selected && extra.chipTextSelected]}>{option}</Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
 
                 {/* Structured Harvest Counts Grid (Harvesting Tasks Only) */}
                 {isHarvesting && (
@@ -820,3 +869,16 @@ export default function WorkerTaskCompletionScreen() {
     </SafeAreaView>
   );
 }
+
+const extra = StyleSheet.create({
+  label: { marginBottom: 6, color: '#64748B', fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
+  suppliesBox: { marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+  suppliesText: { color: '#0F172A', fontSize: 14, fontWeight: '700' },
+  section: { marginTop: 14 },
+  question: { marginBottom: 12 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#FFFFFF' },
+  chipSelected: { borderColor: '#176D34', backgroundColor: '#E8F5E9' },
+  chipText: { color: '#475569', fontSize: 13, fontWeight: '600' },
+  chipTextSelected: { color: '#166534', fontWeight: '800' },
+});

@@ -19,11 +19,12 @@ import { WorkerTaskSegmentedTabs } from '@/components/worker-task-segmented-tabs
 import { TaskCompletionBlurTarget } from '@/components/task-completion-blur-target';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { activityLabel, suppliesSummary, type TaskSupplyFields } from '@/lib/task-supplies';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 type TaskStatus = 'pending' | 'in_progress' | 'awaiting_approval' | 'completed';
-type WorkerTaskRecord = {
+type WorkerTaskRecord = TaskSupplyFields & {
   id: number;
   category: string;
   field: string;
@@ -298,6 +299,11 @@ function ActiveTaskCard({
 
       {/* Sanitized Task Title */}
       <Text style={styles.taskTitle}>{cleanTitle}</Text>
+      {activityLabel(task.activity_type) || suppliesSummary(task) ? (
+        <Text style={{ marginTop: 4, color: '#475569', fontSize: 13, fontWeight: '600' }}>
+          {[activityLabel(task.activity_type), suppliesSummary(task)].filter(Boolean).join(' · ')}
+        </Text>
+      ) : null}
 
       {/* Sent back for changes alert box */}
       {task.harvest_rejection_reason ? (
