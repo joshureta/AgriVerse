@@ -229,8 +229,8 @@ router.post("/:id/complete", async (req, res, next) => {
 
     const rawImage = req.body.image || req.body.photo;
     const hasPhoto = Boolean(rawImage && typeof rawImage === "string");
-    if (isHarvestingTask && !hasPhoto) {
-      throw httpError(400, "A photo of the completed harvest is required to submit for approval");
+    if (!hasPhoto) {
+      throw httpError(400, "A photo of the completed work is required to submit for approval");
     }
 
     let uploadResult = null;
@@ -245,19 +245,20 @@ router.post("/:id/complete", async (req, res, next) => {
 
     const statusIds = await getStatusIds();
     const updatePayload = {
-      status_id: isHarvestingTask ? statusIds.awaiting_approval : statusIds.completed,
+      status_id: statusIds.awaiting_approval,
       completed_at: completedAt.toISOString(),
       completion_notes: completionNotes || null,
       ...harvestCounts,
       ...(inspectionDetails ? { details: inspectionDetails } : {}),
+      // Every task waits for admin review. A resubmission clears the last "sent back" reason.
+      harvest_rejection_reason: null,
+      harvest_rejected_at: null,
     };
     if (isHarvestingTask) {
       updatePayload.harvest_proof_image_url = uploadResult?.imageUrl || null;
       updatePayload.harvest_proof_image_storage_path = uploadResult?.storagePath || null;
       updatePayload.harvest_proof_image_name = imageName;
       updatePayload.harvest_proof_image_mime = mimeType;
-      updatePayload.harvest_rejection_reason = null;
-      updatePayload.harvest_rejected_at = null;
     } else if (uploadResult) {
       updatePayload.completion_proof_image_url = uploadResult.imageUrl || null;
       updatePayload.completion_proof_image_storage_path = uploadResult.storagePath || null;
@@ -268,40 +269,10 @@ router.post("/:id/complete", async (req, res, next) => {
       .eq("status_id", statusIds.in_progress).select(taskSelect).maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "Only an active assigned task can be completed");
-    await syncScheduleStatus(taskId, isHarvestingTask ? "in_progress" : "completed");
+    await syncScheduleStatus(taskId, "in_progress");
 
-    // Harvesting tasks aren't really done until admin approves, so the crop-health
-    // record (and its "Completed" status) is created at approval time instead.
-    let inspectionRecord = null;
-    if (!isHarvestingTask && hasPhoto) {
-      const { data: insData, error: insErr } = await getSupabase()
-        .from("crop_health_inspections")
-        .insert({
-          field_name: fieldName,
-          field_id: existingTask.field_id || null,
-          crop_type: "Pineapple",
-          health_score: 85,
-          health_status: "Completed",
-          disease_or_issue_name: `${categoryName} Task Completed`,
-          visual_summary: completionNotes || `Task ${taskId} (${categoryName}) completed with photo proof.`,
-          identified_symptoms: [],
-          action_recommendations: [],
-          image_url: uploadResult?.imageUrl || null,
-          image_storage_path: uploadResult?.storagePath || null,
-          image_name: imageName,
-          image_mime_type: mimeType,
-          status: "COMPLETED",
-          analyzed_by: req.user.id,
-        })
-        .select()
-        .maybeSingle();
-
-      if (!insErr && insData) {
-        inspectionRecord = insData;
-      }
-    }
-
-    return res.json({ task: serializeTask(data), inspection: inspectionRecord });
+    // The crop-health record for the photo is created when the admin approves the task.
+    return res.json({ task: serializeTask(data) });
   } catch (error) { return next(error); }
 });
 
@@ -321,8 +292,8 @@ router.patch("/:id/status", async (req, res, next) => {
     const expectedStatus = currentStatus === "pending" ? "in_progress"
       : currentStatus === "in_progress" ? "completed" : null;
     if (status !== expectedStatus) throw httpError(409, `Task cannot move from ${currentStatus} to ${status}`);
-    if (status === "completed" && currentTask.category?.category_name === "Harvesting") {
-      throw httpError(409, "Harvesting tasks must be submitted with harvest counts and a photo for admin approval");
+    if (status === "completed") {
+      throw httpError(409, "Tasks must be submitted with a photo for admin approval");
     }
     assertCropWorkerCanWork(req.profile);
 

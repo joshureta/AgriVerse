@@ -565,7 +565,7 @@ export default function WorkerTaskCompletionScreen() {
                 {/* Header: Title & Close Button */}
                 <View style={styles.sheetHeaderRow}>
                   <Text style={styles.sheetTitle}>
-                    {isHarvesting ? 'Submit Harvest' : 'Complete Task'}
+                    {isHarvesting ? 'Submit Harvest' : 'Submit Task'}
                   </Text>
                   <Pressable
                     accessibilityLabel="Close"
@@ -847,9 +847,7 @@ export default function WorkerTaskCompletionScreen() {
                       <Text style={styles.submitText}>
                         {!workAllowed
                           ? 'Work unavailable'
-                          : isHarvesting
-                          ? 'Submit for Approval'
-                          : 'Complete Task'}
+                          : 'Submit for Approval'}
                       </Text>
                     </>
                   )}

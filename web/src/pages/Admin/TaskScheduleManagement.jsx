@@ -429,13 +429,15 @@ export default function TaskScheduleManagement() {
     setModal({ mode: 'review-harvest', task })
   }
 
-  async function approveHarvest() {
+  async function approveTask() {
     setSaving(true)
     setError('')
+    const isHarvest = modal.task.category === 'Harvesting'
     try {
-      await apiRequest(`/api/admin/tasks/${modal.task.id}/approve-harvest`, {
+      // Harvesting is approved with its (editable) counts, which are added to inventory.
+      await apiRequest(`/api/admin/tasks/${modal.task.id}/${isHarvest ? 'approve-harvest' : 'approve'}`, {
         method: 'POST',
-        body: JSON.stringify(harvestApprovalForm),
+        body: JSON.stringify(isHarvest ? harvestApprovalForm : {}),
       })
       setModal(null)
       setRefreshKey((key) => key + 1)
@@ -446,11 +448,11 @@ export default function TaskScheduleManagement() {
     }
   }
 
-  async function rejectHarvest() {
+  async function rejectTask() {
     setSaving(true)
     setError('')
     try {
-      await apiRequest(`/api/admin/tasks/${modal.task.id}/reject-harvest`, {
+      await apiRequest(`/api/admin/tasks/${modal.task.id}/reject`, {
         method: 'POST',
         body: JSON.stringify({ reason: harvestRejectionReason.trim() }),
       })
@@ -812,7 +814,7 @@ export default function TaskScheduleManagement() {
 
           {harvestApprovalCount > 0 && (
             <div className="harvest-approval-banner" role="status">
-              🍍 {harvestApprovalCount} harvest report{harvestApprovalCount === 1 ? '' : 's'} awaiting review
+              {harvestApprovalCount} task{harvestApprovalCount === 1 ? '' : 's'} awaiting review
             </div>
           )}
 
@@ -1467,6 +1469,20 @@ export default function TaskScheduleManagement() {
 
       {modal?.mode === 'review-harvest' && (() => {
         const task = modal.task
+        const isHarvestReview = task.category === 'Harvesting'
+        const proofUrl = task.harvest_proof_image_url || task.completion_proof_image_url
+        // What the worker entered besides the photo and notes: inspection answers, or the supplies taken at Start.
+        const enteredRows = [
+          ...(task.details ? [
+            ['Crop condition', task.details.crop_condition],
+            ['Pest or disease observed', task.details.pest_observed],
+            ['Recommended action', task.details.recommended_action],
+          ] : []),
+          ...(task.inventory_item ? [
+            [task.category === 'Fertilization' ? 'Fertilizer' : 'Pesticide', task.inventory_item.item_name],
+            ['Amount used', `${task.inventory_quantity} ${task.inventory_item.unit?.abbreviation || ''}`.trim()],
+          ] : []),
+        ]
         const counts = {
           small: Number(harvestApprovalForm.harvest_small_count) || 0,
           medium: Number(harvestApprovalForm.harvest_medium_count) || 0,
@@ -1490,31 +1506,37 @@ export default function TaskScheduleManagement() {
             />
           </WoField>
         )
-        const rejectionPresets = [
+        const rejectionPresets = isHarvestReview ? [
           ['Recount needed', 'Please recount the harvest and submit the report again.'],
           ['Photo unclear', 'The proof photo is unclear. Please retake it and submit the report again.'],
           ['Wrong field', 'The proof photo does not match this field. Please check and submit again.'],
+        ] : [
+          ['Photo unclear', 'The proof photo is unclear. Please retake it and submit the task again.'],
+          ['Wrong field', 'The proof photo does not match this field. Please check and submit again.'],
+          ['More detail needed', 'Please add more detail to your notes and submit the task again.'],
         ]
 
         return (
           <WorkOrderDialog
             size="wide"
-            eyebrow="Harvest approval"
+            eyebrow={isHarvestReview ? 'Harvest approval' : 'Task approval'}
             id={`#TASK-${String(task.id).padStart(4, '0')}`}
-            title="Review Harvest Report"
+            title={isHarvestReview ? 'Review Harvest Report' : 'Review Task'}
             titleId="review-harvest-title"
             sub={task.completed_at ? `Submitted ${formatSchedule(task.completed_at)}${worker?.full_name ? ` by ${worker.full_name}` : ''}` : null}
             onClose={() => setModal(null)}
-            footerNote={rejecting ? 'Nothing is added to Inventory.' : `Adds ${sellable} pcs to Inventory.`}
+            footerNote={isHarvestReview
+              ? (rejecting ? 'Nothing is added to Inventory.' : `Adds ${sellable} pcs to Inventory.`)
+              : (rejecting ? 'The task returns to In Progress.' : 'The task is marked Completed and appears in Records.')}
             footer={<>
               <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Cancel</button>
               {rejecting ? (
-                <button type="button" className="wo-btn is-danger" disabled={saving || !harvestRejectionReason.trim()} onClick={rejectHarvest}>
+                <button type="button" className="wo-btn is-danger" disabled={saving || !harvestRejectionReason.trim()} onClick={rejectTask}>
                   {saving ? 'Saving…' : 'Send back to worker'}
                 </button>
               ) : (
-                <button type="button" className="wo-btn is-primary" disabled={saving} onClick={approveHarvest}>
-                  <Check size={15} aria-hidden="true" />{saving ? 'Saving…' : 'Approve & Add to Inventory'}
+                <button type="button" className="wo-btn is-primary" disabled={saving} onClick={approveTask}>
+                  <Check size={15} aria-hidden="true" />{saving ? 'Saving…' : (isHarvestReview ? 'Approve & Add to Inventory' : 'Approve')}
                 </button>
               )}
             </>}
@@ -1532,19 +1554,19 @@ export default function TaskScheduleManagement() {
                     <WoRow label="Finished">{formatSchedule(task.completed_at)}</WoRow>
                   </WoList>
                 </WoSection>
-                {task.harvest_proof_image_url && (
+                {proofUrl && (
                   <WoSection title="Worker's proof photo">
                     <button
                       type="button"
                       className="wo-photo is-tall"
-                      aria-label="View harvest proof photo full size"
+                      aria-label="View proof photo full size"
                       onClick={() => setDisputeActivePhoto({
-                        url: task.harvest_proof_image_url,
-                        title: 'Harvest Proof Photo',
+                        url: proofUrl,
+                        title: isHarvestReview ? 'Harvest Proof Photo' : 'Task Proof Photo',
                         subtitle: `Submitted by ${worker?.full_name || 'Worker'} for ${task.field || 'the field'}`,
                       })}
                     >
-                      <img src={task.harvest_proof_image_url} alt="Harvest proof submitted by the worker" />
+                      <img src={proofUrl} alt="Proof submitted by the worker" />
                     </button>
                   </WoSection>
                 )}
@@ -1556,6 +1578,7 @@ export default function TaskScheduleManagement() {
               </div>
 
               <div>
+                {isHarvestReview ? (
                 <WoSection title="Harvest counts">
                   <p className="wo-hint">Editable before you decide.</p>
                   <div className="wo-grid">
@@ -1570,6 +1593,17 @@ export default function TaskScheduleManagement() {
                     <WoRow label="Damaged">{counts.damaged} pcs, {damagedShare}%, recorded but not added</WoRow>
                   </WoList>
                 </WoSection>
+                ) : (
+                  <WoSection title="What the worker entered">
+                    {enteredRows.length ? (
+                      <WoList>
+                        {enteredRows.map(([label, value]) => <WoRow label={label} key={label}>{value || '—'}</WoRow>)}
+                      </WoList>
+                    ) : (
+                      <p className="wo-hint">Nothing extra is collected for this category. Check the photo and notes.</p>
+                    )}
+                  </WoSection>
+                )}
                 <WoSection title="Decision">
                   <WoRadios
                     label="Harvest decision"
@@ -1601,7 +1635,7 @@ export default function TaskScheduleManagement() {
                       <p className="wo-note">The task returns to In Progress and the worker sees your reason.</p>
                     </>
                   ) : (
-                    <p className="wo-note">Approving adds the counts to Inventory and marks the task Completed.</p>
+                    <p className="wo-note">{isHarvestReview ? 'Approving adds the counts to Inventory and marks the task Completed.' : 'Approving marks the task Completed and adds it to Records.'}</p>
                   )}
                   {error && <p className="wo-error" role="alert">{error}</p>}
                 </WoSection>

@@ -12,19 +12,14 @@ const taskSelect = [
   "harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count",
   "harvest_proof_image_url, harvest_proof_image_name",
   "harvest_rejection_reason, harvest_rejected_at, approved_at",
+  "completion_proof_image_url, details, inventory_quantity",
+  "inventory_item:inventory_items!tasks_inventory_item_id_fkey(id, item_name, unit:measurement_units!inventory_items_unit_id_fkey(abbreviation))",
   "assigned_worker:profiles!tasks_assigned_worker_id_fkey(id, full_name, worker_category)",
   "category:task_categories!tasks_category_id_fkey(id, category_name, status)",
   "field:farm_fields!tasks_field_id_fkey(id, field_name, status)",
   "priority:task_priorities!tasks_priority_id_fkey(id, priority_name, code, status)",
   "task_status:task_statuses!tasks_status_id_fkey(id, status_name, code, status)",
   "schedules(id, schedule_date, start_time, end_time, location, notes, status_id, schedule_status:schedule_statuses!schedules_status_id_fkey(id, status_name, code, status))",
-].join(",");
-
-// Records also shows the proof photo (migration 033) and what the worker entered (migration 034).
-const recordsSelect = [
-  taskSelect,
-  "completion_proof_image_url, details, inventory_quantity",
-  "inventory_item:inventory_items!tasks_inventory_item_id_fkey(id, item_name, unit:measurement_units!inventory_items_unit_id_fkey(abbreviation))",
 ].join(",");
 
 router.use(requireAuth, requireRole("admin"));
@@ -293,7 +288,7 @@ router.get("/records", async (req, res, next) => {
     }
 
     const buildQuery = () => {
-      let query = supabase.from("tasks").select(recordsSelect, { count: "exact" }).eq("status_id", completedId);
+      let query = supabase.from("tasks").select(taskSelect, { count: "exact" }).eq("status_id", completedId);
       if (categoryId) query = query.eq("category_id", categoryId);
       if (activityType) query = query.eq("activity_type", activityType);
       if (matchFilter) query = query.or(matchFilter);
@@ -426,7 +421,61 @@ router.post("/:id/approve-harvest", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
-router.post("/:id/reject-harvest", async (req, res, next) => {
+// Approves any task except Harvesting, which has its own route because the admin can correct the
+// counts and approving adds them to inventory. Approving completes the task, so it now appears in Records.
+router.post("/:id/approve", async (req, res, next) => {
+  try {
+    const id = readTaskId(req.params.id);
+    const { data: task, error: readError } = await getSupabase().from("tasks")
+      .select("id, field_id, assigned_worker_id, completion_notes, completion_proof_image_url, completion_proof_image_storage_path, category:task_categories!tasks_category_id_fkey(category_name), field:farm_fields!tasks_field_id_fkey(field_name), task_status:task_statuses!tasks_status_id_fkey(code)")
+      .eq("id", id).maybeSingle();
+    if (readError) throwDatabaseError(readError);
+    if (!task) throw httpError(404, "Task was not found");
+    if (task.task_status?.code !== "awaiting_approval") throw httpError(409, "Task is not awaiting approval");
+    if (task.category?.category_name === "Harvesting") {
+      throw httpError(400, "Harvesting tasks are approved from the harvest report, where the counts can be checked");
+    }
+    const awaitingId = await lookupIdByCode("task_statuses", "awaiting_approval");
+    const completedId = await lookupIdByCode("task_statuses", "completed");
+    const { data, error } = await getSupabase().from("tasks").update({
+      status_id: completedId,
+      approved_by: req.user.id,
+      approved_at: new Date().toISOString(),
+    }).eq("id", id).eq("status_id", awaitingId).select("id").maybeSingle();
+    if (error) throwDatabaseError(error);
+    if (!data) throw httpError(409, "Task is not awaiting approval");
+    await syncScheduleStatus(id, "completed");
+    await recordApprovedTaskPhoto(task);
+    return res.json({ task: await fetchTask(id) });
+  } catch (error) { return next(error); }
+});
+
+// The photo of an approved task feeds the crop-health page. Failing here must not undo the approval.
+async function recordApprovedTaskPhoto(task) {
+  if (!task.completion_proof_image_url) return;
+  const categoryName = task.category?.category_name || "Crop";
+  const { error } = await getSupabase().from("crop_health_inspections").insert({
+    field_name: task.field?.field_name || "Field A",
+    field_id: task.field_id || null,
+    crop_type: "Pineapple",
+    health_score: 85,
+    health_status: "Completed",
+    disease_or_issue_name: `${categoryName} Task Completed`,
+    visual_summary: task.completion_notes || `Task ${task.id} (${categoryName}) completed with photo proof.`,
+    identified_symptoms: [],
+    action_recommendations: [],
+    image_url: task.completion_proof_image_url,
+    image_storage_path: task.completion_proof_image_storage_path || null,
+    image_name: `Task ${task.id} Proof Photo`,
+    image_mime_type: /\.png(\?|$)/i.test(task.completion_proof_image_url) ? "image/png" : "image/jpeg",
+    status: "COMPLETED",
+    analyzed_by: task.assigned_worker_id,
+  });
+  if (error) console.warn("Could not record the approved task in crop health:", error.message);
+}
+
+// Sends any task awaiting approval back to the worker with a reason. Works for every category.
+async function rejectTask(req, res, next) {
   try {
     const id = readTaskId(req.params.id);
     const reason = readRejectionReason(req.body.reason);
@@ -441,6 +490,9 @@ router.post("/:id/reject-harvest", async (req, res, next) => {
     if (!data) throw httpError(409, "Task is not awaiting approval");
     return res.json({ task: await fetchTask(id) });
   } catch (error) { return next(error); }
-});
+}
+
+router.post("/:id/reject", rejectTask);
+router.post("/:id/reject-harvest", rejectTask);
 
 module.exports = router;
