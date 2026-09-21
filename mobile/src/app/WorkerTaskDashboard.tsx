@@ -3,6 +3,7 @@ import { Redirect, router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -18,6 +19,7 @@ import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { taskCategoryIconSource } from '@/lib/task-category-icons';
 import { loadWeather, type WeatherSnapshot } from '@/lib/weather';
 
 type TaskStatus = 'pending' | 'in_progress' | 'awaiting_approval' | 'completed';
@@ -261,7 +263,6 @@ function TaskDashboardCard({
   onStart: () => void;
 }) {
   const config = categoryConfig[task.category] || defaultCategoryConfig;
-  const Icon = config.IconComponent;
   const fieldLabel = task.field
     ? task.field.toLowerCase().startsWith('field')
       ? task.field
@@ -272,7 +273,7 @@ function TaskDashboardCard({
     <View style={styles.taskCard}>
       {/* Left: Squircle Category Icon */}
       <View style={[styles.categorySquircle, { backgroundColor: config.squircleBg }]}>
-        <Icon size={24} color={config.iconColor} />
+        <Image source={taskCategoryIconSource(task.category)} style={{ width: 36, height: 36, resizeMode: 'contain' }} />
       </View>
 
       {/* Center: Stacked Badges */}

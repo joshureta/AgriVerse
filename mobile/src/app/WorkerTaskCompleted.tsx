@@ -3,6 +3,7 @@ import { Redirect, router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -17,6 +18,7 @@ import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { taskCategoryIconSource } from '@/lib/task-category-icons';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
 import Svg, { Circle, Path } from 'react-native-svg';
 
@@ -245,7 +247,6 @@ function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
     : '11:30 AM';
   const isAwaitingApproval = task.status === 'awaiting_approval';
   const config = categoryConfig[task.category] || defaultCategoryConfig;
-  const Icon = config.IconComponent;
 
   const rawField = task.field?.trim() || 'Field';
   const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
@@ -269,7 +270,7 @@ function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
       <View style={styles.cardRow}>
         {/* Left: Squircle Category Icon Badge */}
         <View style={[styles.categorySquircle, { backgroundColor: config.squircleBg }]}>
-          <Icon size={24} color={config.iconColor} />
+          <Image source={taskCategoryIconSource(task.category)} style={{ width: 44, height: 44, resizeMode: 'contain' }} />
         </View>
 
         {/* Right Content Column: Status Badge, Title, Subtitle beside the icon */}

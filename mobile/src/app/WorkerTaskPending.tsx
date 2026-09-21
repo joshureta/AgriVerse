@@ -3,6 +3,7 @@ import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -18,6 +19,7 @@ import { useAuth } from '@/context/auth-context';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { apiRequest } from '@/lib/api';
+import { taskCategoryIconSource } from '@/lib/task-category-icons';
 import { TaskSuppliesSheet } from '@/components/task-supplies-sheet';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
 import { activityLabel, supplyKindFor, type ActivityType } from '@/lib/task-supplies';
@@ -331,7 +333,6 @@ function TaskCard({
   const nextStatus = task.status === 'pending' ? 'in_progress' : 'completed';
   const priorityKey = task.priority || 'medium';
   const config = categoryConfig[task.category] || defaultCategoryTheme;
-  const IconComponent = config.IconComponent;
   const priorityTheme = priorityThemes[priorityKey] || priorityThemes.medium;
   const duration = task.estimated_duration_minutes || 45;
   const scheduledTime = new Date(task.schedule_start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -355,7 +356,7 @@ function TaskCard({
       {/* Header Row: Category Squircle Icon, Title, Field + Priority Pill & Top-Right Dropdown Button (Driver Style) */}
       <View style={styles.pendingCardHeader}>
         <View style={[styles.categorySquircle, { backgroundColor: config.bg, borderColor: config.border }]}>
-          <IconComponent size={20} color={config.iconColor} />
+          <Image source={taskCategoryIconSource(task.category)} style={{ width: 36, height: 36, resizeMode: 'contain' }} />
         </View>
 
         <View style={{ flex: 1, minWidth: 0 }}>

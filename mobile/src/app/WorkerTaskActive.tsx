@@ -3,6 +3,7 @@ import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -19,6 +20,7 @@ import { WorkerTaskSegmentedTabs } from '@/components/worker-task-segmented-tabs
 import { TaskCompletionBlurTarget } from '@/components/task-completion-blur-target';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { taskCategoryIconSource } from '@/lib/task-category-icons';
 import { activityLabel, suppliesSummary, type TaskSupplyFields } from '@/lib/task-supplies';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -275,7 +277,6 @@ function ActiveTaskCard({
   task: WorkerTaskRecord;
 }) {
   const config = categoryConfig[task.category] || defaultCategoryTheme;
-  const IconComponent = config.IconComponent;
   const rawField = task.field?.trim() || 'Field';
   const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
 
@@ -288,7 +289,7 @@ function ActiveTaskCard({
       <View style={styles.cardHeaderRow}>
         <View style={styles.deliveryHeadingWithIcon}>
           <View style={[styles.categoryMiniSquircle, { backgroundColor: config.bg, borderColor: config.border }]}>
-            <IconComponent size={16} color={config.iconColor} />
+            <Image source={taskCategoryIconSource(task.category)} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
           </View>
           <Text style={styles.activeHeadingText}>Active Task</Text>
         </View>

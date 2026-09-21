@@ -20,16 +20,6 @@
   gap: 2px;
 }
 
-.records-page-heading .records-eyebrow {
-  margin-bottom: 3px;
-  color: #6f9134;
-  font-family: var(--heading);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-}
-
 .records-page-heading h1 {
   color: var(--records-green);
   font-family: var(--heading);

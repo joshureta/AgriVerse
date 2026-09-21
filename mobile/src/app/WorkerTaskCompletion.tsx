@@ -22,6 +22,7 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { taskCategoryIconSource } from '@/lib/task-category-icons';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
 import {
   collectsInspection,
@@ -579,7 +580,6 @@ export default function WorkerTaskCompletionScreen() {
                 {/* Badges Row: Category, Task ID & Field Badges (Driver Style) */}
                 {(() => {
                   const config = categoryConfig[task.category] || defaultCategoryTheme;
-                  const IconComponent = config.IconComponent;
                   const rawField = task.field?.trim() || 'Field';
                   const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
                   const scheduleTime = formatStartTime(task.started_at, task.schedule_start);
@@ -589,7 +589,7 @@ export default function WorkerTaskCompletionScreen() {
                     <>
                       <View style={styles.categoryRow}>
                         <View style={[styles.categoryBadge, { backgroundColor: config.bg, borderColor: config.border }]}>
-                          <IconComponent size={13} color={config.iconColor} />
+                          <Image source={taskCategoryIconSource(task.category)} style={{ width: 20, height: 20, resizeMode: 'contain' }} />
                           <Text style={[styles.categoryBadgeText, { color: config.textColor }]}>
                             {task.category}
                           </Text>
