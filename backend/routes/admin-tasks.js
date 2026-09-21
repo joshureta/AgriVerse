@@ -253,6 +253,58 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+// Completed tasks for the Records page, filtered, sorted, and paged in the database.
+router.get("/records", async (req, res, next) => {
+  try {
+    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 10, 1), 200);
+    const from = (page - 1) * pageSize;
+    const search = String(req.query.search || "").trim().replace(/[,%()]/g, "");
+    const supabase = getSupabase();
+    const completedId = await lookupIdByCode("task_statuses", "completed");
+    const categoryId = req.query.category_id ? readId(req.query.category_id, "Category") : null;
+    let matchFilter = null;
+
+    if (search) {
+      // Field, worker, and category names live on other tables, so resolve matching ids first.
+      const pattern = `%${search}%`;
+      const [fields, workers, categories] = await Promise.all([
+        supabase.from("farm_fields").select("id").ilike("field_name", pattern),
+        supabase.from("profiles").select("id").eq("role", "farm_worker").ilike("full_name", pattern),
+        supabase.from("task_categories").select("id").ilike("category_name", pattern),
+      ]);
+      for (const result of [fields, workers, categories]) if (result.error) throw result.error;
+      const clauses = [["field_id", fields.data], ["assigned_worker_id", workers.data], ["category_id", categories.data]]
+        .filter(([, rows]) => rows.length)
+        .map(([column, rows]) => `${column}.in.(${rows.map((row) => row.id).join(",")})`);
+      if (!clauses.length) return res.json({ tasks: [], pagination: { page, pageSize, total: 0, totalPages: 1 } });
+      matchFilter = clauses.join(",");
+    }
+
+    const buildQuery = () => {
+      let query = supabase.from("tasks").select(taskSelect, { count: "exact" }).eq("status_id", completedId);
+      if (categoryId) query = query.eq("category_id", categoryId);
+      if (matchFilter) query = query.or(matchFilter);
+      return query;
+    };
+    let { data, count, error } = await buildQuery()
+      .order("completed_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: false })
+      .range(from, from + pageSize - 1);
+    // A page past the end is not an error. Report the total so the caller can step back.
+    if (error?.code === "PGRST103") {
+      ({ count, error } = await buildQuery().range(0, 0));
+      data = [];
+    }
+    if (error) throw error;
+    const total = count || 0;
+    return res.json({
+      tasks: (data || []).map(serializeTask),
+      pagination: { page, pageSize, total, totalPages: Math.max(Math.ceil(total / pageSize), 1) },
+    });
+  } catch (error) { return next(error); }
+});
+
 router.get("/:id", async (req, res, next) => {
   try { return res.json({ task: await fetchTask(readTaskId(req.params.id)) }); }
   catch (error) { return next(error); }

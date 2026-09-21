@@ -166,60 +166,6 @@
   background: var(--records-green-soft);
 }
 
-.records-toolbar .task-filter {
-  flex: 0 0 190px;
-}
-
-.records-toolbar .task-filter > button {
-  height: 40px;
-  justify-content: flex-start;
-  gap: 8px;
-  border: 1px solid #ccdccc;
-  border-radius: 9px;
-  color: #405448;
-  background: #fff;
-  box-shadow: none;
-  font-size: 10px;
-}
-
-.records-toolbar .task-filter > button:hover:not(:disabled),
-.records-toolbar .task-filter > button:focus-visible {
-  border-color: #85af8c;
-  color: var(--records-green);
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(38, 122, 64, .09);
-}
-
-.records-toolbar .task-filter > button:disabled {
-  cursor: default;
-  opacity: .65;
-}
-
-.records-toolbar .task-filter > button span {
-  min-width: 0;
-  overflow: hidden;
-  flex: 1;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.records-filter-chevron {
-  flex: 0 0 auto;
-  transition: transform 160ms ease;
-}
-
-.records-toolbar .task-filter > button[aria-expanded='true'] .records-filter-chevron {
-  transform: rotate(180deg);
-}
-
-.records-toolbar .task-filter-menu {
-  right: 0;
-  left: auto;
-  width: 220px;
-  border-radius: 10px;
-}
-
 .records-data-note {
   border-bottom: 1px solid #e7ede4;
   background: #fffdf7;
@@ -333,6 +279,14 @@
   line-height: 1.5;
 }
 
+.records-panel .tasks-table td small.records-insight {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
 .records-panel .tasks-table th:last-child,
 .records-panel .tasks-table td:last-child {
   width: 82px;
@@ -406,10 +360,6 @@
     flex-basis: auto;
   }
 
-  .records-toolbar .task-filter {
-    width: 210px;
-    flex-basis: auto;
-  }
 }
 
 @media (max-width: 560px) {
@@ -439,9 +389,6 @@
     padding-inline: 14px;
   }
 
-  .records-toolbar .task-filter {
-    width: 100%;
-  }
 
   .records-data-note summary {
     padding-inline: 14px;
