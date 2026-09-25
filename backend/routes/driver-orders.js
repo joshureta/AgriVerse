@@ -40,12 +40,23 @@ router.get("/fleet", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+// A delivery the driver hasn't accepted yet, booked for a future date/time, stays locked until then.
+function isDeliveryLocked(order) {
+  return order.delivery_assignment_status === "assigned"
+    && order.delivery_scheduled_at
+    && new Date(order.delivery_scheduled_at).getTime() > Date.now();
+}
+
 router.get("/", async (req, res, next) => {
   try {
     const { data, error } = await getSupabase().from("buyer_orders").select(orderSelect)
       .eq("assigned_driver_id", req.user.id).order("delivery_scheduled_at", { ascending: true });
     if (error) throw error;
-    return res.json({ orders: data || [] });
+    const all = data || [];
+    return res.json({
+      orders: all.filter((order) => !isDeliveryLocked(order)),
+      upcoming: all.filter(isDeliveryLocked),
+    });
   } catch (error) { return next(error); }
 });
 
@@ -55,6 +66,7 @@ router.post("/:id/accept", async (req, res, next) => {
     const selectedVehicleId = vehicleId(req.body.vehicle_id);
     const order = await fetchDriverOrder(id, req.user.id);
     if (order.delivery_assignment_status !== "assigned" || order.order_status !== "ready_for_delivery") throw httpError(409, "This delivery is no longer waiting for acceptance");
+    if (isDeliveryLocked(order)) throw httpError(403, "This delivery is booked for a later date and isn't available yet");
     const { data: vehicle, error: vehicleError } = await getSupabase().from("delivery_vehicles")
       .update({ status: "in_use" }).eq("id", selectedVehicleId).eq("status", "available").select("id").maybeSingle();
     if (vehicleError) throw vehicleError;

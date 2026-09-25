@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import { UpcomingCard } from '@/components/upcoming-card';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
@@ -211,10 +212,27 @@ function PendingDeliveryCard({
   );
 }
 
+function UpcomingDeliveryCard({ order }: { order: DriverOrder }) {
+  return (
+    <UpcomingCard
+      scheduledAt={order.delivery_scheduled_at}
+      title={order.order_number || `Order #${order.id}`}
+      subtitle={formatDeliveryAddress(order)}
+      badge={{
+        label: formatPeso(order.total_amount),
+        background: '#F1F5F9',
+        color: '#475569',
+        border: '#E2E8F0',
+      }}
+    />
+  );
+}
+
 export default function DriverTaskPending() {
   const { width } = useWindowDimensions();
   const { loading: authLoading, profile } = useAuth();
   const [orders, setOrders] = useState<DriverOrder[]>([]);
+  const [upcoming, setUpcoming] = useState<DriverOrder[]>([]);
   const [vehicles, setVehicles] = useState<DeliveryVehicle[]>([]);
   const [selectedVehicles, setSelectedVehicles] = useState<Record<number, number>>({});
   const [collapsedIds, setCollapsedIds] = useState<Record<number, boolean>>({});
@@ -237,9 +255,11 @@ export default function DriverTaskPending() {
         (order) => order.delivery_assignment_status === 'assigned'
       );
       setOrders(pendingOrders);
+      setUpcoming(orderResult.upcoming ?? []);
       setVehicles(vehicleResult.vehicles ?? []);
     } catch (caught) {
       setOrders([]);
+      setUpcoming([]);
       setVehicles([]);
       setError(caught instanceof Error ? caught.message : 'Could not load pending deliveries.');
     } finally {
@@ -368,6 +388,20 @@ export default function DriverTaskPending() {
                 {searchQuery ? 'Try another search term.' : 'Pull down to check for newly assigned orders.'}
               </Text>
             </View>
+          )}
+
+          {!loading && !searchQuery && upcoming.length > 0 && (
+            <>
+              <View style={[styles.titleRow, { marginTop: 30 }]}>
+                <Text style={styles.upcomingSectionTitle}>Upcoming Deliveries</Text>
+                <View accessibilityLabel={`${upcoming.length} upcoming`} style={styles.upcomingCountBadge}>
+                  <Text style={styles.upcomingCountText}>{upcoming.length}</Text>
+                </View>
+              </View>
+              {upcoming.map((order) => (
+                <UpcomingDeliveryCard key={order.id} order={order} />
+              ))}
+            </>
           )}
         </ScrollView>
       </View>

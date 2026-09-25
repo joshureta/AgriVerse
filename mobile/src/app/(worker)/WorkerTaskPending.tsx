@@ -21,6 +21,7 @@ import { WorkerHeader } from '@/components/worker-header';
 import { apiRequest } from '@/lib/api';
 import { taskCategoryIconSource } from '@/lib/task-category-icons';
 import { TaskSuppliesSheet } from '@/components/task-supplies-sheet';
+import { UpcomingCard } from '@/components/upcoming-card';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
 import { activityLabel, supplyKindFor, type ActivityType } from '@/lib/task-supplies';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
@@ -263,6 +264,26 @@ const priorityThemes: Record<string, { bg: string; color: string; border: string
   low: { bg: '#ECFDF5', color: '#166534', border: '#A7F3D0', label: 'Low Priority' },
 };
 
+function UpcomingTaskCard({ task }: { task: WorkerTaskRecord }) {
+  const priorityTheme = priorityThemes[task.priority || 'medium'] || priorityThemes.medium;
+  const rawField = task.field?.trim() || 'Field';
+  const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
+
+  return (
+    <UpcomingCard
+      scheduledAt={task.schedule_start}
+      title={task.category}
+      subtitle={cleanField}
+      badge={{
+        label: priorityTheme.label.replace(' Priority', ''),
+        background: priorityTheme.bg,
+        color: priorityTheme.color,
+        border: priorityTheme.border,
+      }}
+    />
+  );
+}
+
 function ChevronIcon({ expanded }: { expanded: boolean }) {
   return (
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
@@ -343,12 +364,9 @@ function TaskCard({
   const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
   const cleanSector = rawField.replace(/^field\s*/i, '').trim() || rawField;
 
-  // Title sanitization (no duplicate category prefix)
-  const cleanTitle = task.description
-    ? task.description.toLowerCase().startsWith((task.category || '').toLowerCase())
-      ? task.description
-      : `${task.category} - ${task.description}`
-    : `${task.category} - ${cleanField}`;
+  // The field already appears in the subtitle row right below, and the full description
+  // is shown under "Instructions", so the title only ever needs the category.
+  const cleanTitle = task.category;
 
   const instructions = getTaskInstructions(task, cleanField);
 
@@ -456,6 +474,7 @@ export default function WorkerTaskPending() {
   const { width } = useWindowDimensions();
   const { loading: authLoading, profile } = useAuth();
   const [tasks, setTasks] = useState<WorkerTaskRecord[]>([]);
+  const [upcoming, setUpcoming] = useState<WorkerTaskRecord[]>([]);
   const [summary, setSummary] = useState<TaskSummary>({ pending: 0, active: 0, completed: 0, total: 0 });
   const [filter, setFilter] = useState<TaskStatus>('pending');
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -471,8 +490,9 @@ export default function WorkerTaskPending() {
     refresh ? setRefreshing(true) : setLoading(true);
     setError('');
     try {
-      const result = await apiRequest<{ tasks: WorkerTaskRecord[]; summary: TaskSummary }>('/api/worker/tasks?status=pending');
+      const result = await apiRequest<{ tasks: WorkerTaskRecord[]; upcoming?: WorkerTaskRecord[]; summary: TaskSummary }>('/api/worker/tasks?status=pending');
       setTasks(result.tasks);
+      setUpcoming(result.upcoming || []);
       setSummary(result.summary);
       setExpandedId((current) => current ?? result.tasks[0]?.id ?? null);
     } catch (caught) {
@@ -614,6 +634,20 @@ export default function WorkerTaskPending() {
               </Text>
               <Text style={styles.emptyText}>Pull down to check for newly assigned work.</Text>
             </View>
+          )}
+
+          {!loading && filter === 'pending' && upcoming.length > 0 && (
+            <>
+              <View style={[styles.titleRow, { marginTop: 30 }]}>
+                <Text style={styles.upcomingSectionTitle}>Upcoming Tasks</Text>
+                <View accessibilityLabel={`${upcoming.length} upcoming`} style={styles.upcomingCountBadge}>
+                  <Text style={styles.upcomingCountText}>{upcoming.length}</Text>
+                </View>
+              </View>
+              {upcoming.map((task) => (
+                <UpcomingTaskCard key={task.id} task={task} />
+              ))}
+            </>
           )}
         </ScrollView>
       </View>
