@@ -1028,6 +1028,8 @@
   display: grid;
   gap: 8px;
   padding: 10px 14px;
+  max-height: 420px;
+  overflow-y: auto;
 }
 
 .activity-list article {
@@ -1055,9 +1057,32 @@
   background: #4f9c51;
 }
 
-.activity-status.is-progress {
+.activity-status.is-ongoing {
   color: #617064;
   background: #dfe5dc;
+}
+
+.activity-divider {
+  grid-column: 1 / -1;
+  margin: 6px 2px 0;
+  color: #5a6b5f;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.activity-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 14px 10px;
+  color: #6f7a72;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.activity-empty.is-error {
+  color: #b42318;
 }
 
 .activity-list article > div {

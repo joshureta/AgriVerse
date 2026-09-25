@@ -152,5 +152,131 @@ router.get("/revenue", async (req, res, next) => {
   }
 });
 
+const ACTIVITY_LIMIT_MAX = 50;
+const ONGOING_LIMIT_MAX = 100;
+const ONGOING_DELIVERY_STATUSES = ["assigned", "accepted", "picked_up", "out_for_delivery"];
+const ongoingDeliveryText = {
+  assigned: (order) => `was assigned order ${order}`,
+  accepted: (order) => `accepted delivery of order ${order}`,
+  picked_up: (order) => `picked up order ${order}`,
+  out_for_delivery: (order) => `is out delivering order ${order}`,
+};
+
+function firstName(fullName) {
+  return String(fullName || "").trim().split(/\s+/)[0] || "A worker";
+}
+
+async function recentRows(query) {
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+// Completed work only, each stamped with when the worker finished it, newest first.
+router.get("/activities", async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), ACTIVITY_LIMIT_MAX);
+    const supabase = getSupabase();
+
+    const [tasks, deliveries, activeTasks, activeDeliveries] = await Promise.all([
+      recentRows(supabase.from("tasks")
+        .select([
+          "id, completed_at",
+          "category:task_categories!tasks_category_id_fkey(category_name)",
+          "field:farm_fields!tasks_field_id_fkey(field_name)",
+          "worker:profiles!tasks_assigned_worker_id_fkey(full_name)",
+        ].join(", "))
+        .not("completed_at", "is", null)
+        .order("completed_at", { ascending: false })
+        .limit(ACTIVITY_LIMIT_MAX)),
+      recentRows(supabase.from("buyer_orders")
+        .select("id, order_number, delivered_at, driver:profiles!buyer_orders_assigned_driver_id_fkey(full_name)")
+        .not("delivered_at", "is", null)
+        .order("delivered_at", { ascending: false })
+        .limit(ACTIVITY_LIMIT_MAX)),
+      recentRows(supabase.from("tasks")
+        .select([
+          "id, started_at, created_at",
+          "category:task_categories!tasks_category_id_fkey(category_name)",
+          "field:farm_fields!tasks_field_id_fkey(field_name)",
+          "worker:profiles!tasks_assigned_worker_id_fkey!inner(full_name, worker_category)",
+          "task_status:task_statuses!tasks_status_id_fkey!inner(code)",
+          "schedules(schedule_date, start_time)",
+        ].join(", "))
+        .eq("worker.worker_category", "crop_management_worker")
+        .in("task_status.code", ["pending", "in_progress"])
+        .limit(ONGOING_LIMIT_MAX)),
+      recentRows(supabase.from("buyer_orders")
+        .select("id, order_number, delivery_assignment_status, delivery_scheduled_at, driver_assigned_at, delivery_accepted_at, delivery_picked_up_at, driver:profiles!buyer_orders_assigned_driver_id_fkey(full_name)")
+        .not("assigned_driver_id", "is", null)
+        .in("delivery_assignment_status", ONGOING_DELIVERY_STATUSES)
+        .limit(ONGOING_LIMIT_MAX)),
+    ]);
+
+    const activities = [
+      ...tasks.map((task) => {
+        const category = task.category?.category_name || "a task";
+        const where = task.field?.field_name ? ` in ${task.field.field_name}` : "";
+        return {
+          id: `task-${task.id}`,
+          type: "task_completed",
+          text: `${firstName(task.worker?.full_name)} completed ${category}${where}`,
+          at: task.completed_at,
+        };
+      }),
+      ...deliveries.map((order) => ({
+        id: `delivery-${order.id}`,
+        type: "delivery_completed",
+        text: `${firstName(order.driver?.full_name)} completed delivery of order ${order.order_number}`,
+        at: order.delivered_at,
+      })),
+    ]
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+      .slice(0, limit);
+
+    // Work still open, shown after the completed list. Anything booked for a later time isn't active yet.
+    const now = Date.now();
+    const scheduleStart = (task) => {
+      const schedule = Array.isArray(task.schedules) ? task.schedules[0] : task.schedules;
+      return schedule ? `${schedule.schedule_date}T${String(schedule.start_time).slice(0, 8)}+08:00` : null;
+    };
+    const ongoing = [
+      ...activeTasks.flatMap((task) => {
+        const started = task.task_status?.code === "in_progress";
+        const dueAt = scheduleStart(task);
+        if (!started && dueAt && new Date(dueAt).getTime() > now) return [];
+        const category = task.category?.category_name || "a task";
+        const where = task.field?.field_name ? ` in ${task.field.field_name}` : "";
+        const who = firstName(task.worker?.full_name);
+        return [{
+          id: `task-${task.id}`,
+          type: started ? "task_ongoing" : "task_assigned",
+          phase: started ? "started" : "assigned",
+          text: started ? `${who} is working on ${category}${where}` : `${who} was assigned ${category}${where}`,
+          at: started ? task.started_at : dueAt || task.created_at,
+        }];
+      }),
+      ...activeDeliveries.flatMap((order) => {
+        const status = order.delivery_assignment_status;
+        const assigned = status === "assigned";
+        if (assigned && order.delivery_scheduled_at && new Date(order.delivery_scheduled_at).getTime() > now) return [];
+        return [{
+          id: `delivery-${order.id}`,
+          type: assigned ? "delivery_assigned" : "delivery_ongoing",
+          phase: assigned ? "assigned" : "started",
+          text: `${firstName(order.driver?.full_name)} ${ongoingDeliveryText[status](order.order_number)}`,
+          at: assigned
+            ? order.delivery_scheduled_at || order.driver_assigned_at
+            : order.delivery_picked_up_at || order.delivery_accepted_at,
+        }];
+      }),
+    ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+    return res.json({ activities, ongoing, generated_at: new Date().toISOString() });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 module.exports = router;
 module.exports.revenuePeriod = revenuePeriod;

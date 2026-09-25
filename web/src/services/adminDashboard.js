@@ -10,6 +10,17 @@ async function accessToken() {
   return token
 }
 
+export async function loadAdminActivities(limit = 10) {
+  const token = await accessToken()
+  const response = await fetch(`${API_URL}/api/admin/dashboard/activities?limit=${encodeURIComponent(limit)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load recent activities')
+  return { completed: body.activities || [], ongoing: body.ongoing || [] }
+}
+
 export async function loadAdminRevenue(period = 'month') {
   const token = await accessToken()
   const response = await fetch(`${API_URL}/api/admin/dashboard/revenue?period=${encodeURIComponent(period)}`, {

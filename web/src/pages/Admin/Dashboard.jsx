@@ -4,15 +4,27 @@ import notificationIcon from '../../assets/admin-notification-icon.png'
 import dashboardIllustration from '../../assets/admin-dashboard-illustration.png'
 import { AdminSidebar } from '../../components/AdminNavigation.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
-import { loadAdminRevenue } from '../../services/adminDashboard.js'
+import { loadAdminActivities, loadAdminRevenue } from '../../services/adminDashboard.js'
 import '../../styles/admin-dashboard.css'
 
-const activities = [
-  { text: 'James completed field planting', status: 'done', time: '8 min ago' },
-  { text: 'Juan completed tractor delivery', status: 'done', time: '24 min ago' },
-  { text: 'Yuri completed fertilizing', status: 'done', time: '1 hr ago' },
-  { text: 'Sanji started crop inspection', status: 'progress', time: '2 hrs ago' },
-]
+const ACTIVITY_MAX_COUNT = 30
+const ACTIVITY_REFRESH_MS = 60000
+const completedAtFormat = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+})
+
+// "8 min ago" for the last day, then the exact date and time the work was finished.
+function completedWhen(iso, now) {
+  const minutes = Math.floor(Math.max(0, now - new Date(iso).getTime()) / 60000)
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`
+  return completedAtFormat.format(new Date(iso))
+}
 
 function formatDashboardDate(date) {
   return new Intl.DateTimeFormat('en-US', {
@@ -28,6 +40,22 @@ const peso = new Intl.NumberFormat('en-PH', {
   currency: 'PHP',
   maximumFractionDigits: 0,
 })
+
+function ActivityRow({ activity, now, ongoing = false }) {
+  return (
+    <article>
+      <span className={`activity-status ${ongoing ? 'is-ongoing' : 'is-done'}`} aria-hidden="true">
+        {ongoing ? '◌' : '✓'}
+      </span>
+      <div>
+        <strong title={activity.text}>{activity.text}</strong>
+        <time dateTime={activity.at} title={new Date(activity.at).toLocaleString()}>
+          {ongoing ? (activity.phase === 'started' ? 'Started ' : 'Since ') : ''}{completedWhen(activity.at, now)}
+        </time>
+      </div>
+    </article>
+  )
+}
 
 function PineappleHarvestIcon() {
   return (
@@ -57,6 +85,11 @@ export default function AdminDashboard() {
   const [revenueLoading, setRevenueLoading] = useState(true)
   const [revenueError, setRevenueError] = useState('')
   const [revenuePeriod, setRevenuePeriod] = useState('month')
+  const [completedActivities, setCompletedActivities] = useState([])
+  const [ongoingActivities, setOngoingActivities] = useState([])
+  const [activitiesLoading, setActivitiesLoading] = useState(true)
+  const [activitiesError, setActivitiesError] = useState('')
+  const [now, setNow] = useState(() => Date.now())
   const displayName = profile?.full_name || 'Josh Ureta'
   const firstName = displayName.split(' ')[0]
   const revenue = revenueData?.revenue
@@ -100,6 +133,28 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchRevenue()
   }, [fetchRevenue])
+
+  const fetchActivities = useCallback(async () => {
+    try {
+      const { completed, ongoing } = await loadAdminActivities(ACTIVITY_MAX_COUNT)
+      setCompletedActivities(completed)
+      setOngoingActivities(ongoing)
+      setActivitiesError('')
+      setNow(Date.now())
+    } catch (error) {
+      setActivitiesError(error.message)
+    } finally {
+      setActivitiesLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchActivities()
+    const timer = window.setInterval(fetchActivities, ACTIVITY_REFRESH_MS)
+    return () => window.clearInterval(timer)
+  }, [fetchActivities])
+
+  const hasActivities = completedActivities.length + ongoingActivities.length > 0
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -309,27 +364,31 @@ export default function AdminDashboard() {
                   <span>Recent activities</span>
                   <strong>Latest updates</strong>
                 </div>
-                <button type="button" aria-label="More activity options">•••</button>
               </div>
 
-              <div className="activity-list">
-                {activities.map((activity) => (
-                  <article key={activity.text}>
-                    <span
-                      className={`activity-status is-${activity.status}`}
-                      aria-hidden="true"
-                    >
-                      {activity.status === 'done' ? '✓' : '◌'}
-                    </span>
-                    <div>
-                      <strong>{activity.text}</strong>
-                      <time>{activity.time}</time>
-                    </div>
-                  </article>
-                ))}
+              <div className="activity-list" aria-live="polite">
+                {activitiesLoading ? (
+                  <p className="activity-empty">Loading recent activity…</p>
+                ) : activitiesError ? (
+                  <p className="activity-empty is-error">{activitiesError}</p>
+                ) : !hasActivities ? (
+                  <p className="activity-empty">No activity yet. Finished and ongoing tasks and deliveries will appear here.</p>
+                ) : (
+                  <>
+                    {completedActivities.map((activity) => (
+                      <ActivityRow activity={activity} key={activity.id} now={now} />
+                    ))}
+                    {ongoingActivities.length > 0 ? (
+                      <>
+                        <p className="activity-divider">Ongoing · {ongoingActivities.length}</p>
+                        {ongoingActivities.map((activity) => (
+                          <ActivityRow activity={activity} key={activity.id} now={now} ongoing />
+                        ))}
+                      </>
+                    ) : null}
+                  </>
+                )}
               </div>
-
-              <button className="activity-link" type="button">View all activities</button>
 
               <div className="admin-profile-card">
                 <span>Signed in as</span>
