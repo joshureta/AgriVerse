@@ -1,6 +1,6 @@
 .monitoring-content { padding-top: 30px; }
 .monitoring-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
-.monitoring-heading h1 { margin: 4px 0 7px; color: #163e23; font-family: var(--display); font-size: clamp(25px, 3vw, 35px); letter-spacing: -.04em; }
+.monitoring-heading h1 { margin: 4px 0 7px; color: #163e23; font-family: var(--heading); font-size: clamp(25px, 3vw, 35px); letter-spacing: -.04em; }
 .monitoring-heading > div > p:last-child { margin: 0; color: #657168; font-size: 13px; }
 .monitoring-primary-action { min-height: 42px; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 9px; padding: 0 16px; color: #fff; background: var(--admin-green); font: inherit; font-size: 12px; font-weight: 750; box-shadow: 0 8px 18px rgba(25,108,53,.2); cursor: pointer; }
 .monitoring-primary-action:hover, .monitoring-primary-action:focus-visible { background: var(--admin-green-dark); outline: 3px solid rgba(120,184,61,.25); }
@@ -81,7 +81,7 @@
 .crop-health-title { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .crop-health-title > span { width: 38px; height: 38px; display: grid; flex: 0 0 38px; place-items: center; border-radius: 50%; color: #fff; background: #1c6e35; }
 .crop-health-title svg { width: 22px; height: 22px; }
-.crop-health-title h1 { margin: 0; color: #17642f; font-family: var(--display); font-size: clamp(23px,2.5vw,32px); letter-spacing: -.035em; }
+.crop-health-title h1 { margin: 0; color: #17642f; font-family: var(--heading); font-size: clamp(23px,2.5vw,32px); letter-spacing: -.035em; }
 .crop-field-tabs { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 20px; border: 1px solid #e0e5dc; border-radius: 6px; padding: 12px 38px; background: #fff; }
 .crop-field-tabs button { min-height: 32px; border: 1px solid #74a57f; border-radius: 7px; color: #203d28; background: #fff; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
 .crop-field-tabs button:hover, .crop-field-tabs button:focus-visible, .crop-field-tabs button.is-active { color: #fff; background: #1d7136; outline: none; }
@@ -144,7 +144,7 @@
 .environment-page-title { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 16px; }
 .environment-page-title > span { width: 42px; height: 42px; display: grid; flex: 0 0 42px; place-items: center; color: #2a7d37; }
 .environment-page-title > span svg { width: 35px; height: 35px; }
-.environment-page-title h1 { margin: 0; color: #17662f; font-family: var(--display); font-size: clamp(22px,2.5vw,31px); letter-spacing: -.035em; }
+.environment-page-title h1 { margin: 0; color: #17662f; font-family: var(--heading); font-size: clamp(22px,2.5vw,31px); letter-spacing: -.035em; }
 .environment-page-title p { margin: 3px 0 0; color: #667568; font-size: 13px; font-family: var(--sans); }
 .environment-network-status { min-height: 68px; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; margin-bottom: 16px; border: 1px solid #6bb273; border-radius: 10px; padding: 11px 20px; background: linear-gradient(100deg,#e4f7e4,#d9f2da); }
 .environment-network-status > div { display: flex; align-items: center; gap: 12px; }
