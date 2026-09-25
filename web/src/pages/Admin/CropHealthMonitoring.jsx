@@ -167,9 +167,10 @@ export default function CropHealthMonitoring() {
                   diseaseOrIssueName: latest.disease_or_issue_name || 'Diagnosed Crop Stand',
                   healthStatus: latest.health_status || (latest.health_score >= 80 ? 'Healthy' : 'Attention Needed'),
                   visualSummary: latest.visual_summary || '',
-                  image: latest.image_url || prev[f]?.image || null,
-                  imageName: latest.image_name || `${f} inspection photo`,
-                  imageMime: latest.image_mime_type || 'image/png',
+                  // Saved photos remain available in inspection history, not in the next upload workspace.
+                  image: null,
+                  imageName: '',
+                  imageMime: null,
                   lastUpdated: `${dateStr} at ${timeStr}`,
                 }
               }
@@ -346,6 +347,10 @@ export default function CropHealthMonitoring() {
         healthStatus: diagnosis.healthStatus,
         visualSummary: diagnosis.visualSummary,
         lastUpdated: `Today at ${timeStr}`,
+        // The completed inspection image is retained with its saved activity record.
+        image: null,
+        imageName: '',
+        imageMime: null,
       }
 
       setReports((current) => ({
@@ -436,6 +441,10 @@ export default function CropHealthMonitoring() {
     }
 
     setActivities((current) => [newActivity, ...current])
+    setReports((current) => ({
+      ...current,
+      [activeField]: { ...current[activeField], image: null, imageName: '', imageMime: null },
+    }))
     setSaved(true)
     setSuccessMessage(`Inspection log for ${activeField} saved to database!`)
   }
