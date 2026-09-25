@@ -252,12 +252,8 @@ function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
   const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
   const cleanSector = rawField.replace(/^field\s*/i, '').trim() || rawField;
 
-  // Clean task title without duplicate category prefix
-  const cleanTitle = task.description
-    ? task.description.toLowerCase().startsWith((task.category || '').toLowerCase())
-      ? task.description
-      : `${task.category} - ${task.description}`
-    : `${task.category} - ${cleanField}`;
+  // Keep the title to just category and field — never the raw description text.
+  const cleanTitle = `${task.category} - ${cleanField}`;
 
   return (
     <Pressable

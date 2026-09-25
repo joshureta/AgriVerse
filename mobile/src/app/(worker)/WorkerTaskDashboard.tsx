@@ -32,6 +32,7 @@ type WorkerTask = {
   description: string | null;
   task_name?: string;
   estimated_duration_minutes?: number;
+  schedule_start?: string;
 };
 type TaskSummary = { pending: number; active: number; completed: number; total: number };
 
@@ -278,14 +279,10 @@ function TaskDashboardCard({
 
       {/* Center: Stacked Badges */}
       <View style={styles.taskCenterColumn}>
-        <View
-          style={[
-            styles.priorityPill,
-            { backgroundColor: config.pillBg, borderWidth: 1, borderColor: config.pillBorder },
-          ]}>
+        <View style={[styles.priorityPill, { backgroundColor: 'transparent', paddingHorizontal: 0 }]}>
           <Text style={[styles.priorityText, { color: config.pillColor }]}>{task.category}</Text>
         </View>
-        <View style={styles.deliveryRoutePill}>
+        <View style={[styles.deliveryRoutePill, { backgroundColor: 'transparent', borderWidth: 0, paddingHorizontal: 0 }]}>
           <Text numberOfLines={1} style={styles.deliveryRouteText}>{fieldLabel}</Text>
         </View>
       </View>
@@ -392,7 +389,7 @@ export default function WorkerTaskDashboardScreen() {
           </View>
 
           {error ? <View style={styles.errorBanner}><Text style={styles.errorText}>{error}</Text></View> : null}
-          
+
           {loading ? (
             <ActivityIndicator style={{ marginVertical: 20 }} color={GREEN} />
           ) : previewTasks.length > 0 ? (

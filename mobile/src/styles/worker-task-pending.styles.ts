@@ -38,6 +38,26 @@ export const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
   },
+  upcomingCountBadge: {
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: GREEN,
+  },
+  upcomingCountText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  upcomingSectionTitle: {
+    color: '#134B24',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
 
   // Segmented 3-tab pill container
   filters: {

@@ -80,6 +80,11 @@ function serializeTask(task) {
   };
 }
 
+// A pending task booked for a future date/time stays locked from the worker until then.
+function isTaskLocked(task) {
+  return task.status === "pending" && new Date(task.schedule_start).getTime() > Date.now();
+}
+
 function readHarvestCount(value, label) {
   const count = Number(value);
   if (!Number.isInteger(count) || count < 0) throw httpError(400, `${label} must be a whole number 0 or greater`);
@@ -119,7 +124,9 @@ router.get("/", async (req, res, next) => {
 
     const [taskResult, pendingResult, activeResult, completedResult] = await Promise.all([
       query,
-      supabase.from("tasks").select("id", { count: "exact", head: true })
+      // Full rows (not a head count) so a task booked for a future date can be told apart
+      // from one that's actually ready to work on.
+      supabase.from("tasks").select(taskSelect)
         .eq("assigned_worker_id", req.user.id).eq("status_id", statusIds.pending),
       supabase.from("tasks").select("id", { count: "exact", head: true })
         .eq("assigned_worker_id", req.user.id).eq("status_id", statusIds.in_progress),
@@ -129,11 +136,16 @@ router.get("/", async (req, res, next) => {
     for (const result of [taskResult, pendingResult, activeResult, completedResult]) {
       if (result.error) throw result.error;
     }
-    const pending = pendingResult.count || 0;
+
+    const pendingTasks = (pendingResult.data || []).map(serializeTask);
+    const upcoming = pendingTasks.filter(isTaskLocked);
+    const pending = pendingTasks.length - upcoming.length;
     const active = activeResult.count || 0;
     const completed = completedResult.count || 0;
+
     return res.json({
-      tasks: (taskResult.data || []).map(serializeTask),
+      tasks: (taskResult.data || []).map(serializeTask).filter((task) => !isTaskLocked(task)),
+      upcoming,
       summary: { pending, active, completed, total: pending + active + completed },
     });
   } catch (error) { return next(error); }
@@ -245,7 +257,7 @@ router.patch("/:id/status", async (req, res, next) => {
     const taskId = readTaskId(req.params.id);
     const statusIds = await getStatusIds();
     const { data: currentTask, error: readError } = await getSupabase().from("tasks")
-      .select("id, status_id, activity_type, task_status:task_statuses(code), category:task_categories!tasks_category_id_fkey(category_name)")
+      .select("id, status_id, activity_type, task_status:task_statuses(code), category:task_categories!tasks_category_id_fkey(category_name), schedules(schedule_date, start_time)")
       .eq("id", taskId).eq("assigned_worker_id", req.user.id).maybeSingle();
     if (readError) throw readError;
     if (!currentTask) throw httpError(404, "Assigned task was not found");
@@ -254,6 +266,13 @@ router.patch("/:id/status", async (req, res, next) => {
     const expectedStatus = currentStatus === "pending" ? "in_progress"
       : currentStatus === "in_progress" ? "completed" : null;
     if (status !== expectedStatus) throw httpError(409, `Task cannot move from ${currentStatus} to ${status}`);
+    if (currentStatus === "pending") {
+      const schedule = Array.isArray(currentTask.schedules) ? currentTask.schedules[0] : currentTask.schedules;
+      const scheduleStart = schedule ? `${schedule.schedule_date}T${String(schedule.start_time).slice(0, 8)}+08:00` : null;
+      if (scheduleStart && new Date(scheduleStart).getTime() > Date.now()) {
+        throw httpError(403, "This task is booked for a later date and isn't available yet");
+      }
+    }
     if (status === "completed") {
       throw httpError(409, "Tasks must be submitted with a photo for admin approval");
     }

@@ -41,7 +41,7 @@ export type DriverOrder = {
   items?: DriverOrderItem[];
 };
 
-export type DriverOrdersResponse = { orders: DriverOrder[] };
+export type DriverOrdersResponse = { orders: DriverOrder[]; upcoming?: DriverOrder[] };
 export type DriverVehiclesResponse = { vehicles: DeliveryVehicle[] };
 export type DriverFleetResponse = { vehicles: FleetVehicle[] };
 
