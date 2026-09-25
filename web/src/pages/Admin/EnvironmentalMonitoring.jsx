@@ -1,39 +1,104 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Antenna,
-  CloudRain,
-  Droplets,
+  CalendarDays,
+  MapPin,
   Radio,
-  Sprout,
-  Thermometer,
 } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
-import pineappleFieldImage from '../../assets/buyer/pineapple-farm-story.png'
+import weatherSunnyImage from '../../assets/weather/mobile/weather-real-sunny.png'
+import weatherRainyImage from '../../assets/weather/mobile/weather-real-rainy.png'
+import weatherCloudyImage from '../../assets/weather/mobile/weather-real-cloudy.png'
+import weatherStormyImage from '../../assets/weather/mobile/weather-real-stormy.png'
+import weatherNightImage from '../../assets/weather/mobile/weather-real-night.png'
+import weatherSunnyIcon from '../../assets/weather/mobile/weather-icon-sunny.png'
+import weatherRainyIcon from '../../assets/weather/mobile/weather-icon-rainy.png'
+import weatherCloudyIcon from '../../assets/weather/mobile/weather-icon-cloudy.png'
+import weatherStormyIcon from '../../assets/weather/mobile/weather-icon-stormy.png'
+import weatherNightIcon from '../../assets/weather/mobile/weather-icon-night.png'
+import temperatureMetricIcon from '../../assets/monitoring/metric-temperature.png'
+import humidityMetricIcon from '../../assets/monitoring/metric-humidity.png'
+import soilMoistureMetricIcon from '../../assets/monitoring/metric-soil-moisture.png'
+import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/monitoring.css'
 
 const fields = ['Field A', 'Field B', 'Field C', 'Field D']
-const sensorReadings = {
-  'Sensor 1': [
-    { time: '7:00 AM', temperature: '32.2°C', humidity: '76%', moisture: '30%' },
-    { time: '7:15 AM', temperature: '25.1°C', humidity: '55%', moisture: '20%' },
-    { time: '7:30 AM', temperature: '42.2°C', humidity: '80%', moisture: '80%' },
-    { time: '7:45 AM', temperature: '32.2°C', humidity: '90%', moisture: '90%' },
-  ],
-  'Sensor 2': [
-    { time: '7:00 AM', temperature: '29.8°C', humidity: '72%', moisture: '42%' },
-    { time: '7:15 AM', temperature: '30.1°C', humidity: '74%', moisture: '40%' },
-    { time: '7:30 AM', temperature: '31.5°C', humidity: '78%', moisture: '38%' },
-    { time: '7:45 AM', temperature: '32.0°C', humidity: '76%', moisture: '35%' },
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
+const WEATHER_FALLBACK = {
+  condition: 'rainy', label: 'Raining', temp: 28, highTemp: 31, lowTemp: 24,
+  locationLabel: 'Silang, Cavite',
+  dailyForecast: [
+    { day: 'Today', condition: 'rainy', lowTemp: 24, highTemp: 31, rainChance: 80 },
+    { day: 'Tomorrow', condition: 'cloudy', lowTemp: 24, highTemp: 31, rainChance: 33 },
+    { day: 'Thu', condition: 'rainy', lowTemp: 26, highTemp: 32, rainChance: 63 },
+    { day: 'Fri', condition: 'stormy', lowTemp: 26, highTemp: 32, rainChance: 73 },
+    { day: 'Sat', condition: 'cloudy', lowTemp: 25, highTemp: 31, rainChance: 30 },
   ],
 }
+const WEATHER_IMAGES = {
+  sunny: weatherSunnyImage,
+  cloudy: weatherCloudyImage,
+  overcast: weatherCloudyImage,
+  foggy: weatherCloudyImage,
+  rainy: weatherRainyImage,
+  snowy: weatherCloudyImage,
+  stormy: weatherStormyImage,
+}
+const WEATHER_ICONS = {
+  sunny: weatherSunnyIcon,
+  cloudy: weatherCloudyIcon,
+  overcast: weatherCloudyIcon,
+  foggy: weatherCloudyIcon,
+  rainy: weatherRainyIcon,
+  snowy: weatherRainyIcon,
+  stormy: weatherStormyIcon,
+}
+
+async function loadWeather() {
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw error
+  const token = data.session?.access_token
+  if (!token) throw new Error('Your session has ended. Please sign in again.')
+
+  const response = await fetch(`${API_URL}/api/weather/current`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body?.error || 'Weather data is temporarily unavailable.')
+  return body
+}
+const fieldReadings = [
+  { time: '7:00 AM', temperature: '32.2°C', humidity: '76%', moisture: '30%' },
+  { time: '7:15 AM', temperature: '25.1°C', humidity: '55%', moisture: '20%' },
+  { time: '7:30 AM', temperature: '42.2°C', humidity: '80%', moisture: '80%' },
+  { time: '7:45 AM', temperature: '32.2°C', humidity: '90%', moisture: '90%' },
+]
 
 export default function EnvironmentalMonitoring() {
   const [activeField, setActiveField] = useState('Field A')
-  const [activeSensor, setActiveSensor] = useState('Sensor 1')
   const [page, setPage] = useState(1)
-  const readings = sensorReadings[activeSensor]
+  const [weather, setWeather] = useState(WEATHER_FALLBACK)
+  const readings = fieldReadings
   const latest = readings[0]
+
+  useEffect(() => {
+    let active = true
+    loadWeather().then((snapshot) => {
+      if (active) setWeather(snapshot)
+    }).catch(() => {
+      // The weather card remains useful with its local fallback when the provider is unavailable.
+    })
+    return () => { active = false }
+  }, [])
+
+  const isNight = useMemo(() => {
+    const hour = new Date().getHours()
+    return hour < 6 || hour >= 18
+  }, [])
+  const condition = weather.condition || 'cloudy'
+  const backgroundImage = isNight ? weatherNightImage : (WEATHER_IMAGES[condition] || weatherCloudyImage)
+  const forecast = weather.dailyForecast?.length ? weather.dailyForecast.slice(0, 5) : WEATHER_FALLBACK.dailyForecast
 
   return (
     <main className="admin-dashboard environmental-monitor-page">
@@ -55,13 +120,35 @@ export default function EnvironmentalMonitoring() {
           </section>
 
           <section
-            className="environment-weather-banner"
-            style={{ backgroundImage: `linear-gradient(rgba(74,91,78,.43),rgba(74,91,78,.43)), url(${pineappleFieldImage})` }}
-            aria-label="Current weather: raining in Silang, Cavite"
+            className={`environment-weather-banner is-${condition}${isNight ? ' is-night' : ''}`}
+            style={{ backgroundImage: `url(${backgroundImage})` }}
+            aria-label={`Current weather: ${weather.label} in ${weather.locationLabel}`}
           >
-            <div className="environment-rain" aria-hidden="true" />
-            <strong>Raining</strong>
-            <span>Silang, Cavite, Philippines</span>
+            <div className="environment-weather-shade" aria-hidden="true" />
+            <div className="environment-weather-main">
+              <div className="environment-weather-topline">
+                <span className="environment-weather-location"><MapPin aria-hidden="true" />{weather.locationLabel || WEATHER_FALLBACK.locationLabel}</span>
+                <img className="environment-weather-icon" src={isNight ? weatherNightIcon : (WEATHER_ICONS[condition] || weatherCloudyIcon)} alt="" />
+              </div>
+              <div className="environment-weather-reading">
+                <strong>{weather.temp > 0 ? '+' : ''}{weather.temp ?? WEATHER_FALLBACK.temp}°C</strong>
+                <span>H: {weather.highTemp ?? WEATHER_FALLBACK.highTemp}°C<br />L: {weather.lowTemp ?? WEATHER_FALLBACK.lowTemp}°C</span>
+                <em>{weather.label || 'Cloudy'}</em>
+              </div>
+            </div>
+            <section className="environment-weather-forecast" aria-label="Five day forecast">
+              <header><span><CalendarDays aria-hidden="true" />5-Day Forecast</span><small>Live weather</small></header>
+              <div>
+                {forecast.map((day, index) => (
+                  <article key={`${day.date || day.day}-${index}`}>
+                    <b>{day.day}</b>
+                    <img src={WEATHER_ICONS[day.condition] || weatherCloudyIcon} alt={day.label || day.condition} />
+                    <small>{day.rainChance ? `${day.rainChance}%` : '—'}</small>
+                    <strong>{day.lowTemp}° / {day.highTemp}°</strong>
+                  </article>
+                ))}
+              </div>
+            </section>
           </section>
 
           <section className="environment-sensor-panel">
@@ -71,26 +158,20 @@ export default function EnvironmentalMonitoring() {
               ))}
             </nav>
 
-            <nav className="environment-device-tabs" aria-label="Select sensor">
-              {Object.keys(sensorReadings).map((sensor) => (
-                <button className={sensor === activeSensor ? 'is-active' : ''} type="button" key={sensor} onClick={() => setActiveSensor(sensor)} aria-pressed={sensor === activeSensor}>{sensor}</button>
-              ))}
-            </nav>
-
-            <section className="environment-reading-grid" aria-label={`${activeField} ${activeSensor} latest readings`}>
+            <section className="environment-reading-grid" aria-label={`${activeField} latest readings`}>
               <article>
                 <h2>Temperature</h2>
-                <div><Thermometer className="is-temperature" aria-hidden="true" /><strong>{latest.temperature}</strong></div>
+                <div><strong>{latest.temperature}</strong><img src={temperatureMetricIcon} alt="" /></div>
                 <small>Optimal</small>
               </article>
               <article>
                 <h2>Humidity</h2>
-                <div><Droplets className="is-humidity" aria-hidden="true" /><strong>{latest.humidity}</strong></div>
+                <div><strong>{latest.humidity}</strong><img src={humidityMetricIcon} alt="" /></div>
                 <small>Optimal</small>
               </article>
               <article>
                 <h2>Soil Moisture</h2>
-                <div><Sprout className="is-moisture" aria-hidden="true" /><strong>{latest.moisture}</strong></div>
+                <div><strong>{latest.moisture}</strong><img src={soilMoistureMetricIcon} alt="" /></div>
                 <small className="is-monitor">Monitor</small>
               </article>
             </section>
@@ -118,11 +199,10 @@ export default function EnvironmentalMonitoring() {
 
           <section className="environment-insights-card">
             <header><Antenna aria-hidden="true" /><h2>Environmental Insights</h2></header>
-            <ul>
-              <li>Temperature optimal</li>
-              <li>Soil slightly dry</li>
-              <li>Rainfall may cause root rot</li>
-            </ul>
+            <div className="environment-insights-copy">
+              <p>Specific environmental guidance for {activeField}:</p>
+              <p>Insights will be dynamically generated as the latest field and weather data is analyzed.</p>
+            </div>
           </section>
         </div>
       </section>
