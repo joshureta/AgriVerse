@@ -3,6 +3,7 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { assertCropTaskSchedule } = require("../lib/crop-work-hours");
 const { ACTIVITY_TYPES, readActivityType } = require("../lib/task-details");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 const taskSelect = [
@@ -23,12 +24,6 @@ const taskSelect = [
 ].join(",");
 
 router.use(requireAuth, requireRole("admin"));
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function readId(value, label) {
   const id = Number(value);

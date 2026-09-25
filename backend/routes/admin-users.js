@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 const allowedRoles = new Set(["admin", "buyer", "farm_worker"]);
@@ -13,12 +14,6 @@ const profileSelect =
   "id, full_name, email, mobile_number, country, region, province, city_municipality, barangay, role, worker_category, created_at";
 
 router.use(requireAuth, requireRole("admin"));
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function readFullName(value) {
   const fullName = String(value || "").trim();

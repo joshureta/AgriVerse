@@ -1,15 +1,10 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 const workerCategories = new Set(["driver", "crop_management_worker", "seller"]);
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function validatePassword(password) {
   return password.length >= 8

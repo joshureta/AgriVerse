@@ -8,6 +8,8 @@ const {
 const { getSupabase } = require("../supabase");
 const { assertCropWorkerCanWork } = require("../lib/crop-work-hours");
 const { collectsInspectionDetails, readInspectionDetails, requiredInventoryKind } = require("../lib/task-details");
+const { httpError } = require("../lib/http-error");
+const { uploadImage } = require("../lib/storage");
 
 const router = express.Router();
 const statuses = new Set(["pending", "in_progress", "awaiting_approval", "completed"]);
@@ -34,12 +36,6 @@ router.use((req, res, next) => {
   if (req.profile.worker_category === "driver") return res.status(403).json({ error: "Drivers receive delivery orders, not farm tasks" });
   return next();
 });
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function readTaskId(value) {
   const id = Number(value);
@@ -171,40 +167,6 @@ router.get("/:id", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
-async function uploadCropImage(base64Data, mimeType, fieldName) {
-  try {
-    const supabase = getSupabase();
-    const buffer = Buffer.from(base64Data, "base64");
-    const ext = (mimeType || "image/png").split("/")[1] || "png";
-    const cleanField = (fieldName || "field").toLowerCase().replace(/[^a-z0-9]/g, "-");
-    const filePath = `${cleanField}/${Date.now()}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("crop-inspections")
-      .upload(filePath, buffer, {
-        contentType: mimeType || "image/png",
-        upsert: true,
-      });
-
-    if (uploadError) {
-      console.warn("Supabase storage upload error:", uploadError.message);
-      return null;
-    }
-
-    const { data: publicData } = supabase.storage
-      .from("crop-inspections")
-      .getPublicUrl(filePath);
-
-    return {
-      imageUrl: publicData?.publicUrl || null,
-      storagePath: filePath,
-    };
-  } catch (err) {
-    console.warn("Storage upload exception:", err.message);
-    return null;
-  }
-}
-
 router.post("/:id/complete", async (req, res, next) => {
   try {
     assertCropWorkerCanWork(req.profile);
@@ -240,7 +202,7 @@ router.post("/:id/complete", async (req, res, next) => {
       mimeType = String(req.body.image_mime || req.body.imageMime || "image/jpeg");
       imageName = String(req.body.image_name || req.body.imageName || imageName);
       const base64Data = rawImage.replace(/^data:[^;]+;base64,/, "").trim();
-      uploadResult = await uploadCropImage(base64Data, mimeType, fieldName);
+      uploadResult = await uploadImage("crop-inspections", base64Data, mimeType, fieldName);
     }
 
     const statusIds = await getStatusIds();

@@ -948,7 +948,7 @@ export default function CropHealthMonitoring() {
                   <img
                     src={selectedActivity.image}
                     alt={`${selectedActivity.field || 'Crop'} inspection photo`}
-                    style={{ width: '100%', height: 'auto', maxHeight: '340px', objectFit: 'cover', display: 'block', borderRadius: '8px' }}
+                    style={{ width: '100%', height: 'auto', maxHeight: '340px', objectFit: 'contain', display: 'block', borderRadius: '8px' }}
                   />
                 </div>
               )}

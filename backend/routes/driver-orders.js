@@ -2,38 +2,15 @@ const express = require("express");
 const { requireAuth, requireRole, requireInitialPasswordChanged, requireProfileOnboardingComplete } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { createOrderStatusNotification } = require("../lib/order-notifications");
+const { httpError } = require("../lib/http-error");
+const { uploadImage } = require("../lib/storage");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("farm_worker"), requireInitialPasswordChanged, requireProfileOnboardingComplete);
 router.use((req, res, next) => req.profile.worker_category === "driver" ? next() : res.status(403).json({ error: "Driver access is required" }));
 
-function httpError(status, message) { const error = new Error(message); error.status = status; return error; }
 function orderId(value) { const id = Number(value); if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid order ID"); return id; }
 function vehicleId(value) { const id = Number(value); if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Select a valid vehicle"); return id; }
-
-async function uploadDeliveryProofImage(base64Data, mimeType, orderNumber) {
-  try {
-    const supabase = getSupabase();
-    const buffer = Buffer.from(base64Data, "base64");
-    const ext = (mimeType || "image/jpeg").split("/")[1] || "jpg";
-    const cleanOrder = String(orderNumber || "order").toLowerCase().replace(/[^a-z0-9]/g, "-");
-    const filePath = `${cleanOrder}/${Date.now()}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("delivery-proofs")
-      .upload(filePath, buffer, { contentType: mimeType || "image/jpeg", upsert: true });
-    if (uploadError) {
-      console.warn("Supabase storage upload error:", uploadError.message);
-      return null;
-    }
-
-    const { data: publicData } = supabase.storage.from("delivery-proofs").getPublicUrl(filePath);
-    return { imageUrl: publicData?.publicUrl || null, storagePath: filePath };
-  } catch (err) {
-    console.warn("Storage upload exception:", err.message);
-    return null;
-  }
-}
 
 const orderSelect = "id, order_number, buyer_id, total_amount, payment_method, payment_status, order_status, delivery_assignment_status, assigned_vehicle_id, delivery_full_name, delivery_mobile_number, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay, delivery_scheduled_at, delivery_window_end_at, delivery_accepted_at, delivery_picked_up_at, delivered_at, delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at, vehicle:delivery_vehicles(id, vehicle_name, plate_number), items:buyer_order_items!buyer_order_items_order_id_fkey(id, product_name, weight_label, quantity, unit_price, line_total)";
 
@@ -126,7 +103,7 @@ router.post("/:id/complete", async (req, res, next) => {
     const notes = String(req.body.notes || "").trim();
     if (notes.length > 2000) throw httpError(400, "Notes must not exceed 2000 characters");
 
-    const uploadResult = await uploadDeliveryProofImage(base64Data, mimeType, order.order_number);
+    const uploadResult = await uploadImage("delivery-proofs", base64Data, mimeType, order.order_number);
     if (!uploadResult?.imageUrl) throw httpError(502, "Could not upload the delivery proof photo, please try again");
 
     const now = new Date().toISOString();

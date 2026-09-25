@@ -333,7 +333,7 @@ export const styles = StyleSheet.create({
   photoImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   photoButtonsOverlay: {
     position: 'absolute',

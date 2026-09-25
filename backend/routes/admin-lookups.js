@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 
@@ -17,12 +18,6 @@ const resources = {
 };
 
 router.use(requireAuth, requireRole("admin"));
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function getResource(key) {
   const resource = resources[key];

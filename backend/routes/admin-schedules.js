@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 const scheduleSelect = [
@@ -10,12 +11,6 @@ const scheduleSelect = [
 ].join(",");
 
 router.use(requireAuth, requireRole("admin"));
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function readId(value, label) {
   const id = Number(value);

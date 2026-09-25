@@ -2,6 +2,7 @@ const express = require("express");
 const { getGeminiClient } = require("../lib/gemini");
 const { getSupabase } = require("../supabase");
 const { requireAuth } = require("../middleware/auth");
+const { uploadImage } = require("../lib/storage");
 
 const router = express.Router();
 
@@ -41,40 +42,6 @@ function parseJsonFromText(rawText) {
   }
 }
 
-async function uploadCropImage(base64Data, mimeType, fieldName) {
-  try {
-    const supabase = getSupabase();
-    const buffer = Buffer.from(base64Data, "base64");
-    const ext = (mimeType || "image/png").split("/")[1] || "png";
-    const cleanField = (fieldName || "field").toLowerCase().replace(/[^a-z0-9]/g, "-");
-    const filePath = `${cleanField}/${Date.now()}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("crop-inspections")
-      .upload(filePath, buffer, {
-        contentType: mimeType || "image/png",
-        upsert: true,
-      });
-
-    if (uploadError) {
-      console.warn("Supabase storage upload error:", uploadError.message);
-      return null;
-    }
-
-    const { data: publicData } = supabase.storage
-      .from("crop-inspections")
-      .getPublicUrl(filePath);
-
-    return {
-      imageUrl: publicData?.publicUrl || null,
-      storagePath: filePath,
-    };
-  } catch (err) {
-    console.warn("Storage upload exception:", err.message);
-    return null;
-  }
-}
-
 // GET all inspections from database
 router.get("/crop-inspections", requireAuth, async (req, res) => {
   try {
@@ -91,13 +58,13 @@ router.get("/crop-inspections", requireAuth, async (req, res) => {
     const { data, error } = await query;
     if (error) {
       console.warn("Supabase query error:", error.message);
-      return res.json({ success: true, data: [] });
+      return res.status(500).json({ error: "Failed to load crop inspections." });
     }
 
     return res.json({ success: true, data: data || [] });
   } catch (err) {
     console.warn("Failed to fetch crop inspections from database:", err.message);
-    return res.json({ success: true, data: [] });
+    return res.status(500).json({ error: "Failed to load crop inspections." });
   }
 });
 
@@ -124,7 +91,7 @@ router.post("/crop-inspections", requireAuth, async (req, res) => {
 
     if (image && typeof image === "string" && image.startsWith("data:image/")) {
       const { data: base64Data, mimeType } = cleanBase64(image, imageMime || "image/png");
-      const uploadRes = await uploadCropImage(base64Data, mimeType, field);
+      const uploadRes = await uploadImage("crop-inspections", base64Data, mimeType, field);
       if (uploadRes) {
         imageUrl = uploadRes.imageUrl;
         imageStoragePath = uploadRes.storagePath;
@@ -158,7 +125,7 @@ router.post("/crop-inspections", requireAuth, async (req, res) => {
 
     if (error) {
       console.warn("Supabase insert error:", error.message);
-      return res.json({ success: true, data: record });
+      return res.status(500).json({ error: "Failed to save inspection record." });
     }
 
     return res.json({ success: true, data });
@@ -310,7 +277,7 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
     let savedRecord = null;
     try {
       const supabase = getSupabase();
-      const uploadRes = await uploadCropImage(base64Data, finalMimeType, field);
+      const uploadRes = await uploadImage("crop-inspections", base64Data, finalMimeType, field);
       
       const record = {
         field_name: field || "Field A",

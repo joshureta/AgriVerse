@@ -2,6 +2,7 @@ const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { createOrderStatusNotification } = require("../lib/order-notifications");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 const allowedStatuses = new Set(["pending", "confirmed", "preparing", "ready_for_delivery", "out_for_delivery", "ready_for_pickup", "delivered", "completed", "cancelled"]);
@@ -22,12 +23,6 @@ router.use((req, res, next) => {
   }
   return next();
 });
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function readOrderId(value) {
   const id = Number(value);

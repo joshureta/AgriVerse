@@ -2,11 +2,11 @@ const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { createDeliveryAssignedNotification, createDeliveryScheduleUpdatedNotification, createDisputeResolvedNotification } = require("../lib/order-notifications");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
 
-function httpError(status, message) { const error = new Error(message); error.status = status; return error; }
 function orderId(value) { const id = Number(value); if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid order ID"); return id; }
 function driverId(value) { const id = String(value || "").trim(); if (!/^[0-9a-f-]{36}$/i.test(id)) throw httpError(400, "Select a valid driver"); return id; }
 function date(value) { const result = String(value || "").trim(); if (!/^\d{4}-\d{2}-\d{2}$/.test(result)) throw httpError(400, "Select a delivery date"); return result; }

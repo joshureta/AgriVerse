@@ -5,17 +5,12 @@ const {
   requireProfileOnboardingComplete,
 } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 const notificationSelect = "id, type, title, body, entity_type, entity_id, read_at, created_at";
 
 router.use(requireAuth, requireInitialPasswordChanged, requireProfileOnboardingComplete);
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function notificationId(value) {
   const id = Number(value);

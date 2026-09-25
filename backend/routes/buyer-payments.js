@@ -2,15 +2,10 @@ const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { paymongoRequest } = require("../lib/paymongo");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("buyer"));
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function readOrderId(value) {
   const id = Number(value);

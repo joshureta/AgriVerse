@@ -1,6 +1,8 @@
 // Rules for the extra information some task categories collect from the worker.
 // The option lists here must match mobile/src/lib/task-supplies.ts.
 
+const { httpError } = require("./http-error");
+
 const INSPECTION_OPTIONS = {
   crop_condition: ["Healthy", "Mild nutrient stress", "Recovering", "Needs attention"],
   pest_observed: ["None observed", "Mealybug wilt", "Leaf spot", "Other"],
@@ -9,12 +11,6 @@ const INSPECTION_OPTIONS = {
 
 const ACTIVITY_TYPES = ["inspection", "action"];
 const PEST_AND_DISEASE = "Pest & Disease";
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 // "fertilizer" or "pesticide" when the worker takes supplies from inventory to start the task, else null.
 function requiredInventoryKind(categoryName, activityType) {

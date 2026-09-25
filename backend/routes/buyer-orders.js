@@ -4,6 +4,7 @@ const { getSupabase } = require("../supabase");
 const { paymongoGet } = require("../lib/paymongo");
 const { uploadImage } = require("../lib/storage");
 const { createDisputeOpenedNotifications } = require("../lib/order-notifications");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("buyer"));
@@ -87,12 +88,6 @@ async function reconcileDeliveryCompletion(order) {
     note: "Auto-completed: buyer did not respond within the confirmation window",
   });
   return updated;
-}
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
 }
 
 function serializeOrder(order) {

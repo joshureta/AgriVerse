@@ -94,8 +94,6 @@
 .crop-button.is-primary, .crop-button.is-save { border-color: #1c7035; color: #fff; background: #1c7035; }
 .crop-button:hover, .crop-button:focus-visible { outline: 3px solid rgba(79,145,69,.2); }
 .crop-button:disabled { cursor: wait; opacity: .7; }
-.crop-preview strong { display: block; margin: 0 0 10px 30px; color: #17231a; font-size: 10px; text-transform: uppercase; }
-.crop-preview img { width: calc(100% - 60px); height: clamp(230px,31vw,390px); display: block; box-sizing: border-box; margin: 0 auto; border: 0; object-fit: cover; }
 .crop-insight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 14px 0; }
 .crop-info-card { min-height: 170px; padding: 18px 24px; }
 .crop-info-card header, .crop-activities-card > header { display: flex; align-items: center; gap: 10px; }
@@ -138,7 +136,7 @@
 .crop-modal-close { min-width: 104px; min-height: 29px; display: block; margin: 16px auto 0; border: 1px solid #145b2b; border-radius: 3px; color: #fff; background: #1b7135; font: inherit; font-size: 9px; font-weight: 800; cursor: pointer; }
 .crop-modal-close:hover, .crop-modal-close:focus-visible { background: #115a29; outline: 3px solid rgba(82,156,71,.25); }
 @keyframes crop-modal-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@media (max-width: 760px) { .crop-health-content { width: min(100% - 26px,680px); } .crop-field-tabs { grid-template-columns: repeat(2,1fr); padding: 12px; } .crop-analysis-actions { align-items: stretch; flex-direction: column; } .crop-analysis-actions > div { flex-wrap: wrap; } .crop-analysis-actions > .is-save { align-self: flex-end; } .crop-preview strong { margin-left: 0; } .crop-preview img { width: 100%; height: 240px; } .crop-insight-grid { grid-template-columns: 1fr; } .crop-pagination { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 760px) { .crop-health-content { width: min(100% - 26px,680px); } .crop-field-tabs { grid-template-columns: repeat(2,1fr); padding: 12px; } .crop-analysis-actions { align-items: stretch; flex-direction: column; } .crop-analysis-actions > div { flex-wrap: wrap; } .crop-analysis-actions > .is-save { align-self: flex-end; } .crop-insight-grid { grid-template-columns: 1fr; } .crop-pagination { align-items: flex-start; flex-direction: column; } }
 @media (max-width: 560px) { .crop-modal-backdrop { padding: 14px; } .crop-activity-modal > header { align-items: flex-start; flex-direction: column; gap: 5px; padding: 18px 22px; } .crop-activity-modal > header h2 { font-size: 21px; } .crop-activity-modal > header p { font-size: 11px; } .crop-modal-body { padding: 22px; } .crop-modal-score, .crop-modal-body h3, .crop-modal-list-box { margin-left: 0; } }
 
 /* Real-time environmental monitoring workspace */

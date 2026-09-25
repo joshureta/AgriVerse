@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
+const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 const inventorySelect = [
@@ -37,12 +38,6 @@ function limitSellerInventory(req, res, next) {
 }
 
 router.use(requireAuth, requireInventoryAccess, limitSellerInventory);
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function readText(value, label, maxLength = 100, optional = false) {
   const text = String(value || "").trim();
