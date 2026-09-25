@@ -1,4 +1,4 @@
-import { styles } from '@/styles/driver-schedule.styles';
+import { GREEN, styles } from '@/styles/driver-schedule.styles';
 import { Redirect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, SafeAreaView, ScrollView, Text, useWindowDimensions, View } from 'react-native';
@@ -10,8 +10,6 @@ import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import { addDays, startOfWeek } from '@/lib/calendar';
 import { DriverOrder, DriverOrdersResponse, formatDeliveryAddress } from '@/lib/driver-deliveries';
-
-const GREEN = '#134B24';
 
 function orderToEvent(order: DriverOrder): ScheduleEvent | null {
   if (!order.delivery_scheduled_at) return null;

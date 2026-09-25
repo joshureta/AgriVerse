@@ -1,4 +1,4 @@
-import { styles } from '@/styles/worker-schedule.styles';
+import { GREEN, styles } from '@/styles/worker-schedule.styles';
 import { Redirect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, SafeAreaView, ScrollView, Text, useWindowDimensions, View } from 'react-native';
@@ -25,8 +25,6 @@ type WorkerScheduleTask = {
   estimated_duration_minutes: number | null;
   schedule?: { schedule_date: string; end_time: string | null } | null;
 };
-
-const GREEN = '#134B24';
 
 function taskToEvent(task: WorkerScheduleTask): ScheduleEvent {
   const start = new Date(task.schedule_start);

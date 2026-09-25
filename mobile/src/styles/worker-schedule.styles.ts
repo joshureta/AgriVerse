@@ -1,9 +1,10 @@
 import { StyleSheet } from 'react-native';
 
+export const GREEN = '#176D34';
 const DARK_GREEN = '#134B24';
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#176D34' },
+  safeArea: { flex: 1, backgroundColor: GREEN },
   mainBodyContainer: {
     flex: 1,
     backgroundColor: '#F8FAEF',
