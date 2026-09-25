@@ -336,6 +336,7 @@ function TaskCard({
   const priorityTheme = priorityThemes[priorityKey] || priorityThemes.medium;
   const duration = task.estimated_duration_minutes || 45;
   const scheduledTime = new Date(task.schedule_start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const scheduledDate = new Date(task.schedule_start).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 
   // Field & sector sanitization (fixes "Field Field C" and "Sector Field C" duplication)
   const rawField = task.field?.trim() || 'Field';
@@ -391,6 +392,10 @@ function TaskCard({
 
       {/* Driver Meta Rows (Clean non-redundant metadata) */}
       <View style={styles.metaTextContainer}>
+        <View style={styles.metaTextRow}>
+          <Text style={styles.metaTextLabel}>Date:</Text>
+          <Text style={styles.metaTextValue}>{scheduledDate}</Text>
+        </View>
         <View style={styles.metaTextRow}>
           <Text style={styles.metaTextLabel}>Time:</Text>
           <Text style={styles.metaTextValue}>Scheduled for {scheduledTime}</Text>

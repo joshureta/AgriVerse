@@ -103,6 +103,9 @@ function PendingDeliveryCard({
   const orderNumber = order.order_number || `Order #${order.id}`;
   const destination = formatDeliveryAddress(order);
   const deliveryWindow = formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at);
+  const deliveryDate = order.delivery_scheduled_at
+    ? new Date(order.delivery_scheduled_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'Date pending';
 
   return (
     <View style={[styles.pendingCard, expanded && styles.pendingCardExpanded]}>
@@ -137,6 +140,10 @@ function PendingDeliveryCard({
 
       {/* Schedule & Payment Meta Rows (No backgrounds, Time: instead of Window:) */}
       <View style={styles.metaTextContainer}>
+        <View style={styles.metaTextRow}>
+          <Text style={styles.metaTextLabel}>Date:</Text>
+          <Text style={styles.metaTextValue}>{deliveryDate}</Text>
+        </View>
         <View style={styles.metaTextRow}>
           <Text style={styles.metaTextLabel}>Time:</Text>
           <Text style={styles.metaTextValue}>{deliveryWindow}</Text>
