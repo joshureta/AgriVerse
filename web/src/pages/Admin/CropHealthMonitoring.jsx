@@ -91,7 +91,7 @@ export default function CropHealthMonitoring() {
     }
   }, [reports])
 
-  // Close modal on Escape
+  // Close the inspection detail modal on Escape.
   useEffect(() => {
     if (!selectedActivity) return undefined
     function closeOnEscape(event) {
@@ -207,7 +207,7 @@ export default function CropHealthMonitoring() {
       })
 
       setActivities((current) => [newActivity, ...current])
-      setSuccessMessage(`AI diagnosis complete for ${activeField}! Health Score: ${diagnosis.score}%. Saved to Supabase database.`)
+      setSuccessMessage(`AI diagnosis complete for ${activeField}! Health Score: ${diagnosis.score}%.`)
     } catch (caught) {
       console.error('Analysis failed:', caught)
       setError(caught instanceof Error ? caught.message : 'Crop diagnosis failed.')
