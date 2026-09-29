@@ -34,6 +34,8 @@ export default function CropHealthMonitoring() {
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [selectedActivity, setSelectedActivity] = useState(null)
+  const [activityToDelete, setActivityToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const [activities, setActivities] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
@@ -218,13 +220,25 @@ export default function CropHealthMonitoring() {
 
   async function handleDeleteActivity(id, e) {
     e.stopPropagation()
-    if (window.confirm('Delete this inspection record from database?')) {
-      try {
-        if (id && !id.startsWith('act-')) await inspectionApi.delete(id)
-      } catch (err) {
-        console.warn('Delete error:', err)
-      }
-      setActivities((current) => current.filter((act) => act.id !== id))
+    const activity = activities.find((item) => item.id === id)
+    if (activity) setActivityToDelete(activity)
+  }
+
+  async function confirmDeleteActivity() {
+    if (!activityToDelete) return
+
+    setDeleting(true)
+    setError('')
+    try {
+      if (!activityToDelete.id.startsWith('act-')) await inspectionApi.delete(activityToDelete.id)
+      setActivities((current) => current.filter((activity) => activity.id !== activityToDelete.id))
+      setSuccessMessage(`Inspection record for ${activityToDelete.field} was deleted.`)
+      setActivityToDelete(null)
+    } catch (err) {
+      console.warn('Delete error:', err)
+      setError(err instanceof Error ? err.message : 'Unable to delete this inspection record.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -702,6 +716,61 @@ export default function CropHealthMonitoring() {
           </section>
         </div>
       </section>
+
+      {activityToDelete && (
+        <div className="task-modal-backdrop">
+          <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="delete-inspection-title" style={{ maxWidth: '440px' }}>
+            <div className="task-dialog-header" style={{ minHeight: '68px', padding: '12px 24px', background: 'linear-gradient(90deg,#287a31,#1f6731)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Trash2 color="#fff" size={21} />
+                <div>
+                  <p>Inspection History</p>
+                  <h2 id="delete-inspection-title" style={{ fontSize: '19px' }}>Delete inspection record?</h2>
+                </div>
+              </div>
+              <button className="task-modal-header-close" type="button" onClick={() => setActivityToDelete(null)} disabled={deleting} aria-label="Close">
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="task-reference-body" style={{ padding: '24px 28px' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '14px', borderRadius: '8px', background: '#fff7f7', border: '1px solid #fecaca' }}>
+                <AlertCircle size={21} style={{ color: '#b91c1c', flexShrink: 0, marginTop: '1px' }} />
+                <div>
+                  <strong style={{ display: 'block', color: '#7f1d1d', fontSize: '13px', marginBottom: '4px' }}>{activityToDelete.field} inspection</strong>
+                  <p style={{ margin: 0, color: '#8f3030', fontSize: '12px', lineHeight: 1.5 }}>
+                    This will permanently delete the record from the inspection history.
+                  </p>
+                </div>
+              </div>
+
+              <p style={{ margin: '18px 0 22px', color: '#536257', fontSize: '13px', lineHeight: 1.5 }}>
+                Are you sure you want to continue?
+              </p>
+
+              <footer style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setActivityToDelete(null)}
+                  disabled={deleting}
+                  style={{ minHeight: '36px', padding: '0 16px', borderRadius: '6px', background: '#f3f4f2', color: '#344537', fontWeight: 700, border: '1px solid #d0d7cf', cursor: deleting ? 'not-allowed' : 'pointer', fontSize: '11px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteActivity}
+                  disabled={deleting}
+                  style={{ minHeight: '36px', padding: '0 16px', borderRadius: '6px', background: '#b91c1c', color: '#fff', fontWeight: 800, border: 'none', cursor: deleting ? 'not-allowed' : 'pointer', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '7px' }}
+                >
+                  <Trash2 size={14} />
+                  {deleting ? 'Deleting…' : 'Delete Record'}
+                </button>
+              </footer>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* View Detail Modal */}
       {selectedActivity && (

@@ -7,6 +7,7 @@ const { uploadImage } = require("../lib/storage");
 const router = express.Router();
 
 const MINIMUM_PINEAPPLE_CONFIDENCE = 0.75;
+const IMAGE_CONTEXTS = new Set(["field", "leaf-close-up", "fruit-close-up", "whole-plant", "mixed"]);
 const VISION_MODELS = [
   process.env.GEMINI_MODEL,
   "gemini-3.6-flash",
@@ -98,6 +99,7 @@ Respond in STRICT JSON without markdown:
 {
   "isPineappleRelated": <boolean>,
   "confidence": <number from 0 to 1>,
+  "imageContext": "<'field' | 'leaf-close-up' | 'fruit-close-up' | 'whole-plant' | 'mixed'>",
   "reason": "<short, student-friendly explanation>"
 }`);
 
@@ -105,6 +107,8 @@ Respond in STRICT JSON without markdown:
   if (validation.isPineappleRelated !== true || !Number.isFinite(confidence) || confidence < MINIMUM_PINEAPPLE_CONFIDENCE) {
     throw new PineappleImageValidationError(validation.reason || "Please upload a clear pineapple crop image.");
   }
+
+  return IMAGE_CONTEXTS.has(validation.imageContext) ? validation.imageContext : "mixed";
 }
 
 // GET all inspections from database
@@ -237,11 +241,25 @@ router.post("/crop-diagnosis", requireAuth, async (req, res) => {
     const ai = getGeminiClient();
 
     // This scan happens before diagnosis, storage, and database insertion.
-    await validatePineappleImage(ai, finalMimeType, base64Data);
+    const imageContext = await validatePineappleImage(ai, finalMimeType, base64Data);
 
     const promptText = `
 You are a senior tropical crop pathologist and pineapple agronomy specialist for AgriVerse.
 Analyze the attached crop photo taken from ${field || "the farm"} (Crop: ${cropType || "Pineapple / Ananas comosus"}).
+The image was classified as: ${imageContext}.
+
+IMAGE-SPECIFIC RULES:
+- field: assess only visible stand patterns such as uneven vigor, canopy color, affected areas, water stress, drainage clues, weed pressure, or pest/disease spread. Give field-scale scouting and management recommendations.
+- leaf-close-up: assess only visible leaf color, lesions, margins, spotting, necrosis, pests, scale, mealybugs, or mite damage. Give close-up symptom confirmation and targeted scouting/treatment recommendations.
+- fruit-close-up: assess only visible fruit color, rot, lesions, cracks, deformity, sunburn, crown condition, or pest damage. Give fruit handling, sanitation, harvest, and targeted treatment recommendations.
+- whole-plant: assess only visible plant vigor, leaf arrangement, crown/heart condition, wilt, and canopy color. Give plant-level management recommendations.
+- mixed: use evidence from each visible subject, but state which evidence belongs to the field, leaf, fruit, or plant.
+
+EVIDENCE RULES:
+- Report only symptoms that are visible in this photo. Do not invent root, soil, fruit, leaf, pest, or field symptoms that the image cannot show.
+- If a disease cannot be identified confidently from this view, say that visual confirmation is insufficient and recommend the exact follow-up photo or field check needed.
+- Do not recommend a pesticide or fertilizer merely because it appears in the taxonomy. Recommendations must match the visible symptoms and image context.
+- Do not provide chemical rates. Advise users to follow the locally approved product label and consult an agricultural technician when treatment is needed.
 
 Perform a comprehensive visual pathology and entomological diagnosis using the following pineapple disease & pest taxonomy:
 
@@ -271,16 +289,17 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
   "diseaseStatus": "<'None' | 'Minor' | 'Detected'>",
   "pestStatus": "<'None' | 'Minor' | 'Detected'>",
   "nutrientStatus": "<'Normal' | 'Nitrogen Deficiency' | 'Phosphorus Deficiency' | 'Potassium Deficiency' | 'Multiple Deficiencies'>",
+  "imageContext": "${imageContext}",
   "diseaseOrIssueName": "<Exact taxonomic name, e.g. 'Pineapple Mealybug Wilt (PMWD)', 'Phytophthora Heart Rot', 'Potassium Deficiency (Marginal Scorch)', 'Healthy Pineapple Stand'>",
   "healthStatus": "<'Healthy' | 'Pest Infested' | 'Fungal Disease' | 'Nutrient Deficient' | 'Environmental Stress' | 'Critical'>",
   "issues": [
-    "<Observed symptom 1 with exact visual description and location>",
-    "<Observed symptom 2 with exact visual description and location>"
+    "<Only a visible symptom, including exact location in the photo>",
+    "<Another visible symptom, or an evidence limitation if no second symptom is visible>"
   ],
   "recommendations": [
-    "<Action 1: Immediate targeted treatment (e.g. horticultural oil for mealybugs, copper fungicide for rot)>",
-    "<Action 2: Targeted fertilizer or agronomic soil practice (e.g. potassium sulfate, nitrogen compost)>",
-    "<Action 3: Preventative scouting and field hygiene guideline>"
+    "<Context-specific immediate next step based on visible evidence>",
+    "<Context-specific inspection, sanitation, irrigation, nutrition, or treatment step>",
+    "<Appropriate follow-up monitoring or photo/check recommendation>"
   ],
   "visualSummary": "<Concise 1-2 sentence agronomic summary of the plant's visible pathology and vigor>"
 }
@@ -295,6 +314,7 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
       diseaseStatus: diagnosis.diseaseStatus || "None",
       pestStatus: diagnosis.pestStatus || "None",
       nutrientStatus: diagnosis.nutrientStatus || "Normal",
+      imageContext: IMAGE_CONTEXTS.has(diagnosis.imageContext) ? diagnosis.imageContext : imageContext,
       diseaseOrIssueName: diagnosis.diseaseOrIssueName || "General Crop Inspection",
       healthStatus: diagnosis.healthStatus || (diagnosis.score >= 80 ? "Healthy" : "Attention Needed"),
       issues: Array.isArray(diagnosis.issues) && diagnosis.issues.length ? diagnosis.issues : ["No critical visual symptoms detected."],
