@@ -4,14 +4,10 @@ import {
   AlertCircle,
   Camera,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   ClipboardList,
-  Eye,
   FileClock,
   ImageUp,
   RefreshCw,
-  Save,
   Sparkles,
   Sprout,
   Trash2,
@@ -19,7 +15,8 @@ import {
   X,
 } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
-import { supabase } from '../../lib/supabase.js'
+import { CropInspection, FIELDS } from '../../features/cropHealth/CropInspection.js'
+import { CropInspectionApi } from '../../features/cropHealth/CropInspectionApi.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/task-schedule-management.css'
 import '../../styles/monitoring.css'
@@ -27,67 +24,13 @@ import '../../styles/monitoring.css'
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const STORAGE_REPORTS_KEY = 'agriverse_crop_health_reports_v8'
 
-const defaultFieldData = {
-  'Field A': {
-    score: null,
-    hasDiagnosis: false,
-    issues: [],
-    recommendations: [],
-    diseaseOrIssueName: 'Awaiting Inspection',
-    healthStatus: 'Pending',
-    visualSummary: 'No scan has been performed yet for this sector. Upload a crop photo to diagnose.',
-    image: null,
-    imageName: '',
-    imageMime: null,
-    lastUpdated: 'No scans yet',
-  },
-  'Field B': {
-    score: null,
-    hasDiagnosis: false,
-    issues: [],
-    recommendations: [],
-    diseaseOrIssueName: 'Awaiting Inspection',
-    healthStatus: 'Pending',
-    visualSummary: 'No scan has been performed yet for this sector. Upload a crop photo to diagnose.',
-    image: null,
-    imageName: '',
-    imageMime: null,
-    lastUpdated: 'No scans yet',
-  },
-  'Field C': {
-    score: null,
-    hasDiagnosis: false,
-    issues: [],
-    recommendations: [],
-    diseaseOrIssueName: 'Awaiting Inspection',
-    healthStatus: 'Pending',
-    visualSummary: 'No scan has been performed yet for this sector. Upload a crop photo to diagnose.',
-    image: null,
-    imageName: '',
-    imageMime: null,
-    lastUpdated: 'No scans yet',
-  },
-  'Field D': {
-    score: null,
-    hasDiagnosis: false,
-    issues: [],
-    recommendations: [],
-    diseaseOrIssueName: 'Awaiting Inspection',
-    healthStatus: 'Pending',
-    visualSummary: 'No scan has been performed yet for this sector. Upload a crop photo to diagnose.',
-    image: null,
-    imageName: '',
-    imageMime: null,
-    lastUpdated: 'No scans yet',
-  },
-}
+const inspectionApi = new CropInspectionApi(API_URL)
 
 export default function CropHealthMonitoring() {
   const uploadInput = useRef(null)
   const [activeField, setActiveField] = useState('Field A')
   const [analyzing, setAnalyzing] = useState(false)
   const [loadingDB, setLoadingDB] = useState(true)
-  const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [selectedActivity, setSelectedActivity] = useState(null)
@@ -99,16 +42,9 @@ export default function CropHealthMonitoring() {
   const [reports, setReports] = useState(() => {
     try {
       const stored = localStorage.getItem(STORAGE_REPORTS_KEY)
-      if (!stored) return defaultFieldData
-      const parsed = JSON.parse(stored)
-      return {
-        'Field A': { ...defaultFieldData['Field A'], ...parsed['Field A'] },
-        'Field B': { ...defaultFieldData['Field B'], ...parsed['Field B'] },
-        'Field C': { ...defaultFieldData['Field C'], ...parsed['Field C'] },
-        'Field D': { ...defaultFieldData['Field D'], ...parsed['Field D'] },
-      }
+      return CropInspection.createReports(stored ? JSON.parse(stored) : {})
     } catch {
-      return defaultFieldData
+      return CropInspection.createReports()
     }
   })
 
@@ -117,62 +53,21 @@ export default function CropHealthMonitoring() {
     async function loadInspectionsFromDB() {
       setLoadingDB(true)
       try {
-        const { data: sessionData } = await supabase.auth.getSession()
-        const token = sessionData?.session?.access_token
-        if (!token) {
-          setLoadingDB(false)
-          return
-        }
-
-        const res = await fetch(`${API_URL}/api/ai/crop-inspections`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const body = await res.json()
+        const body = await inspectionApi.list()
         if (body?.success && Array.isArray(body.data)) {
-          const mapped = body.data.map((row) => {
-            const dateObj = new Date(row.created_at || Date.now())
-            const dateStr = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(dateObj)
-            const timeStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(dateObj)
-            return {
-              id: row.id,
-              date: dateStr,
-              time: timeStr,
-              score: row.health_score,
-              field: row.field_name,
-              disease: row.disease_or_issue_name,
-              status: row.status || 'COMPLETED',
-              issues: Array.isArray(row.identified_symptoms) ? row.identified_symptoms : [],
-              recommendations: Array.isArray(row.action_recommendations) ? row.action_recommendations : [],
-              summary: row.visual_summary || '',
-              image: row.image_url || null,
-            }
-          })
-          setActivities(mapped)
+          setActivities(body.data.map((row) => CropInspection.activityFromDatabase(row)))
 
           // Sync the latest scan for each field into the main inspection view
           setReports((prev) => {
             const updated = { ...prev }
-            const fieldNames = ['Field A', 'Field B', 'Field C', 'Field D']
-            fieldNames.forEach((f) => {
+            FIELDS.forEach((f) => {
               const latest = body.data.find((row) => row.field_name === f)
               if (latest) {
-                const dateObj = new Date(latest.created_at || Date.now())
-                const timeStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(dateObj)
-                const dateStr = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(dateObj)
-                updated[f] = {
-                  score: latest.health_score,
-                  hasDiagnosis: true,
-                  issues: Array.isArray(latest.identified_symptoms) ? latest.identified_symptoms : [],
-                  recommendations: Array.isArray(latest.action_recommendations) ? latest.action_recommendations : [],
-                  diseaseOrIssueName: latest.disease_or_issue_name || 'Diagnosed Crop Stand',
-                  healthStatus: latest.health_status || (latest.health_score >= 80 ? 'Healthy' : 'Attention Needed'),
-                  visualSummary: latest.visual_summary || '',
-                  // Saved photos remain available in inspection history, not in the next upload workspace.
-                  image: null,
-                  imageName: '',
-                  imageMime: null,
-                  lastUpdated: `${dateStr} at ${timeStr}`,
-                }
+                const serverReport = CropInspection.reportFromDatabase(latest)
+                // Keep a photo that the user has just selected. Loading history must not erase a draft.
+                updated[f] = prev[f]?.image
+                  ? { ...serverReport, image: prev[f].image, imageName: prev[f].imageName, imageMime: prev[f].imageMime }
+                  : serverReport
               }
             })
             return updated
@@ -206,19 +101,7 @@ export default function CropHealthMonitoring() {
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [selectedActivity])
 
-  const currentFieldReport = reports[activeField] || defaultFieldData[activeField] || defaultFieldData['Field A']
-
-  // Summary statistics
-  const stats = useMemo(() => {
-    const diagnosedFields = Object.values(reports).filter((r) => r.score !== null)
-    const avgScore = diagnosedFields.length
-      ? Math.round(diagnosedFields.reduce((a, b) => a + b.score, 0) / diagnosedFields.length)
-      : 0
-    const healthyCount = diagnosedFields.filter((r) => r.score >= 80).length
-    const alertCount = diagnosedFields.filter((r) => r.score < 80).length
-    const totalScans = activities.length
-    return { avgScore, healthyCount, alertCount, totalScans, diagnosedCount: diagnosedFields.length }
-  }, [reports, activities])
+  const currentFieldReport = reports[activeField] || CropInspection.createDefaultReport()
 
   const totalPages = Math.max(1, Math.ceil(activities.length / pageSize))
   const paginatedActivities = useMemo(() => {
@@ -228,6 +111,8 @@ export default function CropHealthMonitoring() {
 
   function handleUpload(event) {
     const file = event.target.files?.[0]
+    // Allow the same file to be selected again after it is removed.
+    event.target.value = ''
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
@@ -237,7 +122,6 @@ export default function CropHealthMonitoring() {
 
     setError('')
     setSuccessMessage('')
-    setSaved(false)
 
     const reader = new FileReader()
     reader.onload = () => {
@@ -245,10 +129,7 @@ export default function CropHealthMonitoring() {
       setReports((current) => ({
         ...current,
         [activeField]: {
-          ...current[activeField],
-          image: base64Data,
-          imageName: file.name,
-          imageMime: file.type,
+          ...CropInspection.withImage(current[activeField], file, base64Data),
         },
       }))
       setSuccessMessage(`Photo uploaded for ${activeField}. Click "Analyze ${activeField} Image" to run Gemini Vision AI!`)
@@ -263,10 +144,7 @@ export default function CropHealthMonitoring() {
     setReports((current) => ({
       ...current,
       [activeField]: {
-        ...current[activeField],
-        image: null,
-        imageName: '',
-        imageMime: null,
+        ...CropInspection.withoutImage(current[activeField]),
       },
     }))
     setSuccessMessage(`Photo removed for ${activeField}.`)
@@ -300,81 +178,36 @@ export default function CropHealthMonitoring() {
     setAnalyzing(true)
     setError('')
     setSuccessMessage('')
-    setSaved(false)
 
     try {
       const { base64: payloadBase64, mime: payloadMime } = await convertAssetToBase64(currentFieldReport.image)
-
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData?.session?.access_token
-
-      if (!token) {
-        throw new Error('Your session has expired. Please sign in again.')
-      }
-
-      const response = await fetch(`${API_URL}/api/ai/crop-diagnosis`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          image: payloadBase64,
-          mimeType: payloadMime,
-          field: activeField,
-          cropType: 'Pineapple',
-        }),
+      const result = await inspectionApi.analyze({
+        image: payloadBase64,
+        mimeType: payloadMime,
+        field: activeField,
+        cropType: 'Pineapple',
       })
 
-      const result = await response.json().catch(() => ({}))
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to analyze crop health with AI.')
-      }
-
       const diagnosis = result.diagnosis
-      const now = new Date()
-      const dateStr = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(now)
-      const timeStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(now)
-
-      const updatedReport = {
-        ...currentFieldReport,
-        score: diagnosis.score,
-        hasDiagnosis: true,
-        issues: diagnosis.issues,
-        recommendations: diagnosis.recommendations,
-        diseaseOrIssueName: diagnosis.diseaseOrIssueName,
-        healthStatus: diagnosis.healthStatus,
-        visualSummary: diagnosis.visualSummary,
-        lastUpdated: `Today at ${timeStr}`,
-        // The completed inspection image is retained with its saved activity record.
-        image: null,
-        imageName: '',
-        imageMime: null,
-      }
+      const { date, time } = CropInspection.formatDateTime(Date.now())
+      const updatedReport = CropInspection.reportFromDiagnosis(currentFieldReport, diagnosis, time)
 
       setReports((current) => ({
         ...current,
         [activeField]: updatedReport,
       }))
 
-      const newActivity = {
+      const newActivity = CropInspection.activityFromDiagnosis({
         id: result.savedRecord?.id || `act-${Date.now()}`,
-        date: dateStr,
-        time: timeStr,
-        score: diagnosis.score,
         field: activeField,
-        disease: diagnosis.diseaseOrIssueName,
-        status: 'COMPLETED',
-        issues: diagnosis.issues,
-        recommendations: diagnosis.recommendations,
-        summary: diagnosis.visualSummary,
         image: result.savedRecord?.image_url || currentFieldReport.image,
-      }
+        diagnosis,
+        date,
+        time,
+      })
 
       setActivities((current) => [newActivity, ...current])
       setSuccessMessage(`AI diagnosis complete for ${activeField}! Health Score: ${diagnosis.score}%. Saved to Supabase database.`)
-      setSaved(true)
     } catch (caught) {
       console.error('Analysis failed:', caught)
       setError(caught instanceof Error ? caught.message : 'Crop diagnosis failed.')
@@ -383,84 +216,11 @@ export default function CropHealthMonitoring() {
     }
   }
 
-  async function handleManualSave() {
-    if (!currentFieldReport.hasDiagnosis && currentFieldReport.score === null) {
-      setError(`Run an AI diagnosis for ${activeField} before saving to database.`)
-      return
-    }
-
-    const now = new Date()
-    const dateStr = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(now)
-    const timeStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(now)
-
-    let createdId = `act-${Date.now()}`
-    try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData?.session?.access_token
-
-      if (token) {
-        const res = await fetch(`${API_URL}/api/ai/crop-inspections`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            field: activeField,
-            healthScore: currentFieldReport.score || 85,
-            healthStatus: currentFieldReport.healthStatus,
-            diseaseOrIssueName: currentFieldReport.diseaseOrIssueName,
-            visualSummary: currentFieldReport.visualSummary,
-            issues: currentFieldReport.issues,
-            recommendations: currentFieldReport.recommendations,
-            image: currentFieldReport.image,
-            imageMime: currentFieldReport.imageMime,
-            imageName: currentFieldReport.imageName,
-            status: 'COMPLETED',
-          }),
-        })
-        const body = await res.json()
-        if (body?.data?.id) createdId = body.data.id
-      }
-    } catch (err) {
-      console.warn('Manual save warning:', err)
-    }
-
-    const newActivity = {
-      id: createdId,
-      date: dateStr,
-      time: timeStr,
-      score: currentFieldReport.score || 85,
-      field: activeField,
-      disease: currentFieldReport.diseaseOrIssueName || 'Manual Inspection Log',
-      status: 'COMPLETED',
-      issues: currentFieldReport.issues,
-      recommendations: currentFieldReport.recommendations,
-      summary: currentFieldReport.visualSummary || 'Inspection log saved manually.',
-      image: currentFieldReport.image,
-    }
-
-    setActivities((current) => [newActivity, ...current])
-    setReports((current) => ({
-      ...current,
-      [activeField]: { ...current[activeField], image: null, imageName: '', imageMime: null },
-    }))
-    setSaved(true)
-    setSuccessMessage(`Inspection log for ${activeField} saved to database!`)
-  }
-
   async function handleDeleteActivity(id, e) {
     e.stopPropagation()
     if (window.confirm('Delete this inspection record from database?')) {
       try {
-        const { data: sessionData } = await supabase.auth.getSession()
-        const token = sessionData?.session?.access_token
-        if (token && id && !id.startsWith('act-')) {
-          await fetch(`${API_URL}/api/ai/crop-inspections/${id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` },
-          })
-        }
+        if (id && !id.startsWith('act-')) await inspectionApi.delete(id)
       } catch (err) {
         console.warn('Delete error:', err)
       }
@@ -516,7 +276,7 @@ export default function CropHealthMonitoring() {
             
             {/* 1. Field Selection Top Tabs */}
             <nav className="task-management-tabs" aria-label="Field selection tabs">
-              {Object.keys(reports).map((field) => {
+              {FIELDS.map((field) => {
                 const isCurrent = field === activeField
                 return (
                   <button
@@ -525,7 +285,6 @@ export default function CropHealthMonitoring() {
                     className={isCurrent ? 'is-active' : ''}
                     onClick={() => {
                       setActiveField(field)
-                      setSaved(false)
                       setError('')
                       setSuccessMessage('')
                     }}
@@ -581,6 +340,16 @@ export default function CropHealthMonitoring() {
                       </span>
                       <small style={{ color: '#667568', fontSize: '11px' }}>({currentFieldReport.imageName || `${activeField} image`})</small>
                     </div>
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      disabled={analyzing}
+                      aria-label={`Remove photo from ${activeField}`}
+                      title="Remove photo"
+                      style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1px solid #f2c9c9', background: '#fff5f5', color: '#b42318', cursor: analyzing ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center' }}
+                    >
+                      <X aria-hidden="true" size={15} />
+                    </button>
                   </div>
 
                   <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #d4ded2', width: '100%', background: 'transparent' }}>
@@ -1021,19 +790,7 @@ export default function CropHealthMonitoring() {
                     setActiveField(fieldName)
                     setReports((prev) => ({
                       ...prev,
-                      [fieldName]: {
-                        score: selectedActivity.score,
-                        hasDiagnosis: true,
-                        issues: selectedActivity.issues || [],
-                        recommendations: selectedActivity.recommendations || [],
-                        diseaseOrIssueName: selectedActivity.disease || 'Historical Inspection',
-                        healthStatus: selectedActivity.score >= 80 ? 'Healthy' : selectedActivity.score >= 60 ? 'Attention Needed' : 'Critical',
-                        visualSummary: selectedActivity.summary || '',
-                        image: selectedActivity.image || null,
-                        imageName: `${fieldName} inspection photo`,
-                        imageMime: 'image/png',
-                        lastUpdated: `${selectedActivity.date} at ${selectedActivity.time}`,
-                      },
+                      [fieldName]: CropInspection.reportFromActivity(selectedActivity),
                     }))
                     setSelectedActivity(null)
                     window.scrollTo({ top: 0, behavior: 'smooth' })

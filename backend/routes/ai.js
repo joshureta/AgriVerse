@@ -6,6 +6,23 @@ const { uploadImage } = require("../lib/storage");
 
 const router = express.Router();
 
+const MINIMUM_PINEAPPLE_CONFIDENCE = 0.75;
+const VISION_MODELS = [
+  process.env.GEMINI_MODEL,
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-flash-lite-latest",
+  "gemini-3.7-flash",
+].filter(Boolean);
+
+class PineappleImageValidationError extends Error {
+  constructor(reason) {
+    super(`Upload rejected: this image does not appear to show a pineapple plant, fruit, leaf, or pineapple field.${reason ? ` ${reason}` : ""}`);
+    this.statusCode = 422;
+    this.code = "PINEAPPLE_IMAGE_REQUIRED";
+  }
+}
+
 function cleanBase64(input, defaultMime = "image/jpeg") {
   if (!input || typeof input !== "string") {
     throw new Error("A valid image is required.");
@@ -39,6 +56,54 @@ function parseJsonFromText(rawText) {
       return JSON.parse(jsonMatch[0]);
     }
     throw new Error("Unable to parse AI response into JSON format.");
+  }
+}
+
+async function generateVisionJson(ai, mimeType, base64Data, promptText) {
+  let response = null;
+  let lastError = null;
+
+  for (const model of VISION_MODELS) {
+    try {
+      response = await ai.models.generateContent({
+        model,
+        contents: [
+          { inlineData: { mimeType, data: base64Data } },
+          promptText,
+        ],
+        config: { responseMimeType: "application/json" },
+      });
+      if (response?.text) return parseJsonFromText(response.text);
+    } catch (err) {
+      lastError = err;
+      console.warn(`Model ${model} failed, trying next candidate...`, err.message);
+    }
+  }
+
+  throw lastError || new Error("Failed to scan the uploaded image.");
+}
+
+async function validatePineappleImage(ai, mimeType, base64Data) {
+  const validation = await generateVisionJson(ai, mimeType, base64Data, `
+You validate images for a pineapple crop-health system.
+Inspect the attached image before any disease diagnosis is performed.
+
+Accept only images that clearly show one or more of the following:
+- pineapple fruit, plant, leaves, crown, or close-up pineapple disease/pest symptoms;
+- a pineapple field, plantation, or farm where pineapple plants are visible.
+
+Reject unrelated crops, people, animals, vehicles, equipment-only photos, documents, screenshots, landscapes without visible pineapple plants, and images that are too unclear to identify.
+
+Respond in STRICT JSON without markdown:
+{
+  "isPineappleRelated": <boolean>,
+  "confidence": <number from 0 to 1>,
+  "reason": "<short, student-friendly explanation>"
+}`);
+
+  const confidence = Number(validation.confidence);
+  if (validation.isPineappleRelated !== true || !Number.isFinite(confidence) || confidence < MINIMUM_PINEAPPLE_CONFIDENCE) {
+    throw new PineappleImageValidationError(validation.reason || "Please upload a clear pineapple crop image.");
   }
 }
 
@@ -91,13 +156,14 @@ router.post("/crop-inspections", requireAuth, async (req, res) => {
 
     if (image && typeof image === "string" && image.startsWith("data:image/")) {
       const { data: base64Data, mimeType } = cleanBase64(image, imageMime || "image/png");
+      await validatePineappleImage(getGeminiClient(), mimeType, base64Data);
       const uploadRes = await uploadImage("crop-inspections", base64Data, mimeType, field);
       if (uploadRes) {
         imageUrl = uploadRes.imageUrl;
         imageStoragePath = uploadRes.storagePath;
       }
     } else if (image && typeof image === "string" && image.startsWith("http")) {
-      imageUrl = image;
+      throw new PineappleImageValidationError("Only a newly scanned pineapple image can be saved.");
     }
 
     const record = {
@@ -131,7 +197,10 @@ router.post("/crop-inspections", requireAuth, async (req, res) => {
     return res.json({ success: true, data });
   } catch (err) {
     console.warn("Save inspection exception:", err.message);
-    return res.status(500).json({ error: err.message || "Failed to save inspection." });
+    return res.status(err.statusCode || 500).json({
+      error: err.message || "Failed to save inspection.",
+      code: err.code,
+    });
   }
 });
 
@@ -166,6 +235,9 @@ router.post("/crop-diagnosis", requireAuth, async (req, res) => {
     const { data: base64Data, mimeType: finalMimeType } = cleanBase64(image, mimeType);
 
     const ai = getGeminiClient();
+
+    // This scan happens before diagnosis, storage, and database insertion.
+    await validatePineappleImage(ai, finalMimeType, base64Data);
 
     const promptText = `
 You are a senior tropical crop pathologist and pineapple agronomy specialist for AgriVerse.
@@ -214,48 +286,7 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
 }
 `;
 
-    const candidateModels = [
-      process.env.GEMINI_MODEL,
-      "gemini-3.6-flash",
-      "gemini-3.5-flash",
-      "gemini-flash-lite-latest",
-      "gemini-3.7-flash",
-    ].filter(Boolean);
-
-    let response = null;
-    let lastError = null;
-
-    for (const model of candidateModels) {
-      try {
-        response = await ai.models.generateContent({
-          model,
-          contents: [
-            {
-              inlineData: {
-                mimeType: finalMimeType,
-                data: base64Data,
-              },
-            },
-            promptText,
-          ],
-          config: {
-            responseMimeType: "application/json",
-          },
-        });
-        if (response && response.text) {
-          break;
-        }
-      } catch (err) {
-        lastError = err;
-        console.warn(`Model ${model} failed, trying next candidate...`, err.message);
-      }
-    }
-
-    if (!response || !response.text) {
-      throw lastError || new Error("Failed to get diagnosis from Gemini AI.");
-    }
-
-    const diagnosis = parseJsonFromText(response.text);
+    const diagnosis = await generateVisionJson(ai, finalMimeType, base64Data, promptText);
 
     const sanitizedDiagnosis = {
       score: typeof diagnosis.score === "number" ? Math.max(0, Math.min(100, Math.round(diagnosis.score))) : 80,
@@ -323,8 +354,9 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
         msg = parsed.error.message;
       }
     } catch {}
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       error: msg,
+      code: error.code,
     });
   }
 });
