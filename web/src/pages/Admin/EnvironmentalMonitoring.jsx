@@ -20,10 +20,13 @@ import temperatureMetricIcon from '../../assets/monitoring/metric-temperature.pn
 import humidityMetricIcon from '../../assets/monitoring/metric-humidity.png'
 import soilMoistureMetricIcon from '../../assets/monitoring/metric-soil-moisture.png'
 import { supabase } from '../../lib/supabase.js'
+import { sensorSupabase } from '../../lib/sensorSupabase.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/monitoring.css'
 
 const fields = ['Field A', 'Field B', 'Field C', 'Field D']
+const READINGS_PER_PAGE = 4
+const MAX_READING_HISTORY = 100
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const WEATHER_FALLBACK = {
   condition: 'rainy', label: 'Raining', temp: 28, highTemp: 31, lowTemp: 24,
@@ -68,19 +71,45 @@ async function loadWeather() {
   if (!response.ok) throw new Error(body?.error || 'Weather data is temporarily unavailable.')
   return body
 }
-const fieldReadings = [
-  { time: '7:00 AM', temperature: '32.2°C', humidity: '76%', moisture: '30%' },
-  { time: '7:15 AM', temperature: '25.1°C', humidity: '55%', moisture: '20%' },
-  { time: '7:30 AM', temperature: '42.2°C', humidity: '80%', moisture: '80%' },
-  { time: '7:45 AM', temperature: '32.2°C', humidity: '90%', moisture: '90%' },
-]
+
+function formatSensorReading(reading) {
+  const measuredAt = new Date(reading.created_at)
+  return {
+    ...reading,
+    time: Number.isNaN(measuredAt.getTime())
+      ? 'Unknown'
+      : measuredAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+    temperature: `${Number(reading.temperature_c).toFixed(1)}°C`,
+    humidity: `${Number(reading.humidity_percent).toFixed(1)}%`,
+    moisture: '—',
+  }
+}
+
+async function loadSensorReadings() {
+  const { data, error } = await sensorSupabase
+    .from('sensor_readings')
+    .select('id, device_id, temperature_c, humidity_percent, created_at')
+    .order('created_at', { ascending: false })
+    .limit(MAX_READING_HISTORY)
+
+  if (error) throw error
+  return (data || []).map(formatSensorReading)
+}
 
 export default function EnvironmentalMonitoring() {
   const [activeField, setActiveField] = useState('Field A')
   const [page, setPage] = useState(1)
   const [weather, setWeather] = useState(WEATHER_FALLBACK)
-  const readings = fieldReadings
+  const [readings, setReadings] = useState([])
+  const [sensorError, setSensorError] = useState('')
   const latest = readings[0]
+
+  const pageCount = Math.max(1, Math.ceil(readings.length / READINGS_PER_PAGE))
+  const visibleReadings = readings.slice(
+    (page - 1) * READINGS_PER_PAGE,
+    page * READINGS_PER_PAGE,
+  )
+  const connectedSensors = new Set(readings.map((reading) => reading.device_id)).size
 
   useEffect(() => {
     let active = true
@@ -91,6 +120,50 @@ export default function EnvironmentalMonitoring() {
     })
     return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    let active = true
+
+    const refreshReadings = () => {
+      loadSensorReadings().then((nextReadings) => {
+        if (!active) return
+        setReadings(nextReadings)
+        setSensorError('')
+      }).catch((error) => {
+        if (!active) return
+        setSensorError(error.message || 'Unable to load sensor readings.')
+      })
+    }
+
+    refreshReadings()
+    const refreshTimer = window.setInterval(refreshReadings, 30000)
+    const channel = sensorSupabase
+      .channel('environmental-sensor-readings')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sensor_readings' },
+        ({ new: reading }) => {
+          if (!active) return
+          setReadings((current) => [
+            formatSensorReading(reading),
+            ...current.filter((item) => item.id !== reading.id),
+          ].slice(0, MAX_READING_HISTORY))
+          setSensorError('')
+          setPage(1)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      active = false
+      window.clearInterval(refreshTimer)
+      sensorSupabase.removeChannel(channel)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount)
+  }, [page, pageCount])
 
   const isNight = useMemo(() => {
     const hour = new Date().getHours()
@@ -115,8 +188,8 @@ export default function EnvironmentalMonitoring() {
           </header>
 
           <section className="environment-network-status" aria-label="Sensor network status">
-            <div><i /><span><strong>IoT Sensor Network Active</strong><small>12 Sensors Connected</small></span></div>
-            <span><Radio aria-hidden="true" /> Live</span>
+            <div><i /><span><strong>{sensorError ? 'Sensor Network Unavailable' : 'IoT Sensor Network Active'}</strong><small>{connectedSensors} Sensor{connectedSensors === 1 ? '' : 's'} Connected</small></span></div>
+            <span><Radio aria-hidden="true" /> {readings.length ? 'Live' : 'Waiting for data'}</span>
           </section>
 
           <section
@@ -161,18 +234,18 @@ export default function EnvironmentalMonitoring() {
             <section className="environment-reading-grid" aria-label={`${activeField} latest readings`}>
               <article>
                 <h2>Temperature</h2>
-                <div><strong>{latest.temperature}</strong><img src={temperatureMetricIcon} alt="" /></div>
-                <small>Optimal</small>
+                <div><strong>{latest?.temperature || '—'}</strong><img src={temperatureMetricIcon} alt="" /></div>
+                <small>{latest ? 'Latest reading' : 'Waiting for sensor'}</small>
               </article>
               <article>
                 <h2>Humidity</h2>
-                <div><strong>{latest.humidity}</strong><img src={humidityMetricIcon} alt="" /></div>
-                <small>Optimal</small>
+                <div><strong>{latest?.humidity || '—'}</strong><img src={humidityMetricIcon} alt="" /></div>
+                <small>{latest ? 'Latest reading' : 'Waiting for sensor'}</small>
               </article>
               <article>
                 <h2>Soil Moisture</h2>
-                <div><strong>{latest.moisture}</strong><img src={soilMoistureMetricIcon} alt="" /></div>
-                <small className="is-monitor">Monitor</small>
+                <div><strong>—</strong><img src={soilMoistureMetricIcon} alt="" /></div>
+                <small className="is-monitor">Sensor not connected</small>
               </article>
             </section>
 
@@ -180,9 +253,12 @@ export default function EnvironmentalMonitoring() {
               <table>
                 <thead><tr><th>Time</th><th>Temperature</th><th>Humidity</th><th>Soil Moisture</th></tr></thead>
                 <tbody>
-                  {readings.map((reading) => (
-                    <tr key={reading.time}><td>{reading.time}</td><td>{reading.temperature}</td><td>{reading.humidity}</td><td>{reading.moisture}</td></tr>
+                  {visibleReadings.map((reading) => (
+                    <tr key={reading.id}><td>{reading.time}</td><td>{reading.temperature}</td><td>{reading.humidity}</td><td>{reading.moisture}</td></tr>
                   ))}
+                  {!visibleReadings.length && (
+                    <tr><td colSpan="4">{sensorError || 'Waiting for the first ESP32 reading…'}</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -191,8 +267,8 @@ export default function EnvironmentalMonitoring() {
               <span>Page {page}</span>
               <nav aria-label="Sensor reading pages">
                 <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))}>← Previous</button>
-                {[1, 2, 3].map((number) => <button className={page === number ? 'is-current' : ''} type="button" key={number} onClick={() => setPage(number)} aria-current={page === number ? 'page' : undefined}>{number}</button>)}
-                <button type="button" onClick={() => setPage((current) => Math.min(3, current + 1))}>Next →</button>
+                {Array.from({ length: pageCount }, (_, index) => index + 1).map((number) => <button className={page === number ? 'is-current' : ''} type="button" key={number} onClick={() => setPage(number)} aria-current={page === number ? 'page' : undefined}>{number}</button>)}
+                <button type="button" onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>Next →</button>
               </nav>
             </footer>
           </section>

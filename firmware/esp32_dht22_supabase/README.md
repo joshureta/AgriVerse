@@ -3,7 +3,8 @@
 This sketch sends one temperature and humidity reading every 30 seconds to
 `public.sensor_readings` using the publishable (or legacy anon) key. It does not
 send `soil_moisture`; a DHT22 cannot measure it. It assumes `id` and `created_at`
-have database defaults and `soil_moisture` can be omitted.
+have database defaults and writes the `temperature_c` and `humidity_percent`
+columns used by the AgriVerse monitoring page.
 
 ## Wiring
 

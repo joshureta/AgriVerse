@@ -91,8 +91,8 @@ void sendReading(float temperature, float humidity) {
 
   // The database supplies id and created_at. DHT22 has no soil moisture reading.
   const String payload = String("{\"device_id\":\"") + DEVICE_ID +
-                         "\",\"temperature\":" + String(temperature, 1) +
-                         ",\"humidity\":" + String(humidity, 1) + "}";
+                         "\",\"temperature_c\":" + String(temperature, 1) +
+                         ",\"humidity_percent\":" + String(humidity, 1) + "}";
 
   const int status = http.POST(payload);
   if (status == 201 || status == 204) {
