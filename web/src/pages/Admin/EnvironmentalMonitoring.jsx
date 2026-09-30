@@ -76,12 +76,29 @@ function formatSensorReading(reading) {
   const measuredAt = new Date(reading.created_at)
   return {
     ...reading,
+    id: `climate-${reading.id}`,
+    measuredAt: measuredAt.getTime(),
     time: Number.isNaN(measuredAt.getTime())
       ? 'Unknown'
       : measuredAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
     temperature: `${Number(reading.temperature_c).toFixed(1)}°C`,
     humidity: `${Number(reading.humidity_percent).toFixed(1)}%`,
     moisture: '—',
+  }
+}
+
+function formatSoilReading(reading) {
+  const measuredAt = new Date(reading.created_at)
+  return {
+    ...reading,
+    id: `soil-${reading.id}`,
+    measuredAt: measuredAt.getTime(),
+    time: Number.isNaN(measuredAt.getTime())
+      ? 'Unknown'
+      : measuredAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+    temperature: '—',
+    humidity: '—',
+    moisture: `${Number(reading.moisture_percent).toFixed(1)}%`,
   }
 }
 
@@ -96,20 +113,46 @@ async function loadSensorReadings() {
   return (data || []).map(formatSensorReading)
 }
 
+async function loadSoilReadings() {
+  const { data, error } = await sensorSupabase
+    .from('soil_readings')
+    .select('id, device_id, moisture_raw, moisture_percent, created_at')
+    .order('created_at', { ascending: false })
+    .limit(MAX_READING_HISTORY)
+
+  if (error) throw error
+  return (data || []).map(formatSoilReading)
+}
+
 export default function EnvironmentalMonitoring() {
   const [activeField, setActiveField] = useState('Field A')
   const [page, setPage] = useState(1)
   const [weather, setWeather] = useState(WEATHER_FALLBACK)
   const [readings, setReadings] = useState([])
+  const [soilReadings, setSoilReadings] = useState([])
   const [sensorError, setSensorError] = useState('')
   const latest = readings[0]
+  const latestSoil = soilReadings[0]
+  const combinedReadings = useMemo(
+    () => [...readings, ...soilReadings]
+      .sort((left, right) => (right.measuredAt || 0) - (left.measuredAt || 0))
+      .slice(0, MAX_READING_HISTORY),
+    [readings, soilReadings],
+  )
 
-  const pageCount = Math.max(1, Math.ceil(readings.length / READINGS_PER_PAGE))
-  const visibleReadings = readings.slice(
+  const pageCount = Math.max(1, Math.ceil(combinedReadings.length / READINGS_PER_PAGE))
+  const visibleReadings = combinedReadings.slice(
     (page - 1) * READINGS_PER_PAGE,
     page * READINGS_PER_PAGE,
   )
-  const connectedSensors = new Set(readings.map((reading) => reading.device_id)).size
+  const connectedSensors = new Set(combinedReadings.map((reading) => reading.device_id)).size
+  const soilStatus = !latestSoil
+    ? 'Waiting for sensor'
+    : latestSoil.moisture_percent < 30
+      ? 'Dry'
+      : latestSoil.moisture_percent < 70
+        ? 'Moist'
+        : 'Wet'
 
   useEffect(() => {
     let active = true
@@ -125,9 +168,10 @@ export default function EnvironmentalMonitoring() {
     let active = true
 
     const refreshReadings = () => {
-      loadSensorReadings().then((nextReadings) => {
+      Promise.all([loadSensorReadings(), loadSoilReadings()]).then(([nextReadings, nextSoilReadings]) => {
         if (!active) return
         setReadings(nextReadings)
+        setSoilReadings(nextSoilReadings)
         setSensorError('')
       }).catch((error) => {
         if (!active) return
@@ -137,7 +181,7 @@ export default function EnvironmentalMonitoring() {
 
     refreshReadings()
     const refreshTimer = window.setInterval(refreshReadings, 30000)
-    const channel = sensorSupabase
+    const climateChannel = sensorSupabase
       .channel('environmental-sensor-readings')
       .on(
         'postgres_changes',
@@ -146,7 +190,23 @@ export default function EnvironmentalMonitoring() {
           if (!active) return
           setReadings((current) => [
             formatSensorReading(reading),
-            ...current.filter((item) => item.id !== reading.id),
+            ...current.filter((item) => item.id !== `climate-${reading.id}`),
+          ].slice(0, MAX_READING_HISTORY))
+          setSensorError('')
+          setPage(1)
+        },
+      )
+      .subscribe()
+    const soilChannel = sensorSupabase
+      .channel('environmental-soil-readings')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'soil_readings' },
+        ({ new: reading }) => {
+          if (!active) return
+          setSoilReadings((current) => [
+            formatSoilReading(reading),
+            ...current.filter((item) => item.id !== `soil-${reading.id}`),
           ].slice(0, MAX_READING_HISTORY))
           setSensorError('')
           setPage(1)
@@ -157,7 +217,8 @@ export default function EnvironmentalMonitoring() {
     return () => {
       active = false
       window.clearInterval(refreshTimer)
-      sensorSupabase.removeChannel(channel)
+      sensorSupabase.removeChannel(climateChannel)
+      sensorSupabase.removeChannel(soilChannel)
     }
   }, [])
 
@@ -189,7 +250,7 @@ export default function EnvironmentalMonitoring() {
 
           <section className="environment-network-status" aria-label="Sensor network status">
             <div><i /><span><strong>{sensorError ? 'Sensor Network Unavailable' : 'IoT Sensor Network Active'}</strong><small>{connectedSensors} Sensor{connectedSensors === 1 ? '' : 's'} Connected</small></span></div>
-            <span><Radio aria-hidden="true" /> {readings.length ? 'Live' : 'Waiting for data'}</span>
+            <span><Radio aria-hidden="true" /> {combinedReadings.length ? 'Live' : 'Waiting for data'}</span>
           </section>
 
           <section
@@ -244,8 +305,8 @@ export default function EnvironmentalMonitoring() {
               </article>
               <article>
                 <h2>Soil Moisture</h2>
-                <div><strong>—</strong><img src={soilMoistureMetricIcon} alt="" /></div>
-                <small className="is-monitor">Sensor not connected</small>
+                <div><strong>{latestSoil?.moisture || '—'}</strong><img src={soilMoistureMetricIcon} alt="" /></div>
+                <small className={soilStatus === 'Dry' ? 'is-monitor' : ''}>{soilStatus}</small>
               </article>
             </section>
 

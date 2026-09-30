@@ -18,4 +18,4 @@ backend/env
 backend/env.download
 
 # ESP32 local Wi-Fi and Supabase configuration
-firmware/esp32_dht22_supabase/secrets.h
+firmware/**/secrets.h
