@@ -6,6 +6,12 @@ send `soil_moisture`; a DHT22 cannot measure it. It assumes `id` and `created_at
 have database defaults and writes the `temperature_c` and `humidity_percent`
 columns used by the AgriVerse monitoring page.
 
+Run `supabase/migrations/039_dht22_sensor_readings.sql` in the **sensor** Supabase
+project's SQL Editor before uploading the sketch. Use that project's URL and
+publishable key in both `secrets.h` and `web/.env.local` (the
+`VITE_SENSOR_SUPABASE_URL` and `VITE_SENSOR_SUPABASE_PUBLISHABLE_KEY` settings).
+The SQL permits the `esp32-01` device ID used by the local sketch.
+
 ## Wiring
 
 The working Arduino sketch uses GPIO 27 for the DHT22 DATA line. The photographed
@@ -55,7 +61,8 @@ detect that Wi-Fi name on a scan. After changing those values, upload the sketch
 again. The sketch enables the board's automatic Wi-Fi reconnection without
 starting a second connection while one is already in progress.
 
-The current RLS policy is `INSERT TO anon WITH CHECK (true)` in a production
-project. That permits anyone with the public key to submit readings. Use this
-path for the first hardware test, then move ingestion behind a device-authenticated
-backend endpoint and remove the public insert policy.
+The RLS insert policy checks the device ID and DHT22 measurement ranges, but a
+device ID is not proof of identity. Anyone with the public key can claim that
+ID and submit plausible readings. Use this for the first hardware test, then
+move ingestion behind a device-authenticated backend endpoint and remove the
+public insert policy.

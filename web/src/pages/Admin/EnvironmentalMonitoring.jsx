@@ -131,6 +131,7 @@ export default function EnvironmentalMonitoring() {
   const [readings, setReadings] = useState([])
   const [soilReadings, setSoilReadings] = useState([])
   const [sensorError, setSensorError] = useState('')
+  const [soilError, setSoilError] = useState('')
   const latest = readings[0]
   const latestSoil = soilReadings[0]
   const combinedReadings = useMemo(
@@ -165,17 +166,31 @@ export default function EnvironmentalMonitoring() {
   }, [])
 
   useEffect(() => {
+    if (!sensorSupabase) {
+      setSensorError('Sensor monitoring is not configured. Add VITE_SENSOR_SUPABASE_URL and VITE_SENSOR_SUPABASE_PUBLISHABLE_KEY to web/.env.local.')
+      return
+    }
+
     let active = true
 
     const refreshReadings = () => {
-      Promise.all([loadSensorReadings(), loadSoilReadings()]).then(([nextReadings, nextSoilReadings]) => {
+      loadSensorReadings().then((nextReadings) => {
         if (!active) return
         setReadings(nextReadings)
-        setSoilReadings(nextSoilReadings)
         setSensorError('')
       }).catch((error) => {
         if (!active) return
         setSensorError(error.message || 'Unable to load sensor readings.')
+      })
+
+      // The DHT22 has no soil probe. A missing soil table must not hide its readings.
+      loadSoilReadings().then((nextSoilReadings) => {
+        if (!active) return
+        setSoilReadings(nextSoilReadings)
+        setSoilError('')
+      }).catch((error) => {
+        if (!active) return
+        setSoilError(error.message || 'Unable to load soil readings.')
       })
     }
 
@@ -306,7 +321,7 @@ export default function EnvironmentalMonitoring() {
               <article>
                 <h2>Soil Moisture</h2>
                 <div><strong>{latestSoil?.moisture || '—'}</strong><img src={soilMoistureMetricIcon} alt="" /></div>
-                <small className={soilStatus === 'Dry' ? 'is-monitor' : ''}>{soilStatus}</small>
+                <small className={soilStatus === 'Dry' ? 'is-monitor' : ''} title={soilError || undefined}>{soilError ? 'Soil sensor unavailable' : soilStatus}</small>
               </article>
             </section>
 
