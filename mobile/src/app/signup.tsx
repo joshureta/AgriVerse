@@ -27,6 +27,7 @@ import {
   getProvinceCitiesMunicipalities,
   getRegionCitiesMunicipalities,
   getRegionProvinces,
+  getRegionSubMunicipalities,
   getRegions,
   PsgcItem,
 } from '@/lib/psgc';
@@ -35,6 +36,7 @@ type WorkerCategory = 'driver' | 'crop_management_worker' | 'seller';
 type Choice = { code: string; name: string };
 
 const steps = ['Personal', 'Security', 'Location'];
+const CITY_OF_MANILA_CODE = '1380600000';
 const workerCategories: Choice[] = [
   { code: 'crop_management_worker', name: 'Crop Management Worker' },
   { code: 'driver', name: 'Driver' },
@@ -153,11 +155,13 @@ export default function SignUpScreen({
   const [regions, setRegions] = useState<PsgcItem[]>([]);
   const [provinces, setProvinces] = useState<PsgcItem[]>([]);
   const [cities, setCities] = useState<PsgcItem[]>([]);
+  const [districts, setDistricts] = useState<PsgcItem[]>([]);
   const [barangays, setBarangays] = useState<PsgcItem[]>([]);
 
   const [region, setRegion] = useState<PsgcItem | null>(null);
   const [province, setProvince] = useState<PsgcItem | null>(null);
   const [city, setCity] = useState<PsgcItem | null>(null);
+  const [district, setDistrict] = useState<PsgcItem | null>(null);
   const [barangay, setBarangay] = useState<PsgcItem | null>(null);
   const [provinceNotApplicable, setProvinceNotApplicable] = useState(false);
 
@@ -191,9 +195,11 @@ export default function SignUpScreen({
     setRegion(selectedRegion as PsgcItem);
     setProvince(null);
     setCity(null);
+    setDistrict(null);
     setBarangay(null);
     setProvinces([]);
     setCities([]);
+    setDistricts([]);
     setBarangays([]);
     setProvinceNotApplicable(false);
     setChoice(null);
@@ -217,8 +223,10 @@ export default function SignUpScreen({
   async function selectProvince(selectedProvince: Choice) {
     setProvince(selectedProvince as PsgcItem);
     setCity(null);
+    setDistrict(null);
     setBarangay(null);
     setCities([]);
+    setDistricts([]);
     setBarangays([]);
     setChoice(null);
     setLoadingAddress(true);
@@ -235,13 +243,39 @@ export default function SignUpScreen({
 
   async function selectCity(selectedCity: Choice) {
     setCity(selectedCity as PsgcItem);
+    setDistrict(null);
+    setBarangay(null);
+    setDistricts([]);
+    setBarangays([]);
+    setChoice(null);
+    setLoadingAddress(true);
+
+    try {
+      if (selectedCity.code === CITY_OF_MANILA_CODE) {
+        if (!region) throw new Error('Select your region before choosing a Manila district.');
+        const districtList = await getRegionSubMunicipalities(region.code);
+        const cityCodePrefix = selectedCity.code.slice(0, 5);
+        setDistricts(districtList.filter((item) => item.code.startsWith(cityCodePrefix)));
+      } else {
+        const brgyList = await getCityMunicipalityBarangays(selectedCity.code);
+        setBarangays(brgyList);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to load location options.');
+    } finally {
+      setLoadingAddress(false);
+    }
+  }
+
+  async function selectDistrict(selectedDistrict: Choice) {
+    setDistrict(selectedDistrict as PsgcItem);
     setBarangay(null);
     setBarangays([]);
     setChoice(null);
     setLoadingAddress(true);
 
     try {
-      const brgyList = await getCityMunicipalityBarangays(selectedCity.code);
+      const brgyList = await getCityMunicipalityBarangays(selectedDistrict.code);
       setBarangays(brgyList);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Failed to load barangays.');
@@ -277,6 +311,7 @@ export default function SignUpScreen({
       if (!region) return setError('Select your region.'), false;
       if (!provinceNotApplicable && !province) return setError('Select your province.'), false;
       if (!city) return setError('Select your city or municipality.'), false;
+      if (city.code === CITY_OF_MANILA_CODE && !district) return setError('Select your Manila district.'), false;
       if (!barangay) return setError('Select your barangay.'), false;
       if (!termsAccepted) return setError('Please accept the Terms of Service and Privacy Policy.'), false;
     }
@@ -554,8 +589,17 @@ export default function SignUpScreen({
                     placeholder="Select city or municipality"
                     value={city?.name}
                   />
+                  {city?.code === CITY_OF_MANILA_CODE ? (
+                    <ChoiceField
+                      disabled={loadingAddress || !districts.length}
+                      label="District"
+                      onPress={() => setChoice({ title: 'Select Manila district', items: districts, select: selectDistrict })}
+                      placeholder="Select Manila district"
+                      value={district?.name}
+                    />
+                  ) : null}
                   <ChoiceField
-                    disabled={!city || loadingAddress}
+                    disabled={!city || loadingAddress || (city.code === CITY_OF_MANILA_CODE && !district)}
                     label="Barangay"
                     onPress={() =>
                       setChoice({
