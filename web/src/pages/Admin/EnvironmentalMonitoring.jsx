@@ -27,6 +27,7 @@ import '../../styles/monitoring.css'
 const fields = ['Field A', 'Field B', 'Field C', 'Field D']
 const READINGS_PER_PAGE = 4
 const MAX_READING_HISTORY = 100
+const SENSOR_PAIR_WINDOW_MS = 15000
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const WEATHER_FALLBACK = {
   condition: 'rainy', label: 'Raining', temp: 28, highTemp: 31, lowTemp: 24,
@@ -102,6 +103,45 @@ function formatSoilReading(reading) {
   }
 }
 
+function combineSensorReadings(climateReadings, soilReadings) {
+  const unusedSoilIds = new Set(soilReadings.map((reading) => reading.id))
+  const combined = climateReadings.map((climate) => {
+    let nearestSoil = null
+    let nearestDifference = Number.POSITIVE_INFINITY
+
+    soilReadings.forEach((soil) => {
+      if (!unusedSoilIds.has(soil.id) || soil.device_id !== climate.device_id) return
+      const difference = Math.abs(soil.measuredAt - climate.measuredAt)
+      if (difference <= SENSOR_PAIR_WINDOW_MS && difference < nearestDifference) {
+        nearestSoil = soil
+        nearestDifference = difference
+      }
+    })
+
+    if (!nearestSoil) return climate
+    unusedSoilIds.delete(nearestSoil.id)
+
+    const measuredAt = Math.max(climate.measuredAt, nearestSoil.measuredAt)
+    return {
+      ...climate,
+      id: `${climate.id}-${nearestSoil.id}`,
+      measuredAt,
+      time: new Date(measuredAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      moisture: nearestSoil.moisture,
+      moisture_percent: nearestSoil.moisture_percent,
+      moisture_raw: nearestSoil.moisture_raw,
+    }
+  })
+
+  soilReadings.forEach((soil) => {
+    if (unusedSoilIds.has(soil.id)) combined.push(soil)
+  })
+
+  return combined
+    .sort((left, right) => (right.measuredAt || 0) - (left.measuredAt || 0))
+    .slice(0, MAX_READING_HISTORY)
+}
+
 async function loadSensorReadings() {
   const { data, error } = await sensorSupabase
     .from('sensor_readings')
@@ -134,9 +174,7 @@ export default function EnvironmentalMonitoring() {
   const latest = readings[0]
   const latestSoil = soilReadings[0]
   const combinedReadings = useMemo(
-    () => [...readings, ...soilReadings]
-      .sort((left, right) => (right.measuredAt || 0) - (left.measuredAt || 0))
-      .slice(0, MAX_READING_HISTORY),
+    () => combineSensorReadings(readings, soilReadings),
     [readings, soilReadings],
   )
 
