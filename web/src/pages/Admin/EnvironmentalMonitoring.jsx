@@ -84,7 +84,9 @@ function formatSensorReading(reading) {
       : measuredAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
     temperature: `${Number(reading.temperature_c).toFixed(1)}°C`,
     humidity: `${Number(reading.humidity_percent).toFixed(1)}%`,
-    moisture: '—',
+    moisture: reading.soil_moisture == null
+      ? '—'
+      : `${Number(reading.soil_moisture).toFixed(1)}%`,
   }
 }
 
@@ -145,7 +147,7 @@ function combineSensorReadings(climateReadings, soilReadings) {
 async function loadSensorReadings() {
   const { data, error } = await sensorSupabase
     .from('sensor_readings')
-    .select('id, device_id, temperature_c, humidity_percent, created_at')
+    .select('id, device_id, temperature_c, humidity_percent, soil_moisture, created_at')
     .order('created_at', { ascending: false })
     .limit(MAX_READING_HISTORY)
 
@@ -173,7 +175,7 @@ export default function EnvironmentalMonitoring() {
   const [sensorError, setSensorError] = useState('')
   const [soilError, setSoilError] = useState('')
   const latest = readings[0]
-  const latestSoil = soilReadings[0]
+  const latestSoil = readings.find((reading) => reading.soil_moisture != null) || soilReadings[0]
   const combinedReadings = useMemo(
     () => combineSensorReadings(readings, soilReadings),
     [readings, soilReadings],
@@ -187,9 +189,9 @@ export default function EnvironmentalMonitoring() {
   const connectedSensors = new Set(combinedReadings.map((reading) => reading.device_id)).size
   const soilStatus = !latestSoil
     ? 'Waiting for sensor'
-    : latestSoil.moisture_percent < 30
+    : (latestSoil.soil_moisture ?? latestSoil.moisture_percent) < 30
       ? 'Dry'
-      : latestSoil.moisture_percent < 70
+      : (latestSoil.soil_moisture ?? latestSoil.moisture_percent) < 70
         ? 'Moist'
         : 'Wet'
 
@@ -359,7 +361,7 @@ export default function EnvironmentalMonitoring() {
               <article>
                 <h2>Soil Moisture</h2>
                 <div><strong>{latestSoil?.moisture || '—'}</strong><img src={soilMoistureMetricIcon} alt="" /></div>
-                <small className={soilStatus === 'Dry' ? 'is-monitor' : ''} title={soilError || undefined}>{soilError ? 'Soil sensor unavailable' : soilStatus}</small>
+                <small className={soilStatus === 'Dry' ? 'is-monitor' : ''} title={!latestSoil ? soilError || undefined : undefined}>{latestSoil ? soilStatus : soilError ? 'Soil sensor unavailable' : soilStatus}</small>
               </article>
             </section>
 

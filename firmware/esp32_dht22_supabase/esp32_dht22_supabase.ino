@@ -9,6 +9,10 @@
 
 // Matches the working Arduino sketch supplied by the user.
 constexpr uint8_t DHT_PIN = 27;
+constexpr uint8_t SOIL_PIN = 34;
+constexpr uint8_t SOIL_SAMPLE_COUNT = 20;
+constexpr int SOIL_DRY_VALUE = 2800;
+constexpr int SOIL_WET_VALUE = 1150;
 constexpr unsigned long READ_INTERVAL_MS = 2000;
 constexpr unsigned long SEND_INTERVAL_MS = 30000;
 constexpr unsigned long WIFI_TIMEOUT_MS = 15000;
@@ -18,6 +22,21 @@ DHT dht(DHT_PIN, DHT22);
 unsigned long lastReadMs = 0;
 unsigned long lastSendMs = 0;
 bool wifiStarted = false;
+
+int readAverageSoilValue() {
+  uint32_t total = 0;
+  for (uint8_t index = 0; index < SOIL_SAMPLE_COUNT; ++index) {
+    total += analogRead(SOIL_PIN);
+    delay(10);
+  }
+  return total / SOIL_SAMPLE_COUNT;
+}
+
+float moisturePercentage(int rawValue) {
+  const float percentage =
+    100.0f * (SOIL_DRY_VALUE - rawValue) / (SOIL_DRY_VALUE - SOIL_WET_VALUE);
+  return constrain(percentage, 0.0f, 100.0f);
+}
 
 bool connectWifi() {
   if (WiFi.status() == WL_CONNECTED) return true;
@@ -73,7 +92,7 @@ bool syncClock() {
   return true;
 }
 
-void sendReading(float temperature, float humidity) {
+void sendReading(float temperature, float humidity, float soilMoisture) {
   WiFiClientSecure client;
   client.useBuiltinCACertBundle(); // Verify Supabase's TLS certificate.
 
@@ -89,15 +108,16 @@ void sendReading(float temperature, float humidity) {
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Prefer", "return=minimal");
 
-  // The database supplies id and created_at. DHT22 has no soil moisture reading.
+  // The database supplies id and created_at.
   const String payload = String("{\"device_id\":\"") + DEVICE_ID +
                          "\",\"temperature_c\":" + String(temperature, 1) +
-                         ",\"humidity_percent\":" + String(humidity, 1) + "}";
+                         ",\"humidity_percent\":" + String(humidity, 1) +
+                         ",\"soil_moisture\":" + String(soilMoisture, 1) + "}";
 
   const int status = http.POST(payload);
   if (status == 201 || status == 204) {
-    Serial.printf("Reading saved: %.1f C, %.1f %% humidity (HTTP %d)\n",
-                  temperature, humidity, status);
+    Serial.printf("Reading saved: %.1f C, %.1f%% humidity, %.1f%% soil (HTTP %d)\n",
+                  temperature, humidity, soilMoisture, status);
   } else if (status > 0) {
     Serial.printf("Supabase rejected reading (HTTP %d): %s\n",
                   status, http.getString().c_str());
@@ -111,6 +131,7 @@ void sendReading(float temperature, float humidity) {
 void setup() {
   Serial.begin(115200);
   dht.begin();
+  analogReadResolution(12);
   delay(2000); // DHT22 needs time after power-up before the first read.
   Serial.println("=== AgriLink Environmental Sensor ===");
 }
@@ -124,15 +145,18 @@ void loop() {
 
   const float temperature = dht.readTemperature(); // Celsius
   const float humidity = dht.readHumidity();
+  const int soilRaw = readAverageSoilValue();
+  const float soilMoisture = moisturePercentage(soilRaw);
   if (isnan(humidity) || isnan(temperature)) {
     Serial.println("DHT22 reading failed!");
     return;
   }
 
-  Serial.printf("Temperature: %.1f C\nHumidity: %.1f %%\n----------------------\n",
-                temperature, humidity);
+  Serial.printf("Temperature: %.1f C | Humidity: %.1f%%\n", temperature, humidity);
+  Serial.printf("Soil raw: %d | Moisture: %.1f%%\n----------------------\n",
+                soilRaw, soilMoisture);
   if (lastSendMs != 0 && millis() - lastSendMs < SEND_INTERVAL_MS) return;
   lastSendMs = millis();
   if (!connectWifi() || !syncClock()) return;
-  sendReading(temperature, humidity);
+  sendReading(temperature, humidity, soilMoisture);
 }
