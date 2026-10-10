@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  AlertTriangle,
   Antenna,
+  BellRing,
+  CheckCircle2,
+  CloudRain,
+  Droplets,
+  ThermometerSun,
+  WifiOff,
   CalendarDays,
   MapPin,
   Radio,
+  X,
 } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import weatherSunnyImage from '../../assets/weather/mobile/weather-real-sunny.png'
@@ -25,8 +33,10 @@ import '../../styles/admin-dashboard.css'
 import '../../styles/monitoring.css'
 
 const fields = ['Field A', 'Field B', 'Field C', 'Field D']
-const READINGS_PER_PAGE = 4
+const READINGS_PER_PAGE = 10
 const MAX_READING_HISTORY = 100
+
+
 const SENSOR_PAIR_WINDOW_MS = 15000
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const WEATHER_FALLBACK = {
@@ -169,11 +179,13 @@ async function loadSoilReadings() {
 export default function EnvironmentalMonitoring() {
   const [activeField, setActiveField] = useState('Field A')
   const [page, setPage] = useState(1)
+  const [readingsPerPage, setReadingsPerPage] = useState(10)
   const [weather, setWeather] = useState(WEATHER_FALLBACK)
   const [readings, setReadings] = useState([])
   const [soilReadings, setSoilReadings] = useState([])
   const [sensorError, setSensorError] = useState('')
   const [soilError, setSoilError] = useState('')
+  const [dismissedAlerts, setDismissedAlerts] = useState([])
   const latest = readings[0]
   const latestSoil = readings.find((reading) => reading.soil_moisture != null) || soilReadings[0]
   const combinedReadings = useMemo(
@@ -181,10 +193,13 @@ export default function EnvironmentalMonitoring() {
     [readings, soilReadings],
   )
 
-  const pageCount = Math.max(1, Math.ceil(combinedReadings.length / READINGS_PER_PAGE))
+  const pageCount = Math.max(1, Math.ceil(combinedReadings.length / readingsPerPage))
+  const totalReadings = combinedReadings.length
+  const startReading = totalReadings === 0 ? 0 : (page - 1) * readingsPerPage + 1
+  const endReading = Math.min(page * readingsPerPage, totalReadings)
   const visibleReadings = combinedReadings.slice(
-    (page - 1) * READINGS_PER_PAGE,
-    page * READINGS_PER_PAGE,
+    (page - 1) * readingsPerPage,
+    page * readingsPerPage,
   )
   const connectedSensors = new Set(combinedReadings.map((reading) => reading.device_id)).size
   const soilStatus = !latestSoil
@@ -194,6 +209,94 @@ export default function EnvironmentalMonitoring() {
       : (latestSoil.soil_moisture ?? latestSoil.moisture_percent) < 70
         ? 'Moist'
         : 'Wet'
+
+  const activeAlerts = useMemo(() => {
+    const list = []
+
+    if (sensorError || connectedSensors === 0) {
+      list.push({
+        id: 'sensor-offline',
+        type: 'danger',
+        icon: WifiOff,
+        title: 'IoT Sensor Network Alert',
+        message: sensorError || 'No active telemetry received from field sensors. Check ESP32 node power supply or Wi-Fi network.',
+        timestamp: 'Live status',
+      })
+    }
+
+    if (latestSoil) {
+      const moistureVal = latestSoil.soil_moisture ?? latestSoil.moisture_percent
+      if (moistureVal != null && moistureVal < 25) {
+        list.push({
+          id: 'low-moisture',
+          type: 'danger',
+          icon: Droplets,
+          title: `Low Soil Moisture Alert (${activeField})`,
+          message: `Soil moisture dropped to ${latestSoil.moisture}. Soil is dry—irrigation recommended immediately to prevent drought stress.`,
+          timestamp: 'Live reading',
+        })
+      }
+    }
+
+    if (latest && latest.temperature_c != null) {
+      const tempC = Number(latest.temperature_c)
+      if (tempC >= 33) {
+        list.push({
+          id: 'heat-stress',
+          type: 'warning',
+          icon: ThermometerSun,
+          title: `Crop Heat Stress Warning (${activeField})`,
+          message: `High ambient temperature (${latest.temperature}) detected. Transpiration stress risk—ensure adequate shade and hydration.`,
+          timestamp: 'Live reading',
+        })
+      }
+    }
+
+    if (latest && latest.humidity_percent != null && latest.temperature_c != null) {
+      const humidity = Number(latest.humidity_percent)
+      const tempC = Number(latest.temperature_c)
+      if (humidity >= 80 && tempC >= 24) {
+        list.push({
+          id: 'fungal-risk',
+          type: 'warning',
+          icon: AlertTriangle,
+          title: `Fungal Pathogen Risk Warning`,
+          message: `Elevated relative humidity (${latest.humidity}) at ${latest.temperature} creates favorable conditions for fungal leaf spot.`,
+          timestamp: 'Live reading',
+        })
+      }
+    }
+
+    const rainChance = weather.dailyForecast?.[0]?.rainChance || 0
+    if (weather.condition === 'rainy' || weather.condition === 'stormy' || rainChance >= 60) {
+      list.push({
+        id: 'rain-spray',
+        type: 'info',
+        icon: CloudRain,
+        title: 'Rainfall & Spraying Window Alert',
+        message: `High rainfall probability today (${rainChance}% chance). Delay chemical fertilizer or pesticide spraying to avoid chemical runoff.`,
+        timestamp: 'Forecast update',
+      })
+    }
+
+    if (!list.length) {
+      list.push({
+        id: 'all-optimal',
+        type: 'success',
+        icon: CheckCircle2,
+        title: `Optimal Microclimate Status (${activeField})`,
+        message: `All environmental conditions (temperature, humidity, and soil moisture) are within optimal agricultural bounds.`,
+        timestamp: 'Live monitoring',
+      })
+    }
+
+    return list
+  }, [sensorError, connectedSensors, latestSoil, latest, weather, activeField])
+
+  const visibleAlerts = useMemo(
+    () => activeAlerts.filter((alert) => !dismissedAlerts.includes(alert.id)),
+    [activeAlerts, dismissedAlerts],
+  )
 
   useEffect(() => {
     let active = true
@@ -308,6 +411,33 @@ export default function EnvironmentalMonitoring() {
             <span><Radio aria-hidden="true" /> {combinedReadings.length ? 'Live' : 'Waiting for data'}</span>
           </section>
 
+          {visibleAlerts.length > 0 && (
+            <div className="environment-alerts-list" aria-label="Live environmental alerts">
+              {visibleAlerts.map((alert) => {
+                const IconComponent = alert.icon
+                return (
+                  <article className={`environment-alert-item is-${alert.type}`} key={alert.id}>
+                    <div className="environment-alert-icon">
+                      <IconComponent aria-hidden="true" />
+                    </div>
+                    <div className="environment-alert-content">
+                      <strong>{alert.title}:</strong> {alert.message}
+                    </div>
+                    <button
+                      type="button"
+                      className="environment-alert-dismiss"
+                      aria-label="Dismiss notification"
+                      title="Dismiss notification"
+                      onClick={() => setDismissedAlerts((prev) => [...prev, alert.id])}
+                    >
+                      <X aria-hidden="true" />
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+
           <section
             className={`environment-weather-banner is-${condition}${isNight ? ' is-night' : ''}`}
             style={{ backgroundImage: `url(${backgroundImage})` }}
@@ -370,7 +500,16 @@ export default function EnvironmentalMonitoring() {
                 <thead><tr><th>Time</th><th>Temperature</th><th>Humidity</th><th>Soil Moisture</th></tr></thead>
                 <tbody>
                   {visibleReadings.map((reading) => (
-                    <tr key={reading.id}><td>{reading.time}</td><td>{reading.temperature}</td><td>{reading.humidity}</td><td>{reading.moisture}</td></tr>
+                    <tr key={reading.id}>
+                      <td><strong>{reading.time}</strong></td>
+                      <td><span className="environment-cell-value">{reading.temperature}</span></td>
+                      <td><span className="environment-cell-value">{reading.humidity}</span></td>
+                      <td>
+                        <div className="environment-moisture-cell">
+                          <span>{reading.moisture}</span>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
                   {!visibleReadings.length && (
                     <tr><td colSpan="4">{sensorError || 'Waiting for the first ESP32 reading…'}</td></tr>
@@ -380,11 +519,11 @@ export default function EnvironmentalMonitoring() {
             </div>
 
             <footer className="environment-pagination">
-              <span>Page {page}</span>
-              <nav aria-label="Sensor reading pages">
-                <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))}>← Previous</button>
-                {Array.from({ length: pageCount }, (_, index) => index + 1).map((number) => <button className={page === number ? 'is-current' : ''} type="button" key={number} onClick={() => setPage(number)} aria-current={page === number ? 'page' : undefined}>{number}</button>)}
-                <button type="button" onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>Next →</button>
+              <span>Showing {startReading}–{endReading} of {totalReadings} readings</span>
+              <nav aria-label="Sensor reading pages" className="environment-pagination-right">
+                <button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>‹</button>
+                <span className="environment-page-indicator">{page} / {pageCount}</span>
+                <button type="button" aria-label="Next page" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>›</button>
               </nav>
             </footer>
           </section>
