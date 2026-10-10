@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dateIcon from '../../assets/admin-date-icon.png'
 import notificationIcon from '../../assets/admin-notification-icon.png'
 import dashboardIllustration from '../../assets/admin-dashboard-illustration.png'
 import { AdminSidebar } from '../../components/AdminNavigation.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
-import { loadAdminActivities, loadAdminRevenue } from '../../services/adminDashboard.js'
+import { loadAdminActivities, loadAdminProductivity, loadAdminRevenue } from '../../services/adminDashboard.js'
 import '../../styles/admin-dashboard.css'
 
 const ACTIVITY_MAX_COUNT = 30
@@ -57,29 +57,10 @@ function ActivityRow({ activity, now, ongoing = false }) {
   )
 }
 
-function PineappleHarvestIcon() {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M16 10c-4.8 0-8 3.8-8 9.1C8 25 11.4 29 16 29s8-4 8-9.9C24 13.8 20.8 10 16 10Z" fill="currentColor" opacity=".92" />
-      <path d="m16 11-3.4-7.3L16 6.1 18.8 2l-.6 5.4 5-3.3-3.4 7.2M10 17l12 7M10 23l11-7M16 11v17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function PineappleSalesIcon() {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M5 13h22l-2 14H7L5 13Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M10 13c.6-4 2.6-6 6-6s5.4 2 6 6M11 19h10M12 23h8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="m16 8-2.2-5L16 4.7 18.2 2l-.5 4 3.8-2.2L19 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
 const revenuePeriodLabels = { week: 'Week', month: 'Month', year: 'Year' }
 
 export default function AdminDashboard() {
-  const { profile, signOut, user } = useAuth()
+  const { profile, signOut } = useAuth()
   const [signingOut, setSigningOut] = useState(false)
   const [revenueData, setRevenueData] = useState(null)
   const [revenueLoading, setRevenueLoading] = useState(true)
@@ -89,6 +70,10 @@ export default function AdminDashboard() {
   const [ongoingActivities, setOngoingActivities] = useState([])
   const [activitiesLoading, setActivitiesLoading] = useState(true)
   const [activitiesError, setActivitiesError] = useState('')
+  const [productivity, setProductivity] = useState(null)
+  const [productivityLoading, setProductivityLoading] = useState(true)
+  const [productivityError, setProductivityError] = useState('')
+  const reportDialogRef = useRef(null)
   const [now, setNow] = useState(() => Date.now())
   const displayName = profile?.full_name || 'Josh Ureta'
   const firstName = displayName.split(' ')[0]
@@ -154,7 +139,34 @@ export default function AdminDashboard() {
     return () => window.clearInterval(timer)
   }, [fetchActivities])
 
+  const fetchProductivity = useCallback(async () => {
+    try {
+      setProductivity(await loadAdminProductivity())
+      setProductivityError('')
+    } catch (error) {
+      setProductivityError(error.message)
+    } finally {
+      setProductivityLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchProductivity()
+    const timer = window.setInterval(fetchProductivity, ACTIVITY_REFRESH_MS)
+    return () => window.clearInterval(timer)
+  }, [fetchProductivity])
+
   const hasActivities = completedActivities.length + ongoingActivities.length > 0
+  const completionPercent = productivity?.tasks.completion_percent ?? 0
+  const utilizationPercent = productivity?.workers.utilization_percent ?? 0
+  const comparison = productivity?.comparison
+  const change = comparison?.change_percent
+  const performanceTitle = change == null
+    ? comparison?.current_approved ? 'Approvals this month' : 'No approved tasks yet'
+    : change > 0 ? 'Completed tasks increased' : change < 0 ? 'Completed tasks decreased' : 'Completed tasks steady'
+  const performanceDetail = change == null
+    ? comparison?.current_approved ? `${comparison.current_approved} approved so far; no prior-month baseline.` : 'No approved tasks in either period yet.'
+    : `${comparison.current_approved} approved this month vs ${comparison.previous_approved} by this date last month (${change > 0 ? '+' : ''}${change}%).`
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -218,32 +230,31 @@ export default function AdminDashboard() {
           <div className="admin-dashboard-grid">
             <section className="admin-main-column">
               <div className="admin-stat-grid">
-                <article className="admin-stat-card">
-                  <span className="stat-icon stat-workers" aria-hidden="true">●</span>
-                  <div>
-                    <p>Active Workers</p>
-                    <strong>6</strong>
-                    <small>Currently working</small>
-                  </div>
-                </article>
-
-                <article className="admin-stat-card">
-                  <span className="stat-icon stat-harvest"><PineappleHarvestIcon /></span>
-                  <div>
-                    <p>Harvested This Month</p>
-                    <strong>12,000 <em>kg</em></strong>
-                    <small>Total harvested</small>
-                  </div>
-                </article>
-
-                <article className="admin-stat-card">
-                  <span className="stat-icon stat-sales"><PineappleSalesIcon /></span>
+                <article className="admin-stat-card is-featured">
                   <div>
                     <p>Sales This {revenuePeriodLabels[revenuePeriod]}</p>
                     <strong>{revenueLoading ? '—' : revenue ? peso.format(revenue.net) : 'Unavailable'}</strong>
                     <small>{revenue ? `${revenue.order_count} revenue order${revenue.order_count === 1 ? '' : 's'} · net of refunds` : 'Database revenue'}</small>
                   </div>
                 </article>
+
+                <div className="admin-stat-subgrid">
+                  <article className="admin-stat-card">
+                    <div>
+                      <p>Active Workers</p>
+                      <strong>6</strong>
+                      <small>Currently working</small>
+                    </div>
+                  </article>
+
+                  <article className="admin-stat-card">
+                    <div>
+                      <p>Harvested This Month</p>
+                      <strong>12,000 <em>kg</em></strong>
+                      <small>Total harvested</small>
+                    </div>
+                  </article>
+                </div>
               </div>
 
               <article className="admin-panel revenue-panel">
@@ -331,30 +342,37 @@ export default function AdminDashboard() {
                     <span>Productivity reports</span>
                     <strong>Team performance</strong>
                   </div>
-                  <button type="button">View report</button>
+                  <button type="button" onClick={() => reportDialogRef.current?.showModal()}>View report</button>
                 </div>
 
-                <div className="productivity-metrics">
-                  <div className="progress-metric">
-                    <div className="progress-ring" style={{ '--progress': '85%' }}>
-                      <strong>85%</strong>
+                {productivityLoading && !productivity ? (
+                  <p className="productivity-state">Loading productivity report…</p>
+                ) : productivityError && !productivity ? (
+                  <p className="productivity-state is-error">{productivityError} <button type="button" onClick={fetchProductivity}>Retry</button></p>
+                ) : productivity && (
+                  <div className="productivity-metrics">
+                    <div className="progress-metric">
+                      <div className="progress-ring" style={{ '--progress': `${completionPercent}%` }}>
+                        <strong>{completionPercent}%</strong>
+                      </div>
+                      <p>Tasks completed today</p>
                     </div>
-                    <p>Tasks completed today</p>
-                  </div>
-                  <div className="progress-metric">
-                    <div className="progress-ring" style={{ '--progress': '78%' }}>
-                      <strong>78%</strong>
+                    <div className="progress-metric">
+                      <div className="progress-ring" style={{ '--progress': `${utilizationPercent}%` }}>
+                        <strong>{utilizationPercent}%</strong>
+                      </div>
+                      <p>Resource utilization</p>
                     </div>
-                    <p>Resource utilization</p>
-                  </div>
-                  <div className="performance-note">
-                    <span aria-hidden="true">↗</span>
-                    <div>
-                      <strong>Performance increased</strong>
-                      <p>Productivity is up by 12% this month.</p>
+                    <div className={`performance-note${change == null || change === 0 ? ' is-neutral' : change < 0 ? ' is-decrease' : ''}`}>
+                      <span aria-hidden="true">{change == null || change === 0 ? '→' : change < 0 ? '↘' : '↗'}</span>
+                      <div>
+                        <strong>{performanceTitle}</strong>
+                        <p>{performanceDetail}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+                {productivity && productivityError && <p className="productivity-state is-error">Could not refresh the report. <button type="button" onClick={fetchProductivity}>Retry</button></p>}
               </article>
             </section>
 
@@ -389,15 +407,42 @@ export default function AdminDashboard() {
                   </>
                 )}
               </div>
-
-              <div className="admin-profile-card">
-                <span>Signed in as</span>
-                <strong>{user?.email}</strong>
-                <small>Protected administrator account</small>
-              </div>
             </aside>
           </div>
         </div>
+        <dialog className="productivity-report-dialog" ref={reportDialogRef} aria-labelledby="productivity-report-title">
+          <div className="productivity-report-heading">
+            <div>
+              <h2 id="productivity-report-title">Productivity report</h2>
+              <p>{productivity?.date || 'Today'} · Asia/Manila</p>
+            </div>
+            <button type="button" onClick={() => reportDialogRef.current?.close()} aria-label="Close report">×</button>
+          </div>
+          {productivityLoading && !productivity ? (
+            <p className="productivity-report-state">Loading report…</p>
+          ) : productivityError && !productivity ? (
+            <p className="productivity-report-state is-error">{productivityError} <button type="button" onClick={fetchProductivity}>Retry</button></p>
+          ) : productivity && (
+            <>
+              <div className="productivity-report-grid">
+                <div><strong>{productivity.tasks.completed} / {productivity.tasks.scheduled}</strong><span>Scheduled tasks completed today</span></div>
+                <div><strong>{productivity.tasks.awaiting_review}</strong><span>Awaiting admin review</span></div>
+                <div><strong>{productivity.workers.scheduled} / {productivity.workers.total}</strong><span>Crop workers scheduled today</span></div>
+              </div>
+              <p className="productivity-report-definition">Completion rate is approved tasks divided by tasks scheduled today. Resource utilization is crop workers with a task today divided by all crop workers.</p>
+              <div className="productivity-report-comparison">
+                <h3>Monthly comparison</h3>
+                <p>{performanceDetail}</p>
+                <small>{productivity.month_label} to date compared with {productivity.previous_month_label} through the equivalent calendar day. Counts include admin-approved tasks.</small>
+              </div>
+              <div className="productivity-report-actions">
+                <a href="/admin/tasks">View task schedule</a>
+                <a href="/admin/records">View completed records</a>
+              </div>
+              {productivityError && <p className="productivity-report-state is-error">These are the last loaded results. <button type="button" onClick={fetchProductivity}>Retry</button></p>}
+            </>
+          )}
+        </dialog>
       </section>
     </main>
   )

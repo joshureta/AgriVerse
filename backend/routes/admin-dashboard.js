@@ -73,6 +73,85 @@ function money(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
+function productivityPeriod(now = new Date()) {
+  const local = new Date(now.getTime() + MANILA_OFFSET_MS);
+  const year = local.getUTCFullYear();
+  const month = local.getUTCMonth();
+  const day = local.getUTCDate();
+  const previousMonthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return {
+    date: local.toISOString().slice(0, 10),
+    month_label: new Intl.DateTimeFormat("en-PH", { month: "long", year: "numeric", timeZone: "Asia/Manila" }).format(now),
+    previous_month_label: new Intl.DateTimeFormat("en-PH", { month: "long", year: "numeric", timeZone: "Asia/Manila" }).format(manilaInstant(year, month - 1, 1)),
+    current_start: manilaInstant(year, month, 1).toISOString(),
+    current_end: manilaInstant(year, month, day + 1).toISOString(),
+    previous_start: manilaInstant(year, month - 1, 1).toISOString(),
+    previous_end: manilaInstant(year, month - 1, Math.min(day, previousMonthDays) + 1).toISOString(),
+  };
+}
+
+async function todaySchedules(supabase, date) {
+  const rows = [];
+  const pageSize = 500;
+  for (let from = 0; ; from += pageSize) {
+    const { data, count, error } = await supabase.from("schedules")
+      .select("id, task:tasks!schedules_task_id_fkey(assigned_worker_id, task_status:task_statuses!tasks_status_id_fkey(code))", { count: "exact" })
+      .eq("schedule_date", date)
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if ((count != null && rows.length >= count) || (data || []).length < pageSize) return rows;
+  }
+}
+
+function summarizeProductivity(schedules, workerCount, currentApprovals, previousApprovals) {
+  const tasks = schedules.map((schedule) => Array.isArray(schedule.task) ? schedule.task[0] : schedule.task).filter(Boolean);
+  const scheduled = tasks.length;
+  const completed = tasks.filter((task) => task.task_status?.code === "completed").length;
+  const awaitingReview = tasks.filter((task) => task.task_status?.code === "awaiting_approval").length;
+  const assignedWorkers = new Set(tasks.map((task) => task.assigned_worker_id).filter(Boolean)).size;
+  return {
+    tasks: { scheduled, completed, awaiting_review: awaitingReview, completion_percent: scheduled ? Math.round(completed / scheduled * 100) : 0 },
+    workers: { total: workerCount, scheduled: assignedWorkers, utilization_percent: workerCount ? Math.min(100, Math.round(assignedWorkers / workerCount * 100)) : 0 },
+    comparison: {
+      current_approved: currentApprovals,
+      previous_approved: previousApprovals,
+      change_percent: previousApprovals ? Math.round((currentApprovals - previousApprovals) / previousApprovals * 100) : null,
+    },
+  };
+}
+
+router.get("/productivity", async (_req, res, next) => {
+  try {
+    const period = productivityPeriod();
+    const supabase = getSupabase();
+    const { data: completedStatus, error: statusError } = await supabase.from("task_statuses")
+      .select("id").eq("code", "completed").single();
+    if (statusError) throw statusError;
+
+    const [schedules, workers, current, previous] = await Promise.all([
+      todaySchedules(supabase, period.date),
+      supabase.from("profiles").select("id", { count: "exact", head: true })
+        .eq("role", "farm_worker").eq("worker_category", "crop_management_worker"),
+      supabase.from("tasks").select("id", { count: "exact", head: true })
+        .eq("status_id", completedStatus.id).gte("approved_at", period.current_start).lt("approved_at", period.current_end),
+      supabase.from("tasks").select("id", { count: "exact", head: true })
+        .eq("status_id", completedStatus.id).gte("approved_at", period.previous_start).lt("approved_at", period.previous_end),
+    ]);
+    for (const result of [workers, current, previous]) if (result.error) throw result.error;
+    return res.json({
+      date: period.date,
+      month_label: period.month_label,
+      previous_month_label: period.previous_month_label,
+      generated_at: new Date().toISOString(),
+      ...summarizeProductivity(schedules, workers.count || 0, current.count || 0, previous.count || 0),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get("/revenue", async (req, res, next) => {
   try {
     const period = String(req.query.period || "month").toLowerCase();
@@ -280,3 +359,5 @@ router.get("/activities", async (req, res, next) => {
 
 module.exports = router;
 module.exports.revenuePeriod = revenuePeriod;
+module.exports.productivityPeriod = productivityPeriod;
+module.exports.summarizeProductivity = summarizeProductivity;

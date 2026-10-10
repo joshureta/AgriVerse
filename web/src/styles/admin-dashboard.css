@@ -431,7 +431,7 @@
 }
 
 .admin-content {
-  width: min(1180px, calc(100% - 44px));
+  width: min(1280px, calc(100% - 48px));
   margin: 0 auto;
   padding: 24px 0 40px;
 }
@@ -546,6 +546,7 @@
 .admin-dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.9fr) minmax(270px, 0.82fr);
+  align-items: start;
   gap: 18px;
   margin-top: 18px;
 }
@@ -564,52 +565,43 @@
 
 .admin-stat-card {
   min-height: 112px;
+  height: auto;
+  align-self: start;
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
+  gap: 12px;
   box-sizing: border-box;
-  padding: 16px;
+  padding: 18px 20px;
   border: 1px solid var(--admin-line);
-  border-radius: 13px;
+  border-radius: 14px;
   background: white;
   box-shadow: 0 5px 15px rgba(37, 75, 43, 0.06);
 }
 
-.stat-icon {
-  flex: 0 0 auto;
+.stat-icon-wrapper {
+  flex: 0 0 46px;
   width: 46px;
   height: 46px;
-  display: grid;
-  place-items: center;
-  border-radius: 13px;
-  font-size: 26px;
-  font-style: normal;
-  font-weight: 900;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(25, 108, 53, 0.09);
+  color: #196c35;
 }
 
-.stat-icon svg {
-  width: 29px;
-  height: 29px;
+.stat-icon {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
   display: block;
-}
-
-.stat-workers {
-  color: #287c3f;
-  background: #e0f1dd;
-}
-
-.stat-harvest {
-  color: #916b08;
-  background: linear-gradient(145deg, #fff6c9, #f9e28a);
-}
-
-.stat-sales {
-  color: white;
-  background: linear-gradient(145deg, #4d9b53, #196c35);
+  color: #196c35;
 }
 
 .admin-stat-card > div {
   min-width: 0;
+  flex: 1;
   display: grid;
 }
 
@@ -945,6 +937,27 @@
   min-height: 205px;
 }
 
+.productivity-state {
+  margin: 20px;
+  color: #647368;
+  font-size: 12px;
+}
+
+.productivity-state.is-error,
+.productivity-report-state.is-error {
+  color: #a33b31;
+}
+
+.productivity-state button,
+.productivity-report-state button {
+  border: 0;
+  color: var(--admin-green);
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .productivity-metrics {
   display: grid;
   grid-template-columns: 1fr 1fr 1.6fr;
@@ -987,7 +1000,8 @@
 .progress-metric p {
   margin: 0;
   color: #6d776f;
-  font-size: 8px;
+  font-size: 10px;
+  text-align: center;
 }
 
 .performance-note {
@@ -1015,20 +1029,171 @@
 .performance-note p {
   margin: 4px 0 0;
   color: #59715e;
-  font-size: 8px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.performance-note.is-decrease {
+  border-color: #e5b0a8;
+  background: #fff1ef;
+}
+
+.performance-note.is-decrease > span,
+.performance-note.is-decrease strong {
+  color: #a33b31;
+}
+
+.performance-note.is-neutral {
+  border-color: #ced9ce;
+  background: #f3f6f1;
+}
+
+.performance-note.is-neutral > span,
+.performance-note.is-neutral strong {
+  color: #41664b;
+}
+
+.productivity-report-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100svh - 32px);
+  box-sizing: border-box;
+  border: 1px solid #dbe5d8;
+  border-radius: 16px;
+  padding: 24px;
+  color: #172c1d;
+  background: white;
+  box-shadow: 0 24px 70px rgba(20, 47, 26, 0.2);
+  font-family: var(--sans);
+}
+
+.productivity-report-dialog::backdrop {
+  background: rgba(14, 36, 20, 0.45);
+}
+
+.productivity-report-heading,
+.productivity-report-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.productivity-report-heading h2,
+.productivity-report-comparison h3 {
+  margin: 0;
+  color: #173d25;
+}
+
+.productivity-report-heading h2 {
+  font-size: 20px;
+}
+
+.productivity-report-heading p {
+  margin: 5px 0 0;
+  color: #718077;
+  font-size: 12px;
+}
+
+.productivity-report-heading button {
+  border: 0;
+  padding: 0 4px;
+  color: #536a59;
+  background: transparent;
+  font-size: 25px;
+  cursor: pointer;
+}
+
+.productivity-report-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 22px;
+}
+
+.productivity-report-grid > div {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-height: 86px;
+  box-sizing: border-box;
+  border: 1px solid #e0e9dd;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f7faf6;
+}
+
+.productivity-report-grid strong {
+  color: #1b6639;
+  font-size: 19px;
+}
+
+.productivity-report-grid span,
+.productivity-report-definition,
+.productivity-report-comparison p,
+.productivity-report-comparison small {
+  color: #657469;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.productivity-report-definition {
+  margin: 15px 0;
+}
+
+.productivity-report-comparison {
+  border-top: 1px solid #e5ece2;
+  padding-top: 15px;
+}
+
+.productivity-report-comparison h3 {
+  font-size: 14px;
+}
+
+.productivity-report-comparison p {
+  margin: 8px 0 5px;
+}
+
+.productivity-report-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.productivity-report-actions a {
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: white;
+  background: #196c35;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.productivity-report-actions a + a {
+  color: #196c35;
+  background: #e9f4e8;
+}
+
+.productivity-report-state {
+  margin: 24px 0 0;
+  font-size: 12px;
 }
 
 .activity-panel {
-  min-height: 100%;
+  min-height: 0;
+  max-height: 760px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .activity-list {
+  min-height: 0;
+  flex: 1;
   display: grid;
+  align-content: start;
   gap: 8px;
-  padding: 10px 14px;
-  max-height: 420px;
+  padding: 10px 14px 14px;
   overflow-y: auto;
 }
 
@@ -1117,33 +1282,6 @@
   cursor: pointer;
 }
 
-.admin-profile-card {
-  display: grid;
-  gap: 4px;
-  margin: auto 14px 14px;
-  padding: 16px;
-  border-radius: 10px;
-  background: linear-gradient(145deg, #ebf5dc, #f7faef);
-}
-
-.admin-profile-card span {
-  color: #77906d;
-  font-size: 8px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.admin-profile-card strong {
-  overflow-wrap: anywhere;
-  color: #245831;
-  font-size: 10px;
-}
-
-.admin-profile-card small {
-  color: #82907f;
-  font-size: 8px;
-}
-
 @media (max-width: 1040px) {
   .admin-dashboard {
     grid-template-columns: 232px minmax(0, 1fr);
@@ -1154,11 +1292,13 @@
   }
 
   .activity-panel {
+    height: auto;
     min-height: 350px;
   }
 
   .activity-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 520px;
   }
 }
 
@@ -1259,6 +1399,14 @@
 }
 
 @media (max-width: 430px) {
+  .productivity-report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .productivity-report-grid > div {
+    min-height: 0;
+  }
+
   .admin-identity {
     min-width: 0;
   }

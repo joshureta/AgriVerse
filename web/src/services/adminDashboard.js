@@ -31,3 +31,14 @@ export async function loadAdminRevenue(period = 'month') {
   if (!response.ok) throw new Error(body.error || 'Unable to load revenue data')
   return body
 }
+
+export async function loadAdminProductivity() {
+  const token = await accessToken()
+  const response = await fetch(`${API_URL}/api/admin/dashboard/productivity`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load productivity report')
+  return body
+}
