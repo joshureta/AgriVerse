@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, ClipboardPlus, Eye, Pencil, Printer, X } from 'lucide-react'
+import { Check, ChevronDown, CircleAlert, ClipboardCheck, ClipboardPlus, Eye, Pencil, Printer, X } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
@@ -308,6 +308,7 @@ export default function TaskScheduleManagement() {
   const [harvestRejectionReason, setHarvestRejectionReason] = useState('')
   const [harvestDecision, setHarvestDecision] = useState('approve')
   const [harvestApprovalCount, setHarvestApprovalCount] = useState(0)
+  const [dismissedReviewAlerts, setDismissedReviewAlerts] = useState({ tasks: false, disputes: false })
   const [refreshKey, setRefreshKey] = useState(0)
   const filterRef = useRef(null)
   const statusLabels = useMemo(
@@ -812,6 +813,31 @@ export default function TaskScheduleManagement() {
             </div>
           </header>
 
+          {((harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks) || (openDisputeCount > 0 && !dismissedReviewAlerts.disputes)) && (
+            <section className="task-review-alerts" aria-label="Items needing review">
+              {harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks && (
+                <div className="task-review-alert is-tasks" role="status">
+                  <span className="task-review-alert-icon"><ClipboardCheck aria-hidden="true" /></span>
+                  <p>
+                    <button type="button" className="task-review-alert-link" onClick={() => { setActiveTab('tasks'); setWorkView('crop'); setFilter('awaiting_approval'); setSearch(''); setPage(1) }}>Tasks to Review:</button>{' '}
+                    {harvestApprovalCount} task{harvestApprovalCount === 1 ? ' is' : 's are'} waiting for approval. Review the submitted work.
+                  </p>
+                  <button type="button" className="task-review-alert-dismiss" aria-label="Dismiss tasks to review alert" onClick={() => setDismissedReviewAlerts((current) => ({ ...current, tasks: true }))}><X aria-hidden="true" /></button>
+                </div>
+              )}
+              {openDisputeCount > 0 && !dismissedReviewAlerts.disputes && (
+                <div className="task-review-alert is-disputes" role="status">
+                  <span className="task-review-alert-icon"><CircleAlert aria-hidden="true" /></span>
+                  <p>
+                    <button type="button" className="task-review-alert-link" onClick={() => { setActiveTab('disputes'); setDisputeFilter('open'); setSearch(''); setPage(1) }}>Disputes to Review:</button>{' '}
+                    {openDisputeCount} open dispute{openDisputeCount === 1 ? '' : 's'} need{openDisputeCount === 1 ? 's' : ''} your decision. Review and resolve {openDisputeCount === 1 ? 'it' : 'them'}.
+                  </p>
+                  <button type="button" className="task-review-alert-dismiss" aria-label="Dismiss disputes to review alert" onClick={() => setDismissedReviewAlerts((current) => ({ ...current, disputes: true }))}><X aria-hidden="true" /></button>
+                </div>
+              )}
+            </section>
+          )}
+
           <section className="task-summary-grid" aria-label="Task summary">
             <SummaryCard label="Total Task" value={summary.total} icon={<img src={totalTaskIcon} alt="" />} />
             <SummaryCard label="In Progress" value={summary.inProgress} icon={<img src={progressTaskIcon} alt="" />} />
@@ -828,11 +854,6 @@ export default function TaskScheduleManagement() {
               <button className={activeTab === 'disputes' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('disputes'); setSearch(''); setPage(1) }}>Disputes{openDisputeCount > 0 ? ` (${openDisputeCount})` : ''}</button>
               <button className={activeTab === 'archive' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('archive'); setSearch(''); setPage(1) }}>Archived Items</button>
             </nav>
-            {activeTab === 'tasks' && harvestApprovalCount > 0 && (
-              <div className="harvest-approval-banner" role="status">
-                <span>Task Awaiting to Review</span>
-              </div>
-            )}
             {activeTab === 'disputes' ? <>
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
             <nav className="dispute-status-filter" aria-label="Filter disputes by status">
