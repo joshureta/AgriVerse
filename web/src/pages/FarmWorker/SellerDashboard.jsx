@@ -1,10 +1,4 @@
 import {
-  Banknote,
-  Box,
-  CheckCircle2,
-  Clock3,
-  PackageCheck,
-  ShoppingBag,
   TrendingUp,
 } from 'lucide-react'
 import { SellerSidebar, SellerTopbar } from '../../components/SellerNavigation.jsx'
@@ -48,6 +42,12 @@ export default function SellerDashboard() {
   const totalStock = dashboard?.stats?.stock_total || 0
   const change = dashboard?.revenue?.change_percent
   const tone = (status) => ['pending', 'confirmed'].includes(status) ? 'new' : ['preparing', 'ready_for_delivery', 'ready_for_pickup'].includes(status) ? 'progress' : 'done'
+  const inventoryGradient = useMemo(() => {
+    if (!totalStock || !inventory.length) return 'conic-gradient(#dfe8df 0 100%)'
+    let cursor = 0
+    const colors = ['#196c35', '#78b83d', '#d9a51d', '#4b9b70']
+    return `conic-gradient(${inventory.map((item, index) => { const start = cursor; cursor += (item.quantity / totalStock) * 360; return `${colors[index % colors.length]} ${start}deg ${cursor}deg` }).join(', ')})`
+  }, [inventory, totalStock])
 
   return (
     <main className="admin-dashboard seller-dashboard">
@@ -56,34 +56,43 @@ export default function SellerDashboard() {
       <section className="admin-workspace">
         <SellerTopbar />
 
-        <div className="seller-content">
-          <section className="seller-hero">
+        <div className="admin-content seller-content">
+          <section className="admin-hero seller-hero">
             <div className="seller-hero-copy">
-              <p>Seller workspace</p>
+              <p className="admin-eyebrow">Seller workspace</p>
               <h1>Hello {firstName}!</h1>
-              <span>Here is today&apos;s harvest, inventory, and order overview.</span>
+              <p>Here is today&apos;s harvest, inventory, and order overview.</p>
             </div>
             <img src={sellerHero} alt="Green crates filled with harvested pineapples" />
           </section>
 
           <section className="seller-stats" aria-label="Seller summary">
             <article>
-              <span className="seller-stat-icon is-harvest"><PackageCheck /></span>
               <div><small>Pineapples In Stock</small><strong>{dashboard ? totalStock.toLocaleString() : '—'} <em>pcs</em></strong><p>Available in inventory</p></div>
             </article>
             <article>
-              <span className="seller-stat-icon is-sales"><Banknote /></span>
               <div><small>Sales This Month</small><strong>{dashboard ? peso.format(dashboard.stats.sales_this_month) : '—'}</strong><p>Paid orders, net of refunds</p></div>
             </article>
             <article>
-              <span className="seller-stat-icon is-orders"><ShoppingBag /></span>
               <div><small>Pending Orders</small><strong>{dashboard ? dashboard.stats.pending_orders : '—'}</strong><p>Needs attention</p></div>
             </article>
           </section>
 
-          <div className="seller-dashboard-body">
-            <section className="seller-panel seller-revenue" aria-labelledby="seller-revenue-title">
-              <header><div><small>Revenue</small><h2 id="seller-revenue-title">Monthly Performance</h2></div><span><TrendingUp /> {change == null ? '—' : `${change >= 0 ? '+' : ''}${change}%`}</span></header>
+          <div className="seller-analytics-grid">
+              <section className="seller-panel seller-inventory-statistics" aria-labelledby="seller-inventory-statistics-title">
+                <header><div><small>Inventory</small><h2 id="seller-inventory-statistics-title">Inventory Statistics</h2></div><span className="seller-panel-menu">•••</span></header>
+                <div className="seller-inventory-statistics-content">
+                  <div className="seller-stock-donut" style={{ background: inventoryGradient }}>
+                    <span><strong>{totalStock.toLocaleString()}</strong><small>In stock</small></span>
+                  </div>
+                  <ul className="seller-inventory-legend">
+                    {inventory.map((item, index) => <li key={item.size}><i style={{ background: ['#196c35', '#78b83d', '#d9a51d', '#4b9b70'][index % 4] }} /><span>{item.size}</span><strong>{item.quantity.toLocaleString()}</strong></li>)}
+                  </ul>
+                </div>
+              </section>
+
+              <section className="seller-panel seller-revenue" aria-labelledby="seller-revenue-title">
+              <header><div><small>Revenue</small><h2 id="seller-revenue-title">Sales Analytics</h2></div><span><TrendingUp /> {change == null ? '—' : `${change >= 0 ? '+' : ''}${change}%`}</span></header>
               <div className="seller-chart">
                 <div className="seller-chart-labels"><span>{peso.format(maxRevenue)}</span><span>{peso.format(maxRevenue * .75)}</span><span>{peso.format(maxRevenue * .5)}</span><span>{peso.format(maxRevenue * .25)}</span><span>₱0</span></div>
                 {error ? <div className="seller-state is-error">{error}<button onClick={fetchDashboard}>Retry</button></div> : <svg viewBox="0 0 400 105" role="img" aria-label="Seller revenue trend from paid orders">
@@ -94,31 +103,24 @@ export default function SellerDashboard() {
                 </svg>}
                 <div className="seller-chart-months">{series.map((point) => <span key={point.label}>{point.label}</span>)}</div>
               </div>
-            </section>
-
-            <section className="seller-panel seller-orders" id="orders" aria-labelledby="seller-orders-title">
-              <header><div><small>Orders</small><h2 id="seller-orders-title">Recent Orders</h2></div><a href="#orders">View all</a></header>
-              <div className="seller-order-list">
-                {(dashboard?.orders || []).map((order) => (
-                  <article key={order.id}>
-                    <span className="seller-order-icon"><Box /></span>
-                    <div><strong>{order.customer}</strong><small>{order.quantity} pineapples · {order.order_number}</small></div>
-                    <span className={`seller-order-status is-${tone(order.status)}`}>{statusLabels[order.status] || order.status}</span>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section className="seller-panel seller-inventory" id="inventory" aria-labelledby="seller-inventory-title">
-              <header><div><small>Stock overview</small><h2 id="seller-inventory-title">Inventory Status</h2></div></header>
-              <div className="seller-inventory-content">
-                <div className="seller-stock-ring"><span><strong>{totalStock.toLocaleString()}</strong><small>pcs in stock</small></span></div>
-                <ul>
-                  {inventory.map((item) => <li key={item.size}>{item.quantity > 0 ? <CheckCircle2 /> : <Clock3 />}<span><strong>{item.size}</strong><small>{item.quantity.toLocaleString()} available</small></span></li>)}
-                </ul>
-              </div>
-            </section>
+              </section>
           </div>
+
+          <section className="seller-panel seller-orders seller-orders-table" id="orders" aria-labelledby="seller-orders-title">
+              <header><div><small>Orders</small><h2 id="seller-orders-title">Recent Orders</h2></div><span className="seller-panel-menu">•••</span></header>
+              <div className="seller-order-table-wrap">
+                <table>
+                  <thead><tr><th>No.</th><th>Order</th><th>Customer</th><th>Items</th><th>Order Date</th><th>Status</th><th>Total</th></tr></thead>
+                  <tbody>
+                {(dashboard?.orders || []).map((order) => (
+                  <tr key={order.id}>
+                    <td>{order.id}</td><td>{order.order_number || `#${order.id}`}</td><td>{order.customer}</td><td>{order.quantity} pineapples</td><td>{new Date(order.created_at).toLocaleDateString('en-PH')}</td><td><span className={`seller-order-status is-${tone(order.status)}`}>{statusLabels[order.status] || order.status}</span></td><td>{peso.format(order.total_amount)}</td>
+                  </tr>
+                ))}
+                  </tbody>
+                </table>
+              </div>
+          </section>
         </div>
       </section>
     </main>

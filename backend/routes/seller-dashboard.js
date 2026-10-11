@@ -78,7 +78,7 @@ router.get("/", async (_req, res, next) => {
         .gte("created_at", rangeStart)
         .lt("created_at", rangeEnd),
       supabase.from("buyer_orders")
-        .select("id, order_number, delivery_full_name, order_status, created_at, items:buyer_order_items!buyer_order_items_order_id_fkey(product_name, quantity)")
+        .select("id, order_number, delivery_full_name, order_status, payment_status, total_amount, created_at, items:buyer_order_items!buyer_order_items_order_id_fkey(product_name, quantity)")
         .order("created_at", { ascending: false })
         .limit(4),
       supabase.from("inventory_items")
@@ -128,6 +128,8 @@ router.get("/", async (_req, res, next) => {
         order_number: order.order_number,
         customer: order.delivery_full_name,
         quantity: (order.items || []).reduce((total, item) => total + Number(item.quantity || 0), 0),
+        total_amount: money(order.total_amount),
+        payment_status: order.payment_status,
         status: order.order_status,
         created_at: order.created_at,
       })),
