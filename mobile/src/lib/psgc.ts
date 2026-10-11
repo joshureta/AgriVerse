@@ -12,5 +12,6 @@ async function getItems(path: string): Promise<PsgcItem[]> {
 export function getRegions() { return getItems('/regions'); }
 export function getRegionProvinces(regionCode: string) { return getItems(`/regions/${encodeURIComponent(regionCode)}/provinces`); }
 export function getRegionCitiesMunicipalities(regionCode: string) { return getItems(`/regions/${encodeURIComponent(regionCode)}/cities-municipalities`); }
+export function getRegionSubMunicipalities(regionCode: string) { return getItems(`/regions/${encodeURIComponent(regionCode)}/sub-municipalities`); }
 export function getProvinceCitiesMunicipalities(provinceCode: string) { return getItems(`/provinces/${encodeURIComponent(provinceCode)}/cities-municipalities`); }
 export function getCityMunicipalityBarangays(cityCode: string) { return getItems(`/cities-municipalities/${encodeURIComponent(cityCode)}/barangays`); }

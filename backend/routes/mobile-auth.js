@@ -105,7 +105,7 @@ router.post(
   requireRole("farm_worker"),
   async (req, res, next) => {
     try {
-      if (!req.profile.must_change_password) {
+      if (!req.profile.must_change_password && req.profile.onboarding_completed_at) {
         throw httpError(409, "The initial password has already been changed");
       }
 
@@ -131,7 +131,6 @@ router.post(
         .from("profiles")
         .update({ must_change_password: false })
         .eq("id", req.user.id)
-        .eq("must_change_password", true)
         .select(
           profileSelect,
         )
