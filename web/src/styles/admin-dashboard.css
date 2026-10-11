@@ -1571,7 +1571,7 @@
 
 .admin-overview-dashboard .admin-stat-card.is-featured {
   border-color: #d5e5cf;
-  background: linear-gradient(110deg, #f4fbef, #e8f5de);
+  background: #fff;
 }
 
 .admin-overview-dashboard .admin-stat-card.is-featured p {
