@@ -292,21 +292,19 @@ export default function SignUpScreen({
       const registrationPayload = {
         email: email.trim(),
         password,
-        fullName: fullName.trim(),
-        mobileNumber: mobileNumber.trim(),
-        role: 'worker' as const,
-        workerCategory,
-        country: 'Philippines',
+        full_name: fullName.trim(),
+        mobile_number: mobileNumber.trim(),
+        worker_category: workerCategory,
         region: region?.name || '',
         province: provinceNotApplicable ? 'Not Applicable' : province?.name || '',
-        cityMunicipality: city?.name || '',
+        city_municipality: city?.name || '',
         barangay: barangay?.name || '',
       };
 
       await publicApiRequest<{
         sessionToken: string;
         user: { id: string; email: string; role: 'worker' | 'driver' | 'buyer' | 'admin' };
-      }>('/api/auth/register-mobile', {
+      }>('/api/mobile/auth/register', {
         method: 'POST',
         body: JSON.stringify(registrationPayload),
       });

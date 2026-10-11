@@ -10,10 +10,13 @@ async function requireAuth(req, res, next) {
 
   try {
     const supabase = getSupabase();
-    const { data: claimData, error: claimError } = await supabase.auth.getClaims(token);
-    const claims = claimData?.claims;
+    // Validate the access token through Supabase Auth. This works with the
+    // current publishable-key/session tokens even when local JWKS claims
+    // verification is unavailable or out of sync with the project settings.
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const user = userData?.user;
 
-    if (claimError || !claims?.sub) {
+    if (userError || !user?.id) {
       return res.status(401).json({ error: "Invalid or expired session" });
     }
 
@@ -22,7 +25,7 @@ async function requireAuth(req, res, next) {
       .select(
         "id, full_name, mobile_number, country, region, province, city_municipality, barangay, role, worker_category, must_change_password, name_confirmed_at, onboarding_completed_at",
       )
-      .eq("id", claims.sub)
+      .eq("id", user.id)
       .single();
 
     if (profileError || !profile) {
@@ -30,9 +33,9 @@ async function requireAuth(req, res, next) {
     }
 
     req.user = {
-      id: claims.sub,
-      email: claims.email || null,
-      email_confirmed_at: null,
+      id: user.id,
+      email: user.email || null,
+      email_confirmed_at: user.email_confirmed_at || null,
     };
     req.profile = profile;
     return next();
