@@ -193,6 +193,28 @@
   font-size: 8px;
 }
 
+.seller-state {
+  min-height: 145px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #a23c34;
+  font-size: 10px;
+  text-align: center;
+}
+
+.seller-state button {
+  border: 1px solid #d3ded0;
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: #236d38;
+  background: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .seller-orders { grid-row: span 2; }
 .seller-orders header a { color: #28783b; font-size: 9px; font-weight: 800; }
 
