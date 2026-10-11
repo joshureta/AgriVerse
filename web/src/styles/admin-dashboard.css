@@ -1485,13 +1485,6 @@
   transform: translateY(1px);
 }
 
-.admin-btn-primary:disabled {
-  background: #9cbca4 !important;
-  box-shadow: none !important;
-  cursor: not-allowed !important;
-  opacity: 0.65;
-}
-
 .admin-btn-secondary {
   min-height: 38px;
   display: inline-flex;
@@ -1545,5 +1538,106 @@
 
 .admin-btn-neutral:hover:not(:disabled) {
   background: #e6e8e4 !important;
+}
+
+/* Compact summary layout on the admin dashboard */
+.admin-overview-dashboard .admin-dashboard-grid {
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr);
+}
+
+.admin-overview-dashboard .revenue-panel,
+.admin-overview-dashboard .productivity-panel {
+  width: 100%;
+  max-width: 720px;
+  justify-self: end;
+}
+
+.admin-overview-dashboard .admin-stat-grid {
+  width: 100%;
+  max-width: 720px;
+  justify-self: end;
+  grid-template-columns: minmax(0, 1fr) minmax(175px, 250px);
+  gap: 10px;
+}
+
+.admin-overview-dashboard .admin-stat-card {
+  height: 196px;
+  min-height: 0;
+  padding: 16px 18px;
+}
+
+.admin-overview-dashboard .admin-stat-card.is-featured {
+  border-color: #d5e5cf;
+  background: linear-gradient(110deg, #f4fbef, #e8f5de);
+}
+
+.admin-overview-dashboard .admin-stat-card.is-featured p {
+  min-height: 0;
+  color: #27683b;
+  font-size: 13px;
+}
+
+.admin-overview-dashboard .admin-stat-card.is-featured strong {
+  margin-top: 8px;
+  font-size: clamp(42px, 4.5vw, 56px);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.admin-overview-dashboard .admin-stat-card.is-featured small {
+  margin-top: 9px;
+  color: #59745d;
+  font-size: 10px;
+}
+
+.admin-overview-dashboard .admin-stat-subgrid {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-overview-dashboard .admin-stat-subgrid .admin-stat-card {
+  height: 94px;
+  padding: 12px 14px;
+}
+
+.admin-overview-dashboard .admin-stat-subgrid .admin-stat-card p {
+  min-height: 0;
+  color: #49654e;
+  font-size: 10px;
+}
+
+.admin-overview-dashboard .admin-stat-subgrid .admin-stat-card strong {
+  margin-top: 1px;
+  font-size: 19px;
+  line-height: 1.1;
+}
+
+.admin-overview-dashboard .admin-stat-subgrid .admin-stat-card small {
+  margin-top: 1px;
+  font-size: 8px;
+}
+
+@media (max-width: 540px) {
+  .admin-overview-dashboard .admin-stat-grid { grid-template-columns: 1fr; }
+  .admin-overview-dashboard .admin-stat-card { height: 126px; }
+  .admin-overview-dashboard .admin-stat-subgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 1fr;
+  }
+  .admin-overview-dashboard .admin-stat-subgrid .admin-stat-card { height: 76px; }
+  .admin-overview-dashboard .admin-stat-subgrid .admin-stat-card strong { font-size: 17px; }
+}
+
+@media (max-width: 1040px) {
+  .admin-overview-dashboard .admin-dashboard-grid { grid-template-columns: 1fr; }
+  .admin-overview-dashboard .admin-stat-grid,
+  .admin-overview-dashboard .revenue-panel,
+  .admin-overview-dashboard .productivity-panel { justify-self: start; }
+}
+
+@media (max-width: 370px) {
+  .admin-overview-dashboard .admin-stat-subgrid { grid-template-columns: 1fr; grid-template-rows: repeat(2, 1fr); }
 }
 

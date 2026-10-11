@@ -175,7 +175,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="admin-dashboard">
+    <main className="admin-dashboard admin-overview-dashboard">
       <AdminSidebar active="dashboard" />
 
       <section className="admin-workspace">
@@ -229,7 +229,7 @@ export default function AdminDashboard() {
 
           <div className="admin-dashboard-grid">
             <section className="admin-main-column">
-              <div className="admin-stat-grid">
+              <section className="admin-stat-grid" aria-label="Farm summary">
                 <article className="admin-stat-card is-featured">
                   <div>
                     <p>Sales This {revenuePeriodLabels[revenuePeriod]}</p>
@@ -246,7 +246,6 @@ export default function AdminDashboard() {
                       <small>Currently working</small>
                     </div>
                   </article>
-
                   <article className="admin-stat-card">
                     <div>
                       <p>Harvested This Month</p>
@@ -255,7 +254,7 @@ export default function AdminDashboard() {
                     </div>
                   </article>
                 </div>
-              </div>
+              </section>
 
               <article className="admin-panel revenue-panel">
                 <div className="panel-heading">
