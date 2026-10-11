@@ -42,3 +42,14 @@ export async function loadAdminProductivity() {
   if (!response.ok) throw new Error(body.error || 'Unable to load productivity report')
   return body
 }
+
+export async function loadAdminSummary() {
+  const token = await accessToken()
+  const response = await fetch(`${API_URL}/api/admin/dashboard/summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load dashboard summary')
+  return body
+}

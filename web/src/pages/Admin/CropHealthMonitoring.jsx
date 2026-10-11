@@ -74,9 +74,12 @@ export default function CropHealthMonitoring() {
             })
             return updated
           })
+        } else {
+          setError('Inspection history could not be loaded. Please refresh the page and try again.')
         }
       } catch (err) {
         console.warn('Could not load inspections from Supabase:', err)
+        setError(err instanceof Error ? err.message : 'Inspection history could not be loaded.')
       } finally {
         setLoadingDB(false)
       }

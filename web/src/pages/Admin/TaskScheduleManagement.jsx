@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, CircleAlert, ClipboardCheck, ClipboardPlus, Eye, Pencil, Printer, X } from 'lucide-react'
+import { Check, ChevronDown, CircleAlert, ClipboardCheck, Eye, Pencil, Printer, X } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
@@ -264,8 +264,6 @@ function DeliveryTimeSelect({ kind, startTime, value, onChange }) {
     </div>
   )
 }
-
-function ChecklistIcon() { return <ClipboardPlus aria-hidden="true" /> }
 
 function SummaryCard({ label, value, icon, className = '' }) {
   return <article className={`task-summary-card ${className}`}><div><span>{label}</span><strong>{value}</strong></div><i aria-hidden="true">{icon}</i></article>
@@ -785,7 +783,6 @@ export default function TaskScheduleManagement() {
     return [...deliveryOrders].sort((a, b) => new Date(b.delivery_scheduled_at || 0) - new Date(a.delivery_scheduled_at || 0)).filter((order) => (!filter || requestedStatus) && (!requestedStatus || order.delivery_assignment_status === requestedStatus) && (!query || `${order.order_number} ${order.assigned_driver?.full_name || ''} ${deliveryLocation(order)}`.toLowerCase().includes(query)))
   }, [deliveryOrders, filter, search])
 
-  const PAGE_SIZE = 10
   const deliveryTotalPages = Math.max(1, Math.ceil(visibleDeliveryOrders.length / PAGE_SIZE))
   const paginatedDeliveryOrders = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE
@@ -793,10 +790,8 @@ export default function TaskScheduleManagement() {
   }, [page, visibleDeliveryOrders])
 
   const settingsTotalPages = Math.max(1, Math.ceil(visibleSettings.length / PAGE_SIZE))
-  const paginatedSettings = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE
-    return visibleSettings.slice(start, start + PAGE_SIZE)
-  }, [page, visibleSettings])
+  const settingsStart = (page - 1) * PAGE_SIZE
+  const paginatedSettings = visibleSettings.slice(settingsStart, settingsStart + PAGE_SIZE)
 
   return (
     <main className="admin-dashboard task-schedule-page">
@@ -907,11 +902,28 @@ export default function TaskScheduleManagement() {
             </footer>
             </> : activeTab === 'tasks' ? <>
             <nav className="task-work-type-tabs" aria-label="Work type view">
-              <button className={workView === 'crop' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('crop'); setPage(1) }}>Crop Management</button>
-              <button className={workView === 'deliveries' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('deliveries'); setPage(1) }}>Driver Deliveries</button>
+              <button className={workView === 'crop' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('crop'); setFilter((current) => current.startsWith('delivery:') ? '' : current); setPage(1) }}>Crop Management</button>
+              <button className={workView === 'deliveries' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('deliveries'); setFilter((current) => current && !current.startsWith('delivery:') ? '' : current); setPage(1) }}>Driver Deliveries</button>
             </nav>
             <div className="tasks-toolbar">
-              <div className="task-filter" ref={filterRef}><button type="button" onClick={() => setFilterOpen((open) => !open)} aria-haspopup="listbox" aria-expanded={filterOpen}><span>Filter by</span><i aria-hidden="true" /></button>{filterOpen && <div className="task-filter-menu" role="listbox" aria-label="Filter work by status"><p>Filter crop tasks</p>{[{ id: 'all', code: '', status_name: 'All statuses' }, ...options.statuses].map((status) => { const isAwaitingReview = status.code === 'awaiting_approval'; return <button type="button" role="option" aria-selected={filter === status.code} className={`${filter === status.code ? 'is-selected ' : ''}${isAwaitingReview ? 'is-awaiting-review' : ''}`} key={status.id} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}{isAwaitingReview && harvestApprovalCount > 0 ? ` (${harvestApprovalCount})` : ''}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button> })}<p className="task-filter-group">Filter delivery status</p>{driverDeliveryStatuses.map((status) => <button type="button" role="option" aria-selected={filter === status.code} className={filter === status.code ? 'is-selected' : ''} key={status.code} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>)}</div>}</div>
+              <div className="task-filter" ref={filterRef}>
+                <button type="button" onClick={() => setFilterOpen((open) => !open)} aria-haspopup="listbox" aria-expanded={filterOpen}>
+                  <span>Filter by</span><i aria-hidden="true" />
+                </button>
+                {filterOpen && <div className="task-filter-menu" role="listbox" aria-label="Filter work by status">
+                  {workView === 'crop' ? <>
+                    <p>Filter crop tasks</p>
+                    {[{ id: 'all', code: '', status_name: 'All statuses' }, ...options.statuses].map((status) => {
+                      const isAwaitingReview = status.code === 'awaiting_approval'
+                      return <button type="button" role="option" aria-selected={filter === status.code} className={`${filter === status.code ? 'is-selected ' : ''}${isAwaitingReview ? 'is-awaiting-review' : ''}`} key={status.id} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}{isAwaitingReview && harvestApprovalCount > 0 ? ` (${harvestApprovalCount})` : ''}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>
+                    })}
+                  </> : <>
+                    <p>Filter delivery status</p>
+                    <button type="button" role="option" aria-selected={!filter} className={!filter ? 'is-selected' : ''} onClick={() => { setFilter(''); setPage(1); setFilterOpen(false) }}><span>All statuses</span>{!filter && <i aria-hidden="true">✓</i>}</button>
+                    {driverDeliveryStatuses.map((status) => <button type="button" role="option" aria-selected={filter === status.code} className={filter === status.code ? 'is-selected' : ''} key={status.code} onClick={() => { setFilter(status.code); setPage(1); setFilterOpen(false) }}><span>{status.status_name}</span>{filter === status.code && <i aria-hidden="true">✓</i>}</button>)}
+                  </>}
+                </div>}
+              </div>
               <label className="task-search"><span className="sr-only">Search tasks</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search tasks" /><span aria-hidden="true" /></label>
               <button className="assign-task-toolbar-button" type="button" onClick={openNewTask} disabled={!options.workers.length}><span>＋</span>Assign New Task</button>
             </div>

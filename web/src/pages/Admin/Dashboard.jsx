@@ -4,7 +4,7 @@ import notificationIcon from '../../assets/admin-notification-icon.png'
 import dashboardIllustration from '../../assets/admin-dashboard-illustration.png'
 import { AdminSidebar } from '../../components/AdminNavigation.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
-import { loadAdminActivities, loadAdminProductivity, loadAdminRevenue } from '../../services/adminDashboard.js'
+import { loadAdminActivities, loadAdminProductivity, loadAdminRevenue, loadAdminSummary } from '../../services/adminDashboard.js'
 import '../../styles/admin-dashboard.css'
 
 const ACTIVITY_MAX_COUNT = 30
@@ -73,6 +73,8 @@ export default function AdminDashboard() {
   const [productivity, setProductivity] = useState(null)
   const [productivityLoading, setProductivityLoading] = useState(true)
   const [productivityError, setProductivityError] = useState('')
+  const [summary, setSummary] = useState(null)
+  const [summaryError, setSummaryError] = useState('')
   const reportDialogRef = useRef(null)
   const [now, setNow] = useState(() => Date.now())
   const displayName = profile?.full_name || 'Josh Ureta'
@@ -155,6 +157,21 @@ export default function AdminDashboard() {
     const timer = window.setInterval(fetchProductivity, ACTIVITY_REFRESH_MS)
     return () => window.clearInterval(timer)
   }, [fetchProductivity])
+
+  const fetchSummary = useCallback(async () => {
+    try {
+      setSummary(await loadAdminSummary())
+      setSummaryError('')
+    } catch (error) {
+      setSummaryError(error.message)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchSummary()
+    const timer = window.setInterval(fetchSummary, ACTIVITY_REFRESH_MS)
+    return () => window.clearInterval(timer)
+  }, [fetchSummary])
 
   const hasActivities = completedActivities.length + ongoingActivities.length > 0
   const completionPercent = productivity?.tasks.completion_percent ?? 0
@@ -242,15 +259,15 @@ export default function AdminDashboard() {
                   <article className="admin-stat-card">
                     <div>
                       <p>Active Workers</p>
-                      <strong>6</strong>
-                      <small>Currently working</small>
+                      <strong>{summary?.active_workers ?? (summaryError ? 'Unavailable' : '—')}</strong>
+                      <small>On crop tasks or deliveries</small>
                     </div>
                   </article>
                   <article className="admin-stat-card">
                     <div>
                       <p>Harvested This Month</p>
-                      <strong>12,000 <em>kg</em></strong>
-                      <small>Total harvested</small>
+                      <strong>{summary?.harvested_pieces?.toLocaleString('en-PH') ?? (summaryError ? 'Unavailable' : '—')} {summary && <em>pcs</em>}</strong>
+                      <small>Approved harvests · includes damaged</small>
                     </div>
                   </article>
                 </div>

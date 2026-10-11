@@ -73,6 +73,57 @@ function money(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
+async function allRows(buildQuery) {
+  const rows = [];
+  const pageSize = 500;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await buildQuery().order("id", { ascending: true }).range(from, from + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if ((data || []).length < pageSize) return rows;
+  }
+}
+
+router.get("/summary", async (_req, res, next) => {
+  try {
+    const supabase = getSupabase();
+    const month = revenuePeriod("month");
+    const { data: inProgressStatus, error: statusError } = await supabase.from("task_statuses")
+      .select("id").eq("code", "in_progress").single();
+    if (statusError) throw statusError;
+
+    const [cropTasks, deliveries, harvests] = await Promise.all([
+      allRows(() => supabase.from("tasks").select("id, assigned_worker_id")
+        .eq("status_id", inProgressStatus.id)),
+      allRows(() => supabase.from("buyer_orders").select("id, assigned_driver_id")
+        .in("delivery_assignment_status", ["accepted", "picked_up", "out_for_delivery"])),
+      allRows(() => supabase.from("tasks")
+        .select("id, harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count")
+        .gte("approved_at", month.start.toISOString()).lt("approved_at", month.end.toISOString())
+        .not("harvest_small_count", "is", null)),
+    ]);
+
+    const activeWorkers = new Set([
+      ...cropTasks.map((task) => task.assigned_worker_id),
+      ...deliveries.map((order) => order.assigned_driver_id),
+    ].filter(Boolean));
+    const harvestedPieces = harvests.reduce((total, task) => total
+      + Number(task.harvest_small_count || 0)
+      + Number(task.harvest_medium_count || 0)
+      + Number(task.harvest_large_count || 0)
+      + Number(task.harvest_damaged_count || 0), 0);
+
+    return res.json({
+      active_workers: activeWorkers.size,
+      harvested_pieces: harvestedPieces,
+      month_label: month.label,
+      generated_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 function productivityPeriod(now = new Date()) {
   const local = new Date(now.getTime() + MANILA_OFFSET_MS);
   const year = local.getUTCFullYear();

@@ -1181,7 +1181,7 @@
 
 .activity-panel {
   min-height: 0;
-  max-height: 760px;
+  max-height: 813px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1192,17 +1192,20 @@
   flex: 1;
   display: grid;
   align-content: start;
-  gap: 8px;
+  grid-auto-rows: max-content;
+  gap: 6px;
   padding: 10px 14px 14px;
   overflow-y: auto;
 }
 
 .activity-list article {
+  min-height: 58px;
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr);
   gap: 9px;
   align-items: center;
-  padding: 10px;
+  box-sizing: border-box;
+  padding: 8px 10px;
   border-radius: 8px;
   background: #f2f6ef;
 }
@@ -1259,7 +1262,7 @@
 .activity-list strong {
   overflow: hidden;
   color: #334038;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1267,7 +1270,7 @@
 
 .activity-list time {
   color: #8b948e;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .activity-link {
