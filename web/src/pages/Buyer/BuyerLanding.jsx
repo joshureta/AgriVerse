@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, MapPin } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
-import marketplaceHero from '../../assets/buyer/buyer-marketplace-hero.png'
+import marketplaceHero from '../../assets/buyer/pineapple-farmer-marketplace-hero.png'
 import trustIcons from '../../assets/buyer/buyer-trust-icons.png'
 import pineappleProduct from '../../assets/buyer/pineapple-product-clean.png'
 import pineappleFarm from '../../assets/buyer/pineapple-farm-story.png'

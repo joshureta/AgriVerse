@@ -48,6 +48,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
   const { profile, signOut } = useAuth()
   const buyerName = profile?.full_name || 'Buyer'
   const displayedCartCount = cartCount ?? buyerCartQuantity(readBuyerCart())
+  const [isAboutSection, setIsAboutSection] = useState(() => window.location.pathname === '/buyer' && window.location.hash === '#about')
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState([])
   const [notificationsLoading, setNotificationsLoading] = useState(true)
@@ -58,6 +59,14 @@ export function BuyerHeader({ active = 'home', cartCount }) {
   })
   const notificationMenuRef = useRef(null)
   const notificationUnreadCount = notifications.filter((notification) => !readNotificationIds.includes(notification.id)).length
+  const aboutActive = active === 'home' && isAboutSection
+  const homeActive = active === 'home' && !aboutActive
+
+  useEffect(() => {
+    const updateSection = () => setIsAboutSection(window.location.pathname === '/buyer' && window.location.hash === '#about')
+    window.addEventListener('hashchange', updateSection)
+    return () => window.removeEventListener('hashchange', updateSection)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -143,83 +152,86 @@ export function BuyerHeader({ active = 'home', cartCount }) {
   return (
     <header className="buyer-site-header">
       <div className="buyer-header-main">
-        <div className="buyer-header-alerts" aria-label="Messages and notifications">
-          <a
-            className="buyer-icon-link"
-            href="/buyer/messages"
-            aria-label={unreadCount > 0 ? `Messages (${unreadCount} unread)` : 'Messages'}
-          >
-            <MessageCircle aria-hidden="true" />
-            {unreadCount > 0 && (
-              <span className="buyer-status-dot">{unreadCount > 99 ? '99+' : unreadCount}</span>
-            )}
-          </a>
-          <details className="buyer-notification-menu" ref={notificationMenuRef}>
-            <summary className="buyer-icon-link" aria-label={notificationUnreadCount ? `Notifications (${notificationUnreadCount} unread)` : 'Notifications'}>
-              <Bell aria-hidden="true" />
-              {notificationUnreadCount > 0 && <span className="buyer-status-dot">{notificationUnreadCount > 99 ? '99+' : notificationUnreadCount}</span>}
-            </summary>
-            <section className="buyer-notification-dropdown" aria-label="Recent notifications">
-              <header><div><h2>Notifications</h2><p>Recent order updates</p></div>{notificationUnreadCount > 0 && <button type="button" onClick={markAllNotificationsRead}>Mark all as read</button>}</header>
-              <div className="buyer-notification-list">
-                {notificationsLoading && <p className="buyer-notification-state">Loading notifications…</p>}
-                {!notificationsLoading && notificationsError && <p className="buyer-notification-state is-error">Notifications could not be refreshed.</p>}
-                {!notificationsLoading && !notificationsError && notifications.length === 0 && <p className="buyer-notification-state">You have no order updates yet.</p>}
-                {!notificationsLoading && notifications.slice(0, 4).map((notification) => (
-                  <a className={`buyer-notification-item${readNotificationIds.includes(notification.id) ? '' : ' is-unread'}`} href={notification.href} onClick={() => markNotificationRead(notification.id)} key={notification.id}>
-                    <span className={`buyer-notification-icon is-${notification.status}`}>
-                      {notification.status === 'delivered' ? <CheckCircle2 aria-hidden="true" /> : notification.status === 'out_for_delivery' ? <Truck aria-hidden="true" /> : notification.status === 'pending' ? <Clock3 aria-hidden="true" /> : <PackageCheck aria-hidden="true" />}
-                    </span>
-                    <span className="buyer-notification-copy"><strong>{notification.title}</strong><small>{notification.orderNumber}</small><p>{notification.message}</p><time dateTime={notification.createdAt}>{formatAlertTime(notification.createdAt)}</time></span>
-                    {!readNotificationIds.includes(notification.id) && <i aria-label="Unread" />}
-                  </a>
-                ))}
-              </div>
-              {notifications.length > 0 && <footer><a href="/buyer/delivery-progress">View all notifications <span aria-hidden="true">→</span></a></footer>}
-            </section>
-          </details>
-        </div>
-
         <a className="buyer-brand" href="/buyer" aria-label="JToledo Trading home">
           <img src={jtoledoLogo} alt="JToledo Trading" />
         </a>
 
-        <div className="buyer-header-account">
-          <a className={`buyer-cart-link ${active === 'cart' ? 'is-active' : ''}`} href="/buyer/cart" aria-label="Shopping cart">
-            <ShoppingCart aria-hidden="true" />
-            {displayedCartCount > 0 && <span className="buyer-cart-count">{displayedCartCount > 99 ? '99+' : displayedCartCount}</span>}
-          </a>
-          <details className="buyer-profile-menu">
-            <summary>
-              <span className="buyer-avatar"><UserRound aria-hidden="true" /></span>
-              <span className="buyer-profile-name">{buyerName}</span>
-              <ChevronDown className="buyer-profile-chevron" aria-hidden="true" />
-            </summary>
-            <div className="buyer-profile-dropdown">
-              <a href="/buyer/delivery-progress">My Orders</a>
-              <a href="/buyer/profile">My Profile</a>
-              <button type="button" onClick={handleSignOut}>Sign Out</button>
-            </div>
-          </details>
+        <nav className="buyer-main-nav" aria-label="Buyer navigation">
+          <a className={homeActive ? 'is-active' : ''} href="/buyer" aria-current={homeActive ? 'page' : undefined}>Home</a>
+          <a className={aboutActive ? 'is-active' : ''} href="/buyer#about" aria-current={aboutActive ? 'location' : undefined}>About Us</a>
+          <a className={active === 'orders' ? 'is-active' : ''} href="/buyer/order" aria-current={active === 'orders' ? 'page' : undefined}>Order</a>
+        </nav>
+
+        <div className="buyer-header-tools">
+          <div className="buyer-header-alerts" aria-label="Messages and notifications">
+            <a
+              className={`buyer-icon-link${active === 'messages' ? ' is-active' : ''}`}
+              href="/buyer/messages"
+              aria-label={unreadCount > 0 ? `Messages (${unreadCount} unread)` : 'Messages'}
+              aria-current={active === 'messages' ? 'page' : undefined}
+            >
+              <MessageCircle aria-hidden="true" />
+              {unreadCount > 0 && (
+                <span className="buyer-status-dot">{unreadCount > 99 ? '99+' : unreadCount}</span>
+              )}
+            </a>
+            <details className="buyer-notification-menu" ref={notificationMenuRef}>
+              <summary className="buyer-icon-link" aria-label={notificationUnreadCount ? `Notifications (${notificationUnreadCount} unread)` : 'Notifications'}>
+                <Bell aria-hidden="true" />
+                {notificationUnreadCount > 0 && <span className="buyer-status-dot">{notificationUnreadCount > 99 ? '99+' : notificationUnreadCount}</span>}
+              </summary>
+              <section className="buyer-notification-dropdown" aria-label="Recent notifications">
+                <header><div><h2>Notifications</h2><p>Recent order updates</p></div>{notificationUnreadCount > 0 && <button type="button" onClick={markAllNotificationsRead}>Mark all as read</button>}</header>
+                <div className="buyer-notification-list">
+                  {notificationsLoading && <p className="buyer-notification-state">Loading notifications…</p>}
+                  {!notificationsLoading && notificationsError && <p className="buyer-notification-state is-error">Notifications could not be refreshed.</p>}
+                  {!notificationsLoading && !notificationsError && notifications.length === 0 && <p className="buyer-notification-state">You have no order updates yet.</p>}
+                  {!notificationsLoading && notifications.slice(0, 4).map((notification) => (
+                    <a className={`buyer-notification-item${readNotificationIds.includes(notification.id) ? '' : ' is-unread'}`} href={notification.href} onClick={() => markNotificationRead(notification.id)} key={notification.id}>
+                      <span className={`buyer-notification-icon is-${notification.status}`}>
+                        {notification.status === 'delivered' ? <CheckCircle2 aria-hidden="true" /> : notification.status === 'out_for_delivery' ? <Truck aria-hidden="true" /> : notification.status === 'pending' ? <Clock3 aria-hidden="true" /> : <PackageCheck aria-hidden="true" />}
+                      </span>
+                      <span className="buyer-notification-copy"><strong>{notification.title}</strong><small>{notification.orderNumber}</small><p>{notification.message}</p><time dateTime={notification.createdAt}>{formatAlertTime(notification.createdAt)}</time></span>
+                      {!readNotificationIds.includes(notification.id) && <i aria-label="Unread" />}
+                    </a>
+                  ))}
+                </div>
+                {notifications.length > 0 && <footer><a href="/buyer/delivery-progress">View all notifications <span aria-hidden="true">→</span></a></footer>}
+              </section>
+            </details>
+          </div>
+
+          <div className="buyer-header-account">
+            <a className={`buyer-cart-link ${active === 'cart' ? 'is-active' : ''}`} href="/buyer/cart" aria-label="Shopping cart" aria-current={active === 'cart' ? 'page' : undefined}>
+              <ShoppingCart aria-hidden="true" />
+              {displayedCartCount > 0 && <span className="buyer-cart-count">{displayedCartCount > 99 ? '99+' : displayedCartCount}</span>}
+            </a>
+            <details className={`buyer-profile-menu${active === 'profile' ? ' is-active' : ''}`}>
+              <summary>
+                <span className="buyer-avatar"><UserRound aria-hidden="true" /></span>
+                <span className="buyer-profile-name">{buyerName}</span>
+                <ChevronDown className="buyer-profile-chevron" aria-hidden="true" />
+              </summary>
+              <div className="buyer-profile-dropdown">
+                <a href="/buyer/delivery-progress">My Orders</a>
+                <a href="/buyer/profile" aria-current={active === 'profile' ? 'page' : undefined}>My Profile</a>
+                <button type="button" onClick={handleSignOut}>Sign Out</button>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
-
-      <nav className="buyer-main-nav" aria-label="Buyer navigation">
-        <a href="/buyer#about">About Us</a>
-        <a className={active === 'home' ? 'is-active' : ''} href="/buyer" aria-current={active === 'home' ? 'page' : undefined}>Home</a>
-        <a className={active === 'orders' || active === 'cart' ? 'is-active' : ''} href="/buyer/order" aria-current={active === 'orders' || active === 'cart' ? 'page' : undefined}>Order</a>
-      </nav>
 
       <details className="buyer-mobile-menu">
         <summary aria-label="Open navigation"><Menu aria-hidden="true" /></summary>
         <nav aria-label="Mobile buyer navigation">
-          <a href="/buyer#about">About Us</a>
-          <a href="/buyer">Home</a>
-          <a href="/buyer/order">Order</a>
-          <a href="/buyer/cart">Shopping Cart</a>
-          <a href="/buyer/messages">Messages</a>
+          <a className={aboutActive ? 'is-active' : ''} href="/buyer#about" aria-current={aboutActive ? 'location' : undefined}>About Us</a>
+          <a className={homeActive ? 'is-active' : ''} href="/buyer" aria-current={homeActive ? 'page' : undefined}>Home</a>
+          <a className={active === 'orders' ? 'is-active' : ''} href="/buyer/order" aria-current={active === 'orders' ? 'page' : undefined}>Order</a>
+          <a className={active === 'cart' ? 'is-active' : ''} href="/buyer/cart" aria-current={active === 'cart' ? 'page' : undefined}>Shopping Cart</a>
+          <a className={active === 'messages' ? 'is-active' : ''} href="/buyer/messages" aria-current={active === 'messages' ? 'page' : undefined}>Messages</a>
           <a href="/buyer/delivery-progress">My Orders</a>
-          <a href="/buyer/profile">My Profile</a>
+          <a className={active === 'profile' ? 'is-active' : ''} href="/buyer/profile" aria-current={active === 'profile' ? 'page' : undefined}>My Profile</a>
           <button type="button" onClick={handleSignOut}>Sign Out</button>
         </nav>
       </details>

@@ -165,7 +165,7 @@ export default function BuyerMessages() {
 
   return (
     <main className="buyer-page buyer-messages-page">
-      <BuyerHeader />
+      <BuyerHeader active="messages" />
 
       <div className="buyer-messages-container">
         <section className="buyer-messages-shell" aria-labelledby="chat-title">
