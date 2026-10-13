@@ -1488,11 +1488,11 @@ a.delivery-back-button { text-decoration: none; }
 .delivery-receipt-card .delivery-confirmation-actions button,
 .delivery-cancel-card .delivery-confirmation-actions button { width: 100%; }
 
-/* Rating card: wide, under Order Items */
-.delivery-rate-wide { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 20px 26px; }
-.delivery-rate-wide h2 { font-size: 17px; }
-.delivery-rate-wide p { margin: 4px 0 0; color: #5a695d; font-size: 12px; line-height: 1.5; }
-.delivery-rate-actions { display: flex; align-items: center; gap: 16px; }
+/* Rating card in the order details sidebar */
+.delivery-rate-card { display: grid; gap: 16px; padding: 20px 22px; }
+.delivery-rate-card h2 { font-size: 17px; }
+.delivery-rate-card p { margin: 4px 0 0; color: #5a695d; font-size: 12px; line-height: 1.5; }
+.delivery-rate-actions { display: flex; align-items: center; }
 
 
 .order-details,
@@ -1501,6 +1501,7 @@ a.delivery-back-button { text-decoration: none; }
   padding: 26px 30px;
   background: #fffef8;
 }
+.order-details { background: #fff; }
 
 .order-details h2,
 .order-items h2 {
@@ -1520,7 +1521,7 @@ a.delivery-back-button { text-decoration: none; }
   padding: 12px 20px;
   border-radius: 12px;
   border: 1px solid #e1eadc;
-  background: #f4f8ef;
+  background: #fff;
   box-shadow: 0 4px 12px rgba(25, 58, 25, 0.07);
 }
 
