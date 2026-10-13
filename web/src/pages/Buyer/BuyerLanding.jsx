@@ -3,7 +3,6 @@ import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import marketplaceHero from '../../assets/buyer/pineapple-farmer-marketplace-hero.png'
 import trustIcons from '../../assets/buyer/buyer-trust-icons.png'
 import pineappleProduct from '../../assets/buyer/pineapple-product-clean.png'
-import pineappleFarm from '../../assets/buyer/pineapple-farm-story.png'
 import deliveryCoverageMap from '../../assets/buyer/delivery-coverage-map-white-v2.png'
 import restaurantIcon from '../../assets/buyer/business-restaurant-green.png'
 import groceryIcon from '../../assets/buyer/business-grocery-green.png'
@@ -35,19 +34,16 @@ const pineappleSizes = [
   {
     name: 'Small',
     weight: '400g - 500g',
-    description: 'Perfect for juice and snacks.',
     imageClass: 'is-small',
   },
   {
     name: 'Medium',
     weight: '700g - 900g',
-    description: 'Ideal balance of sweetness and size.',
     imageClass: 'is-medium',
   },
   {
     name: 'Large',
     weight: '1kg - 1.3kg',
-    description: 'Great for sharing, events, and premium use.',
     imageClass: 'is-large',
   },
 ]
@@ -116,7 +112,7 @@ export default function BuyerLanding() {
 
       <section className="marketplace-products" aria-labelledby="pineapple-sizes-title">
         <header className="marketplace-section-heading">
-          <h2 id="pineapple-sizes-title"><span aria-hidden="true">–</span> Our Pineapples <span aria-hidden="true">–</span></h2>
+          <h2 id="pineapple-sizes-title">Our Pineapples</h2>
           <p>Three size choices.</p>
         </header>
 
@@ -127,21 +123,9 @@ export default function BuyerLanding() {
               <div className="marketplace-product-copy">
                 <h3>{pineapple.name}</h3>
                 <span>{pineapple.weight}</span>
-                <p>{pineapple.description}</p>
               </div>
             </a>
           ))}
-        </div>
-      </section>
-
-      <section className="marketplace-farm-story" aria-labelledby="farm-story-title">
-        <img src={pineappleFarm} alt="Rows of pineapple plants growing on a Philippine farm" />
-        <div className="marketplace-farm-copy">
-          <h2 id="farm-story-title">From our farm to you</h2>
-          <p>
-            Grown with care through sustainable farming practices. We harvest every
-            pineapple at peak ripeness to deliver the best taste and quality.
-          </p>
         </div>
       </section>
 
