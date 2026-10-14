@@ -6,7 +6,7 @@ import environmentalMonitoringIcon from '../assets/environmental-monitoring-icon
 import inventoryIcon from '../assets/inventory-icon.png'
 import notificationIcon from '../assets/admin-notification-icon.png'
 import taskScheduleIcon from '../assets/task-schedule-icon.png'
-import settingsIcon from '../assets/settings-icon.png'
+import settingsIcon from '../assets/settings-controls-icon.png'
 import agriverseWordmark from '../assets/agriverse-wordmark.png'
 import { useAuth } from '../hooks/useAuth.js'
 import { loadAdminConversations } from '../services/adminMessages.js'
