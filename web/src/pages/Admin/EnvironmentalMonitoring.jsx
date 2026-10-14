@@ -510,7 +510,7 @@ export default function EnvironmentalMonitoring() {
 
             <section className="environment-reading-grid" aria-label={`${activeField} latest readings`}>
               <article>
-                <h2>Temperature</h2>
+                <h2>Soil Temperature</h2>
                 <div><strong>{latest?.temperature || '—'}</strong><img src={temperatureMetricIcon} alt="" /></div>
                 <small>{latest ? 'Latest reading' : 'Waiting for sensor'}</small>
               </article>
@@ -528,7 +528,7 @@ export default function EnvironmentalMonitoring() {
 
             <div className="environment-table-wrap">
               <table>
-                <thead><tr><th>Time</th><th>Temperature</th><th>Humidity</th><th>Soil Moisture</th></tr></thead>
+                <thead><tr><th>Time</th><th>Soil Temperature</th><th>Humidity</th><th>Soil Moisture</th></tr></thead>
                 <tbody>
                   {visibleReadings.map((reading) => (
                     <tr key={reading.id}>

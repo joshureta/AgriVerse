@@ -1,6 +1,8 @@
 #include <Arduino.h>
+#include <DallasTemperature.h>
 #include <DHT.h>
 #include <HTTPClient.h>
+#include <OneWire.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <time.h>
@@ -8,6 +10,7 @@
 #include "secrets.h"
 
 constexpr uint8_t DHT_PIN = 27;
+constexpr uint8_t DS18B20_PIN = 26;
 constexpr uint8_t SOIL_PIN = 34;
 constexpr uint8_t SOIL_SAMPLE_COUNT = 20;
 
@@ -21,6 +24,8 @@ constexpr unsigned long WIFI_TIMEOUT_MS = 15000;
 constexpr unsigned long TIME_TIMEOUT_MS = 15000;
 
 DHT dht(DHT_PIN, DHT22);
+OneWire oneWire(DS18B20_PIN);
+DallasTemperature soilTemperatureSensor(&oneWire);
 unsigned long lastReadMs = 0;
 unsigned long lastSendMs = 0;
 bool wifiStarted = false;
@@ -113,14 +118,14 @@ int postJson(const char *tableName, const String &payload) {
   return status;
 }
 
-void sendDhtReading(float temperature, float humidity) {
+void sendClimateReading(float soilTemperature, float humidity) {
   const String payload = String("{\"device_id\":\"") + DEVICE_ID +
-                         "\",\"temperature_c\":" + String(temperature, 1) +
+                         "\",\"temperature_c\":" + String(soilTemperature, 1) +
                          ",\"humidity_percent\":" + String(humidity, 1) + "}";
   const int status = postJson("sensor_readings", payload);
   if (status == 201 || status == 204) {
-    Serial.printf("DHT22 saved: %.1f C, %.1f%% humidity (HTTP %d)\n",
-                  temperature, humidity, status);
+    Serial.printf("Soil temperature + humidity saved: %.1f C, %.1f%% (HTTP %d)\n",
+                  soilTemperature, humidity, status);
   }
 }
 
@@ -139,8 +144,10 @@ void setup() {
   Serial.begin(115200);
   analogReadResolution(12);
   dht.begin();
+  soilTemperatureSensor.begin();
   delay(2000);
-  Serial.println("=== AgriVerse Combined Environmental Sensor ===");
+  Serial.println("=== AgriVerse Combined Soil and Humidity Sensors ===");
+  Serial.printf("DS18B20 sensors found: %d\n", soilTemperatureSensor.getDeviceCount());
 }
 
 void loop() {
@@ -150,18 +157,22 @@ void loop() {
   }
   lastReadMs = millis();
 
-  const float temperature = dht.readTemperature();
   const float humidity = dht.readHumidity();
-  const bool dhtValid = !isnan(temperature) && !isnan(humidity);
+  const bool humidityValid = !isnan(humidity);
+
+  soilTemperatureSensor.requestTemperatures();
+  const float soilTemperature = soilTemperatureSensor.getTempCByIndex(0);
+  const bool soilTemperatureValid = soilTemperature != DEVICE_DISCONNECTED_C;
 
   const int soilRaw = readAverageSoilValue();
   const float soilMoisture = moisturePercentage(soilRaw);
 
-  if (dhtValid) {
-    Serial.printf("Temperature: %.1f C | Humidity: %.1f%%\n", temperature, humidity);
-  } else {
-    Serial.println("DHT22 reading failed; soil reading will continue.");
-  }
+  if (soilTemperatureValid) Serial.printf("Soil temperature: %.1f C\n", soilTemperature);
+  else Serial.println("DS18B20 reading failed; check GPIO 26 and the pull-up resistor.");
+
+  if (humidityValid) Serial.printf("Humidity: %.1f%%\n", humidity);
+  else Serial.println("DHT22 humidity reading failed; soil readings will continue.");
+
   Serial.printf("Soil raw: %d | Moisture: %.1f%%\n----------------------\n",
                 soilRaw, soilMoisture);
 
@@ -170,6 +181,8 @@ void loop() {
 
   if (!connectWifi() || !syncClock()) return;
 
-  if (dhtValid) sendDhtReading(temperature, humidity);
+  if (soilTemperatureValid && humidityValid) {
+    sendClimateReading(soilTemperature, humidity);
+  }
   sendSoilReading(soilRaw, soilMoisture);
 }
