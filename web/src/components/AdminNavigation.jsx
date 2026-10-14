@@ -6,6 +6,7 @@ import environmentalMonitoringIcon from '../assets/environmental-monitoring-icon
 import inventoryIcon from '../assets/inventory-icon.png'
 import notificationIcon from '../assets/admin-notification-icon.png'
 import taskScheduleIcon from '../assets/task-schedule-icon.png'
+import settingsIcon from '../assets/settings-icon.png'
 import agriverseWordmark from '../assets/agriverse-wordmark.png'
 import { useAuth } from '../hooks/useAuth.js'
 import { loadAdminConversations } from '../services/adminMessages.js'
@@ -152,6 +153,15 @@ export function AdminSidebar({ active }) {
             </a>
           </div>
         </div>
+
+        <a
+          className={active === 'settings' ? 'is-active' : ''}
+          href="/admin/settings"
+          aria-current={active === 'settings' ? 'page' : undefined}
+        >
+          <img className="admin-nav-settings-icon" src={settingsIcon} alt="" />
+          <span>Settings</span>
+        </a>
       </nav>
 
       <div className="admin-sidebar-footer">

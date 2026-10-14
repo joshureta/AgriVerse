@@ -9,6 +9,7 @@ import UserManagement from './pages/Admin/UserManagement.jsx'
 import AdminMessages from './pages/Admin/AdminMessages.jsx'
 import CropHealthMonitoring from './pages/Admin/CropHealthMonitoring.jsx'
 import EnvironmentalMonitoring from './pages/Admin/EnvironmentalMonitoring.jsx'
+import Settings from './pages/Admin/Settings.jsx'
 import BuyerLanding from './pages/Buyer/BuyerLanding.jsx'
 import ShoppingCart from './pages/Buyer/ShoppingCart.jsx'
 import BuyerOrders from './pages/Buyer/BuyerOrders.jsx'
@@ -146,6 +147,14 @@ function App() {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
         <EnvironmentalMonitoring />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/admin/settings') {
+    return (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <Settings />
       </ProtectedRoute>
     )
   }

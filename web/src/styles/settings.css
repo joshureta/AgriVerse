@@ -1,0 +1,43 @@
+.settings-page { --settings-green: #196c35; --settings-green-light: #78b83d; --settings-ink: #173d25; background: #fafcf5; font-family: var(--sans); }
+.settings-content { width: min(100% - 34px, 1280px); min-height: calc(100svh - 72px); margin: 0 auto; box-sizing: border-box; padding: 16px 0 28px; }
+.settings-header h1 { margin: 0 0 12px; color: var(--settings-green); font-family: var(--heading); font-size: 30px; font-weight: 800; letter-spacing: -.03em; }
+.settings-tabs { display: flex; gap: 22px; min-height: 31px; border-bottom: 1px solid #dce5e3; }
+.settings-tabs button { position: relative; border: 0; padding: 0 2px 10px; color: #48604f; background: transparent; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.settings-tabs button.is-active { color: var(--settings-green); }
+.settings-tabs button.is-active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: #0b694c; content: ''; }
+.settings-table-card { min-height: calc(100svh - 166px); display: flex; flex-direction: column; margin-top: 13px; border: 1px solid #d5e0de; border-radius: 4px; background: #fff; overflow: hidden; }
+.settings-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 10px; }
+.settings-search { width: 210px; height: 24px; display: flex; align-items: center; gap: 6px; border: 1px solid #d7e1df; border-radius: 2px; padding: 0 7px; color: #264c4c; }
+.settings-search input { width: 100%; border: 0; outline: 0; color: var(--settings-ink); background: transparent; font: inherit; font-size: 12px; }
+.settings-add-button { min-height: 34px; border: 0; border-radius: 5px; padding: 0 16px; color: #fff; background: var(--settings-green); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.settings-table-scroll { flex: 1; min-height: 420px; overflow: auto; }
+.settings-table { width: 100%; min-width: 700px; border-collapse: collapse; table-layout: fixed; }
+.settings-table th { padding: 13px 18px; border-top: 1px solid #e2e9e7; border-bottom: 1px solid #e2e9e7; color: #5c6f62; background: #fff; font-size: 11px; font-weight: 800; text-align: left; }
+.settings-table th:nth-child(1) { width: 18%; }.settings-table th:nth-child(2) { width: 25%; }.settings-table th:nth-child(3) { width: 25%; }.settings-table th:nth-child(4) { width: 27%; }.settings-table th:nth-child(5) { width: 5%; }
+.settings-table td { min-height: 48px; padding: 15px 18px; border-bottom: 1px solid #edf2f0; color: #405547; font-size: 12px; line-height: 1.45; vertical-align: top; }
+.settings-table tr:hover td { background: #fbfdfc; }
+.settings-actions-cell { position: relative; width: 62px; padding: 10px 12px !important; text-align: center; }
+.settings-table td strong { color: var(--settings-green); font-size: 13px; }
+.settings-check { color: var(--settings-green-light); font-size: 15px; }
+.settings-more { width: 30px; height: 30px; border: 0; border-radius: 6px; color: #fff; background: var(--settings-green); font-size: 20px; line-height: 1; cursor: pointer; }
+.settings-more:hover, .settings-more:focus-visible { background: #14572a; outline: 3px solid rgba(120, 184, 61, .24); }
+.settings-archive-link { display: block; border: 0; padding: 3px 0; color: #8b4a3e; background: transparent; font: inherit; font-size: 10px; cursor: pointer; }
+.settings-actions-cell .settings-archive-link { width: 30px; height: 30px; display: inline-block; box-sizing: border-box; margin-top: 5px; border: 2px solid #d7e6d2; border-radius: 7px; padding: 0; color: transparent; background-color: #78b83d; background-image: url('../assets/archive-inventory-icon.png'); background-position: center; background-size: 24px 24px; background-repeat: no-repeat; font-size: 0; vertical-align: top; }
+.settings-actions-cell .settings-archive-link:hover, .settings-actions-cell .settings-archive-link:focus-visible { border-color: #196c35; background-color: #67a92f; outline: 2px solid rgba(120, 184, 61, .25); }
+.settings-action-menu { position: absolute; z-index: 5; top: 45px; right: 10px; display: grid; min-width: 88px; padding: 4px; border: 1px solid #d6e1da; border-radius: 6px; background: #fff; box-shadow: 0 9px 20px rgba(25, 70, 35, .18); }
+.settings-action-menu button { border: 0; border-radius: 4px; padding: 7px 9px; color: #31533a; background: #fff; font: inherit; font-size: 11px; font-weight: 750; text-align: left; cursor: pointer; }
+.settings-action-menu button:hover, .settings-action-menu button:focus-visible { color: #fff; background: var(--settings-green); outline: none; }
+.settings-action-menu button:last-child { color: #a04337; }
+.settings-action-menu button:last-child:hover, .settings-action-menu button:last-child:focus-visible { color: #fff; background: #a04337; }
+.settings-empty { height: 150px; color: #82918e !important; font-size: 13px !important; text-align: center; }
+.settings-error { margin: 0; padding: 10px 18px; color: #a23d34; background: #fff4f2; font-size: 12px; }
+.settings-modal-backdrop { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; background: rgba(20, 46, 33, .38); backdrop-filter: blur(2px); }
+.settings-modal { width: min(380px, calc(100% - 28px)); display: grid; gap: 13px; box-sizing: border-box; border: 1px solid #d1dfda; border-radius: 7px; padding: 22px 20px 20px; background: #fff; box-shadow: 0 18px 50px rgba(16, 55, 45, .24); }
+.settings-modal h2 { margin: 0 0 4px; color: var(--settings-green); font-family: var(--heading); font-size: 22px; letter-spacing: -.02em; }
+.settings-modal label { display: grid; gap: 6px; color: #46604f; font-size: 12px; font-weight: 800; }
+.settings-modal input, .settings-modal select, .settings-modal textarea { box-sizing: border-box; width: 100%; border: 1px solid #cbdad5; border-radius: 4px; padding: 10px; color: var(--settings-ink); background: #fff; font: inherit; font-size: 13px; }
+.settings-modal textarea { min-height: 70px; resize: vertical; }
+.settings-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 7px; }
+.settings-modal-actions > button { min-height: 35px; }
+.settings-modal-actions > button:first-child { border: 1px solid #cbdad5; border-radius: 5px; padding: 0 15px; color: #466460; background: #fff; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+@media (max-width: 760px) { .settings-content { width: min(100% - 22px, 680px); } .settings-toolbar { align-items: stretch; flex-direction: column; } .settings-search { width: 100%; box-sizing: border-box; } .settings-add-button { align-self: flex-end; } }

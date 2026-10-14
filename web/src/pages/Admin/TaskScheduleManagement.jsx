@@ -269,8 +269,8 @@ function SummaryCard({ label, value, icon, className = '' }) {
   return <article className={`task-summary-card ${className}`}><div><span>{label}</span><strong>{value}</strong></div><i aria-hidden="true">{icon}</i></article>
 }
 
-export default function TaskScheduleManagement() {
-  const [activeTab, setActiveTab] = useState('tasks')
+export default function TaskScheduleManagement({ settingsOnly = false }) {
+  const [activeTab, setActiveTab] = useState(settingsOnly ? 'fields' : 'tasks')
   const [tasks, setTasks] = useState([])
   const [deliveryOrders, setDeliveryOrders] = useState([])
   const [workView, setWorkView] = useState('crop')
@@ -795,20 +795,20 @@ export default function TaskScheduleManagement() {
 
   return (
     <main className="admin-dashboard task-schedule-page">
-      <AdminSidebar active="tasks" />
+      <AdminSidebar active={settingsOnly ? 'settings' : 'tasks'} />
       <section className="admin-workspace">
         <AdminTopbar />
         <div className="task-schedule-content">
           <header className="task-page-heading">
             <div>
-              <h1>Task Assignment &amp; Scheduling</h1>
+              <h1>{settingsOnly ? 'Settings' : 'Task Assignment & Scheduling'}</h1>
               <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
-                Organize crop maintenance, assign workers to field sectors, and track farm operations
+                {settingsOnly ? 'Manage fields, task categories, fleet vehicles, and archived items.' : 'Organize crop maintenance, assign workers to field sectors, and track farm operations'}
               </p>
             </div>
           </header>
 
-          {((harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks) || (openDisputeCount > 0 && !dismissedReviewAlerts.disputes)) && (
+          {!settingsOnly && ((harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks) || (openDisputeCount > 0 && !dismissedReviewAlerts.disputes)) && (
             <section className="task-review-alerts" aria-label="Items needing review">
               {harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks && (
                 <div className="task-review-alert is-tasks" role="status">
@@ -833,21 +833,21 @@ export default function TaskScheduleManagement() {
             </section>
           )}
 
-          <section className="task-summary-grid" aria-label="Task summary">
+          {!settingsOnly && <section className="task-summary-grid" aria-label="Task summary">
             <SummaryCard label="Total Task" value={summary.total} icon={<img src={totalTaskIcon} alt="" />} />
             <SummaryCard label="In Progress" value={summary.inProgress} icon={<img src={progressTaskIcon} alt="" />} />
             <SummaryCard label="Completed" value={summary.completed} icon={<img src={completedTaskIcon} alt="" />} />
             <SummaryCard label={<>Available<br />Workers</>} value={summary.availableWorkers} icon={<img src={workersTaskIcon} alt="" />} />
-          </section>
+          </section>}
 
           <section className="tasks-panel">
             <nav className="task-management-tabs" aria-label="Task management sections">
-              <button className={activeTab === 'tasks' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('tasks'); setSearch(''); setPage(1) }}>All Tasks</button>
-              <button className={activeTab === 'fields' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fields'); setSearch(''); setPage(1) }}>Fields &amp; Locations</button>
-              <button className={activeTab === 'categories' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('categories'); setSearch(''); setPage(1) }}>Task Categories</button>
-              <button className={activeTab === 'fleet' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fleet'); setSearch(''); setPage(1) }}>Fleet</button>
-              <button className={activeTab === 'disputes' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('disputes'); setSearch(''); setPage(1) }}>Disputes{openDisputeCount > 0 ? ` (${openDisputeCount})` : ''}</button>
-              <button className={activeTab === 'archive' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('archive'); setSearch(''); setPage(1) }}>Archived Items</button>
+              {!settingsOnly && <button className={activeTab === 'tasks' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('tasks'); setSearch(''); setPage(1) }}>All Tasks</button>}
+              {settingsOnly && <button className={activeTab === 'fields' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fields'); setSearch(''); setPage(1) }}>Fields &amp; Locations</button>}
+              {settingsOnly && <button className={activeTab === 'categories' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('categories'); setSearch(''); setPage(1) }}>Task Categories</button>}
+              {settingsOnly && <button className={activeTab === 'fleet' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fleet'); setSearch(''); setPage(1) }}>Fleet</button>}
+              {!settingsOnly && <button className={activeTab === 'disputes' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('disputes'); setSearch(''); setPage(1) }}>Disputes</button>}
+              {settingsOnly && <button className={activeTab === 'archive' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('archive'); setSearch(''); setPage(1) }}>Archived Items</button>}
             </nav>
             {activeTab === 'disputes' ? <>
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
