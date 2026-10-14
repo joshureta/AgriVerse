@@ -1199,25 +1199,28 @@
 }
 
 .activity-list article {
-  min-height: 58px;
+  min-height: 52px;
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
-  gap: 9px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: 9px 12px;
   border-radius: 8px;
   background: #f2f6ef;
 }
 
 .activity-status {
-  width: 25px;
-  height: 25px;
+  width: 22px;
+  height: 22px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
+  line-height: 1;
+  flex-shrink: 0;
+  align-self: center;
 }
 
 .activity-status.is-done {
@@ -1255,15 +1258,21 @@
 
 .activity-list article > div {
   min-width: 0;
-  display: grid;
-  gap: 3px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
 }
 
 .activity-list strong {
+  height: 22px;
+  display: flex;
+  align-items: center;
   overflow: hidden;
   color: #334038;
   font-size: 12px;
   font-weight: 700;
+  line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1271,6 +1280,7 @@
 .activity-list time {
   color: #8b948e;
   font-size: 10px;
+  line-height: 1.2;
 }
 
 .activity-link {
