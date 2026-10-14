@@ -18,14 +18,34 @@ function OnboardingGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading || !profile) return;
 
-    const requiredRoute = requiredOnboardingRoute(profile);
-    if (requiredRoute && pathname !== requiredRoute) {
-      router.replace(requiredRoute);
+    // Once onboarding is completed, redirect away from onboarding paths
+    if (profile.onboarding_completed_at) {
+      if (onboardingPaths.has(pathname)) {
+        router.replace(dashboardRoute(profile));
+      }
       return;
     }
 
-    if (!requiredRoute && onboardingPaths.has(pathname)) {
-      router.replace(dashboardRoute(profile));
+    // Initial password change is mandatory before proceeding to subsequent steps
+    if (profile.must_change_password) {
+      if (pathname !== '/change-password') {
+        router.replace('/change-password');
+      }
+      return;
+    }
+
+    // Name confirmation is required before location information
+    if (!profile.name_confirmed_at && pathname === '/location-information') {
+      router.replace('/confirm-name');
+      return;
+    }
+
+    // If attempting to access routes outside of onboarding before onboarding is finished
+    if (!onboardingPaths.has(pathname)) {
+      const requiredRoute = requiredOnboardingRoute(profile);
+      if (requiredRoute) {
+        router.replace(requiredRoute);
+      }
     }
   }, [loading, pathname, profile]);
 
@@ -45,6 +65,33 @@ export default function RootLayout() {
           <Stack.Screen
             name="signup"
             options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
+          />
+          <Stack.Screen
+            name="change-password"
+            options={{
+              animation: 'slide_from_bottom',
+              animationTypeForReplace: 'push',
+              contentStyle: { backgroundColor: '#FFFFFF' },
+              presentation: 'card',
+            }}
+          />
+          <Stack.Screen
+            name="confirm-name"
+            options={{
+              animation: 'slide_from_bottom',
+              animationTypeForReplace: 'push',
+              contentStyle: { backgroundColor: '#FFFFFF' },
+              presentation: 'card',
+            }}
+          />
+          <Stack.Screen
+            name="location-information"
+            options={{
+              animation: 'slide_from_bottom',
+              animationTypeForReplace: 'push',
+              contentStyle: { backgroundColor: '#FFFFFF' },
+              presentation: 'card',
+            }}
           />
           <Stack.Screen
             name="WorkerTaskCompletion"

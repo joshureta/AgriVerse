@@ -115,13 +115,23 @@ export async function createGcashCheckout(orderId, retry = true) {
   }
 }
 
-export async function loadBuyerDeliveryAddresses() {
+async function requestBuyerAddress(path, options = {}, retry = true) {
   const token = await readAccessToken()
-  const response = await fetch(`${API_URL}/api/buyer/orders/addresses`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Bearer ${token}` },
   })
+  if (response.status === 401 && retry) {
+    await readAccessToken(true)
+    return requestBuyerAddress(path, options, false)
+  }
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error || 'Unable to load delivery addresses')
+  if (!response.ok) throw new Error(body.error || `Unable to load delivery information (${response.status})`)
+  return body
+}
+
+export async function loadBuyerDeliveryAddresses() {
+  const body = await requestBuyerAddress('/api/buyer/orders/addresses')
   return {
     addresses: body.addresses || [],
     defaultAddressId: body.default_address_id || null,
@@ -130,39 +140,26 @@ export async function loadBuyerDeliveryAddresses() {
 }
 
 export async function createBuyerDeliveryAddress(address) {
-  const token = await readAccessToken()
-  const response = await fetch(`${API_URL}/api/buyer/orders/addresses`, {
+  const body = await requestBuyerAddress('/api/buyer/orders/addresses', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(address),
   })
-  const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error || 'Unable to save the delivery address')
   return body.address
 }
 
 export async function saveDefaultBuyerDeliveryAddress(addressId) {
-  const token = await readAccessToken()
-  const response = await fetch(`${API_URL}/api/buyer/orders/addresses/default`, {
+  return requestBuyerAddress('/api/buyer/orders/addresses/default', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address_id: addressId }),
   })
-  const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error || 'Unable to save the default delivery address')
-  return body
 }
 
 export async function deleteBuyerDeliveryAddress(addressId) {
-  const token = await readAccessToken()
-  const response = await fetch(`${API_URL}/api/buyer/orders/addresses/${encodeURIComponent(addressId)}`, {
+  await requestBuyerAddress(`/api/buyer/orders/addresses/${encodeURIComponent(addressId)}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
   })
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(body.error || 'Unable to delete the delivery address')
-  }
 }
 
 export async function loadBuyerOrders(retry = true) {

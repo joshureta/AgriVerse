@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { Check, Eye, EyeOff, X } from 'lucide-react'
 import deleteIcon from '../../assets/delete-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { workerCategories } from '../../constants/user-options.js'
@@ -90,7 +90,25 @@ export default function UserManagement() {
   const [modal, setModal] = useState(null)
   const [saving, setSaving] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [tempPassword, setTempPassword] = useState('')
+  const [showTempPassword, setShowTempPassword] = useState(false)
   const filterRef = useRef(null)
+
+  const passwordChecks = [
+    { label: '8+ characters', met: tempPassword.length >= 8 },
+    { label: '1 uppercase letter', met: /[A-Z]/.test(tempPassword) },
+    { label: '1 number', met: /\d/.test(tempPassword) },
+    { label: '1 special character', met: /[^A-Za-z0-9]/.test(tempPassword) },
+  ]
+  const passwordScore = passwordChecks.filter((check) => check.met).length
+  const strengthLabels = ['Too Weak', 'Weak', 'Fair', 'Good', 'Strong']
+  const strengthColors = ['#dc2626', '#dc2626', '#f59e0b', '#2563eb', '#166534']
+
+  const closeModal = useCallback(() => {
+    setModal(null)
+    setTempPassword('')
+    setShowTempPassword(false)
+  }, [])
 
   const loadUsers = useCallback(async () => {
     if (!currentUser?.id) return
@@ -147,9 +165,20 @@ export default function UserManagement() {
 
     if (modal.mode === 'add') {
       payload.email = String(form.get('email') || '').trim()
-      payload.password = String(form.get('password') || '')
+      payload.password = String(form.get('password') || tempPassword || '')
       if (payload.role === 'farm_worker') {
         payload.worker_category = form.get('worker_category')
+      }
+
+      if (
+        payload.password.length < 8 ||
+        !/[A-Z]/.test(payload.password) ||
+        !/\d/.test(payload.password) ||
+        !/[^A-Za-z0-9]/.test(payload.password)
+      ) {
+        setError('Temporary password must contain at least 8 characters, an uppercase letter, a number, and a special character.')
+        setSaving(false)
+        return
       }
     }
 
@@ -161,7 +190,7 @@ export default function UserManagement() {
           body: JSON.stringify(payload),
         },
       )
-      setModal(null)
+      closeModal()
       setPage(1)
       setRefreshKey((value) => value + 1)
     } catch (requestError) {
@@ -250,7 +279,7 @@ export default function UserManagement() {
                   </svg>
                 </span>
               </label>
-              <button className="toolbar-add-user" type="button" onClick={() => { setError(''); setModal({ mode: 'add', role: 'buyer' }) }}>
+              <button className="toolbar-add-user" type="button" onClick={() => { setError(''); setTempPassword(''); setShowTempPassword(false); setModal({ mode: 'add', role: 'buyer' }) }}>
                 <span aria-hidden="true">&#43;</span>
                 Add User
               </button>
@@ -295,18 +324,70 @@ export default function UserManagement() {
       {modal && (
         <div className="user-modal-backdrop" role="presentation">
           <section className="user-modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
-            <button className="user-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close">
-              <X size={18} aria-hidden="true" />
-            </button>
-            <p className="user-modal-tag">{modal.mode === 'add' ? 'Create account' : 'Update profile'}</p>
-            <h2 id="user-modal-title">{modal.mode === 'add' ? 'Add a new user' : 'Edit user'}</h2>
-            <span className="user-modal-subtitle">Configure the user credentials, platform role, and worker category.</span>
-            {error && <div className="user-modal-error" role="alert">{error}</div>}
-            <form onSubmit={handleSubmit}>
+            <header className="user-modal-head">
+              <div className="user-modal-head-text">
+                <p className="user-modal-tag">{modal.mode === 'add' ? 'Create account' : 'Update profile'}</p>
+                <h2 id="user-modal-title">{modal.mode === 'add' ? 'Add a new user' : 'Edit user'}</h2>
+                <p className="user-modal-subtitle">Configure the user credentials, platform role, and worker category.</p>
+              </div>
+              <button className="user-modal-close" type="button" onClick={closeModal} aria-label="Close">
+                <X size={20} aria-hidden="true" />
+              </button>
+            </header>
+            <div className="user-modal-body">
+              {error && <div className="user-modal-error" role="alert">{error}</div>}
+              <form onSubmit={handleSubmit}>
               <label><span>Full name</span><input name="full_name" defaultValue={modal.user?.full_name || ''} required minLength="2" maxLength="100" placeholder="e.g. Juan Dela Cruz" /></label>
               {modal.mode === 'add' && <>
                 <label><span>Email address</span><input name="email" type="email" required placeholder="user@example.com" /></label>
-                <label><span>Temporary password</span><input name="password" type="password" required minLength="8" placeholder="At least 8 characters" /></label>
+                <div className="user-field-group">
+                  <label className="user-password-field">
+                    <span>Temporary password</span>
+                    <div className="user-password-input-wrapper">
+                      <input
+                        name="password"
+                        type={showTempPassword ? 'text' : 'password'}
+                        required
+                        minLength="8"
+                        placeholder="At least 8 characters"
+                        value={tempPassword}
+                        onChange={(event) => setTempPassword(event.target.value)}
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        className="user-password-toggle"
+                        onClick={() => setShowTempPassword((prev) => !prev)}
+                        aria-label={showTempPassword ? 'Hide password' : 'Show password'}
+                        tabIndex="-1"
+                      >
+                        {showTempPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </label>
+
+                  <div className="user-password-guide" aria-live="polite">
+                    <div className="user-strength-bar" aria-hidden="true">
+                      {passwordChecks.map((check, index) => (
+                        <span
+                          key={check.label}
+                          className={index < passwordScore ? 'is-met' : ''}
+                        />
+                      ))}
+                    </div>
+                    <p>
+                      Password strength:{' '}
+                      {['Not set', 'Weak', 'Fair', 'Good', 'Strong'][passwordScore]}
+                    </p>
+                    <ul>
+                      {passwordChecks.map((check) => (
+                        <li key={check.label} className={check.met ? 'is-met' : ''}>
+                          {check.label}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </>}
               <label>
                 <span>Role</span>
@@ -331,9 +412,10 @@ export default function UserManagement() {
                   </select>
                 </label>
               )}
-              <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save user'}</button></footer>
+              <footer><button type="button" onClick={closeModal}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save user'}</button></footer>
             </form>
-          </section>
+          </div>
+        </section>
         </div>
       )}
     </main>

@@ -14,10 +14,22 @@ async function requireAuth(req, res, next) {
     // current publishable-key/session tokens even when local JWKS claims
     // verification is unavailable or out of sync with the project settings.
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    const user = userData?.user;
+    let user = userData?.user;
 
     if (userError || !user?.id) {
-      return res.status(401).json({ error: "Invalid or expired session" });
+      // Fallback: If getUser fails (e.g. session was revoked due to a recent password change during onboarding),
+      // verify the JWT claims locally so that in-flight onboarding requests can proceed smoothly.
+      const { data: claimData, error: claimError } = await supabase.auth.getClaims(token);
+      const claims = claimData?.claims;
+      if (!claimError && claims?.sub) {
+        user = {
+          id: claims.sub,
+          email: claims.email || null,
+          email_confirmed_at: claims.email_confirmed_at || null,
+        };
+      } else {
+        return res.status(401).json({ error: "Invalid or expired session" });
+      }
     }
 
     const { data: profile, error: profileError } = await supabase

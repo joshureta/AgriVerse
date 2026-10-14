@@ -251,7 +251,6 @@ export default function AdminDashboard() {
                   <div>
                     <p>Sales This {revenuePeriodLabels[revenuePeriod]}</p>
                     <strong>{revenueLoading ? '—' : revenue ? peso.format(revenue.net) : 'Unavailable'}</strong>
-                    <small>{revenue ? `${revenue.order_count} revenue order${revenue.order_count === 1 ? '' : 's'} · net of refunds` : 'Database revenue'}</small>
                   </div>
                 </article>
 
@@ -260,14 +259,12 @@ export default function AdminDashboard() {
                     <div>
                       <p>Active Workers</p>
                       <strong>{summary?.active_workers ?? (summaryError ? 'Unavailable' : '—')}</strong>
-                      <small>On crop tasks or deliveries</small>
                     </div>
                   </article>
                   <article className="admin-stat-card">
                     <div>
                       <p>Harvested This Month</p>
                       <strong>{summary?.harvested_pieces?.toLocaleString('en-PH') ?? (summaryError ? 'Unavailable' : '—')} {summary && <em>pcs</em>}</strong>
-                      <small>Approved harvests · includes damaged</small>
                     </div>
                   </article>
                 </div>

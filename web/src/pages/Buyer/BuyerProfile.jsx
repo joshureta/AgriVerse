@@ -173,7 +173,7 @@ export default function BuyerProfile() {
 
   return (
     <main className="buyer-page buyer-profile-page">
-      <BuyerHeader />
+      <BuyerHeader active="profile" />
 
       <section className="profile-content" aria-labelledby="profile-title">
         <header className="profile-page-header">

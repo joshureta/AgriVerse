@@ -259,13 +259,14 @@ export default function DeliveryProgress() {
     setLoading(true)
     setError('')
     try {
-      const loadedOrders = await loadBuyerOrders()
+      const loadedOrders = trackedOrderId
+        ? [await loadBuyerOrder(trackedOrderId)]
+        : await loadBuyerOrders()
       setOrders(loadedOrders)
       setSelectedOrderId((current) => {
+        if (trackedOrderId) return trackedOrderId
         if (loadedOrders.some((order) => order.id === current)) return current
-        return trackedOrderId && loadedOrders.some((order) => order.id === trackedOrderId)
-          ? trackedOrderId
-          : null
+        return null
       })
     } catch (requestError) {
       setOrders([])
@@ -280,7 +281,7 @@ export default function DeliveryProgress() {
   // Fetching the single order (rather than reusing the list) is what lets the backend
   // reconcile GCash payment status and the buyer-confirmation auto-complete timeout.
   useEffect(() => {
-    if (!selectedOrderId) return undefined
+    if (!selectedOrderId || trackedOrderId) return undefined
     let cancelled = false
     loadBuyerOrder(selectedOrderId)
       .then((freshOrder) => {
@@ -289,7 +290,7 @@ export default function DeliveryProgress() {
       })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [selectedOrderId])
+  }, [selectedOrderId, trackedOrderId])
 
   const selectedOrder = useMemo(
     () => orders.find((order) => order.id === selectedOrderId) || null,
@@ -714,27 +715,6 @@ export default function DeliveryProgress() {
               <div className="delivery-total"><span>Total</span><strong>PHP {selectedOrder.total_amount.toLocaleString()}</strong></div>
             </section>
 
-            {selectedOrder.order_status === 'completed' && !isReturnOrRefund(selectedOrder) && (
-              <section className="delivery-card delivery-rate-wide" aria-labelledby="delivery-rate-title">
-                <div className="delivery-rate-text">
-                  <h2 id="delivery-rate-title">{selectedOrder.buyer_rating ? 'Your rating' : 'How was your order?'}</h2>
-                  <p>{selectedOrder.buyer_rating ? 'Thanks for rating your order.' : 'Tap a star to rate — it helps other buyers and the farm.'}</p>
-                </div>
-                <div className="delivery-rate-actions">
-                  {selectedOrder.buyer_rating ? (
-                    <StarRating value={selectedOrder.buyer_rating} size={26} />
-                  ) : (
-                    <StarRating
-                      value={rateCardHover}
-                      size={26}
-                      interactive
-                      onHover={setRateCardHover}
-                      onSelect={(stars) => { setRateCardHover(0); openRateModal(selectedOrder, stars) }}
-                    />
-                  )}
-                </div>
-              </section>
-            )}
           </div>
 
           <aside className="order-detail-side">
@@ -795,6 +775,28 @@ export default function DeliveryProgress() {
                 </div>
               )}
             </section>
+
+            {selectedOrder.order_status === 'completed' && !isReturnOrRefund(selectedOrder) && (
+              <section className="delivery-card delivery-rate-card" aria-labelledby="delivery-rate-title">
+                <div className="delivery-rate-text">
+                  <h2 id="delivery-rate-title">{selectedOrder.buyer_rating ? 'Your rating' : 'How was your order?'}</h2>
+                  <p>{selectedOrder.buyer_rating ? 'Thanks for rating your order.' : 'Tap a star to rate — it helps other buyers and the farm.'}</p>
+                </div>
+                <div className="delivery-rate-actions">
+                  {selectedOrder.buyer_rating ? (
+                    <StarRating value={selectedOrder.buyer_rating} size={26} />
+                  ) : (
+                    <StarRating
+                      value={rateCardHover}
+                      size={26}
+                      interactive
+                      onHover={setRateCardHover}
+                      onSelect={(stars) => { setRateCardHover(0); openRateModal(selectedOrder, stars) }}
+                    />
+                  )}
+                </div>
+              </section>
+            )}
 
             {canCancelOrder(selectedOrder) && (
               <section className="delivery-card delivery-confirmation delivery-cancel-card" aria-labelledby="delivery-cancel-title">

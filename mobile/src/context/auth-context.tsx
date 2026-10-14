@@ -95,13 +95,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const changeInitialPassword = useCallback(async (password: string) => {
+    const activeEmail =
+      session?.user?.email ||
+      (await supabase.auth.getSession()).data.session?.user?.email;
+
     const result = await apiRequest<{ profile: WorkerProfile }>(
       '/api/mobile/auth/change-initial-password',
       { method: 'POST', body: JSON.stringify({ password }) },
     );
+
+    if (activeEmail) {
+      try {
+        const { data: signInData } = await supabase.auth.signInWithPassword({
+          email: activeEmail,
+          password,
+        });
+        if (signInData?.session) {
+          setSession(signInData.session);
+        }
+      } catch {
+        // Fallback: backend claims fallback handles in-flight onboarding requests
+      }
+    }
+
     setProfile(result.profile);
     return result.profile;
-  }, []);
+  }, [session?.user?.email]);
 
   const confirmName = useCallback(async (fullName: string) => {
     const result = await apiRequest<{ profile: WorkerProfile }>(

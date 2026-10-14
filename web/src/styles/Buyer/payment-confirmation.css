@@ -2,6 +2,28 @@
   background: #fbfcf4;
 }
 
+.payment-success-toast {
+  position: fixed;
+  z-index: 20;
+  top: 24px;
+  left: 50%;
+  width: min(460px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #cfe7c9;
+  border-radius: 14px;
+  padding: 14px 18px;
+  color: #245c2c;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(35, 98, 44, .2);
+  transform: translateX(-50%);
+}
+
+.payment-success-toast > svg { width: 30px; height: 30px; flex: none; }
+.payment-success-toast strong { font-size: 15px; }
+.payment-success-toast p { margin: 3px 0 0; color: #536b57; font-size: 12px; line-height: 1.4; }
+
 .payment-confirmation-shell {
   min-height: calc(100vh - 420px);
   width: min(calc(100% - 32px), 640px);
@@ -9,7 +31,7 @@
   align-items: center;
   justify-content: center;
   margin: 0 auto;
-  padding: 56px 0;
+  padding: 28px 0 56px;
 }
 
 .payment-confirmation-card {
@@ -258,6 +280,8 @@
 }
 
 @media (max-width: 600px) {
+  .payment-confirmation-shell { padding-top: 20px; }
+
   .payment-confirmation-card {
     padding: 40px 24px 34px;
   }

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
+import { clearCheckoutRequestKey, getCheckoutRequestKey } from '../../services/checkoutAttempt.js'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import bankIcon from '../../assets/buyer/checkout/bank.png'
 import cashIcon from '../../assets/buyer/checkout/cash.png'
@@ -76,6 +77,8 @@ export default function BuyerCheckout() {
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(true)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
+  const [addressLoadError, setAddressLoadError] = useState('')
+  const [addressLoadAttempt, setAddressLoadAttempt] = useState(0)
   const [savingAddress, setSavingAddress] = useState(false)
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState('')
@@ -109,6 +112,14 @@ export default function BuyerCheckout() {
     const dismissTimer = window.setTimeout(() => setError(''), 4000)
     return () => window.clearTimeout(dismissTimer)
   }, [error])
+
+  useEffect(() => {
+    if (!placedOrder || placedOrder.payment_method === 'gcash') return undefined
+    const redirectTimer = window.setTimeout(() => {
+      window.location.replace(`/buyer/delivery-progress?track=${encodeURIComponent(placedOrder.id)}`)
+    }, 2000)
+    return () => window.clearTimeout(redirectTimer)
+  }, [placedOrder])
 
   useEffect(() => {
     let active = true
@@ -157,30 +168,32 @@ export default function BuyerCheckout() {
   useEffect(() => {
     if (!profile) return undefined
     let active = true
+    setAddressesLoaded(false)
+    setAddressLoadError('')
     loadBuyerDeliveryAddresses()
-      .then(({ addresses, defaultAddressId, addressConfirmedAt }) => {
+      .then(({ addresses, defaultAddressId }) => {
         if (!active) return
         const slots = addresses.map(deliveryAddressToSlot)
         const customDefaultExists = defaultAddressId && slots.some((slot) => slot.id === defaultAddressId)
         const resolvedDefaultId = customDefaultExists
           ? defaultAddressId
-          : addressConfirmedAt && addressIsComplete(savedAddress) ? 'saved' : null
+          : addressIsComplete(savedAddress) ? 'saved' : null
         setCustomAddresses(slots)
         setConfirmedAddressId(resolvedDefaultId)
         setPendingAddressId(resolvedDefaultId || (addressIsComplete(savedAddress) ? 'saved' : slots[0]?.id || 'saved'))
         setAddressConfirmed(Boolean(resolvedDefaultId))
       })
       .catch((requestError) => {
-        if (active) setError(requestError.message)
+        if (active) setAddressLoadError(requestError.message)
       })
       .finally(() => {
         if (active) setAddressesLoaded(true)
       })
     return () => { active = false }
-  }, [profile, savedAddress])
+  }, [profile, savedAddress, addressLoadAttempt])
 
   useEffect(() => {
-    if (loading || !addressesLoaded || items.length === 0 || !profile) return
+    if (loading || !addressesLoaded || addressLoadError || items.length === 0 || !profile) return
     const url = new URL(window.location.href)
     if (url.searchParams.get('confirmDelivery') !== '1') return
 
@@ -194,7 +207,7 @@ export default function BuyerCheckout() {
     setAlternateAddress({ ...emptyAddress, ...savedAddress })
     setAddressModalView(savedProfileIsComplete || firstCustomAddress ? 'confirm' : 'edit')
     setAddressModalOpen(true)
-  }, [addressConfirmed, addressesLoaded, customAddresses, items.length, loading, profile, savedAddress])
+  }, [addressConfirmed, addressesLoaded, addressLoadError, customAddresses, items.length, loading, profile, savedAddress])
 
   const addressSlots = useMemo(() => {
     const slots = addressIsComplete(savedAddress) ? [{ id: 'saved', label: 'Saved address', address: savedAddress }] : []
@@ -212,6 +225,13 @@ export default function BuyerCheckout() {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const shippingFee = deliveryMethod === 'delivery' && items.length > 0 ? 100 : 0
   const total = subtotal + shippingFee
+  const deliveryAddressReady = deliveryMethod !== 'delivery' || (addressesLoaded && !addressLoadError)
+  let orderButtonLabel = 'Place Order'
+  if (placing) orderButtonLabel = 'Placing order…'
+  else if (placedOrder) orderButtonLabel = 'Order placed'
+  else if (deliveryMethod === 'delivery' && !addressesLoaded) orderButtonLabel = 'Loading delivery address…'
+  else if (deliveryMethod === 'delivery' && addressLoadError) orderButtonLabel = 'Delivery address unavailable'
+  else if (deliveryMethod === 'delivery' && !addressConfirmed) orderButtonLabel = 'Confirm delivery address'
 
   function closeAddressModal() {
     setAddressModalOpen(false)
@@ -246,14 +266,24 @@ export default function BuyerCheckout() {
     setPlacing(true)
     setError('')
     try {
-      const order = await placeBuyerOrder({
+      const orderDetails = {
         delivery_method: deliveryMethod,
         payment_method: paymentMethod,
         customer_note: notes,
         delivery_address: deliveryMethod === 'delivery' ? confirmedAddress : null,
         items: items.map((item) => ({ product_id: item.id, quantity: item.quantity })),
+      }
+      const order = await placeBuyerOrder({
+        ...orderDetails,
+        idempotency_key: getCheckoutRequestKey(orderDetails),
       })
-      writeBuyerCart([])
+      setPlacedOrder({ ...order, payment_method: paymentMethod })
+      try {
+        writeBuyerCart([])
+        clearCheckoutRequestKey()
+      } catch {
+        setNotice('Your order was placed, but the cart could not be cleared on this device.')
+      }
 
       if (paymentMethod === 'gcash') {
         try {
@@ -261,14 +291,12 @@ export default function BuyerCheckout() {
           window.location.href = checkoutUrl
           return
         } catch (paymentError) {
-          setPlacedOrder(order)
           setOrderToastVisible(true)
           setError(`Order placed, but GCash checkout could not be started: ${paymentError.message}. You can retry payment below.`)
           return
         }
       }
 
-      setPlacedOrder(order)
       setOrderToastVisible(true)
     } catch (requestError) {
       setError(requestError.message)
@@ -280,6 +308,7 @@ export default function BuyerCheckout() {
   async function submitOrder(event) {
     event.preventDefault()
     if (items.length === 0 || placedOrder) return
+    if (!deliveryAddressReady) return
     if (deliveryMethod === 'delivery' && !addressConfirmed) {
       openAddressConfirmation()
       return
@@ -351,10 +380,18 @@ export default function BuyerCheckout() {
         </header>
 
         {notice && <p className="checkout-notice" role="status">{notice}</p>}
-        {error && (
+        {error && !addressLoadError && (
           <aside className="checkout-error-toast" role="alert" aria-live="assertive">
             <span className="checkout-error-toast-icon"><CircleAlert aria-hidden="true" /></span>
             <div><strong>Unable to continue</strong><p>{error}</p></div>
+          </aside>
+        )}
+        {addressLoadError && (
+          <aside className="checkout-error-toast is-persistent" role="alert">
+            <span className="checkout-error-toast-icon"><CircleAlert aria-hidden="true" /></span>
+            <div><strong>Delivery information could not be loaded</strong><p>{addressLoadError}</p>
+              <button type="button" className="checkout-retry-address" onClick={() => setAddressLoadAttempt((attempt) => attempt + 1)}>Try again</button>
+            </div>
           </aside>
         )}
 
@@ -471,11 +508,11 @@ export default function BuyerCheckout() {
             </div>
           </section>
 
-          <button className="checkout-submit" type="submit" disabled={loading || placing || items.length === 0 || Boolean(placedOrder)}>
-            {placing ? 'Placing order…' : placedOrder ? 'Order placed' : 'Place Order'}
+          <button className="checkout-submit" type="submit" disabled={loading || placing || items.length === 0 || Boolean(placedOrder) || !deliveryAddressReady}>
+            {orderButtonLabel}
           </button>
           {placedOrder && orderToastVisible && (
-            <aside className="checkout-order-toast" role="status" aria-live="polite">
+            <aside className={`checkout-order-toast ${placedOrder.payment_method === 'gcash' ? '' : 'is-success'}`} role="status" aria-live="polite">
               <span className="checkout-order-toast-icon"><Check aria-hidden="true" /></span>
               <div>
                 {placedOrder.payment_method === 'gcash' ? (
@@ -488,13 +525,13 @@ export default function BuyerCheckout() {
                   </>
                 ) : (
                   <>
-                    <strong>Order placed</strong>
+                    <strong>Order placed successfully</strong>
                     <p>Order <b>{placedOrder.order_number}</b> was placed successfully.</p>
                   </>
                 )}
               </div>
-              <a href={`/buyer/delivery-progress?track=${encodeURIComponent(placedOrder.id)}`}>Track Delivery</a>
-              <button type="button" onClick={() => setOrderToastVisible(false)} aria-label="Dismiss order notification"><X aria-hidden="true" /></button>
+              <a href={`/buyer/delivery-progress?track=${encodeURIComponent(placedOrder.id)}`}>View Order Details</a>
+              {placedOrder.payment_method === 'gcash' && <button type="button" onClick={() => setOrderToastVisible(false)} aria-label="Dismiss order notification"><X aria-hidden="true" /></button>}
             </aside>
           )}
         </form>

@@ -654,6 +654,7 @@
   animation: checkout-order-toast-in 220ms ease-out;
   transform: translateX(-50%);
 }
+.checkout-order-toast.is-success { grid-template-columns: 52px minmax(0, 1fr) auto; }
 
 .checkout-error-toast {
   position: fixed;
@@ -675,6 +676,7 @@
   transform: translateX(-50%);
   will-change: opacity, transform;
 }
+.checkout-error-toast.is-persistent { animation: checkout-order-toast-in 220ms ease-out both; }
 
 .checkout-error-toast-icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #c63b3b; }
 .checkout-error-toast-icon svg { width: 27px; height: 27px; stroke-width: 2.6; }
@@ -685,9 +687,12 @@
 .checkout-order-toast > div strong { color: #1d6632; font-size: 17px; }
 .checkout-order-toast > div p { margin: 4px 0 0; color: #647167; font-size: 12px; }
 .checkout-order-toast > div b { color: #237538; }
-.checkout-retry-payment { margin-top: 8px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; padding: 0 14px; color: #fff; background: #c94343; font-size: 11px; font-weight: 850; cursor: pointer; }
+.checkout-retry-payment,
+.checkout-retry-address { margin-top: 8px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; padding: 0 14px; color: #fff; background: #c94343; font-size: 11px; font-weight: 850; cursor: pointer; }
 .checkout-retry-payment:hover:not(:disabled),
-.checkout-retry-payment:focus-visible { background: #a83636; outline: none; }
+.checkout-retry-payment:focus-visible,
+.checkout-retry-address:hover,
+.checkout-retry-address:focus-visible { background: #a83636; outline: none; }
 .checkout-retry-payment:disabled { opacity: .6; cursor: wait; }
 .checkout-order-toast > a { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; padding: 0 15px; color: #fff; background: #70b42e; font-size: 11px; font-weight: 850; white-space: nowrap; }
 .checkout-order-toast > a:hover,
@@ -741,6 +746,7 @@
   .checkout-error-toast-icon { width: 44px; height: 44px; }
 
   .checkout-order-toast { top: 12px; grid-template-columns: 44px minmax(0, 1fr) 32px; gap: 11px; padding: 14px; }
+  .checkout-order-toast.is-success { grid-template-columns: 44px minmax(0, 1fr); }
   .checkout-order-toast-icon { width: 44px; height: 44px; }
   .checkout-order-toast > a { grid-column: 2; width: 100%; }
   .checkout-order-toast > button { grid-column: 3; grid-row: 1; }
