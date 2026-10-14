@@ -47,17 +47,12 @@
 .marketplace-review-empty { margin-top: 20px; border: 1px dashed #cfdacb; border-radius: 10px; padding: 34px; color: #718077; background: #fafcf8; font-size: 11px; text-align: center; }
 .marketplace-review-view-all { display: block; min-height: 38px; margin: 20px auto 0; border: 1px solid #26783b; border-radius: 7px; padding: 0 16px; color: #26783b; background: transparent; font: inherit; font-size: 9px; font-weight: 800; cursor: pointer; }
 .marketplace-review-view-all:hover,.marketplace-review-view-all:focus-visible { color: #fff; background: #26783b; outline: none; }
-.buyer-review-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
-.buyer-review-fields label { display: grid; gap: 6px; }
-.buyer-review-modal input,.buyer-review-modal select { width: 100%; box-sizing: border-box; border: 1px solid #cdd8ca; border-radius: 8px; padding: 11px; color: #233529; background: #fbfcf8; font: inherit; font-size: 11px; line-height: 1.5; }
-.buyer-review-modal input:focus,.buyer-review-modal select:focus { border-color: #3c8b4b; outline: 3px solid rgba(60,139,75,.13); }
 
 @media (max-width: 720px) {
   .marketplace-review-overview { grid-template-columns: 1fr; gap: 20px; padding: 20px; }
   .review-average { border-right: 0; border-bottom: 1px solid #e3e9df; padding: 0 0 20px; }
   .marketplace-review-toolbar { align-items: flex-start; flex-direction: column; }
   .marketplace-review-all-grid { grid-template-columns: 1fr; }
-  .buyer-review-fields { grid-template-columns: 1fr; }
 }
 
 /* Keep the review refinements above the legacy carousel defaults in the cascade. */
@@ -371,27 +366,6 @@
   font-weight: 750;
 }
 
-.marketplace-reviews-heading > button {
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid #277a3c;
-  border-radius: 7px;
-  padding: 0 13px;
-  color: #fff;
-  background: #277a3c;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.marketplace-reviews-heading > button svg {
-  width: 15px;
-  height: 15px;
-}
-
 .marketplace-review-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -575,70 +549,6 @@
   font-size: 8px;
   font-style: normal;
 }
-
-.buyer-review-modal-backdrop {
-  position: fixed;
-  z-index: 1200;
-  inset: 0;
-  display: grid;
-  overflow-y: auto;
-  place-items: center;
-  box-sizing: border-box;
-  padding: 24px;
-  background: rgba(15, 37, 21, .55);
-  backdrop-filter: blur(3px);
-}
-
-.buyer-review-modal {
-  position: relative;
-  width: min(92vw, 470px);
-  box-sizing: border-box;
-  border-radius: 16px;
-  padding: 28px;
-  background: #fff;
-  box-shadow: 0 24px 70px rgba(12, 38, 19, .28);
-  text-align: center;
-  animation: buyer-review-modal-in 180ms ease-out;
-}
-
-.buyer-review-modal-x {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  color: #617064;
-  background: #f1f4ee;
-  cursor: pointer;
-}
-
-.buyer-review-modal-x svg { width: 16px; }
-.buyer-review-modal-mark { width: 48px; height: 48px; display: grid; margin: 0 auto 12px; place-items: center; border-radius: 50%; color: #f0b400; background: #fff4c7; }
-.buyer-review-modal-mark svg { width: 24px; }
-.buyer-review-modal h2 { margin: 0; color: #166a32; font-size: 23px; }
-.buyer-review-modal > p { margin: 7px 0 20px; color: #6b786e; font-size: 11px; }
-.buyer-review-modal form { text-align: left; }
-.buyer-review-modal fieldset { margin: 0; border: 0; padding: 0; text-align: center; }
-.buyer-review-modal legend { width: 100%; margin-bottom: 8px; color: #334a39; font-size: 11px; font-weight: 750; }
-.buyer-review-rating { display: flex; justify-content: center; gap: 6px; }
-.buyer-review-rating button { width: 40px; height: 40px; display: grid; place-items: center; border: 0; color: #cbd1c9; background: transparent; cursor: pointer; transition: color 120ms ease, transform 120ms ease; }
-.buyer-review-rating button:hover, .buyer-review-rating button:focus-visible, .buyer-review-rating button.is-active { color: #f0b400; transform: scale(1.1); outline: none; }
-.buyer-review-rating svg { width: 30px; height: 30px; }
-.buyer-review-modal output { display: block; min-height: 16px; margin: 5px 0 15px; color: #6e796f; font-size: 9px; }
-.buyer-review-modal label { display: block; margin-bottom: 7px; color: #304536; font-size: 10px; font-weight: 800; }
-.buyer-review-modal textarea { width: 100%; resize: vertical; box-sizing: border-box; border: 1px solid #cdd8ca; border-radius: 8px; padding: 11px; color: #233529; background: #fbfcf8; font: inherit; font-size: 11px; line-height: 1.5; }
-.buyer-review-modal textarea:focus { border-color: #3c8b4b; outline: 3px solid rgba(60,139,75,.13); }
-.buyer-review-modal form > small { display: block; margin-top: 4px; color: #8c968c; font-size: 8px; text-align: right; }
-.buyer-review-error { margin: 8px 0 0; color: #b43e37; font-size: 10px; }
-.buyer-review-modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 17px; }
-.buyer-review-modal-actions button { min-height: 40px; border: 1px solid #cbd5c8; border-radius: 7px; color: #415047; background: #fff; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
-.buyer-review-modal-actions button.is-submit { border-color: #24753a; color: #fff; background: #24753a; }
-.buyer-review-modal-actions button:hover, .buyer-review-modal-actions button:focus-visible { outline: 3px solid rgba(60,139,75,.14); }
-@keyframes buyer-review-modal-in { from { opacity: 0; transform: translateY(9px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 .order-summary {
   align-self: start;
@@ -1150,8 +1060,6 @@ button.summary-cart-button:disabled {
   .buyer-cart-toast > button { grid-column: 3; grid-row: 1; }
 
   .marketplace-reviews-heading { align-items: flex-start; flex-direction: column; }
-  .buyer-review-modal-backdrop { padding: 14px; }
-  .buyer-review-modal { padding: 25px 18px 20px; }
 
   .order-summary {
     width: calc(100% - 32px);
@@ -1244,5 +1152,4 @@ button.summary-cart-button:disabled {
   .review-average { border-right: 0; border-bottom: 1px solid #e3e9df; padding: 0 0 20px; }
   .marketplace-review-toolbar { align-items: flex-start; flex-direction: column; }
   .marketplace-review-all-grid { grid-template-columns: 1fr; }
-  .buyer-review-fields { grid-template-columns: 1fr; }
 }

@@ -14,7 +14,6 @@ import {
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
-import { useAuth } from '../../hooks/useAuth.js'
 import { loadBuyerReviews, loadPineappleProducts, readBuyerCart, writeBuyerCart } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/shoppingCart.css'
@@ -50,7 +49,6 @@ const reviews = [
 }))
 
 export default function BuyerOrders() {
-  const { profile } = useAuth()
   const [products, setProducts] = useState([])
   const [quantities, setQuantities] = useState({})
   const [loading, setLoading] = useState(true)
@@ -59,13 +57,6 @@ export default function BuyerOrders() {
   const [cartNotice, setCartNotice] = useState('')
   const [customerReviews, setCustomerReviews] = useState([])
   const [reviewIndex, setReviewIndex] = useState(0)
-  const [reviewOpen, setReviewOpen] = useState(false)
-  const [reviewRating, setReviewRating] = useState(0)
-  const [reviewHover, setReviewHover] = useState(0)
-  const [reviewTitle, setReviewTitle] = useState('')
-  const [reviewSize, setReviewSize] = useState('Medium Pineapple')
-  const [reviewText, setReviewText] = useState('')
-  const [reviewError, setReviewError] = useState('')
   const [reviewSort, setReviewSort] = useState('recent')
   const [reviewFilter, setReviewFilter] = useState('all')
   const [showAllReviews, setShowAllReviews] = useState(false)
@@ -152,15 +143,6 @@ export default function BuyerOrders() {
   }, [fetchProducts])
 
   useEffect(() => {
-    if (!reviewOpen) return undefined
-    function closeOnEscape(event) {
-      if (event.key === 'Escape') setReviewOpen(false)
-    }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [reviewOpen])
-
-  useEffect(() => {
     if (!cartNotice) return undefined
     const timer = window.setTimeout(() => setCartNotice(''), 5000)
     return () => window.clearTimeout(timer)
@@ -205,52 +187,6 @@ export default function BuyerOrders() {
     }))
     writeBuyerCart(cartItems)
     setCartNotice(`${selectedQuantity} ${selectedQuantity === 1 ? 'item is' : 'items are'} ready in your cart.`)
-  }
-
-  function closeReviewModal() {
-    setReviewOpen(false)
-    setReviewError('')
-    setReviewHover(0)
-  }
-
-  function submitReview(event) {
-    event.preventDefault()
-    if (reviewRating === 0) {
-      setReviewError('Please choose a star rating.')
-      return
-    }
-    if (!reviewText.trim()) {
-      setReviewError('Please tell us about your experience.')
-      return
-    }
-    if (!reviewTitle.trim()) {
-      setReviewError('Please add a short title for your review.')
-      return
-    }
-
-    const fullName = profile?.full_name?.trim() || 'You'
-    const shortName = fullName === 'You' ? fullName : `${fullName.split(' ')[0]} ${fullName.split(' ').slice(-1)[0]?.charAt(0) || ''}.`
-    setCustomerReviews((current) => [
-      {
-        id: Date.now(),
-        name: shortName,
-        date: new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date()),
-        title: reviewTitle.trim(),
-        productSize: reviewSize,
-        text: reviewText.trim(),
-        rating: reviewRating,
-        helpful: 0,
-        verified: true,
-        isOwn: true,
-      },
-      ...current,
-    ])
-    setReviewIndex(0)
-    setReviewRating(0)
-    setReviewTitle('')
-    setReviewSize('Medium Pineapple')
-    setReviewText('')
-    closeReviewModal()
   }
 
   function showPreviousReview() {
@@ -358,7 +294,6 @@ export default function BuyerOrders() {
                 <h2 id="marketplace-reviews-title">Customer Reviews</h2>
                 <p>See what customers say about our farm-fresh pineapples.</p>
               </div>
-              <button type="button" onClick={() => setReviewOpen(true)}><Star aria-hidden="true" /> Write a Review</button>
             </div>
 
             <div className="marketplace-review-overview">
@@ -432,53 +367,6 @@ export default function BuyerOrders() {
         </aside>
       )}
 
-      {reviewOpen && (
-        <div className="buyer-review-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeReviewModal() }}>
-          <section className="buyer-review-modal" role="dialog" aria-modal="true" aria-labelledby="buyer-review-modal-title">
-            <button className="buyer-review-modal-x" type="button" onClick={closeReviewModal} aria-label="Close review form"><X /></button>
-            <div className="buyer-review-modal-mark"><Star fill="currentColor" aria-hidden="true" /></div>
-            <h2 id="buyer-review-modal-title">Rate Your Experience</h2>
-            <p>How was your pineapple order?</p>
-
-            <form onSubmit={submitReview}>
-              <fieldset>
-                <legend>Choose your rating</legend>
-                <div className="buyer-review-rating" onMouseLeave={() => setReviewHover(0)}>
-                  {Array.from({ length: 5 }, (_, index) => {
-                    const value = index + 1
-                    const active = value <= (reviewHover || reviewRating)
-                    return <button className={active ? 'is-active' : ''} type="button" key={value} onMouseEnter={() => setReviewHover(value)} onFocus={() => setReviewHover(value)} onBlur={() => setReviewHover(0)} onClick={() => { setReviewRating(value); setReviewError('') }} aria-label={`${value} ${value === 1 ? 'star' : 'stars'}`} aria-pressed={reviewRating === value}><Star fill={active ? 'currentColor' : 'none'} /></button>
-                  })}
-                </div>
-                <output>{reviewRating ? `${reviewRating} out of 5 stars` : 'Select 1 to 5 stars'}</output>
-              </fieldset>
-
-              <div className="buyer-review-fields">
-                <label htmlFor="buyer-review-size">What did you order?
-                  <select id="buyer-review-size" value={reviewSize} onChange={(event) => setReviewSize(event.target.value)}>
-                    <option>Small Pineapple</option>
-                    <option>Medium Pineapple</option>
-                    <option>Large Pineapple</option>
-                  </select>
-                </label>
-                <label htmlFor="buyer-review-title">Review title
-                  <input id="buyer-review-title" value={reviewTitle} onChange={(event) => { setReviewTitle(event.target.value); setReviewError('') }} placeholder="Summarize your experience" maxLength="60" />
-                </label>
-              </div>
-
-              <label htmlFor="buyer-review-text">Tell us about your experience</label>
-              <textarea id="buyer-review-text" value={reviewText} onChange={(event) => { setReviewText(event.target.value); setReviewError('') }} placeholder="Tell other customers about freshness, taste, packaging, or delivery." maxLength="500" rows="4" />
-              <small>{reviewText.length}/500</small>
-              {reviewError && <p className="buyer-review-error" role="alert">{reviewError}</p>}
-
-              <div className="buyer-review-modal-actions">
-                <button type="button" onClick={closeReviewModal}>Cancel</button>
-                <button className="is-submit" type="submit">Submit Review</button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
     </main>
   )
 }
