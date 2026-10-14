@@ -259,13 +259,14 @@ export default function DeliveryProgress() {
     setLoading(true)
     setError('')
     try {
-      const loadedOrders = await loadBuyerOrders()
+      const loadedOrders = trackedOrderId
+        ? [await loadBuyerOrder(trackedOrderId)]
+        : await loadBuyerOrders()
       setOrders(loadedOrders)
       setSelectedOrderId((current) => {
+        if (trackedOrderId) return trackedOrderId
         if (loadedOrders.some((order) => order.id === current)) return current
-        return trackedOrderId && loadedOrders.some((order) => order.id === trackedOrderId)
-          ? trackedOrderId
-          : null
+        return null
       })
     } catch (requestError) {
       setOrders([])
@@ -280,7 +281,7 @@ export default function DeliveryProgress() {
   // Fetching the single order (rather than reusing the list) is what lets the backend
   // reconcile GCash payment status and the buyer-confirmation auto-complete timeout.
   useEffect(() => {
-    if (!selectedOrderId) return undefined
+    if (!selectedOrderId || trackedOrderId) return undefined
     let cancelled = false
     loadBuyerOrder(selectedOrderId)
       .then((freshOrder) => {
@@ -289,7 +290,7 @@ export default function DeliveryProgress() {
       })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [selectedOrderId])
+  }, [selectedOrderId, trackedOrderId])
 
   const selectedOrder = useMemo(
     () => orders.find((order) => order.id === selectedOrderId) || null,

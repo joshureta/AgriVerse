@@ -94,6 +94,13 @@ export default function PaymentConfirmation() {
     <main className="buyer-page payment-confirmation-page">
       <BuyerHeader active="orders" />
 
+      {status === 'paid' && order && (
+        <aside className="payment-success-toast" role="status" aria-live="polite">
+          <CheckCircle2 aria-hidden="true" />
+          <div><strong>Payment successful</strong><p>Order {order.order_number} is confirmed.</p></div>
+        </aside>
+      )}
+
       <div className="payment-confirmation-shell">
         <section className={`payment-confirmation-card is-${status}`}>
           {status === 'loading' && (

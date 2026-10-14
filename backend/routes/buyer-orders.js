@@ -1,4 +1,5 @@
 const express = require("express");
+const { createHash } = require("node:crypto");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { paymongoGet } = require("../lib/paymongo");
@@ -486,11 +487,15 @@ router.post("/", async (req, res, next) => {
     const note = String(req.body.customer_note || "").trim();
     const requestedAddress = req.body.delivery_address;
     const items = Array.isArray(req.body.items) ? req.body.items : [];
+    const idempotencyKey = req.body.idempotency_key == null ? null : String(req.body.idempotency_key);
 
     if (!['delivery', 'pickup'].includes(deliveryMethod)) throw httpError(400, "Select a valid delivery method");
     if (!['cash', 'bank', 'gcash'].includes(paymentMethod)) throw httpError(400, "Select a valid payment method");
     if (note.length > 1000) throw httpError(400, "Additional information must not exceed 1000 characters");
     if (items.length < 1 || items.length > 20) throw httpError(400, "The shopping cart is empty or invalid");
+    if (idempotencyKey !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+      throw httpError(400, "The checkout request key is invalid");
+    }
 
     let deliveryAddress = null;
     if (requestedAddress != null) {
@@ -525,9 +530,15 @@ router.post("/", async (req, res, next) => {
       p_items: normalizedItems,
       p_delivery_address: deliveryAddress,
     };
-    let { data, error } = await getSupabase().rpc("place_buyer_order", orderArguments);
+    let { data, error } = idempotencyKey
+      ? await getSupabase().rpc("place_buyer_order_idempotent", {
+        ...orderArguments,
+        p_idempotency_key: idempotencyKey,
+        p_payload_hash: createHash("sha256").update(JSON.stringify(orderArguments)).digest("hex"),
+      })
+      : await getSupabase().rpc("place_buyer_order", orderArguments);
 
-    const missingNewOrderFunction = error && (
+    const missingNewOrderFunction = !idempotencyKey && error && (
       error.code === "PGRST202"
       || (/place_buyer_order/i.test(error.message || "")
         && /p_delivery_address|schema cache|could not find/i.test(error.message || ""))
@@ -542,6 +553,10 @@ router.post("/", async (req, res, next) => {
 
     if (error) {
       if (/insufficient stock/i.test(error.message || "")) throw httpError(409, error.message);
+      if (idempotencyKey && (error.code === "PGRST202" || /place_buyer_order_idempotent.*schema cache/i.test(error.message || ""))) {
+        throw httpError(503, "Run Supabase migration 039_checkout_idempotency.sql before accepting web checkout orders");
+      }
+      if (/Checkout request has changed/i.test(error.message || "")) throw httpError(409, error.message);
       if (error.code === "PGRST202" || /place_buyer_order.*schema cache/i.test(error.message || "")) {
         throw httpError(503, "The Supabase order function is not installed. Run buyer order migrations 006 through 009, then restart the backend");
       }
@@ -551,7 +566,7 @@ router.post("/", async (req, res, next) => {
       throw error;
     }
 
-    return res.status(201).json({ order: data });
+    return res.status(201).json({ order: { ...data, payment_method: paymentMethod } });
   } catch (error) {
     return next(error);
   }
