@@ -364,7 +364,7 @@ export default function BuyerHomeScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Hero */}
           <ImageBackground
-          source={require('@/assets/images/welcome-pineapple-farm.png')}
+          source={require('@/assets/images/buyer-pineapple-banner.png')}
           style={styles.heroWrapper}
           imageStyle={styles.heroImage}>
           <View style={styles.heroTint} />

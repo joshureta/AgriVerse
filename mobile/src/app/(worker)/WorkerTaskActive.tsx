@@ -20,7 +20,7 @@ import { WorkerTaskSegmentedTabs } from '@/components/worker-task-segmented-tabs
 import { TaskCompletionBlurTarget } from '@/components/task-completion-blur-target';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
-import { taskCategoryIconSource } from '@/lib/task-category-icons';
+import { TASK_ICON_CONTAINER_STYLE, taskCategoryIconSource } from '@/lib/task-category-icons';
 import { activityLabel, suppliesSummary, type TaskSupplyFields } from '@/lib/task-supplies';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -288,7 +288,7 @@ function ActiveTaskCard({
       {/* Top Header Row with Active label & Radar Badge (Driver Style) */}
       <View style={styles.cardHeaderRow}>
         <View style={styles.deliveryHeadingWithIcon}>
-          <View style={[styles.categoryMiniSquircle, { backgroundColor: config.bg, borderColor: config.border }]}>
+          <View style={[styles.categoryMiniSquircle, { backgroundColor: config.bg, borderColor: config.border }, TASK_ICON_CONTAINER_STYLE]}>
             <Image source={taskCategoryIconSource(task.category)} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
           </View>
           <Text style={styles.activeHeadingText}>Active Task</Text>

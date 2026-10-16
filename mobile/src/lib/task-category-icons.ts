@@ -1,4 +1,10 @@
 /** Local 3D task artwork used across the farm-worker task experience. */
+export const TASK_ICON_CONTAINER_STYLE = {
+  backgroundColor: '#EEF1F4',
+  borderColor: '#D6DCE2',
+  borderWidth: 1,
+} as const;
+
 const taskCategoryIcons: Record<string, number> = {
   Planting: require('@/assets/task-category-icons/planting.png'),
   Irrigation: require('@/assets/task-category-icons/irrigation.png'),

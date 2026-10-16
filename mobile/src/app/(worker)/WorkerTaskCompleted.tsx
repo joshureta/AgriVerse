@@ -18,7 +18,7 @@ import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
-import { taskCategoryIconSource } from '@/lib/task-category-icons';
+import { TASK_ICON_CONTAINER_STYLE, taskCategoryIconSource } from '@/lib/task-category-icons';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
 import Svg, { Circle, Path } from 'react-native-svg';
 
@@ -265,7 +265,7 @@ function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
       ]}>
       <View style={styles.cardRow}>
         {/* Left: Squircle Category Icon Badge */}
-        <View style={[styles.categorySquircle, { backgroundColor: config.squircleBg }]}>
+        <View style={[styles.categorySquircle, { backgroundColor: config.squircleBg }, TASK_ICON_CONTAINER_STYLE]}>
           <Image source={taskCategoryIconSource(task.category)} style={{ width: 44, height: 44, resizeMode: 'contain' }} />
         </View>
 

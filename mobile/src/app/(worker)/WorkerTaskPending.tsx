@@ -19,7 +19,7 @@ import { useAuth } from '@/context/auth-context';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { apiRequest } from '@/lib/api';
-import { taskCategoryIconSource } from '@/lib/task-category-icons';
+import { TASK_ICON_CONTAINER_STYLE, taskCategoryIconSource } from '@/lib/task-category-icons';
 import { TaskSuppliesSheet } from '@/components/task-supplies-sheet';
 import { UpcomingCard } from '@/components/upcoming-card';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
@@ -374,7 +374,7 @@ function TaskCard({
     <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
       {/* Header Row: Category Squircle Icon, Title, Field + Priority Pill & Top-Right Dropdown Button (Driver Style) */}
       <View style={styles.pendingCardHeader}>
-        <View style={[styles.categorySquircle, { backgroundColor: config.bg, borderColor: config.border }]}>
+        <View style={[styles.categorySquircle, { backgroundColor: config.bg, borderColor: config.border }, TASK_ICON_CONTAINER_STYLE]}>
           <Image source={taskCategoryIconSource(task.category)} style={{ width: 36, height: 36, resizeMode: 'contain' }} />
         </View>
 
