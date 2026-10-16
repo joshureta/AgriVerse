@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { countConnectedSensors, SENSOR_ONLINE_WINDOW_MS } from '../src/lib/sensorStatus.js'
+import { countConnectedSensors, latestCurrentReading, SENSOR_ONLINE_WINDOW_MS } from '../src/lib/sensorStatus.js'
 
 const now = Date.parse('2026-10-10T08:00:00Z')
 
@@ -18,4 +18,17 @@ test('counts a soil-only sensor and excludes stale or invalid timestamps', () =>
   ]
   assert.equal(countConnectedSensors([[], soil], now), 1)
   assert.equal(countConnectedSensors([[], soil], now + SENSOR_ONLINE_WINDOW_MS), 0)
+})
+
+test('tracks each sensor independently and ignores null or stale readings', () => {
+  const climate = [
+    { measuredAt: now - 20_000, temperature_c: null, humidity_percent: 65 },
+    { measuredAt: now - SENSOR_ONLINE_WINDOW_MS - 1, temperature_c: 28, humidity_percent: 60 },
+  ]
+  const soil = [{ measuredAt: now - 30_000, moisture_percent: 42 }]
+
+  assert.equal(latestCurrentReading(climate, 'temperature_c', now), null)
+  assert.equal(latestCurrentReading(climate, 'humidity_percent', now), climate[0])
+  assert.equal(latestCurrentReading(soil, 'moisture_percent', now), soil[0])
+  assert.equal(latestCurrentReading(soil, 'moisture_percent', now + SENSOR_ONLINE_WINDOW_MS), null)
 })

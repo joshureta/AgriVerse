@@ -2,6 +2,19 @@
 // marking a device offline.
 export const SENSOR_ONLINE_WINDOW_MS = 2 * 60 * 1000
 
+export function latestCurrentReading(readings, field, now = Date.now()) {
+  return readings.reduce((latest, reading) => {
+    const value = reading[field]
+    if (
+      value == null || !Number.isFinite(Number(value)) ||
+      !Number.isFinite(reading.measuredAt) ||
+      reading.measuredAt < now - SENSOR_ONLINE_WINDOW_MS ||
+      reading.measuredAt > now + 30_000
+    ) return latest
+    return !latest || reading.measuredAt > latest.measuredAt ? reading : latest
+  }, null)
+}
+
 export function countConnectedSensors(readingGroups, now = Date.now()) {
   const recentDeviceIds = new Set()
 

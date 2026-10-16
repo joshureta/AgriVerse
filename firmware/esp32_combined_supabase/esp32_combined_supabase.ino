@@ -118,14 +118,16 @@ int postJson(const char *tableName, const String &payload) {
   return status;
 }
 
-void sendClimateReading(float soilTemperature, float humidity) {
+void sendClimateReading(float soilTemperature, bool soilTemperatureValid,
+                        float humidity, bool humidityValid) {
   const String payload = String("{\"device_id\":\"") + DEVICE_ID +
-                         "\",\"temperature_c\":" + String(soilTemperature, 1) +
-                         ",\"humidity_percent\":" + String(humidity, 1) + "}";
+                         "\",\"temperature_c\":" +
+                         (soilTemperatureValid ? String(soilTemperature, 1) : "null") +
+                         ",\"humidity_percent\":" +
+                         (humidityValid ? String(humidity, 1) : "null") + "}";
   const int status = postJson("sensor_readings", payload);
   if (status == 201 || status == 204) {
-    Serial.printf("Soil temperature + humidity saved: %.1f C, %.1f%% (HTTP %d)\n",
-                  soilTemperature, humidity, status);
+    Serial.printf("Climate readings saved (HTTP %d).\n", status);
   }
 }
 
@@ -181,8 +183,13 @@ void loop() {
 
   if (!connectWifi() || !syncClock()) return;
 
-  if (soilTemperatureValid && humidityValid) {
-    sendClimateReading(soilTemperature, humidity);
+  if (soilTemperatureValid || humidityValid) {
+    sendClimateReading(soilTemperature, soilTemperatureValid, humidity, humidityValid);
   }
-  sendSoilReading(soilRaw, soilMoisture);
+  // Rail values usually indicate a short or open probe, not useful moisture data.
+  if (soilRaw > 10 && soilRaw < 4085) {
+    sendSoilReading(soilRaw, soilMoisture);
+  } else {
+    Serial.println("Soil moisture reading invalid; check probe wiring.");
+  }
 }

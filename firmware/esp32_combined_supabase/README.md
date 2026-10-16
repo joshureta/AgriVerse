@@ -5,6 +5,17 @@ ESP32. It sends DS18B20 soil temperature and DHT22 humidity to
 `public.sensor_readings`, and capacitive soil moisture to
 `public.soil_readings`, every 30 seconds.
 
+Run `supabase/migrations/040_independent_climate_sensor_readings.sql` in the
+sensor Supabase project before uploading this version. It allows a valid
+temperature or humidity reading to be saved even when the other sensor fails.
+The website shows an offline alert for each sensor without a valid reading in
+the last two minutes.
+
+The capacitive probe uses an analog signal. The firmware rejects readings near
+the ADC rails, but an unplugged probe can sometimes produce a plausible
+number. Its website status means "recent valid reading received," not proof of
+a physical electrical connection.
+
 ## Wiring
 
 All sensors share the ESP32's `3V3` and `GND` connections.
@@ -41,9 +52,8 @@ each module instead of relying on wire colors.
 A successful cycle prints both:
 
 ```text
-Soil temperature + humidity saved: ... (HTTP 201)
+Climate readings saved (HTTP 201).
 Soil saved: ... (HTTP 201)
 ```
 
-The website reads the same two Supabase tables, so no website code change is
-needed. Keep the ESP32 powered and connected to its configured 2.4 GHz Wi-Fi.
+Keep the ESP32 powered and connected to its configured 2.4 GHz Wi-Fi.

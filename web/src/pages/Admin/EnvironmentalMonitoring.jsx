@@ -28,7 +28,7 @@ import humidityMetricIcon from '../../assets/monitoring/metric-humidity.png'
 import soilMoistureMetricIcon from '../../assets/monitoring/metric-soil-moisture.png'
 import { supabase } from '../../lib/supabase.js'
 import { sensorSupabase } from '../../lib/sensorSupabase.js'
-import { countConnectedSensors, SENSOR_ONLINE_WINDOW_MS } from '../../lib/sensorStatus.js'
+import { countConnectedSensors, latestCurrentReading } from '../../lib/sensorStatus.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/monitoring.css'
 
@@ -92,8 +92,8 @@ function formatSensorReading(reading) {
     time: Number.isNaN(measuredAt.getTime())
       ? 'Unknown'
       : measuredAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
-    temperature: `${Number(reading.temperature_c).toFixed(1)}°C`,
-    humidity: `${Number(reading.humidity_percent).toFixed(1)}%`,
+    temperature: reading.temperature_c == null ? '—' : `${Number(reading.temperature_c).toFixed(1)}°C`,
+    humidity: reading.humidity_percent == null ? '—' : `${Number(reading.humidity_percent).toFixed(1)}%`,
     moisture: reading.soil_moisture == null
       ? '—'
       : `${Number(reading.soil_moisture).toFixed(1)}%`,
@@ -188,8 +188,9 @@ export default function EnvironmentalMonitoring() {
   const [sensorLoading, setSensorLoading] = useState(true)
   const [statusNow, setStatusNow] = useState(() => Date.now())
   const [dismissedAlerts, setDismissedAlerts] = useState([])
-  const latest = readings[0]
-  const latestSoil = readings.find((reading) => reading.soil_moisture != null) || soilReadings[0]
+  const currentTemperature = latestCurrentReading(readings, 'temperature_c', statusNow)
+  const currentHumidity = latestCurrentReading(readings, 'humidity_percent', statusNow)
+  const currentSoil = latestCurrentReading(soilReadings, 'moisture_percent', statusNow)
   const combinedReadings = useMemo(
     () => combineSensorReadings(readings, soilReadings),
     [readings, soilReadings],
@@ -203,42 +204,43 @@ export default function EnvironmentalMonitoring() {
     (page - 1) * readingsPerPage,
     page * readingsPerPage,
   )
-  const connectedSensors = countConnectedSensors([readings, soilReadings], statusNow)
-  const sensorIsLive = connectedSensors > 0
-  const currentClimate = latest?.measuredAt >= statusNow - SENSOR_ONLINE_WINDOW_MS ? latest : null
-  const currentSoil = latestSoil?.measuredAt >= statusNow - SENSOR_ONLINE_WINDOW_MS ? latestSoil : null
+  const reportingSensors = [currentTemperature, currentHumidity, currentSoil].filter(Boolean).length
+  const connectedDevices = countConnectedSensors([readings, soilReadings], statusNow)
+  const deviceIsLive = connectedDevices > 0
   const sensorHasError = !sensorSupabase || Boolean(sensorError && soilError)
-  const sensorStatusTitle = sensorIsLive
-    ? 'IoT Sensor Network Active'
-    : sensorLoading
-      ? 'Checking Sensor Network'
-      : sensorHasError
-        ? 'Sensor Network Unavailable'
-        : 'No Sensors Connected'
-  const sensorStatusBadge = sensorIsLive ? 'Live' : sensorLoading ? 'Checking' : sensorHasError ? 'Unavailable' : 'Offline'
-  const SensorStatusIcon = sensorIsLive ? Radio : sensorLoading ? Antenna : WifiOff
-  const soilStatus = !latestSoil
-    ? 'Waiting for sensor'
-    : (latestSoil.soil_moisture ?? latestSoil.moisture_percent) < 30
+  const sensorStatusTitle = sensorLoading
+    ? 'Checking Device'
+    : sensorHasError && !deviceIsLive
+      ? 'Device Status Unavailable'
+      : deviceIsLive ? 'Device Active' : 'Device Offline'
+  const sensorStatusBadge = sensorLoading ? 'Checking' : sensorHasError && !deviceIsLive ? 'Unavailable' : !deviceIsLive ? 'Offline' : reportingSensors === 3 ? 'Live' : 'Sensor Alert'
+  const SensorStatusIcon = deviceIsLive ? Radio : sensorLoading ? Antenna : WifiOff
+  const soilStatus = !currentSoil
+    ? 'Offline'
+    : currentSoil.moisture_percent < 30
       ? 'Dry'
-      : (latestSoil.soil_moisture ?? latestSoil.moisture_percent) < 70
+      : currentSoil.moisture_percent < 70
         ? 'Moist'
         : 'Wet'
 
   const activeAlerts = useMemo(() => {
     const list = []
 
-    if (!sensorLoading && !sensorIsLive) {
-      list.push({
-        id: 'sensor-offline',
-        type: 'danger',
-        icon: WifiOff,
-        title: 'IoT Sensor Network Alert',
-        message: sensorHasError
-          ? sensorError || soilError
-          : 'No sensor readings received in the last 2 minutes. Check ESP32 power and Wi-Fi.',
-        timestamp: 'Live status',
-      })
+    if (!sensorLoading) {
+      for (const [id, name, reading, error] of [
+        ['soil-temperature-offline', 'Soil Temperature', currentTemperature, sensorError],
+        ['humidity-offline', 'Humidity', currentHumidity, sensorError],
+        ['soil-moisture-offline', 'Soil Moisture', currentSoil, soilError],
+      ]) {
+        if (!reading) list.push({
+          id,
+          type: 'danger',
+          icon: WifiOff,
+          title: `${name} Sensor Offline`,
+          message: error || `No valid ${name.toLowerCase()} reading received in the last 2 minutes. Check the sensor and device connection.`,
+          timestamp: 'Live status',
+        })
+      }
     }
 
     if (currentSoil) {
@@ -255,30 +257,30 @@ export default function EnvironmentalMonitoring() {
       }
     }
 
-    if (currentClimate && currentClimate.temperature_c != null) {
-      const tempC = Number(currentClimate.temperature_c)
+    if (currentTemperature) {
+      const tempC = Number(currentTemperature.temperature_c)
       if (tempC >= 33) {
         list.push({
           id: 'heat-stress',
           type: 'warning',
           icon: ThermometerSun,
           title: `Crop Heat Stress Warning (${activeField})`,
-          message: `High ambient temperature (${currentClimate.temperature}) detected. Transpiration stress risk—ensure adequate shade and hydration.`,
+          message: `High soil temperature (${currentTemperature.temperature}) detected. Transpiration stress risk—ensure adequate shade and hydration.`,
           timestamp: 'Live reading',
         })
       }
     }
 
-    if (currentClimate && currentClimate.humidity_percent != null && currentClimate.temperature_c != null) {
-      const humidity = Number(currentClimate.humidity_percent)
-      const tempC = Number(currentClimate.temperature_c)
+    if (currentHumidity && currentTemperature) {
+      const humidity = Number(currentHumidity.humidity_percent)
+      const tempC = Number(currentTemperature.temperature_c)
       if (humidity >= 80 && tempC >= 24) {
         list.push({
           id: 'fungal-risk',
           type: 'warning',
           icon: AlertTriangle,
           title: `Fungal Pathogen Risk Warning`,
-          message: `Elevated relative humidity (${currentClimate.humidity}) at ${currentClimate.temperature} creates favorable conditions for fungal leaf spot.`,
+          message: `Elevated relative humidity (${currentHumidity.humidity}) at ${currentTemperature.temperature} creates favorable conditions for fungal leaf spot.`,
           timestamp: 'Live reading',
         })
       }
@@ -296,7 +298,7 @@ export default function EnvironmentalMonitoring() {
       })
     }
 
-    if (!list.length && sensorIsLive && currentClimate && currentSoil) {
+    if (!list.length && reportingSensors === 3) {
       list.push({
         id: 'all-optimal',
         type: 'success',
@@ -308,12 +310,25 @@ export default function EnvironmentalMonitoring() {
     }
 
     return list
-  }, [sensorError, soilError, sensorLoading, sensorIsLive, sensorHasError, currentSoil, currentClimate, weather, activeField])
+  }, [sensorError, soilError, sensorLoading, currentTemperature, currentHumidity, currentSoil, reportingSensors, weather, activeField])
 
   const visibleAlerts = useMemo(
     () => activeAlerts.filter((alert) => !dismissedAlerts.includes(alert.id)),
     [activeAlerts, dismissedAlerts],
   )
+
+  useEffect(() => {
+    const recovered = new Set([
+      currentTemperature && 'soil-temperature-offline',
+      currentHumidity && 'humidity-offline',
+      currentSoil && 'soil-moisture-offline',
+    ].filter(Boolean))
+    if (recovered.size) {
+      setDismissedAlerts((current) => current.some((id) => recovered.has(id))
+        ? current.filter((id) => !recovered.has(id))
+        : current)
+    }
+  }, [currentTemperature, currentHumidity, currentSoil])
 
   useEffect(() => {
     let active = true
@@ -437,8 +452,8 @@ export default function EnvironmentalMonitoring() {
             </div>
           </header>
 
-          <section className={`environment-network-status${sensorIsLive ? '' : sensorLoading ? ' is-checking' : ' is-offline'}`} aria-label="Sensor network status">
-            <div><i aria-hidden="true" /><span><strong>{sensorStatusTitle}</strong><small>{sensorLoading ? 'Checking for recent readings…' : `${connectedSensors} Sensor${connectedSensors === 1 ? '' : 's'} Connected`}</small></span></div>
+          <section className={`environment-network-status${sensorLoading ? ' is-checking' : !deviceIsLive ? ' is-offline' : reportingSensors < 3 ? ' is-partial' : ''}`} aria-label="Device status">
+            <div><i aria-hidden="true" /><span><strong>{sensorStatusTitle}</strong><small>{sensorLoading ? 'Checking for recent readings…' : `${connectedDevices} ${connectedDevices === 1 ? 'device' : 'devices'} connected`}</small></span></div>
             <span><SensorStatusIcon aria-hidden="true" /> {sensorStatusBadge}</span>
           </section>
 
@@ -509,20 +524,20 @@ export default function EnvironmentalMonitoring() {
             </nav>
 
             <section className="environment-reading-grid" aria-label={`${activeField} latest readings`}>
-              <article>
+              <article className={!sensorLoading && !currentTemperature ? 'is-disconnected' : ''}>
                 <h2>Soil Temperature</h2>
-                <div><strong>{latest?.temperature || '—'}</strong><img src={temperatureMetricIcon} alt="" /></div>
-                <small>{latest ? 'Latest reading' : 'Waiting for sensor'}</small>
+                <div><strong>{currentTemperature?.temperature || '—'}</strong><img src={temperatureMetricIcon} alt="" /></div>
+                <small>{sensorLoading ? 'Checking sensor' : currentTemperature ? 'Reporting · live reading' : 'Offline'}</small>
               </article>
-              <article>
+              <article className={!sensorLoading && !currentHumidity ? 'is-disconnected' : ''}>
                 <h2>Humidity</h2>
-                <div><strong>{latest?.humidity || '—'}</strong><img src={humidityMetricIcon} alt="" /></div>
-                <small>{latest ? 'Latest reading' : 'Waiting for sensor'}</small>
+                <div><strong>{currentHumidity?.humidity || '—'}</strong><img src={humidityMetricIcon} alt="" /></div>
+                <small>{sensorLoading ? 'Checking sensor' : currentHumidity ? 'Reporting · live reading' : 'Offline'}</small>
               </article>
-              <article>
+              <article className={!sensorLoading && !currentSoil ? 'is-disconnected' : ''}>
                 <h2>Soil Moisture</h2>
-                <div><strong>{latestSoil?.moisture || '—'}</strong><img src={soilMoistureMetricIcon} alt="" /></div>
-                <small className={soilStatus === 'Dry' ? 'is-monitor' : ''} title={!latestSoil ? soilError || undefined : undefined}>{latestSoil ? soilStatus : soilError ? 'Soil sensor unavailable' : soilStatus}</small>
+                <div><strong>{currentSoil?.moisture || '—'}</strong><img src={soilMoistureMetricIcon} alt="" /></div>
+                <small className={soilStatus === 'Dry' ? 'is-monitor' : ''} title={!currentSoil ? soilError || undefined : undefined}>{sensorLoading ? 'Checking sensor' : currentSoil ? `Reporting · ${soilStatus}` : 'Offline'}</small>
               </article>
             </section>
 
@@ -543,7 +558,7 @@ export default function EnvironmentalMonitoring() {
                     </tr>
                   ))}
                   {!visibleReadings.length && (
-                    <tr><td colSpan="4">{sensorError || 'Waiting for the first ESP32 reading…'}</td></tr>
+                    <tr><td colSpan="4">{sensorError || 'Waiting for the first device reading…'}</td></tr>
                   )}
                 </tbody>
               </table>
