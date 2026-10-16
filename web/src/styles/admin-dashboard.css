@@ -1840,7 +1840,175 @@
 /* Compact summary layout on the admin dashboard */
 .admin-overview-dashboard .admin-dashboard-grid {
   grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr);
+  grid-template-areas:
+    "summary activities"
+    "revenue activities"
+    "productivity conditions";
+  align-items: stretch;
 }
+
+.admin-overview-dashboard .admin-main-column,
+.admin-overview-dashboard .admin-side-column {
+  display: contents;
+}
+
+.admin-overview-dashboard .admin-stat-grid { grid-area: summary; }
+.admin-overview-dashboard .revenue-panel { grid-area: revenue; }
+.admin-overview-dashboard .productivity-panel { grid-area: productivity; }
+
+.admin-overview-dashboard .activity-panel {
+  grid-area: activities;
+  height: 600px;
+  min-height: 0;
+  max-height: none;
+  align-self: start;
+}
+
+.admin-overview-dashboard .activity-list {
+  max-height: none;
+  grid-template-columns: 1fr;
+}
+
+.admin-overview-dashboard .field-conditions-panel {
+  grid-area: conditions;
+  align-self: start;
+}
+
+.field-conditions-panel {
+  min-width: 0;
+  padding: 18px;
+}
+
+.field-conditions-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.field-conditions-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: #263329;
+  font-family: var(--heading);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.field-conditions-header h2 svg {
+  width: 17px;
+  height: 17px;
+  color: var(--admin-green);
+}
+
+.field-conditions-header p {
+  margin: 6px 0 0;
+  color: #7d887f;
+  font-size: 10px;
+}
+
+.field-conditions-status {
+  flex: none;
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #8a6314;
+  background: #fff3d8;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.field-conditions-status.is-normal {
+  color: #196c35;
+  background: #e8f4e7;
+}
+
+.field-conditions-status.is-offline {
+  color: #8b3931;
+  background: #fcece9;
+}
+
+.field-conditions-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 17px;
+}
+
+.field-conditions-metric {
+  min-width: 0;
+  border-radius: 9px;
+  padding: 10px 8px;
+  background: #f3f7ef;
+}
+
+.field-conditions-metric span {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 3px;
+  min-height: 28px;
+  color: #68776c;
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.field-conditions-metric svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  color: var(--admin-green);
+}
+
+.field-conditions-metric strong {
+  display: block;
+  margin-top: 7px;
+  color: #263329;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.field-conditions-metric.is-warning strong,
+.field-conditions-metric.is-warning svg {
+  color: #ad4c35;
+}
+
+.field-conditions-footer {
+  display: grid;
+  gap: 10px;
+  margin-top: 15px;
+  border-top: 1px solid #e7ece3;
+  padding-top: 13px;
+}
+
+.field-conditions-footer p {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  color: #9a6713;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.field-conditions-footer p.is-normal { color: #357443; }
+
+.field-conditions-footer p svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.field-conditions-footer a {
+  width: fit-content;
+  color: var(--admin-green);
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.field-conditions-footer a:hover { text-decoration: underline; }
 
 .admin-overview-dashboard .revenue-panel,
 .admin-overview-dashboard .productivity-panel {
@@ -1928,10 +2096,34 @@
 }
 
 @media (max-width: 1040px) {
-  .admin-overview-dashboard .admin-dashboard-grid { grid-template-columns: 1fr; }
+  .admin-overview-dashboard .admin-dashboard-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas: none;
+    align-items: start;
+  }
+  .admin-overview-dashboard .admin-main-column,
+  .admin-overview-dashboard .admin-side-column {
+    min-width: 0;
+    display: grid;
+    align-content: start;
+    gap: 18px;
+  }
+  .admin-overview-dashboard .admin-stat-grid,
+  .admin-overview-dashboard .revenue-panel,
+  .admin-overview-dashboard .productivity-panel,
+  .admin-overview-dashboard .activity-panel,
+  .admin-overview-dashboard .field-conditions-panel { grid-area: auto; }
+  .admin-overview-dashboard .activity-panel { height: 500px; }
   .admin-overview-dashboard .admin-stat-grid,
   .admin-overview-dashboard .revenue-panel,
   .admin-overview-dashboard .productivity-panel { justify-self: start; }
+}
+
+@media (max-width: 430px) {
+  .field-conditions-header { flex-wrap: wrap; }
+  .field-conditions-metrics { gap: 5px; }
+  .field-conditions-metric { padding: 9px 6px; }
+  .field-conditions-metric strong { font-size: 16px; }
 }
 
 @media (max-width: 370px) {

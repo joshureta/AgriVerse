@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dashboardIllustration from '../../assets/admin-dashboard-illustration.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import FieldConditions from '../../components/FieldConditions.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
 import { loadAdminActivities, loadAdminProductivity, loadAdminRevenue, loadAdminSummary } from '../../services/adminDashboard.js'
 import '../../styles/admin-dashboard.css'
@@ -342,38 +343,41 @@ export default function AdminDashboard() {
               </article>
             </section>
 
-            <aside className="admin-panel activity-panel">
-              <div className="panel-heading">
-                <div>
-                  <span>Recent activities</span>
-                  <strong>Latest updates</strong>
+            <div className="admin-side-column">
+              <aside className="admin-panel activity-panel">
+                <div className="panel-heading">
+                  <div>
+                    <span>Recent activities</span>
+                    <strong>Latest updates</strong>
+                  </div>
                 </div>
-              </div>
 
-              <div className="activity-list" aria-live="polite">
-                {activitiesLoading ? (
-                  <p className="activity-empty">Loading recent activity…</p>
-                ) : activitiesError ? (
-                  <p className="activity-empty is-error">{activitiesError}</p>
-                ) : !hasActivities ? (
-                  <p className="activity-empty">No activity yet. Finished and ongoing tasks and deliveries will appear here.</p>
-                ) : (
-                  <>
-                    {completedActivities.map((activity) => (
-                      <ActivityRow activity={activity} key={activity.id} now={now} />
-                    ))}
-                    {ongoingActivities.length > 0 ? (
-                      <>
-                        <p className="activity-divider">Ongoing · {ongoingActivities.length}</p>
-                        {ongoingActivities.map((activity) => (
-                          <ActivityRow activity={activity} key={activity.id} now={now} ongoing />
-                        ))}
-                      </>
-                    ) : null}
-                  </>
-                )}
-              </div>
-            </aside>
+                <div className="activity-list" aria-live="polite">
+                  {activitiesLoading ? (
+                    <p className="activity-empty">Loading recent activity…</p>
+                  ) : activitiesError ? (
+                    <p className="activity-empty is-error">{activitiesError}</p>
+                  ) : !hasActivities ? (
+                    <p className="activity-empty">No activity yet. Finished and ongoing tasks and deliveries will appear here.</p>
+                  ) : (
+                    <>
+                      {completedActivities.map((activity) => (
+                        <ActivityRow activity={activity} key={activity.id} now={now} />
+                      ))}
+                      {ongoingActivities.length > 0 ? (
+                        <>
+                          <p className="activity-divider">Ongoing · {ongoingActivities.length}</p>
+                          {ongoingActivities.map((activity) => (
+                            <ActivityRow activity={activity} key={activity.id} now={now} ongoing />
+                          ))}
+                        </>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              </aside>
+              <FieldConditions />
+            </div>
           </div>
         </div>
         <dialog className="productivity-report-dialog" ref={reportDialogRef} aria-labelledby="productivity-report-title">
