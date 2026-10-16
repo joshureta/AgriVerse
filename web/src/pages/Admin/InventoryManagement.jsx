@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowRight, Check, PackageMinus, PackagePlus, X } from 'lucide-react'
+import { ArrowRight, Check, CheckCircle2, CircleAlert, PackageMinus, PackagePlus, TriangleAlert, X } from 'lucide-react'
 import archiveIcon from '../../assets/archive-inventory-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { SellerSidebar, SellerTopbar } from '../../components/SellerNavigation.jsx'
@@ -82,6 +82,27 @@ function categoryDetails(item) {
   return item.variant === '—' ? 'General inventory item' : item.variant
 }
 
+function InventoryNotice({ tone = 'error', title, children, onDismiss, onNavigate }) {
+  const Icon = tone === 'success' ? CheckCircle2 : tone === 'warning' ? TriangleAlert : CircleAlert
+  return <div className={`inventory-notice is-${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
+    <span className="inventory-notice-icon"><Icon aria-hidden="true" /></span>
+    <p>{onNavigate
+      ? <button type="button" className="inventory-notice-link" onClick={onNavigate}>{title}</button>
+      : <strong>{title}</strong>}{' '}{children}</p>
+    {onDismiss && <button type="button" className="inventory-notice-dismiss" aria-label={`Dismiss ${title.toLowerCase()} notification`} onClick={onDismiss}><X aria-hidden="true" /></button>}
+  </div>
+}
+
+function alertItemNames(examples, count, showQuantity = false) {
+  if (!examples?.length) return `${count} affected item${count === 1 ? '' : 's'}.`
+  const names = examples.map(({ name, quantity, unit }) => showQuantity
+    ? `${name} (${quantity} ${unit} left)`
+    : name)
+  const remaining = count - examples.length
+  if (remaining > 0) names.push(`+${remaining} more`)
+  return `${names.join(', ')}.`
+}
+
 export default function InventoryManagement({ workspace = 'admin', initialView = 'items' }) {
   const [activeView, setActiveView] = useState(initialView)
   const [items, setItems] = useState([])
@@ -96,6 +117,11 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   const [loading, setLoading] = useState(true)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
+  const [optionsError, setOptionsError] = useState('')
+  const [alerts, setAlerts] = useState(null)
+  const [alertsError, setAlertsError] = useState('')
+  const [dismissedAlerts, setDismissedAlerts] = useState({})
+  const [notice, setNotice] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
@@ -109,6 +135,14 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   const selectedCategory = options.categories.find(
     (category) => String(category.id) === String(itemForm.inventory_category_id),
   )
+  const inventoryWarnings = [
+    { key: 'items-out', view: 'items', count: alerts?.items?.out, title: 'Items Out of Stock:', message: () => alertItemNames(alerts?.items?.examples?.out, alerts?.items?.out, true), tone: 'error' },
+    { key: 'stock-out', view: 'stock', count: alerts?.stock?.out, title: 'Pineapple Stock Out:', message: () => alertItemNames(alerts?.stock?.examples?.out, alerts?.stock?.out, true), tone: 'error' },
+    { key: 'items-low', view: 'items', count: alerts?.items?.low, title: 'Low Inventory Stock:', message: () => alertItemNames(alerts?.items?.examples?.low, alerts?.items?.low, true), tone: 'warning' },
+    { key: 'stock-low', view: 'stock', count: alerts?.stock?.low, title: 'Low Pineapple Stock:', message: () => alertItemNames(alerts?.stock?.examples?.low, alerts?.stock?.low, true), tone: 'warning' },
+    { key: 'expired', view: 'items', count: alerts?.items?.expired, title: 'Expired Supplies:', message: () => alertItemNames(alerts?.items?.examples?.expired, alerts?.items?.expired), tone: 'error' },
+    { key: 'expiring', view: 'items', count: alerts?.items?.expiring, title: 'Expiring Soon:', message: () => alertItemNames(alerts?.items?.examples?.expiring, alerts?.items?.expiring), tone: 'warning' },
+  ].filter((warning) => warning.count > 0 && (workspace === 'admin' || warning.view === 'stock') && !dismissedAlerts[warning.key])
 
   const loadItems = useCallback(async () => {
     setLoading(true)
@@ -133,8 +167,19 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   }, [activeView, inventoryApi, page, search, type])
 
   const loadOptions = useCallback(() => apiRequest(`${inventoryApi}/options`)
-    .then((data) => setOptions(data))
-    .catch((requestError) => setError(requestError.message)), [inventoryApi])
+    .then((data) => { setOptions(data); setOptionsError('') })
+    .catch((requestError) => setOptionsError(requestError.message)), [inventoryApi])
+
+  const loadAlerts = useCallback(async () => {
+    setAlerts(null)
+    try {
+      const data = await apiRequest(`${inventoryApi}/alerts`)
+      setAlerts(data)
+      setAlertsError('')
+    } catch (requestError) {
+      setAlertsError(requestError.message)
+    }
+  }, [inventoryApi])
 
   useEffect(() => {
     if (workspace === 'admin') loadOptions()
@@ -165,7 +210,18 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
   useEffect(() => { loadStockHistory() }, [loadStockHistory, refreshKey])
 
+  useEffect(() => { loadAlerts() }, [loadAlerts, refreshKey])
+
+  function completeAction(title, message, refreshItems = true) {
+    setNotice({ title, message })
+    setDismissedAlerts({})
+    if (refreshItems) setRefreshKey((value) => value + 1)
+    else loadAlerts()
+  }
+
   function openAddItem() {
+    setError('')
+    setNotice(null)
     const firstItemCategory = options.categories.find((category) => category.code !== 'pineapple')
     setItemForm({
       ...emptyItemForm,
@@ -186,7 +242,17 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setError('')
   }
 
+  function openWarningView(view) {
+    setActiveView(view)
+    setPage(1)
+    setSearch('')
+    setType('')
+    setError('')
+  }
+
   function openEditItem(item) {
+    setError('')
+    setNotice(null)
     setItemForm({
       ...emptyItemForm,
       inventory_category_id: item.inventory_category_id,
@@ -210,12 +276,14 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   function openAddStock(item) {
     setItemForm({ ...emptyItemForm, stock_quantity: item.stock_quantity, stock_to_add: '' })
     setError('')
+    setNotice(null)
     setModal({ mode: 'add-stock', item, direction: 'add' })
   }
 
   function openRemoveStock(item) {
     setItemForm({ ...emptyItemForm, stock_quantity: item.stock_quantity, stock_to_add: '' })
     setError('')
+    setNotice(null)
     setModal({ mode: 'add-stock', item, direction: 'remove' })
   }
 
@@ -248,7 +316,9 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
         method: 'POST', body: JSON.stringify({ quantity }),
       })
       setModal(null)
-      setRefreshKey((value) => value + 1)
+      const name = modal.item.category_code === 'pineapple' ? `${modal.item.variant} pineapple` : modal.item.item_name
+      const newTotal = Number(modal.item.stock_quantity) + (removing ? -quantity : quantity)
+      completeAction(removing ? 'Stock removed:' : 'Stock added:', `${quantity} ${modal.item.unit_label || 'pcs'} ${removing ? 'removed from' : 'added to'} ${name}. New total: ${newTotal} ${modal.item.unit_label || 'pcs'}.`)
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -258,6 +328,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
   function openAddCategory() {
     setError('')
+    setNotice(null)
     setCategoryForm({ category_name: '', description: '' })
     setModal({ mode: 'add-category' })
   }
@@ -287,7 +358,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
       )
       setModal(null)
       setPage(1)
-      setRefreshKey((value) => value + 1)
+      completeAction(editing ? 'Item updated:' : 'Item added:', `${payload.item_name} was ${editing ? 'updated' : 'added'} successfully.`)
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -306,6 +377,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
       })
       setModal(null)
       await loadOptions()
+      completeAction('Category added:', `${categoryForm.category_name.trim()} is ready for inventory items.`)
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -316,10 +388,12 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   async function archiveItem(item) {
     if (!window.confirm(`Archive ${item.item_name} (${item.variant})?`)) return
     setError('')
+    setNotice(null)
     try {
       await apiRequest(`${inventoryApi}/${item.id}/archive`, { method: 'POST' })
-      if (items.length === 1 && page > 1) setPage((value) => value - 1)
-      else setRefreshKey((value) => value + 1)
+      const moveToPreviousPage = items.length === 1 && page > 1
+      if (moveToPreviousPage) setPage((value) => value - 1)
+      completeAction('Item archived:', `${item.item_name} was moved to Archived Items.`, !moveToPreviousPage)
     } catch (requestError) {
       setError(requestError.message)
     }
@@ -327,10 +401,12 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
   async function restoreItem(item) {
     setError('')
+    setNotice(null)
     try {
       await apiRequest(`${inventoryApi}/${item.id}/restore`, { method: 'POST' })
-      if (items.length === 1 && page > 1) setPage((value) => value - 1)
-      else setRefreshKey((value) => value + 1)
+      const moveToPreviousPage = items.length === 1 && page > 1
+      if (moveToPreviousPage) setPage((value) => value - 1)
+      completeAction('Item restored:', `${item.item_name} is back in Inventory Items.`, !moveToPreviousPage)
     } catch (requestError) {
       setError(requestError.message)
     }
@@ -350,6 +426,16 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
               </p>
             </div>
           </header>
+
+          {(notice || (!modal && error) || optionsError || alertsError || inventoryWarnings.length > 0) && <section className="inventory-notices" aria-label="Inventory notifications">
+            {notice && <InventoryNotice tone="success" title={notice.title} onDismiss={() => setNotice(null)}>{notice.message}</InventoryNotice>}
+            {!modal && error && <InventoryNotice title="Inventory error:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
+            {optionsError && <InventoryNotice title="Inventory options unavailable:" onDismiss={() => setOptionsError('')}>{optionsError}</InventoryNotice>}
+            {alertsError && <InventoryNotice title="Inventory alerts unavailable:" onDismiss={() => setAlertsError('')}>{alertsError}</InventoryNotice>}
+            {inventoryWarnings.map((warning) => <InventoryNotice key={warning.key} tone={warning.tone} title={warning.title} onNavigate={() => openWarningView(warning.view)} onDismiss={() => setDismissedAlerts((current) => ({ ...current, [warning.key]: true }))}>
+              {warning.message(warning.count)}
+            </InventoryNotice>)}
+          </section>}
 
           <section className="inventory-browser">
             {workspace === 'seller' ? <header className="seller-stock-banner">
@@ -394,7 +480,6 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
               </div>}
             </div>}
 
-            {error && <div className="inventory-error" role="alert">{error}</div>}
             <div className="inventory-table-wrap">
               {activeView === 'stock' ? <table className="inventory-table pineapple-stock-table">
                 <thead><tr><th>ID</th><th>PINEAPPLE SIZE</th><th>AVAILABLE STOCK</th><th>UNIT</th><th>STOCK STATUS</th><th>LAST UPDATED</th><th>ACTIONS</th></tr></thead>
@@ -438,7 +523,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
             </footer>}
             {activeView === 'stock' && <section className="stock-history-section">
               <header><div><h2>Stock Movement History</h2><p>Recent pineapple stock additions and deductions</p></div></header>
-              {historyError && <div className="stock-history-error" role="alert">{historyError}</div>}
+              {historyError && <InventoryNotice title="Stock history unavailable:" onDismiss={() => setHistoryError('')}>{historyError}</InventoryNotice>}
               <div className="inventory-table-wrap">
                 <table className="stock-history-table">
                   <thead><tr><th>DATE &amp; TIME</th><th>PINEAPPLE SIZE</th><th>MOVEMENT</th><th>QUANTITY</th><th>BEFORE</th><th>AFTER</th></tr></thead>
@@ -473,7 +558,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
         <section className="inventory-modal category-modal" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
           <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           <p>Inventory setup</p><h2 id="category-modal-title">Add Category</h2>
-          {error && <div className="inventory-modal-error" role="alert">{error}</div>}
+          {error && <InventoryNotice title="Category could not be saved:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
           <form onSubmit={addCategory}>
             <label><span>Category name</span><input value={categoryForm.category_name} onChange={(event) => setCategoryForm({ ...categoryForm, category_name: event.target.value })} maxLength="80" placeholder="Example: Seeds" required /></label>
             <label><span>Description (optional)</span><input value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} maxLength="300" placeholder="What items belong in this category?" /></label>
@@ -487,7 +572,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
           <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           <p>{modal.mode === 'add-item' ? 'New inventory record' : 'Update inventory record'}</p>
           <h2 id="inventory-modal-title">{modal.mode === 'add-item' ? 'Add Item' : `Edit ${modal.item.item_name}`}</h2>
-          {error && <div className="inventory-modal-error" role="alert">{error}</div>}
+          {error && <InventoryNotice title="Item could not be saved:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
           <form onSubmit={saveItem}>
             <label><span>Item type</span><select value={itemForm.inventory_category_id} onChange={(event) => setItemForm({ ...emptyItemForm, inventory_category_id: event.target.value, unit_id: itemForm.unit_id, item_name: itemForm.item_name, stock_quantity: itemForm.stock_quantity, stock_to_add: itemForm.stock_to_add, size_id: options.pineappleSizes[0]?.id || '', equipment_type_id: options.equipmentTypes[0]?.id || '' })} required><option value="" disabled>Select item type</option>{options.categories.filter((category) => category.code !== 'pineapple').map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
             <label><span>Item name</span><input value={itemForm.item_name} onChange={(event) => setItemForm({ ...itemForm, item_name: event.target.value })} required maxLength="100" /></label>
@@ -525,7 +610,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
             <span className={`stock-modal-icon${modal.direction === 'remove' ? ' stock-modal-icon-remove' : ''}`} aria-hidden="true">{modal.direction === 'remove' ? <PackageMinus size={21} /> : <PackagePlus size={21} />}</span>
             <div><p>{modal.item.category_code === 'pineapple' ? 'Pineapple inventory' : `${modal.item.item_type} inventory`}</p><h2 id="stock-modal-title">{modal.direction === 'remove' ? 'Remove Stock' : 'Add Stock'}</h2></div>
           </div>
-          {error && <div className="inventory-modal-error" role="alert">{error}</div>}
+          {error && <InventoryNotice title="Stock change needs attention:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
           <form onSubmit={requestStockConfirmation}>
             <div className="stock-modal-summary">
               <div><small>{modal.item.category_code === 'pineapple' ? 'Selected size' : 'Item'}</small><span>{modal.item.category_code === 'pineapple' ? modal.item.variant : modal.item.item_name}</span></div>
@@ -554,7 +639,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
             <ArrowRight size={18} aria-hidden="true" />
             <div><span>New total</span><strong>{modal.direction === 'remove' ? Number(modal.item.stock_quantity) - Number(itemForm.stock_to_add) : Number(modal.item.stock_quantity) + Number(itemForm.stock_to_add)} {modal.item.unit_label || 'pcs'}</strong></div>
           </div>
-          {error && <div className="inventory-modal-error" role="alert">{error}</div>}
+          {error && <InventoryNotice title="Stock update failed:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
           <footer>
             <button type="button" onClick={() => setModal((currentModal) => ({ ...currentModal, mode: 'add-stock' }))} disabled={saving}>Go back</button>
             <button type="button" className="stock-confirm-submit" onClick={submitStockChange} disabled={saving}>{saving ? (modal.direction === 'remove' ? 'Removing stock…' : 'Adding stock…') : (modal.direction === 'remove' ? 'Yes, remove stock' : 'Yes, add stock')}</button>

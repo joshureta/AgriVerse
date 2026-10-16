@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { MessageCircle } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronDown, LogOut, MessageCircle } from 'lucide-react'
 import dateIcon from '../assets/admin-date-icon.png'
 import cropHealthMonitoringIcon from '../assets/crop-health-monitoring-icon.png'
 import environmentalMonitoringIcon from '../assets/environmental-monitoring-icon.png'
@@ -10,8 +10,112 @@ import settingsIcon from '../assets/settings-controls-icon.png'
 import agriverseWordmark from '../assets/agriverse-wordmark.png'
 import { useAuth } from '../hooks/useAuth.js'
 import { loadAdminConversations } from '../services/adminMessages.js'
+import { loadAdminNotifications, markAdminNotificationRead, markAllAdminNotificationsRead } from '../services/adminNotifications.js'
 
 const UNREAD_POLL_INTERVAL_MS = 20000
+
+function AdminNotificationMenu() {
+  const menuRef = useRef(null)
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [updating, setUpdating] = useState(false)
+
+  const refresh = useCallback(async () => {
+    try {
+      const result = await loadAdminNotifications()
+      setNotifications(result.notifications || [])
+      setUnreadCount(result.unread_count || 0)
+      setError('')
+    } catch (caught) {
+      setError(caught.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refresh()
+    const interval = window.setInterval(refresh, UNREAD_POLL_INTERVAL_MS)
+    return () => window.clearInterval(interval)
+  }, [refresh])
+
+  useEffect(() => {
+    function closeOnOutsideClick(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) menuRef.current.open = false
+    }
+    function closeOnEscape(event) {
+      if (event.key === 'Escape' && menuRef.current) menuRef.current.open = false
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [])
+
+  async function markRead(notification) {
+    if (!notification.read_at) {
+      try {
+        await markAdminNotificationRead(notification.id)
+        setNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, read_at: new Date().toISOString() } : item))
+        setUnreadCount((count) => Math.max(0, count - 1))
+      } catch (caught) {
+        setError(caught.message)
+      }
+    }
+    if (notification.type === 'dispute_opened') window.location.assign('/admin/tasks?tab=disputes')
+  }
+
+  async function markAllRead() {
+    setUpdating(true)
+    try {
+      await markAllAdminNotificationsRead()
+      const readAt = new Date().toISOString()
+      setNotifications((current) => current.map((item) => ({ ...item, read_at: item.read_at || readAt })))
+      setUnreadCount(0)
+      setError('')
+    } catch (caught) {
+      setError(caught.message)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  return (
+    <details className="admin-notification-menu" ref={menuRef}>
+      <summary className="admin-notification" aria-label={unreadCount ? `Notifications (${unreadCount} unread)` : 'Notifications'}>
+        <img src={notificationIcon} alt="" />
+        {unreadCount > 0 && <span className="admin-message-badge" aria-hidden="true">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+      </summary>
+      <section className="admin-notification-dropdown" aria-label="Admin notifications">
+        <header>
+          <strong>Notifications</strong>
+          {unreadCount > 0 && <button type="button" disabled={updating} onClick={markAllRead}>Mark all as read</button>}
+        </header>
+        <div className="admin-notification-list">
+          {loading && <p className="admin-notification-state">Loading notifications…</p>}
+          {!loading && error && <p className="admin-notification-state is-error" role="alert">{error}</p>}
+          {!loading && !error && notifications.length === 0 && <p className="admin-notification-state">No notifications yet.</p>}
+          {!loading && notifications.map((notification) => (
+            <button
+              className={`admin-notification-item${notification.read_at ? '' : ' is-unread'}`}
+              type="button"
+              key={notification.id}
+              onClick={() => markRead(notification)}
+            >
+              <span className="admin-notification-item-title">{notification.title}{!notification.read_at && <i aria-label="Unread" />}</span>
+              <span>{notification.body}</span>
+              <time dateTime={notification.created_at}>{new Date(notification.created_at).toLocaleString()}</time>
+            </button>
+          ))}
+        </div>
+      </section>
+    </details>
+  )
+}
 
 const navItems = [
   { href: '/admin', icon: 'dashboard', label: 'Dashboard', key: 'dashboard' },
@@ -174,9 +278,25 @@ export function AdminSidebar({ active }) {
 
 export function AdminTopbar() {
   const { profile, signOut } = useAuth()
+  const accountMenuRef = useRef(null)
   const [signingOut, setSigningOut] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const displayName = profile?.full_name || 'Administrator'
+
+  useEffect(() => {
+    function closeOnOutsideClick(event) {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) accountMenuRef.current.open = false
+    }
+    function closeOnEscape(event) {
+      if (event.key === 'Escape' && accountMenuRef.current) accountMenuRef.current.open = false
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -223,24 +343,28 @@ export function AdminTopbar() {
             <span className="admin-message-badge" aria-hidden="true">{unreadCount > 99 ? '99+' : unreadCount}</span>
           )}
         </a>
-        <button className="admin-notification" type="button" aria-label="Notifications">
-          <img src={notificationIcon} alt="" />
-        </button>
-        <div className="admin-avatar" aria-hidden="true">
-          {displayName.charAt(0).toUpperCase()}
-        </div>
-        <div className="admin-identity">
-          <strong>{displayName}</strong>
-          <span>Admin</span>
-        </div>
-        <button
-          className="admin-signout"
-          type="button"
-          onClick={handleSignOut}
-          disabled={signingOut}
-        >
-          {signingOut ? 'Wait…' : 'Sign out'}
-        </button>
+        <AdminNotificationMenu />
+        <details className="admin-account-menu" ref={accountMenuRef}>
+          <summary className="admin-account-trigger" aria-label={`${displayName} account menu`}>
+            <span className="admin-avatar" aria-hidden="true">{displayName.charAt(0).toUpperCase()}</span>
+            <span className="admin-identity">
+              <strong>{displayName}</strong>
+              <span>Admin</span>
+            </span>
+            <ChevronDown className="admin-account-chevron" aria-hidden="true" />
+          </summary>
+          <div className="admin-account-dropdown">
+            <button
+              className="admin-signout"
+              type="button"
+              onClick={handleSignOut}
+              disabled={signingOut}
+            >
+              <LogOut aria-hidden="true" />
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </button>
+          </div>
+        </details>
       </div>
     </header>
   )

@@ -270,7 +270,7 @@ function SummaryCard({ label, value, icon, className = '' }) {
 }
 
 export default function TaskScheduleManagement({ settingsOnly = false }) {
-  const [activeTab, setActiveTab] = useState(settingsOnly ? 'fields' : 'tasks')
+  const [activeTab, setActiveTab] = useState(() => settingsOnly ? 'fields' : new URLSearchParams(window.location.search).get('tab') === 'disputes' ? 'disputes' : 'tasks')
   const [tasks, setTasks] = useState([])
   const [deliveryOrders, setDeliveryOrders] = useState([])
   const [workView, setWorkView] = useState('crop')

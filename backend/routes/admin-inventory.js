@@ -28,9 +28,10 @@ function limitSellerInventory(req, res, next) {
 
   const readsPineappleStock = req.method === "GET" && req.path === "/";
   const readsStockHistory = req.method === "GET" && req.path === "/stock-history";
+  const readsAlerts = req.method === "GET" && req.path === "/alerts";
   const addsStock = req.method === "POST" && /^\/\d+\/stock$/.test(req.path);
   const addsPineappleSizeStock = req.method === "POST" && /^\/pineapple-sizes\/\d+\/stock$/.test(req.path);
-  if (!readsPineappleStock && !readsStockHistory && !addsStock && !addsPineappleSizeStock) {
+  if (!readsPineappleStock && !readsStockHistory && !readsAlerts && !addsStock && !addsPineappleSizeStock) {
     return res.status(403).json({ error: "Sellers can only manage pineapple stock" });
   }
 
@@ -178,6 +179,66 @@ router.get("/options", async (req, res, next) => {
       categories: categories.data || [], units: units.data || [],
       pineappleSizes: pineappleSizes.data || [], equipmentTypes: equipmentTypes.data || [],
     });
+  } catch (error) { return next(error); }
+});
+
+router.get("/alerts", async (req, res, next) => {
+  try {
+    const supabase = getSupabase();
+    const sellerEndpoint = req.baseUrl.startsWith("/api/seller/");
+    const alerts = {
+      items: { out: 0, low: 0, expired: 0, expiring: 0, examples: { out: [], low: [], expired: [], expiring: [] } },
+      stock: { out: 0, low: 0, examples: { out: [], low: [] } },
+    };
+    const addAlert = (group, type, example) => {
+      group[type] += 1;
+      if (group.examples[type].length < 3) group.examples[type].push(example);
+    };
+    const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const soon = new Date(`${today}T00:00:00Z`);
+    soon.setUTCDate(soon.getUTCDate() + 30);
+    const soonDate = soon.toISOString().slice(0, 10);
+    const stockedSizeIds = new Set();
+
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from("inventory_items")
+        .select("id, item_name, quantity, category:inventory_categories!inventory_items_inventory_category_id_fkey(code), unit:measurement_units!inventory_items_unit_id_fkey(abbreviation), pineapple_inventory(size_id, size:pineapple_sizes!pineapple_inventory_size_id_fkey(size_name)), fertilizer_inventory(expiration_date), pesticide_inventory(expiration_date)")
+        .is("archived_at", null).order("id").range(from, from + 999);
+      if (error) throw error;
+      for (const item of data || []) {
+        const isPineapple = one(item.category)?.code === "pineapple";
+        if (sellerEndpoint && !isPineapple) continue;
+        const group = isPineapple ? alerts.stock : alerts.items;
+        const sizeName = one(one(item.pineapple_inventory)?.size)?.size_name;
+        const name = isPineapple && sizeName
+          ? (/pineapple/i.test(sizeName) ? sizeName : `${sizeName} Pineapple`)
+          : item.item_name;
+        const example = { name, quantity: Number(item.quantity), unit: one(item.unit)?.abbreviation || (isPineapple ? "pcs" : "units") };
+        if (example.quantity <= 0) addAlert(group, "out", example);
+        else if (example.quantity <= 10) addAlert(group, "low", example);
+        if (isPineapple) {
+          const sizeId = one(item.pineapple_inventory)?.size_id;
+          if (sizeId) stockedSizeIds.add(sizeId);
+        } else {
+          const expiration = one(item.fertilizer_inventory)?.expiration_date
+            || one(item.pesticide_inventory)?.expiration_date;
+          if (expiration && expiration < today) addAlert(alerts.items, "expired", { name, date: expiration });
+          else if (expiration && expiration <= soonDate) addAlert(alerts.items, "expiring", { name, date: expiration });
+        }
+      }
+      if ((data || []).length < 1000) break;
+    }
+
+    const { data: sizes, error: sizesError } = await supabase.from("pineapple_sizes")
+      .select("id, size_name").eq("status", true);
+    if (sizesError) throw sizesError;
+    for (const size of sizes || []) {
+      if (!stockedSizeIds.has(size.id)) {
+        const name = /pineapple/i.test(size.size_name) ? size.size_name : `${size.size_name} Pineapple`;
+        addAlert(alerts.stock, "out", { name, quantity: 0, unit: "pcs" });
+      }
+    }
+    return res.json(alerts);
   } catch (error) { return next(error); }
 });
 

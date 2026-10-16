@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import dateIcon from '../../assets/admin-date-icon.png'
-import notificationIcon from '../../assets/admin-notification-icon.png'
 import dashboardIllustration from '../../assets/admin-dashboard-illustration.png'
-import { AdminSidebar } from '../../components/AdminNavigation.jsx'
+import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
 import { loadAdminActivities, loadAdminProductivity, loadAdminRevenue, loadAdminSummary } from '../../services/adminDashboard.js'
 import '../../styles/admin-dashboard.css'
@@ -24,15 +22,6 @@ function completedWhen(iso, now) {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`
   return completedAtFormat.format(new Date(iso))
-}
-
-function formatDashboardDate(date) {
-  return new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date)
 }
 
 const peso = new Intl.NumberFormat('en-PH', {
@@ -60,8 +49,7 @@ function ActivityRow({ activity, now, ongoing = false }) {
 const revenuePeriodLabels = { week: 'Week', month: 'Month', year: 'Year' }
 
 export default function AdminDashboard() {
-  const { profile, signOut } = useAuth()
-  const [signingOut, setSigningOut] = useState(false)
+  const { profile } = useAuth()
   const [revenueData, setRevenueData] = useState(null)
   const [revenueLoading, setRevenueLoading] = useState(true)
   const [revenueError, setRevenueError] = useState('')
@@ -185,47 +173,12 @@ export default function AdminDashboard() {
     ? comparison?.current_approved ? `${comparison.current_approved} approved so far; no prior-month baseline.` : 'No approved tasks in either period yet.'
     : `${comparison.current_approved} approved this month vs ${comparison.previous_approved} by this date last month (${change > 0 ? '+' : ''}${change}%).`
 
-  async function handleSignOut() {
-    setSigningOut(true)
-    await signOut()
-    window.location.replace('/login')
-  }
-
   return (
     <main className="admin-dashboard admin-overview-dashboard">
       <AdminSidebar active="dashboard" />
 
       <section className="admin-workspace">
-        <header className="admin-topbar">
-          <div className="admin-date">
-            <img src={dateIcon} alt="" />
-            <time dateTime={new Date().toISOString()}>
-              {formatDashboardDate(new Date())}
-            </time>
-          </div>
-
-          <div className="admin-account">
-            <button className="admin-notification" type="button" aria-label="Notifications">
-              <img src={notificationIcon} alt="" />
-              <span aria-hidden="true" />
-            </button>
-            <div className="admin-avatar" aria-hidden="true">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-            <div className="admin-identity">
-              <strong>{displayName}</strong>
-              <span>Admin</span>
-            </div>
-            <button
-              className="admin-signout"
-              type="button"
-              onClick={handleSignOut}
-              disabled={signingOut}
-            >
-              {signingOut ? 'Wait…' : 'Sign out'}
-            </button>
-          </div>
-        </header>
+        <AdminTopbar />
 
         <div className="admin-content">
           <section className="admin-hero">
