@@ -109,11 +109,20 @@ export default function CropHealthMonitoring() {
 
   const currentFieldReport = reports[activeField] || CropInspection.createDefaultReport()
 
-  const totalPages = Math.max(1, Math.ceil(activities.length / pageSize))
+  const fieldActivities = useMemo(
+    () => activities.filter((activity) => activity.field === activeField),
+    [activities, activeField],
+  )
+  const totalPages = Math.max(1, Math.ceil(fieldActivities.length / pageSize))
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages))
+  }, [totalPages])
+
   const paginatedActivities = useMemo(() => {
     const start = (currentPage - 1) * pageSize
-    return activities.slice(start, start + pageSize)
-  }, [activities, currentPage])
+    return fieldActivities.slice(start, start + pageSize)
+  }, [fieldActivities, currentPage])
 
   function handleUpload(event) {
     const file = event.target.files?.[0]
@@ -314,6 +323,7 @@ export default function CropHealthMonitoring() {
                         [activeField]: CropInspection.withoutImage(current[activeField]),
                       }))
                       setActiveField(field)
+                      setCurrentPage(1)
                       setError('')
                       setSuccessMessage('')
                     }}
@@ -563,7 +573,7 @@ export default function CropHealthMonitoring() {
           <section className="tasks-panel" style={{ border: '1px solid #dce5d8', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 12px 28px rgba(42,76,38,.05)', background: '#fff' }}>
             
             <div className="tasks-table-wrap">
-              <table className="tasks-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="tasks-table" aria-label={`${activeField} inspection history`} style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#196c35' }}>
                     <th style={{ width: '22%', padding: '16px 20px', color: '#fff', fontSize: '11px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.04em' }}>
@@ -682,7 +692,7 @@ export default function CropHealthMonitoring() {
                           <FileClock size={28} />
                         </div>
                         <h3 style={{ margin: '0 0 6px', color: '#163e23', fontSize: '16px', fontWeight: 800, fontFamily: 'var(--display)' }}>
-                          No Inspection Logs Recorded Yet
+                          No Inspection Logs Recorded for {activeField}
                         </h3>
                         <p style={{ margin: '0 auto 20px', color: '#657868', fontSize: '13px', maxWidth: '440px', lineHeight: 1.5, fontFamily: 'var(--sans)' }}>
                           Upload a crop photo above and click <strong>"Analyze {activeField} Image"</strong> to run your first real AI diagnosis and store it in Supabase.
@@ -717,9 +727,9 @@ export default function CropHealthMonitoring() {
             </div>
 
             {/* Pagination footer */}
-            {activities.length > 0 && (
+            {fieldActivities.length > 0 && (
               <footer className="task-pagination" style={{ margin: '10px 14px' }}>
-                <span>{activities.length} total inspection record{activities.length === 1 ? '' : 's'}</span>
+                <span>{activeField}: {fieldActivities.length} inspection record{fieldActivities.length === 1 ? '' : 's'}</span>
                 <div>
                   <button
                     type="button"
