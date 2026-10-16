@@ -212,7 +212,7 @@ export default function EnvironmentalMonitoring() {
     ? 'Checking Device'
     : sensorHasError && !deviceIsLive
       ? 'Device Status Unavailable'
-      : deviceIsLive ? 'Device Active' : 'Device Offline'
+      : deviceIsLive ? 'Device Active' : 'Sensor Offline'
   const sensorStatusBadge = sensorLoading ? 'Checking' : sensorHasError && !deviceIsLive ? 'Unavailable' : !deviceIsLive ? 'Offline' : reportingSensors === 3 ? 'Live' : 'Sensor Alert'
   const SensorStatusIcon = deviceIsLive ? Radio : sensorLoading ? Antenna : WifiOff
   const soilStatus = !currentSoil
@@ -453,7 +453,7 @@ export default function EnvironmentalMonitoring() {
           </header>
 
           <section className={`environment-network-status${sensorLoading ? ' is-checking' : !deviceIsLive ? ' is-offline' : reportingSensors < 3 ? ' is-partial' : ''}`} aria-label="Device status">
-            <div><i aria-hidden="true" /><span><strong>{sensorStatusTitle}</strong><small>{sensorLoading ? 'Checking for recent readings…' : `${connectedDevices} ${connectedDevices === 1 ? 'device' : 'devices'} connected`}</small></span></div>
+            <div><i aria-hidden="true" /><span><strong>{sensorStatusTitle}</strong><small>{sensorLoading ? 'Checking for recent readings…' : deviceIsLive ? `${connectedDevices} ${connectedDevices === 1 ? 'device' : 'devices'} connected` : 'No recent sensor readings'}</small></span></div>
             <span><SensorStatusIcon aria-hidden="true" /> {sensorStatusBadge}</span>
           </section>
 
@@ -527,17 +527,17 @@ export default function EnvironmentalMonitoring() {
               <article className={!sensorLoading && !currentTemperature ? 'is-disconnected' : ''}>
                 <h2>Soil Temperature</h2>
                 <div><strong>{currentTemperature?.temperature || '—'}</strong><img src={temperatureMetricIcon} alt="" /></div>
-                <small>{sensorLoading ? 'Checking sensor' : currentTemperature ? 'Reporting · live reading' : 'Offline'}</small>
+                <small>{sensorLoading ? 'Checking sensor' : currentTemperature ? 'Reporting · live reading' : 'Sensor Offline'}</small>
               </article>
               <article className={!sensorLoading && !currentHumidity ? 'is-disconnected' : ''}>
                 <h2>Humidity</h2>
                 <div><strong>{currentHumidity?.humidity || '—'}</strong><img src={humidityMetricIcon} alt="" /></div>
-                <small>{sensorLoading ? 'Checking sensor' : currentHumidity ? 'Reporting · live reading' : 'Offline'}</small>
+                <small>{sensorLoading ? 'Checking sensor' : currentHumidity ? 'Reporting · live reading' : 'Sensor Offline'}</small>
               </article>
               <article className={!sensorLoading && !currentSoil ? 'is-disconnected' : ''}>
                 <h2>Soil Moisture</h2>
                 <div><strong>{currentSoil?.moisture || '—'}</strong><img src={soilMoistureMetricIcon} alt="" /></div>
-                <small className={soilStatus === 'Dry' ? 'is-monitor' : ''} title={!currentSoil ? soilError || undefined : undefined}>{sensorLoading ? 'Checking sensor' : currentSoil ? `Reporting · ${soilStatus}` : 'Offline'}</small>
+                <small className={soilStatus === 'Dry' ? 'is-monitor' : ''} title={!currentSoil ? soilError || undefined : undefined}>{sensorLoading ? 'Checking sensor' : currentSoil ? `Reporting · ${soilStatus}` : 'Sensor Offline'}</small>
               </article>
             </section>
 
