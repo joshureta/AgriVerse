@@ -555,25 +555,32 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
       </section>
 
       {modal?.mode === 'add-category' && <div className="inventory-modal-backdrop">
-        <section className="inventory-modal category-modal" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
-          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
-          <p>Inventory setup</p><h2 id="category-modal-title">Add Category</h2>
-          {error && <InventoryNotice title="Category could not be saved:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
-          <form onSubmit={addCategory}>
+        <section className="inventory-modal inventory-form-modal category-modal" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
+          <header className="inventory-form-header">
+            <div><p>Inventory setup</p><h2 id="category-modal-title">Add Category</h2></div>
+            <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
+          </header>
+          <div className="inventory-form-body">
+            {error && <InventoryNotice title="Category could not be saved:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
+            <form onSubmit={addCategory}>
             <label><span>Category name</span><input value={categoryForm.category_name} onChange={(event) => setCategoryForm({ ...categoryForm, category_name: event.target.value })} maxLength="80" placeholder="Example: Seeds" required /></label>
             <label><span>Description (optional)</span><input value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} maxLength="300" placeholder="What items belong in this category?" /></label>
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add Category'}</button></footer>
-          </form>
+            </form>
+          </div>
         </section>
       </div>}
 
       {(modal?.mode === 'add-item' || modal?.mode === 'edit-item') && <div className="inventory-modal-backdrop">
-        <section className="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="inventory-modal-title">
-          <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
-          <p>{modal.mode === 'add-item' ? 'New inventory record' : 'Update inventory record'}</p>
-          <h2 id="inventory-modal-title">{modal.mode === 'add-item' ? 'Add Item' : `Edit ${modal.item.item_name}`}</h2>
-          {error && <InventoryNotice title="Item could not be saved:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
-          <form onSubmit={saveItem}>
+        <section className="inventory-modal inventory-form-modal" role="dialog" aria-modal="true" aria-labelledby="inventory-modal-title">
+          <header className="inventory-form-header">
+            <div><p>{modal.mode === 'add-item' ? 'New inventory record' : 'Update inventory record'}</p>
+              <h2 id="inventory-modal-title">{modal.mode === 'add-item' ? 'Add Item' : `Edit ${modal.item.item_name}`}</h2></div>
+            <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
+          </header>
+          <div className="inventory-form-body">
+            {error && <InventoryNotice title="Item could not be saved:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
+            <form onSubmit={saveItem}>
             <label><span>Item type</span><select value={itemForm.inventory_category_id} onChange={(event) => setItemForm({ ...emptyItemForm, inventory_category_id: event.target.value, unit_id: itemForm.unit_id, item_name: itemForm.item_name, stock_quantity: itemForm.stock_quantity, stock_to_add: itemForm.stock_to_add, size_id: options.pineappleSizes[0]?.id || '', equipment_type_id: options.equipmentTypes[0]?.id || '' })} required><option value="" disabled>Select item type</option>{options.categories.filter((category) => category.code !== 'pineapple').map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
             <label><span>Item name</span><input value={itemForm.item_name} onChange={(event) => setItemForm({ ...itemForm, item_name: event.target.value })} required maxLength="100" /></label>
             <label><span>Unit</span><select value={itemForm.unit_id} onChange={(event) => setItemForm({ ...itemForm, unit_id: event.target.value })} required><option value="" disabled>Select unit</option>{options.units.map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_name} ({unit.abbreviation})</option>)}</select></label>
@@ -599,7 +606,8 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
               <label><span>Last maintenance</span><input type="date" value={itemForm.last_maintenance} onChange={(event) => setItemForm({ ...itemForm, last_maintenance: event.target.value })} /></label>
             </>}
             <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Item'}</button></footer>
-          </form>
+            </form>
+          </div>
         </section>
       </div>}
 
