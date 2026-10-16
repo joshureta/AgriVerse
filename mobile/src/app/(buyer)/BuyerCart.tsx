@@ -4,6 +4,8 @@ import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, T
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import {
   ReconciledCartItem,
   loadPineappleProducts,
@@ -143,9 +145,11 @@ function CartItemRow({
 }
 
 export default function BuyerCartScreen() {
+  const { showToast } = useBuyerFeedback();
   const [items, setItems] = useState<ReconciledCartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
 
   const refreshCart = useCallback(async () => {
@@ -203,18 +207,24 @@ export default function BuyerCartScreen() {
 
   const removeAll = useCallback(() => {
     if (items.length === 0) return;
+    setActionError('');
     Alert.alert('Clear Cart', 'Remove all pineapples from your cart?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Clear All',
         style: 'destructive',
-        onPress: () => {
-          setItems([]);
-          writeBuyerCart([]);
+        onPress: async () => {
+          try {
+            await writeBuyerCart([]);
+            setItems([]);
+            showToast({ title: 'Cart cleared', body: 'All items were removed from your cart.' });
+          } catch (caught) {
+            setActionError(caught instanceof Error ? caught.message : 'Could not clear your cart.');
+          }
         },
       },
     ]);
-  }, [items.length]);
+  }, [items.length, showToast]);
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingFee = items.length > 0 ? SHIPPING_FEE : 0;
@@ -230,12 +240,13 @@ export default function BuyerCartScreen() {
             <Text style={styles.titleText}>Shopping Cart</Text>
           </View>
 
-          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+          {notice ? <BuyerInlineNotice title="Cart updated" message={notice} tone="info" /> : null}
+          {actionError ? <BuyerInlineNotice title="Cart not cleared" message={actionError} tone="error" /> : null}
 
           {loading ? (
             <ActivityIndicator style={styles.loader} color={GREEN} size="large" />
           ) : error ? (
-            <Text style={styles.loadError}>{error}</Text>
+            <BuyerInlineNotice title="Cart unavailable" message={error} tone="error" actionLabel="Try again" onAction={refreshCart} />
           ) : items.length === 0 ? (
             <View style={styles.emptyStateCard}>
               <View style={styles.emptyIconCircle}>

@@ -5,6 +5,8 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, Scroll
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import { useAuth } from '@/context/auth-context';
 import {
   DeliveryAddress,
@@ -264,6 +266,7 @@ function OptionCard({
 }
 
 export default function BuyerCheckoutScreen() {
+  const { showToast } = useBuyerFeedback();
   const { profile } = useAuth();
 
   const [items, setItems] = useState<ReconciledCartItem[]>([]);
@@ -366,12 +369,13 @@ export default function BuyerCheckoutScreen() {
       await saveDefaultBuyerDeliveryAddress(saved.id);
       setAddress(saved);
       setAddressModalOpen(false);
+      showToast({ title: 'Address saved', body: 'Your delivery address is ready for this order.' });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save this address.');
     } finally {
       setSavingAddress(false);
     }
-  }, [addressForm, savingAddress]);
+  }, [addressForm, savingAddress, showToast]);
 
   const placeOrder = useCallback(async () => {
     if (items.length === 0 || placing) return;
@@ -402,6 +406,7 @@ export default function BuyerCheckoutScreen() {
         items: items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
       });
       await writeBuyerCart([]);
+      showToast({ title: 'Order placed', body: `Order ${order.order_number} was placed successfully.` });
 
       if (paymentMethod === 'gcash') {
         try {
@@ -421,7 +426,7 @@ export default function BuyerCheckoutScreen() {
     } finally {
       setPlacing(false);
     }
-  }, [items, placing, deliveryMethod, address, paymentMethod, notes, openAddressModal]);
+  }, [items, placing, deliveryMethod, address, paymentMethod, notes, openAddressModal, showToast]);
 
   const fullAddress = address
     ? [address.barangay, address.city_municipality, address.province, address.region, address.country].filter(Boolean).join(', ')
@@ -436,8 +441,8 @@ export default function BuyerCheckoutScreen() {
           <Text style={styles.titleText}>Delivery Information</Text>
         </View>
 
-        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-        {error ? <Text style={styles.loadError}>{error}</Text> : null}
+        {notice ? <BuyerInlineNotice title="Order updated" message={notice} tone="info" /> : null}
+        {error && !addressModalOpen ? <BuyerInlineNotice title="Action needed" message={error} tone="error" /> : null}
 
         {/* DELIVERY INFORMATION CARD */}
         <View style={styles.card}>
@@ -646,7 +651,13 @@ export default function BuyerCheckoutScreen() {
                 </View>
               ))}
             </ScrollView>
-            {error ? <Text style={styles.loadError}>{error}</Text> : null}
+            {error ? (
+              <BuyerInlineNotice
+                title={error === 'Add a delivery address before placing your order.' ? 'Delivery address required' : 'Address could not be saved'}
+                message={error}
+                tone="error"
+              />
+            ) : null}
             <View style={styles.modalActions}>
               <Pressable
                 accessibilityRole="button"

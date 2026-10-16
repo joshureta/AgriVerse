@@ -4,6 +4,7 @@ import { ActivityIndicator, Image, Modal, Pressable, SafeAreaView, ScrollView, T
 import Svg, { Path } from 'react-native-svg';
 
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
 import { BuyerOrder, BuyerOrderItem, DisputeCategory, loadBuyerOrder } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-return-details.styles';
 
@@ -143,7 +144,7 @@ export default function BuyerReturnDetailsScreen() {
         {loading ? (
           <ActivityIndicator color={GREEN} style={{ marginTop: 40 }} />
         ) : error || !order ? (
-          <Text style={styles.loadError}>{error || 'Dispute not found.'}</Text>
+          <BuyerInlineNotice title="Request unavailable" message={error || 'Dispute not found.'} tone="error" />
         ) : (
           <>
             <View style={styles.card}>
@@ -263,15 +264,11 @@ export default function BuyerReturnDetailsScreen() {
               </View>
             </View>
 
-            <View style={styles.advisory}>
-              <Text style={{ fontSize: 16 }}>🛡️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.advisoryTitle}>Important notice</Text>
-                <Text style={styles.advisoryText}>
-                  Please keep the affected produce and delivery packaging intact until customer support completes the review.
-                </Text>
-              </View>
-            </View>
+            <BuyerInlineNotice
+              title="Keep your items for review"
+              message="Please keep the affected produce and delivery packaging intact until customer support completes the review."
+              tone="warning"
+            />
 
             <View style={styles.card}>
               <View style={styles.sectionHead}>

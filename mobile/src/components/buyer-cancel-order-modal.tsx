@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
 import { BuyerOrder, CancelReasonCategory, cancelBuyerOrder } from '@/lib/buyer-marketplace';
 import { styles } from '@/styles/buyer-cancel-order-modal.styles';
 
@@ -139,7 +140,7 @@ export function BuyerCancelOrderModal({
             </View>
           ) : null}
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {error ? <BuyerInlineNotice title="Order not cancelled" message={error} tone="error" /> : null}
 
           <View style={styles.modalActions}>
             <Pressable

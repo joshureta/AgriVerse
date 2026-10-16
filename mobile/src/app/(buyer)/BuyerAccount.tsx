@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -14,6 +13,8 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import { useAuth } from '@/context/auth-context';
 import { GREEN } from '@/styles/buyer-home.styles';
 import { styles } from '@/styles/buyer-account.styles';
@@ -170,8 +171,12 @@ function LogoutIcon({ color = '#B4463A', size = 16 }: { color?: string; size?: n
 }
 
 export default function BuyerAccountScreen() {
-  const { profile, session, signOut } = useAuth();
+  const { profile, session, signOut, updateBuyerProfile } = useAuth();
+  const { showToast } = useBuyerFeedback();
   const [signingOut, setSigningOut] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [sessionNotice, setSessionNotice] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
   const initialName = profile?.full_name || 'Juan Dela Cruz';
@@ -197,6 +202,7 @@ export default function BuyerAccountScreen() {
   const initials = useMemo(() => getInitials(name, initialEmail), [name, initialEmail]);
 
   function handleStartEditing() {
+    setProfileError('');
     setDraftName(name);
     setDraftPhone(phone);
     setDraftBusiness(business);
@@ -208,17 +214,28 @@ export default function BuyerAccountScreen() {
     setIsEditing(false);
   }
 
-  function handleSaveProfile() {
+  async function handleSaveProfile() {
     if (!draftName.trim()) {
-      Alert.alert('Validation Error', 'Full Name cannot be empty.');
+      setProfileError('Full name cannot be empty.');
       return;
     }
-    setName(draftName.trim());
-    setPhone(draftPhone.trim());
-    setBusiness(draftBusiness.trim());
-    setAddress(draftAddress.trim());
-    setIsEditing(false);
-    Alert.alert('Profile Updated', 'Your profile details have been successfully saved.');
+    setSavingProfile(true);
+    setProfileError('');
+    try {
+      const saved = await updateBuyerProfile({ full_name: draftName.trim(), mobile_number: draftPhone.trim() });
+      setName(saved.full_name);
+      setPhone(saved.mobile_number || 'Not provided');
+      const localOnlyChanged = draftBusiness.trim() !== business || draftAddress.trim() !== address;
+      setBusiness(draftBusiness.trim());
+      setAddress(draftAddress.trim());
+      if (localOnlyChanged) setSessionNotice('Store and address edits are shown for this session only.');
+      setIsEditing(false);
+      showToast({ title: 'Contact details saved', body: 'Your name and phone number were saved.' });
+    } catch (caught) {
+      setProfileError(caught instanceof Error ? caught.message : 'Could not save your contact details.');
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
   async function handleSignOut() {
@@ -232,10 +249,7 @@ export default function BuyerAccountScreen() {
       }
       router.replace({ pathname: '/authentication', params: { mode: 'login' } });
     } catch (caught) {
-      Alert.alert(
-        'Unable to sign out',
-        caught instanceof Error ? caught.message : 'Please try again.',
-      );
+      setProfileError(caught instanceof Error ? caught.message : 'Could not sign out. Please try again.');
       setSigningOut(false);
     }
   }
@@ -247,6 +261,8 @@ export default function BuyerAccountScreen() {
       <View style={styles.mainBodyContainer}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.titleText}>My Account</Text>
+          {profileError && !isEditing ? <BuyerInlineNotice title="Action needed" message={profileError} tone="error" /> : null}
+          {sessionNotice ? <BuyerInlineNotice title="Session-only changes" message={sessionNotice} tone="warning" /> : null}
 
           {/* HERO PROFILE CARD (WITH PENCIL EDIT ICON) */}
           <View style={styles.profileHeroCard}>
@@ -290,6 +306,7 @@ export default function BuyerAccountScreen() {
           {/* INLINE EDIT PROFILE FORM */}
           {isEditing ? (
             <View style={styles.editFormCard}>
+              {profileError ? <BuyerInlineNotice title="Profile not saved" message={profileError} tone="error" /> : null}
               <View style={styles.editFormHeader}>
                 <View style={styles.editFormTitleRow}>
                   <View style={styles.editFormDot} />
@@ -350,9 +367,10 @@ export default function BuyerAccountScreen() {
                 <Pressable
                   accessibilityLabel="Save profile changes"
                   accessibilityRole="button"
+                  disabled={savingProfile}
                   onPress={handleSaveProfile}
                   style={styles.saveFormButton}>
-                  <Text style={styles.saveFormButtonText}>Save Changes</Text>
+                  <Text style={styles.saveFormButtonText}>{savingProfile ? 'Saving…' : 'Save Changes'}</Text>
                 </Pressable>
               </View>
             </View>

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import { loadNotifications, NotificationRecord, NotificationType } from '@/lib/notifications';
@@ -144,6 +146,7 @@ export function NotificationPanel({
   maxListHeight?: number;
 }) {
   const { profile } = useAuth();
+  const { showToast, syncUnreadNotifications } = useBuyerFeedback();
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -157,13 +160,14 @@ export function NotificationPanel({
       const result = await loadNotifications();
       setNotifications(result.notifications || []);
       setUnreadCount(result.unread_count || 0);
+      if (profile?.role === 'buyer') syncUnreadNotifications(result.unread_count || 0);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not load notifications.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [profile?.role, syncUnreadNotifications]);
 
   useEffect(() => {
     if (profile) load();
@@ -179,6 +183,7 @@ export function NotificationPanel({
       item.id === notification.id ? { ...item, read_at: new Date().toISOString() } : item
     )));
     setUnreadCount((current) => Math.max(0, current - 1));
+    if (profile?.role === 'buyer') syncUnreadNotifications(Math.max(0, unreadCount - 1));
     try {
       await apiRequest(`/api/notifications/${notification.id}/read`, { method: 'PATCH' });
     } catch {
@@ -191,8 +196,10 @@ export function NotificationPanel({
     const readAt = new Date().toISOString();
     setNotifications((current) => current.map((item) => ({ ...item, read_at: item.read_at || readAt })));
     setUnreadCount(0);
+    if (profile?.role === 'buyer') syncUnreadNotifications(0);
     try {
       await apiRequest('/api/notifications/read-all', { method: 'POST' });
+      if (profile?.role === 'buyer') showToast({ title: 'Notifications updated', body: 'All notifications were marked as read.' });
     } catch {
       load();
     }
@@ -217,7 +224,9 @@ export function NotificationPanel({
         contentContainerStyle={styles.panelList}
         refreshControl={<RefreshControl colors={['#237c31']} onRefresh={() => load(true)} refreshing={refreshing} />}
       >
-        {error ? (
+        {error ? profile?.role === 'buyer' ? (
+          <BuyerInlineNotice title="Notifications unavailable" message={error} tone="error" actionLabel="Try again" onAction={() => load()} />
+        ) : (
           <Pressable onPress={() => load()} style={styles.errorBox}>
             <Text style={styles.errorText}>{error}</Text>
             <Text style={styles.retry}>Tap to retry</Text>

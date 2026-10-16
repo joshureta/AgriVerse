@@ -1,14 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
-import { NotificationToast } from '@/components/notification-toast';
 import { useAuth } from '@/context/auth-context';
+import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import { loadBuyerUnreadCount } from '@/lib/buyer-messages';
-import { loadNotifications, NotificationRecord } from '@/lib/notifications';
 import { HEADER_GRADIENT, styles } from '@/styles/components/buyer-header.styles';
 
 const UNREAD_POLL_INTERVAL_MS = 20000;
@@ -74,12 +72,8 @@ function BellIcon({ hasNotice }: { hasNotice: boolean }) {
 
 function HeaderIcons() {
   const { profile } = useAuth();
-  const insets = useSafeAreaInsets();
+  const { unreadNotifications } = useBuyerFeedback();
   const [unreadCount, setUnreadCount] = useState(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [toastQueue, setToastQueue] = useState<NotificationRecord[]>([]);
-  const [currentToast, setCurrentToast] = useState<NotificationRecord | null>(null);
-  const lastSeenIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -94,46 +88,15 @@ function HeaderIcons() {
       }
     }
 
-    async function pollNotifications(isFirst: boolean) {
-      try {
-        const result = await loadNotifications();
-        if (cancelled) return;
-        setUnreadNotifications(result.unread_count || 0);
-        const list = result.notifications || [];
-        const maxId = list.reduce((max, item) => Math.max(max, item.id), 0);
-        if (isFirst) {
-          lastSeenIdRef.current = maxId;
-          return;
-        }
-        const seenId = lastSeenIdRef.current ?? 0;
-        const fresh = list.filter((item) => item.id > seenId).sort((a, b) => a.id - b.id);
-        if (fresh.length) {
-          setToastQueue((queue) => [...queue, ...fresh]);
-          lastSeenIdRef.current = maxId;
-        }
-      } catch {
-        // Badge just won't refresh this cycle.
-      }
-    }
-
     fetchUnreadCount();
-    pollNotifications(true);
     const interval = setInterval(() => {
       fetchUnreadCount();
-      pollNotifications(false);
     }, UNREAD_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
   }, [profile]);
-
-  useEffect(() => {
-    if (!currentToast && toastQueue.length > 0) {
-      setCurrentToast(toastQueue[0]);
-      setToastQueue((queue) => queue.slice(1));
-    }
-  }, [currentToast, toastQueue]);
 
   return (
     <>
@@ -160,15 +123,6 @@ function HeaderIcons() {
         </Pressable>
       </View>
 
-      <NotificationToast
-        insetsTop={insets.top}
-        item={currentToast}
-        onHide={() => setCurrentToast(null)}
-        onPress={() => {
-          setCurrentToast(null);
-          router.push('/BuyerNotifications' as never);
-        }}
-      />
     </>
   );
 }

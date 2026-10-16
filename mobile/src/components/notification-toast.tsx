@@ -3,7 +3,7 @@ import { Animated, Modal, Pressable, Text, View } from 'react-native';
 
 import { styles } from '@/styles/components/notification-toast.styles';
 
-type ToastItem = { id: number; title: string; body: string };
+type ToastItem = { id: number; title: string; body: string; actionLabel?: string };
 
 const VISIBLE_MS = 4000;
 
@@ -54,6 +54,7 @@ export function NotificationToast({
             <View style={styles.body}>
               <Text numberOfLines={1} style={styles.title}>{item.title}</Text>
               <Text numberOfLines={2} style={styles.text}>{item.body}</Text>
+              {item.actionLabel ? <Text style={styles.title}>{item.actionLabel}</Text> : null}
             </View>
           </Pressable>
         </Animated.View>

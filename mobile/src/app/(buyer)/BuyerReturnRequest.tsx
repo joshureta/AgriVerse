@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import { BuyerOrder, DisputeCategory, loadBuyerOrder, reportBuyerOrderDispute } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-order-tracking.styles';
 
@@ -18,6 +20,7 @@ const issues: { value: DisputeCategory; label: string; help: string }[] = [
 type Photo = { uri: string; base64: string; mime: string };
 
 export default function BuyerReturnRequest() {
+  const { showToast } = useBuyerFeedback();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [order, setOrder] = useState<BuyerOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +56,7 @@ export default function BuyerReturnRequest() {
   const canSubmit = Boolean(category && itemId && quantity && reason.trim() && photos.length);
 
   async function choosePhoto() {
-    if (photos.length >= 6) return Alert.alert('Limit reached', 'You can attach up to 6 photos.');
+    if (photos.length >= 6) return setError('You can attach up to 6 photos.');
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') return setError('Photo gallery permission is required to add evidence.');
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: true });
@@ -79,6 +82,7 @@ export default function BuyerReturnRequest() {
         reason: fullReason,
         photos: photos.map((photo) => ({ data: photo.base64, mime: photo.mime })),
       });
+      showToast({ title: 'Report submitted', body: `We received your report for order ${order.order_number}.` });
       router.replace({ pathname: '/BuyerOrderTracking', params: { id: String(order.id) } });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not submit this report.');
@@ -100,7 +104,7 @@ export default function BuyerReturnRequest() {
         {loading ? (
           <ActivityIndicator color={GREEN} style={{ marginTop: 40 }} />
         ) : error && !order ? (
-          <Text style={styles.actionErrorText}>{error}</Text>
+          <BuyerInlineNotice title="Request unavailable" message={error} tone="error" />
         ) : order ? (
           <View style={[styles.card, { marginTop: 16 }]}>
             <View style={styles.returnOrderSummary}>
@@ -186,7 +190,7 @@ export default function BuyerReturnRequest() {
               </View>
             )}
 
-            {error && <Text style={styles.actionErrorText}>{error}</Text>}
+            {error ? <BuyerInlineNotice title="Action needed" message={error} tone="error" /> : null}
 
             <View style={styles.actionRow}>
               <Pressable disabled={!canSubmit || submitting} onPress={submit} style={[styles.dangerButton, (!canSubmit || submitting) && styles.buttonDisabled]}>

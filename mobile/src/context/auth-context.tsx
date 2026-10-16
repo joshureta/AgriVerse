@@ -33,6 +33,7 @@ type AuthContextValue = {
   profile: WorkerProfile | null;
   changeInitialPassword: (password: string) => Promise<WorkerProfile>;
   confirmName: (fullName: string) => Promise<WorkerProfile>;
+  updateBuyerProfile: (details: { full_name: string; mobile_number: string }) => Promise<WorkerProfile>;
   completeLocation: (location: LocationInput) => Promise<WorkerProfile>;
   signIn: (email: string, password: string) => Promise<WorkerProfile>;
   signOut: () => Promise<void>;
@@ -131,6 +132,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result.profile;
   }, []);
 
+  const updateBuyerProfile = useCallback(async (details: { full_name: string; mobile_number: string }) => {
+    const result = await apiRequest<{ profile: WorkerProfile }>(
+      '/api/mobile/auth/buyer-profile',
+      { method: 'PATCH', body: JSON.stringify(details) },
+    );
+    setProfile(result.profile);
+    return result.profile;
+  }, []);
+
   const completeLocation = useCallback(async (location: LocationInput) => {
     const result = await apiRequest<{ profile: WorkerProfile }>(
       '/api/mobile/auth/location',
@@ -151,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       changeInitialPassword,
       completeLocation,
       confirmName,
+      updateBuyerProfile,
       loading,
       session,
       profile,
@@ -161,6 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       changeInitialPassword,
       completeLocation,
       confirmName,
+      updateBuyerProfile,
       loading,
       profile,
       session,

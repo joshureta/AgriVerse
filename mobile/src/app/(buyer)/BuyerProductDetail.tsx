@@ -5,6 +5,8 @@ import Svg, { Path } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import {
   BuyerReview,
   CartItem,
@@ -46,20 +48,6 @@ const BULK_DESCRIPTION =
 
 function sizeBadge(sizeName: string) {
   return sizeName.trim().charAt(0).toUpperCase() || '?';
-}
-
-function CartToastIcon() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M20 6 9 17l-5-5"
-        stroke="#ffffff"
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
 }
 
 function StarIcon({ filled = true, size = 11 }: { filled?: boolean; size?: number }) {
@@ -147,6 +135,7 @@ function ReviewCard({
 }
 
 export default function BuyerProductDetailScreen() {
+  const { showToast } = useBuyerFeedback();
   const { id } = useLocalSearchParams<{ id?: string }>();
 
   const [products, setProducts] = useState<PineappleProduct[]>([]);
@@ -154,7 +143,6 @@ export default function BuyerProductDetailScreen() {
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(id ? Number(id) : null);
   const [quantity, setQuantity] = useState(1);
-  const [cartNotice, setCartNotice] = useState('');
   const [showAllReviews, setShowAllReviews] = useState(false);
 
   const [reviews, setReviews] = useState<BuyerReview[]>([]);
@@ -233,20 +221,23 @@ export default function BuyerProductDetailScreen() {
   const handleSelectSize = useCallback((nextId: number) => {
     setSelectedId(nextId);
     setQuantity(1);
-    setCartNotice('');
   }, []);
 
   const handleAddToCart = useCallback(async () => {
     if (!product || !inStock) return;
-    setCartNotice('');
     const cart = await readBuyerCart();
     const existing = cart.find((item) => item.product_id === product.id);
     const nextCart: CartItem[] = existing
       ? cart.map((item) => (item.product_id === product.id ? { ...item, quantity: item.quantity + quantity } : item))
       : [...cart, { product_id: product.id, quantity, size_name: product.size_name, weight: product.weight, price: product.price }];
     await writeBuyerCart(nextCart);
-    setCartNotice(`Added ${quantity} × ${product.size_name} Pineapple to cart`);
-  }, [product, inStock, quantity]);
+    showToast({
+      title: 'Added to cart',
+      body: `${quantity} × ${product.size_name} Pineapple`,
+      actionLabel: 'View cart',
+      onPress: () => router.push('/BuyerCart' as never),
+    });
+  }, [product, inStock, quantity, showToast]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -261,7 +252,7 @@ export default function BuyerProductDetailScreen() {
           {loading ? (
             <ActivityIndicator style={styles.loader} color={GREEN} />
           ) : error ? (
-            <Text style={styles.loadError}>{error}</Text>
+            <BuyerInlineNotice title="Product unavailable" message={error} tone="error" actionLabel="Try again" onAction={loadProducts} />
           ) : !product ? (
             <Text style={styles.emptyText}>No pineapples available right now.</Text>
           ) : (
@@ -428,7 +419,7 @@ export default function BuyerProductDetailScreen() {
             {reviewsLoading ? (
               <ActivityIndicator style={styles.loader} color={GREEN} />
             ) : reviewsError ? (
-              <Text style={styles.loadError}>{reviewsError}</Text>
+              <BuyerInlineNotice title="Reviews unavailable" message={reviewsError} tone="error" />
             ) : filteredReviews.length === 0 ? (
               <Text style={styles.emptyText}>
                 {reviews.length === 0 ? 'No reviews yet — be the first to rate an order!' : 'No reviews at this rating yet.'}
@@ -447,24 +438,6 @@ export default function BuyerProductDetailScreen() {
           </View>
         </View>
       </ScrollView>
-
-      {cartNotice ? (
-        <View pointerEvents="box-none" style={styles.cartToastWrap}>
-          <View style={styles.cartToast}>
-            <View style={styles.cartToastIcon}>
-              <CartToastIcon />
-            </View>
-            <Text style={styles.cartToastText} numberOfLines={2}>{cartNotice}</Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="View cart"
-              onPress={() => router.push('/BuyerCart' as never)}
-              style={styles.cartToastButton}>
-              <Text style={styles.cartToastButtonText}>View</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
 
       <BuyerBottomNavigation activeTab="order" />
     </SafeAreaView>

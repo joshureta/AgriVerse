@@ -148,6 +148,30 @@ router.post(
 );
 
 router.patch(
+  "/buyer-profile",
+  requireAuth,
+  requireRole("buyer"),
+  async (req, res, next) => {
+    try {
+      const fullName = readRequired(req.body.full_name, 100, "Full name");
+      if (fullName.length < 2) throw httpError(400, "Full name must contain at least 2 characters");
+      const mobileNumber = readOptional(req.body.mobile_number, 30, "Mobile number");
+      const { data: profile, error } = await getSupabase()
+        .from("profiles")
+        .update({ full_name: fullName, mobile_number: mobileNumber })
+        .eq("id", req.user.id)
+        .eq("role", "buyer")
+        .select(profileSelect)
+        .single();
+      if (error) throw error;
+      return res.json({ profile });
+    } catch (error) {
+      return next(error);
+    }
+  },
+);
+
+router.patch(
   "/confirm-name",
   requireAuth,
   requireRole("farm_worker"),

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, SafeAreaView, Text, TextInput, View } from 'react-native';
 
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
 import { BuyerOrder, loadBuyerOrder, rateBuyerOrder } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-purchase-history.styles';
 
@@ -81,7 +82,7 @@ export default function BuyerRateOrder() {
               style={styles.ratingInput}
               value={comment}
             />
-            {error ? <Text style={styles.loadError}>{error}</Text> : null}
+            {error ? <BuyerInlineNotice title="Rating not submitted" message={error} tone="error" /> : null}
             <Pressable
               disabled={!rating || submitting}
               onPress={submit}
