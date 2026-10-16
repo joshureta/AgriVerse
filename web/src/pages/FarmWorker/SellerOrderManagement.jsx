@@ -10,6 +10,7 @@ import {
   PackageCheck,
   PackageOpen,
   Search,
+  TriangleAlert,
   Truck,
   X,
   XCircle,
@@ -83,7 +84,8 @@ export default function SellerOrderManagement() {
   const [refreshing, setRefreshing] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState(null)
+  const [pendingDismissed, setPendingDismissed] = useState(false)
   const [confirmation, setConfirmation] = useState(null)
   const [confirmationError, setConfirmationError] = useState('')
   const [disputeOrders, setDisputeOrders] = useState([])
@@ -154,12 +156,6 @@ export default function SellerOrderManagement() {
   }, [fetchOrders])
 
   useEffect(() => {
-    if (!notice) return undefined
-    const timer = window.setTimeout(() => setNotice(''), 3500)
-    return () => window.clearTimeout(timer)
-  }, [notice])
-
-  useEffect(() => {
     if (!selected && !confirmation) return undefined
     const closeOnEscape = (event) => {
       if (event.key !== 'Escape' || updating) return
@@ -210,6 +206,7 @@ export default function SellerOrderManagement() {
   }
 
   function requestOrderAction(order, action) {
+    setNotice(null)
     setConfirmation({ order, action, note: '' })
     setConfirmationError('')
   }
@@ -229,13 +226,28 @@ export default function SellerOrderManagement() {
       await changeSellerOrderStatus(order.id, action.status, note)
       setConfirmation(null)
       setSelected(null)
-      setNotice(`${order.order_number} is now ${statusLabels[action.status].toLowerCase()}.`)
       await fetchOrders({ background: true })
+      setNotice({
+        orderId: order.id,
+        message: action.status === 'confirmed'
+          ? `Order ${order.order_number} confirmed. It has moved to In Fulfillment.`
+          : `Order ${order.order_number} is now ${statusLabels[action.status].toLowerCase()}.`,
+      })
     } catch (requestError) {
-      setConfirmationError(requestError.message)
+      setConfirmationError(`Could not ${action.label.toLowerCase()} for ${order.order_number}. ${requestError.message || 'Please try again.'}`)
     } finally {
       setUpdating(false)
     }
+  }
+
+  function viewNotifiedOrder() {
+    if (!notice) return
+    const order = orders.find((item) => item.id === notice.orderId)
+    if (!order) return
+    const tab = tabs.find((entry) => entry.statuses?.includes(order.order_status))
+    if (tab) selectStage(tab.key)
+    setSelected(order)
+    setNotice(null)
   }
 
   return (
@@ -248,6 +260,19 @@ export default function SellerOrderManagement() {
             <div className="seller-orders-title-copy"><h1>Order Management</h1><span>Receive, confirm, fulfill, and complete buyer orders.</span></div>
             <small className={refreshing ? 'is-refreshing' : ''}>{refreshing ? 'Updating...' : 'Auto-refresh on'}</small>
           </header>
+
+          {(notice || (counts.pending > 0 && !pendingDismissed)) && <section className="seller-order-notices" aria-label="Order notifications">
+            {notice && <div className="seller-order-notice is-success" role="status">
+              <span className="seller-order-notice-icon"><CheckCircle2 aria-hidden="true" /></span>
+              <p><strong>Order updated:</strong> {notice.message}{' '}{orders.some((order) => order.id === notice.orderId) && <button type="button" className="seller-order-notice-link" onClick={viewNotifiedOrder}>View order</button>}</p>
+              <button type="button" className="seller-order-notice-dismiss" aria-label="Dismiss order update notification" onClick={() => setNotice(null)}><X aria-hidden="true" /></button>
+            </div>}
+            {counts.pending > 0 && !pendingDismissed && <div className="seller-order-notice is-warning" role="status">
+              <span className="seller-order-notice-icon"><TriangleAlert aria-hidden="true" /></span>
+              <p><button type="button" className="seller-order-notice-link is-title" onClick={() => selectStage('awaiting')}>Orders Awaiting Confirmation:</button>{' '}{counts.pending} order{counts.pending === 1 ? '' : 's'} need{counts.pending === 1 ? 's' : ''} confirmation.</p>
+              <button type="button" className="seller-order-notice-dismiss" aria-label="Dismiss pending orders notification" onClick={() => setPendingDismissed(true)}><X aria-hidden="true" /></button>
+            </div>}
+          </section>}
 
           <section className="seller-order-stats" aria-label="Order statistics">
             <button className={activeTab === 'all' ? 'is-active' : ''} type="button" onClick={() => selectStage('all')}><span><Box /></span><div><small>Total Orders</small><strong>{counts.total}</strong><em>View all orders <ChevronRight /></em></div></button>
@@ -337,8 +362,6 @@ export default function SellerOrderManagement() {
           </section>
         </div>
       </section>
-
-      {notice && <div className="seller-order-toast" role="status"><CheckCircle2 /><span>{notice}</span></div>}
 
       {selected && <div className="seller-order-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null) }}>
         <section className="seller-order-modal" role="dialog" aria-modal="true" aria-labelledby="seller-order-dialog-title">
