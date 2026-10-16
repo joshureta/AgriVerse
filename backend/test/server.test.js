@@ -75,8 +75,9 @@ test("initial password change requires an access token", async () => {
   assert.equal(body.error, "Authentication required");
 });
 
-test("mobile profile onboarding routes require an access token", async () => {
+test("mobile profile routes require an access token", async () => {
   for (const [path, body] of [
+    ["buyer-profile", { full_name: "Buyer Name", mobile_number: "09123456789" }],
     ["confirm-name", { full_name: "Farm Worker" }],
     ["location", {
       region: "Region X",

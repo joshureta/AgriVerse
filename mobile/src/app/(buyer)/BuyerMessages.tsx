@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
 import { useAuth } from '@/context/auth-context';
 import {
   BuyerChatMessage,
@@ -140,6 +141,7 @@ export default function BuyerMessagesScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [errorContext, setErrorContext] = useState<'load' | 'send'>('load');
   const [supportOnline, setSupportOnline] = useState(false);
   const [supportTyping, setSupportTyping] = useState(false);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
@@ -174,7 +176,10 @@ export default function BuyerMessagesScreen() {
       setSupportTyping(Boolean(presence?.is_typing));
       setError('');
     } catch (caught) {
-      if (!isBackground) setError(caught instanceof Error ? caught.message : 'Could not load messages.');
+      if (!isBackground) {
+        setErrorContext('load');
+        setError(caught instanceof Error ? caught.message : 'Could not load messages.');
+      }
     } finally {
       if (!isBackground) setLoading(false);
     }
@@ -215,6 +220,7 @@ export default function BuyerMessagesScreen() {
       setSupportOnline(Boolean(presence?.online));
       setDraft('');
     } catch (caught) {
+      setErrorContext('send');
       setError(caught instanceof Error ? caught.message : 'Could not send this message.');
     } finally {
       setSending(false);
@@ -379,12 +385,13 @@ export default function BuyerMessagesScreen() {
           )}
 
           {error ? (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{error}</Text>
-              <Pressable onPress={() => fetchMessages(false)} style={styles.errorRetryButton}>
-                <Text style={styles.errorRetryText}>Retry</Text>
-              </Pressable>
-            </View>
+            <BuyerInlineNotice
+              title={errorContext === 'send' ? 'Message not sent' : 'Messages unavailable'}
+              message={error}
+              tone="error"
+              actionLabel={errorContext === 'load' ? 'Try again' : undefined}
+              onAction={errorContext === 'load' ? () => fetchMessages(false) : undefined}
+            />
           ) : null}
 
           {/* Composer */}

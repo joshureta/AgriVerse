@@ -5,6 +5,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
 import { useAuth } from '@/context/auth-context';
 import { BuyerOrder, PineappleProduct, loadBuyerOrders, loadPineappleProducts } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-home.styles';
@@ -426,7 +427,7 @@ export default function BuyerHomeScreen() {
           {productsLoading ? (
             <ActivityIndicator style={styles.loader} color={GREEN} />
           ) : productsError ? (
-            <Text style={styles.loadError}>{productsError}</Text>
+            <BuyerInlineNotice title="Products unavailable" message={productsError} tone="error" actionLabel="Try again" onAction={loadProducts} />
           ) : products.length === 0 ? (
             <Text style={styles.emptyText}>No pineapples available right now.</Text>
           ) : (

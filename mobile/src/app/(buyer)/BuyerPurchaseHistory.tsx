@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerCancelOrderModal } from '@/components/buyer-cancel-order-modal';
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import {
   BuyerOrder,
   BuyerOrderStatus,
@@ -133,9 +135,11 @@ function StatusBadge({ status }: { status: BuyerOrderStatus }) {
 }
 
 export default function BuyerPurchaseHistoryScreen() {
+  const { showToast } = useBuyerFeedback();
   const [orders, setOrders] = useState<BuyerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [activeFilter, setActiveFilter] = useState<OrderFilter>('all');
   const [confirmingOrderId, setConfirmingOrderId] = useState<number | null>(null);
   const [cancelOrder, setCancelOrder] = useState<BuyerOrder | null>(null);
@@ -161,11 +165,13 @@ export default function BuyerPurchaseHistoryScreen() {
 
   async function confirmReceipt(order: BuyerOrder) {
     setConfirmingOrderId(order.id);
+    setActionError('');
     try {
       const updated = await confirmBuyerOrderReceipt(order.id);
       setOrders((current) => current.map((item) => item.id === updated.id ? updated : item));
+      showToast({ title: 'Receipt confirmed', body: `Order ${updated.order_number} is complete.` });
     } catch (caught) {
-      Alert.alert('Could not confirm receipt', caught instanceof Error ? caught.message : 'Please try again.');
+      setActionError(caught instanceof Error ? caught.message : 'Please try again.');
     } finally {
       setConfirmingOrderId(null);
     }
@@ -178,6 +184,7 @@ export default function BuyerPurchaseHistoryScreen() {
       <View style={styles.mainBodyContainer}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.titleText}>My Purchases</Text>
+        {actionError ? <BuyerInlineNotice title="Receipt not confirmed" message={actionError} tone="error" /> : null}
 
         <ScrollView
           contentContainerStyle={styles.filterTabs}
@@ -202,7 +209,7 @@ export default function BuyerPurchaseHistoryScreen() {
         {loading ? (
           <ActivityIndicator style={styles.loader} color={GREEN} />
         ) : error ? (
-          <Text style={styles.loadError}>{error}</Text>
+          <BuyerInlineNotice title="Purchases unavailable" message={error} tone="error" actionLabel="Try again" onAction={loadOrders} />
         ) : orders.length === 0 ? (
           <View style={styles.emptyState}>
             <ReceiptIcon size={48} color="#8B9B8E" />
@@ -281,6 +288,7 @@ export default function BuyerPurchaseHistoryScreen() {
         onCancelled={(updated) => {
           setOrders((current) => current.map((item) => (item.id === updated.id ? updated : item)));
           setCancelOrder(null);
+          showToast({ title: 'Order cancelled', body: `Order ${updated.order_number} was cancelled.` });
         }}
         onClose={() => setCancelOrder(null)}
         order={cancelOrder}

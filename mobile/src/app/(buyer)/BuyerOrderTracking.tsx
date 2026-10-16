@@ -6,6 +6,8 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerCancelOrderModal } from '@/components/buyer-cancel-order-modal';
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import {
   BuyerOrder,
   canCancelBuyerOrder,
@@ -761,6 +763,7 @@ function CancelledReceipt({
 }
 
 export default function BuyerOrderTrackingScreen() {
+  const { showToast } = useBuyerFeedback();
   const { id } = useLocalSearchParams<{ id?: string }>();
 
   const [order, setOrder] = useState<BuyerOrder | null>(null);
@@ -800,7 +803,9 @@ export default function BuyerOrderTrackingScreen() {
     setConfirming(true);
     setActionError('');
     try {
-      setOrder(await confirmBuyerOrderReceipt(order.id));
+      const updated = await confirmBuyerOrderReceipt(order.id);
+      setOrder(updated);
+      showToast({ title: 'Receipt confirmed', body: `Order ${updated.order_number} is complete.` });
     } catch (caught) {
       setActionError(caught instanceof Error ? caught.message : 'Could not confirm this delivery.');
     } finally {
@@ -853,7 +858,7 @@ export default function BuyerOrderTrackingScreen() {
       <SafeAreaView style={w.safeArea}>
         <BuyerHeader showBack />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
-          <Text style={{ color: '#a33d35', fontSize: 13, textAlign: 'center' }}>{error || 'Order not found.'}</Text>
+          <BuyerInlineNotice title="Order unavailable" message={error || 'Order not found.'} tone="error" actionLabel="Try again" onAction={loadOrder} />
         </View>
       </SafeAreaView>
     );
@@ -982,7 +987,7 @@ export default function BuyerOrderTrackingScreen() {
                 <Text style={w.actionText}>
                   Confirm everything arrived as expected, or report a problem while the delivery details are still fresh.
                 </Text>
-                {actionError ? <Text style={w.actionErrorText}>{actionError}</Text> : null}
+                {actionError ? <BuyerInlineNotice title="Receipt not confirmed" message={actionError} tone="error" /> : null}
                 <View style={w.actionButtons}>
                   <Pressable
                     accessibilityRole="button"
@@ -1046,6 +1051,7 @@ export default function BuyerOrderTrackingScreen() {
           setOrder(updated);
           setShowCancelModal(false);
           setShowPreCancelDetails(false);
+          showToast({ title: 'Order cancelled', body: `Order ${updated.order_number} was cancelled.` });
         }}
         onClose={() => setShowCancelModal(false)}
         order={showCancelModal ? order : null}

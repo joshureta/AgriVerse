@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { AuthProvider, useAuth } from '@/context/auth-context';
+import { BuyerFeedbackProvider } from '@/context/buyer-feedback-context';
 import { dashboardRoute, requiredOnboardingRoute } from '@/lib/mobile-routing';
 
 const onboardingPaths = new Set([
@@ -55,6 +56,7 @@ function OnboardingGuard({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   return (
     <AuthProvider>
+      <BuyerFeedbackProvider>
       <OnboardingGuard>
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
@@ -111,6 +113,7 @@ export default function RootLayout() {
           />
         </Stack>
       </OnboardingGuard>
+      </BuyerFeedbackProvider>
     </AuthProvider>
   );
 }
