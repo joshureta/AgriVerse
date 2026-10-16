@@ -157,8 +157,8 @@ export function BuyerHeader({ active = 'home', cartCount }) {
         </a>
 
         <nav className="buyer-main-nav" aria-label="Buyer navigation">
-          <a className={homeActive ? 'is-active' : ''} href="/buyer" aria-current={homeActive ? 'page' : undefined}>Home</a>
           <a className={aboutActive ? 'is-active' : ''} href="/buyer#about" aria-current={aboutActive ? 'location' : undefined}>About Us</a>
+          <a className={homeActive ? 'is-active' : ''} href="/buyer" aria-current={homeActive ? 'page' : undefined}>Home</a>
           <a className={active === 'orders' ? 'is-active' : ''} href="/buyer/order" aria-current={active === 'orders' ? 'page' : undefined}>Order</a>
         </nav>
 
