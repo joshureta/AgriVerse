@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import archiveIcon from '../../assets/archive-inventory-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
@@ -37,7 +38,6 @@ export default function Settings() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
-  const [openMenu, setOpenMenu] = useState(null)
 
   async function loadTab(tab = activeTab) {
     setLoading(true); setError('')
@@ -83,7 +83,7 @@ export default function Settings() {
         const id = modal.item?.id ? `/${modal.item.id}` : ''
         await apiRequest(`/api/admin/lookups/${resource}${id}`, { method: modal.item ? 'PATCH' : 'POST', body: JSON.stringify({ [nameKey]: form.get('name'), description: form.get('description') || '' }) })
       }
-      setModal(null); setOpenMenu(null); loadTab()
+      setModal(null); loadTab()
     } catch (requestError) { setError(requestError.message) }
   }
 
@@ -113,19 +113,18 @@ export default function Settings() {
           </header>
           <section className="settings-table-card">
             <div className="settings-toolbar">
-              <label className="settings-search"><span aria-hidden="true">⌕</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${tabConfig.plural}`} /></label>
-              {activeTab !== 'archive' && <button className="settings-add-button" type="button" onClick={beginAdd}>＋ Add new {activeTab === 'fleet' ? 'vehicle' : activeTab === 'categories' ? 'category' : 'location'}</button>}
+              <label className="settings-search"><span className="sr-only">Search {tabConfig.plural}</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${tabConfig.plural}`} /><span aria-hidden="true" /></label>
+              {activeTab !== 'archive' && <button className="settings-add-button" type="button" onClick={beginAdd}><span aria-hidden="true">＋</span>Add new {activeTab === 'fleet' ? 'vehicle' : activeTab === 'categories' ? 'category' : 'location'}</button>}
             </div>
             {error && <p className="settings-error" role="alert">{error}</p>}
             <div className="settings-table-scroll">
               <table className="settings-table">
-                <thead><tr><th>Permission</th><th>{activeTab === 'fleet' ? 'Vehicle details' : 'Catalog permissions'}</th><th>{activeTab === 'categories' ? 'Description' : 'Status'}</th><th>Company settings permissions</th><th aria-label="Actions" /></tr></thead>
+                <thead><tr><th>{activeTab === 'fleet' ? 'Vehicle' : activeTab === 'categories' ? 'Task category' : activeTab === 'archive' ? 'Archived item' : 'Field / Location'}</th><th>{activeTab === 'categories' ? 'Description' : 'Status'}</th><th aria-label="Actions" /></tr></thead>
                 <tbody>
-                  {loading ? <tr><td colSpan="5" className="settings-empty">Loading…</td></tr> : visibleRecords.length === 0 ? <tr><td colSpan="5" className="settings-empty">No {tabConfig.plural} found.</td></tr> : visibleRecords.map((item) => {
+                  {loading ? <tr><td colSpan="3" className="settings-empty">Loading…</td></tr> : visibleRecords.length === 0 ? <tr><td colSpan="3" className="settings-empty">No {tabConfig.plural} found.</td></tr> : visibleRecords.map((item) => {
                     const name = activeTab === 'fleet' ? item.vehicle_name : activeTab === 'categories' ? item.category_name : activeTab === 'archive' ? item.name : item.field_name
-                    const description = activeTab === 'fleet' ? item.plate_number : activeTab === 'categories' ? item.description || 'No description added' : activeTab === 'archive' ? item.type : 'Manage records and assignments'
-                    const status = activeTab === 'fleet' ? vehicleStatuses[item.status] || item.status : activeTab === 'archive' ? 'Archived' : 'Active'
-                    return <tr key={`${activeTab}-${item.id}`}><td><strong>{name}</strong></td><td><span className="settings-check">☑</span> {description}</td><td>{status}</td><td><span className="settings-check">☑</span> {activeTab === 'archive' ? 'Restore item' : 'Manage settings'}</td><td><button className="settings-more" type="button" aria-label={`Actions for ${name}`} onClick={() => activeTab === 'archive' ? restore(item) : beginEdit(item)}>⋮</button>{activeTab !== 'archive' && activeTab !== 'fleet' && <button className="settings-archive-link" type="button" onClick={() => archive(item)}>Archive</button>}</td></tr>
+                    const details = activeTab === 'categories' ? item.description || 'No description added' : activeTab === 'fleet' ? vehicleStatuses[item.status] || item.status : activeTab === 'archive' ? 'Archived' : 'Active'
+                    return <tr key={`${activeTab}-${item.id}`}><td><strong>{name}</strong>{activeTab === 'fleet' && <small className="settings-item-detail">{item.plate_number}</small>}{activeTab === 'archive' && <small className="settings-item-detail">{item.type}</small>}</td><td>{details}</td><td className="settings-actions-cell"><div className="settings-actions">{activeTab === 'archive' ? <button className="settings-restore" type="button" onClick={() => restore(item)} aria-label={`Restore ${name}`}>Restore</button> : <><button className="settings-edit" type="button" onClick={() => beginEdit(item)} aria-label={`Edit ${name}`}>✎</button>{activeTab !== 'fleet' && <button className="settings-archive" type="button" onClick={() => archive(item)} aria-label={`Archive ${name}`}><img src={archiveIcon} alt="" /></button>}</>}</div></td></tr>
                   })}
                 </tbody>
               </table>
