@@ -33,6 +33,7 @@ export default function CropHealthMonitoring() {
   const [loadingDB, setLoadingDB] = useState(true)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [isPoorHealthNotice, setIsPoorHealthNotice] = useState(false)
   const [selectedActivity, setSelectedActivity] = useState(null)
   const [activityToDelete, setActivityToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -127,6 +128,7 @@ export default function CropHealthMonitoring() {
 
     setError('')
     setSuccessMessage('')
+    setIsPoorHealthNotice(false)
 
     const reader = new FileReader()
     reader.onload = () => {
@@ -152,6 +154,7 @@ export default function CropHealthMonitoring() {
         ...CropInspection.withoutImage(current[activeField]),
       },
     }))
+    setIsPoorHealthNotice(false)
     setSuccessMessage(`Photo removed for ${activeField}.`)
   }
 
@@ -212,7 +215,9 @@ export default function CropHealthMonitoring() {
       })
 
       setActivities((current) => [newActivity, ...current])
-      setSuccessMessage(`AI diagnosis complete for ${activeField}! Health Score: ${diagnosis.score}%.`)
+      const healthStatus = diagnosis.healthStatus || CropInspection.healthStatusFor(diagnosis.score)
+      setIsPoorHealthNotice(diagnosis.score < 80 || healthStatus.trim().toLowerCase() !== 'healthy')
+      setSuccessMessage(`AI diagnosis complete for ${activeField}! ${healthStatus} — Health Score: ${diagnosis.score}%.`)
     } catch (caught) {
       console.error('Analysis failed:', caught)
       setError(caught instanceof Error ? caught.message : 'Crop diagnosis failed.')
@@ -235,6 +240,7 @@ export default function CropHealthMonitoring() {
     try {
       if (!activityToDelete.id.startsWith('act-')) await inspectionApi.delete(activityToDelete.id)
       setActivities((current) => current.filter((activity) => activity.id !== activityToDelete.id))
+      setIsPoorHealthNotice(false)
       setSuccessMessage(`Inspection record for ${activityToDelete.field} was deleted.`)
       setActivityToDelete(null)
     } catch (err) {
@@ -277,12 +283,12 @@ export default function CropHealthMonitoring() {
           )}
 
           {successMessage && (
-            <div style={{ padding: '13px 20px', borderRadius: '8px', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600 }}>
+            <div role="status" style={{ padding: '13px 20px', borderRadius: '8px', color: isPoorHealthNotice ? '#b42318' : '#15803d', background: isPoorHealthNotice ? '#fff1f0' : '#f0fdf4', border: `1px solid ${isPoorHealthNotice ? '#fecdca' : '#bbf7d0'}`, marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <CheckCircle2 size={18} />
+                {isPoorHealthNotice ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
                 <span>{successMessage}</span>
               </div>
-              <button type="button" onClick={() => setSuccessMessage('')} style={{ background: 'none', border: 'none', color: '#15803d', cursor: 'pointer' }}><X size={16} /></button>
+              <button type="button" onClick={() => setSuccessMessage('')} style={{ background: 'none', border: 'none', color: isPoorHealthNotice ? '#b42318' : '#15803d', cursor: 'pointer' }}><X size={16} /></button>
             </div>
           )}
 
@@ -300,7 +306,13 @@ export default function CropHealthMonitoring() {
                     key={field}
                     type="button"
                     className={isCurrent ? 'is-active' : ''}
+                    disabled={analyzing}
                     onClick={() => {
+                      if (field === activeField) return
+                      setReports((current) => ({
+                        ...current,
+                        [activeField]: CropInspection.withoutImage(current[activeField]),
+                      }))
                       setActiveField(field)
                       setError('')
                       setSuccessMessage('')
@@ -446,6 +458,17 @@ export default function CropHealthMonitoring() {
                     {currentFieldReport.healthStatus}
                   </span>
                 </div>
+
+                {currentFieldReport.hasDiagnosis && (
+                  <p style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'baseline', margin: '0 0 14px', fontSize: '12px', color: '#334737' }}>
+                    <span style={{ fontWeight: 700 }}>Detected Disease / Issue:</span>
+                    <strong style={{ color: '#1d3523' }}>
+                      {currentFieldReport.healthStatus?.trim().toLowerCase() === 'healthy'
+                        ? 'None detected'
+                        : currentFieldReport.diseaseOrIssueName || 'Not identified'}
+                    </strong>
+                  </p>
+                )}
 
                 <p style={{ fontSize: '12px', color: '#455648', margin: '0 0 16px', lineHeight: 1.6, background: '#f8faf6', padding: '12px 14px', borderRadius: '8px', borderLeft: '3px solid var(--admin-green)' }}>
                   {currentFieldReport.visualSummary}

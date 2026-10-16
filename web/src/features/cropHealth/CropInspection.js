@@ -89,7 +89,6 @@ export class CropInspection {
       diseaseOrIssueName: diagnosis.diseaseOrIssueName,
       healthStatus: diagnosis.healthStatus,
       visualSummary: diagnosis.visualSummary,
-      ...EMPTY_IMAGE,
       lastUpdated: `Today at ${time}`,
     }
   }

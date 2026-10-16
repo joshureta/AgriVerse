@@ -91,12 +91,20 @@ export default function Settings() {
     const resource = activeTab === 'categories' ? 'task-categories' : 'fields'
     const name = activeTab === 'categories' ? item.category_name : item.field_name
     if (!window.confirm(`Archive ${name}?`)) return
-    await apiRequest(`/api/admin/lookups/${resource}/${item.id}`, { method: 'PATCH', body: JSON.stringify({ status: false }) }); loadTab()
+    setError('')
+    try {
+      await apiRequest(`/api/admin/lookups/${resource}/${item.id}`, { method: 'PATCH', body: JSON.stringify({ status: false }) })
+      await loadTab()
+    } catch (requestError) { setError(requestError.message) }
   }
 
   async function restore(item) {
     const resource = item.type === 'Task Category' ? 'task-categories' : 'fields'
-    await apiRequest(`/api/admin/lookups/${resource}/${item.id}`, { method: 'PATCH', body: JSON.stringify({ status: true }) }); loadTab()
+    setError('')
+    try {
+      await apiRequest(`/api/admin/lookups/${resource}/${item.id}`, { method: 'PATCH', body: JSON.stringify({ status: true }) })
+      await loadTab()
+    } catch (requestError) { setError(requestError.message) }
   }
 
   return (
