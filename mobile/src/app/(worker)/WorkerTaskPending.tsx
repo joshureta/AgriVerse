@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
+import { AlertTriangle, RotateCcw } from 'lucide-react-native';
 
 import { useAuth } from '@/context/auth-context';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
@@ -511,6 +512,7 @@ export default function WorkerTaskPending() {
     .filter((task) => task.status === filter)
     .filter((task) => `${task.category} ${task.field} ${task.description || ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase()));
   const workAllowed = canWorkCropTaskNow();
+  const isWorkHoursNotice = error.toLowerCase().includes('can only be worked');
 
   // Fertilization and Pest & Disease Action take supplies from inventory, so Start opens the picker first.
   function handleStatusChange(task: WorkerTaskRecord, status: TaskStatus) {
@@ -604,9 +606,27 @@ export default function WorkerTaskPending() {
           </View>
 
           {error ? (
-            <Pressable onPress={() => loadTasks()} style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-              <Text style={styles.retry}>Tap to retry</Text>
+            <Pressable
+              accessibilityHint="Reloads your assigned tasks"
+              accessibilityLabel={`${isWorkHoursNotice ? 'Outside working hours' : 'Unable to refresh tasks'}. ${error}`}
+              accessibilityRole="button"
+              onPress={() => loadTasks()}
+              style={({ pressed }) => [styles.errorBox, pressed && styles.errorBoxPressed]}>
+              <View pointerEvents="none" style={styles.errorAccent} />
+              <View style={styles.errorIconShell}>
+                <AlertTriangle color="#B4232E" size={20} strokeWidth={2.2} />
+              </View>
+              <View style={styles.errorContent}>
+                <Text style={styles.errorEyebrow}>Schedule notice</Text>
+                <Text style={styles.errorTitle}>
+                  {isWorkHoursNotice ? 'Outside working hours' : 'Unable to refresh tasks'}
+                </Text>
+                <Text style={styles.errorText}>{error}</Text>
+                <View style={styles.errorRetryAction}>
+                  <RotateCcw color="#9F1D2A" size={13} strokeWidth={2.4} />
+                  <Text style={styles.errorRetryText}>Try again</Text>
+                </View>
+              </View>
             </Pressable>
           ) : null}
 

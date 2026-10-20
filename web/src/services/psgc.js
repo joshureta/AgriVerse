@@ -25,6 +25,10 @@ export function getRegionCitiesMunicipalities(regionCode) {
   )
 }
 
+export function getRegionSubMunicipalities(regionCode) {
+  return getItems(`/regions/${encodeURIComponent(regionCode)}/sub-municipalities`)
+}
+
 export function getProvinceCitiesMunicipalities(provinceCode) {
   return getItems(
     `/provinces/${encodeURIComponent(provinceCode)}/cities-municipalities`,

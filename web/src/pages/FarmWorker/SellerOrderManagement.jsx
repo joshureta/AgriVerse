@@ -16,7 +16,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { SellerSidebar, SellerTopbar } from '../../components/SellerNavigation.jsx'
-import { changeSellerOrderStatus, loadSellerDisputes, loadSellerOrders, respondToSellerDispute } from '../../services/sellerOrders.js'
+import { changeSellerOrderStatus, loadSellerOrders } from '../../services/sellerOrders.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/seller-order-management.css'
 import '../../styles/seller-workspace.css'
@@ -88,44 +88,7 @@ export default function SellerOrderManagement() {
   const [pendingDismissed, setPendingDismissed] = useState(false)
   const [confirmation, setConfirmation] = useState(null)
   const [confirmationError, setConfirmationError] = useState('')
-  const [disputeOrders, setDisputeOrders] = useState([])
-  const [disputeLoading, setDisputeLoading] = useState(false)
-  const [disputeDrafts, setDisputeDrafts] = useState({})
-  const [disputeSendingId, setDisputeSendingId] = useState(null)
-  const [disputeError, setDisputeError] = useState('')
   const pageSize = 7
-
-  const fetchDisputes = useCallback(async () => {
-    setDisputeLoading(true)
-    setDisputeError('')
-    try {
-      setDisputeOrders(await loadSellerDisputes())
-    } catch (requestError) {
-      setDisputeError(requestError.message)
-    } finally {
-      setDisputeLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (activeTab === 'disputes') fetchDisputes()
-  }, [activeTab, fetchDisputes])
-
-  async function handleSendDisputeResponse(order) {
-    const response = (disputeDrafts[order.id] || '').trim()
-    if (!response) return
-    setDisputeSendingId(order.id)
-    setDisputeError('')
-    try {
-      await respondToSellerDispute(order.id, response)
-      setDisputeOrders((current) => current.filter((item) => item.id !== order.id))
-      setDisputeDrafts((current) => { const next = { ...current }; delete next[order.id]; return next })
-    } catch (requestError) {
-      setDisputeError(requestError.message)
-    } finally {
-      setDisputeSendingId(null)
-    }
-  }
 
   const fetchOrders = useCallback(async ({ background = false } = {}) => {
     if (background) {
@@ -284,56 +247,19 @@ export default function SellerOrderManagement() {
           <section className="seller-orders-table-card">
             <div className="seller-order-tabs" role="tablist">
               {tabs.filter((tab) => tab.key !== 'all').map((tab) => <button className={activeTab === tab.key ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === tab.key} onClick={() => selectStage(tab.key)} key={tab.key}>{tab.label}</button>)}
-              <button className={activeTab === 'disputes' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === 'disputes'} onClick={() => selectStage('disputes')}>
-                Disputes{disputeOrders.length > 0 ? ` (${disputeOrders.length})` : ''}
-              </button>
             </div>
 
-            {activeTab !== 'disputes' && <div className="seller-order-toolbar">
+            <div className="seller-order-toolbar">
               <label className="seller-order-search"><Search /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search orders" aria-label="Search orders" /></label>
-            </div>}
+            </div>
 
-            {activeTab === 'disputes' ? (
-              <div className="seller-order-table-wrap">
-                {disputeError && <div className="seller-order-error" role="alert">{disputeError}<button type="button" onClick={() => setDisputeError('')}>Dismiss</button></div>}
-                {disputeLoading && <p className="seller-order-empty"><span>Loading disputes...</span></p>}
-                {!disputeLoading && disputeOrders.length === 0 && (
-                  <div className="seller-order-empty"><PackageOpen /><strong>No open disputes</strong><span>Quality or packing disputes flagged on your orders will appear here.</span></div>
-                )}
-                {!disputeLoading && disputeOrders.map((order) => (
-                  <div key={order.id} className="seller-dispute-card">
-                    <div className="seller-dispute-head">
-                      <strong>{order.order_number}</strong>
-                      <span>{order.delivery_full_name}</span>
-                    </div>
-                    <p className="seller-dispute-category">{(order.delivery_dispute_category || '').replaceAll('_', ' ')}</p>
-                    <p className="seller-dispute-reason">{order.delivery_dispute_reason}</p>
-                    <textarea
-                      placeholder="Describe what happened on your end (e.g. when this batch was packed, its condition at dispatch)…"
-                      maxLength={2000}
-                      rows={3}
-                      value={disputeDrafts[order.id] || ''}
-                      onChange={(event) => setDisputeDrafts((current) => ({ ...current, [order.id]: event.target.value }))}
-                    />
-                    <button
-                      type="button"
-                      className="is-primary"
-                      disabled={disputeSendingId === order.id || !(disputeDrafts[order.id] || '').trim()}
-                      onClick={() => handleSendDisputeResponse(order)}
-                    >
-                      {disputeSendingId === order.id ? 'Sending…' : 'Send My Response'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
             <div className="seller-order-table-wrap">
               {error && <div className="seller-order-error" role="alert">{error}<button type="button" onClick={() => setError('')}>Dismiss</button></div>}
               <table className="seller-order-table">
                 <thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Order Date</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {loading && <tr><td colSpan="6" className="seller-order-empty"><span>Loading orders...</span></td></tr>}
-                  {!loading && visibleOrders.length === 0 && <tr><td colSpan="6" className="seller-order-empty"><PackageOpen /><strong>{filtersActive ? 'No matching orders' : `No ${tabs.find((tab) => tab.key === activeTab)?.label.toLowerCase()} yet`}</strong><span>{filtersActive ? 'Try changing or clearing your filters.' : 'Orders in this stage will appear here.'}</span>{filtersActive && <button type="button" onClick={clearFilters}>Clear filters</button>}</td></tr>}
+                  {loading && <tr><td colSpan="6" className="seller-order-empty"><div className="seller-order-empty-content"><span>Loading orders...</span></div></td></tr>}
+                  {!loading && visibleOrders.length === 0 && <tr><td colSpan="6" className="seller-order-empty"><div className="seller-order-empty-content"><PackageOpen /><strong>{filtersActive ? 'No matching orders' : `No ${tabs.find((tab) => tab.key === activeTab)?.label.toLowerCase()} yet`}</strong><span>{filtersActive ? 'Try changing or clearing your filters.' : 'Orders in this stage will appear here.'}</span>{filtersActive && <button type="button" onClick={clearFilters}>Clear filters</button>}</div></td></tr>}
                   {!loading && visibleOrders.map((order) => {
                     const primaryAction = availableActions(order).find((action) => !action.danger)
                     return <tr key={order.id} tabIndex="0" onClick={() => setSelected(order)} onKeyDown={(event) => { if (event.key === 'Enter') setSelected(order) }}>
@@ -348,8 +274,6 @@ export default function SellerOrderManagement() {
                 </tbody>
               </table>
             </div>
-            )}
-            {activeTab !== 'disputes' && (
             <footer className="seller-order-pagination">
               <span>{filtered.length} total order{filtered.length === 1 ? '' : 's'}</span>
               <div>
@@ -358,7 +282,6 @@ export default function SellerOrderManagement() {
                 <button type="button" disabled={page >= pages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button>
               </div>
             </footer>
-            )}
           </section>
         </div>
       </section>
