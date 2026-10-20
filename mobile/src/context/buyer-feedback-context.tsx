@@ -49,7 +49,7 @@ export function BuyerFeedbackProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (!buyerId) return;
     let cancelled = false;
-    let lastSeenId: number | null = null;
+    let seenNotificationIds: Set<number> | null = null;
 
     async function poll() {
       try {
@@ -57,9 +57,9 @@ export function BuyerFeedbackProvider({ children }: { children: React.ReactNode 
         if (cancelled) return;
         syncUnreadNotifications(result.unread_count || 0);
         const list = result.notifications || [];
-        const maxId = list.reduce((max, item) => Math.max(max, item.id), 0);
-        if (lastSeenId !== null) {
-          list.filter((item) => item.id > lastSeenId).sort((a, b) => a.id - b.id).forEach((item) => {
+        const previousSeenIds = seenNotificationIds;
+        if (previousSeenIds) {
+          list.filter((item) => !previousSeenIds.has(item.id)).sort((a, b) => a.id - b.id).forEach((item) => {
             showToast({
               title: item.title,
               body: item.body,
@@ -67,7 +67,7 @@ export function BuyerFeedbackProvider({ children }: { children: React.ReactNode 
             });
           });
         }
-        lastSeenId = Math.max(lastSeenId ?? 0, maxId);
+        seenNotificationIds = new Set(list.map((item) => item.id));
       } catch {
         // Keep the previous badge and retry on the next poll.
       }
