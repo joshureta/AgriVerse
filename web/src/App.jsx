@@ -11,6 +11,7 @@ import CropHealthMonitoring from './pages/Admin/CropHealthMonitoring.jsx'
 import EnvironmentalMonitoring from './pages/Admin/EnvironmentalMonitoring.jsx'
 import Settings from './pages/Admin/Settings.jsx'
 import BuyerLanding from './pages/Buyer/BuyerLanding.jsx'
+import AboutUs from './pages/Buyer/AboutUs.jsx'
 import ShoppingCart from './pages/Buyer/ShoppingCart.jsx'
 import BuyerOrders from './pages/Buyer/BuyerOrders.jsx'
 import BuyerCheckout from './pages/Buyer/BuyerCheckout.jsx'
@@ -216,6 +217,14 @@ function App() {
     return (
       <ProtectedRoute allowedRoles={['buyer']}>
         <ShoppingCart />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/buyer/about') {
+    return (
+      <ProtectedRoute allowedRoles={['buyer']}>
+        <AboutUs />
       </ProtectedRoute>
     )
   }

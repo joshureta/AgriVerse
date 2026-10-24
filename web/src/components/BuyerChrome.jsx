@@ -48,7 +48,6 @@ export function BuyerHeader({ active = 'home', cartCount }) {
   const { profile, signOut } = useAuth()
   const buyerName = profile?.full_name || 'Buyer'
   const displayedCartCount = cartCount ?? buyerCartQuantity(readBuyerCart())
-  const [isAboutSection, setIsAboutSection] = useState(() => window.location.pathname === '/buyer' && window.location.hash === '#about')
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState([])
   const [notificationsLoading, setNotificationsLoading] = useState(true)
@@ -59,14 +58,8 @@ export function BuyerHeader({ active = 'home', cartCount }) {
   })
   const notificationMenuRef = useRef(null)
   const notificationUnreadCount = notifications.filter((notification) => !readNotificationIds.includes(notification.id)).length
-  const aboutActive = active === 'home' && isAboutSection
-  const homeActive = active === 'home' && !aboutActive
-
-  useEffect(() => {
-    const updateSection = () => setIsAboutSection(window.location.pathname === '/buyer' && window.location.hash === '#about')
-    window.addEventListener('hashchange', updateSection)
-    return () => window.removeEventListener('hashchange', updateSection)
-  }, [])
+  const aboutActive = active === 'about'
+  const homeActive = active === 'home'
 
   useEffect(() => {
     let cancelled = false
@@ -157,7 +150,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
         </a>
 
         <nav className="buyer-main-nav" aria-label="Buyer navigation">
-          <a className={aboutActive ? 'is-active' : ''} href="/buyer#about" aria-current={aboutActive ? 'location' : undefined}>About Us</a>
+          <a className={aboutActive ? 'is-active' : ''} href="/buyer/about" aria-current={aboutActive ? 'page' : undefined}>About Us</a>
           <a className={homeActive ? 'is-active' : ''} href="/buyer" aria-current={homeActive ? 'page' : undefined}>Home</a>
           <a className={active === 'orders' ? 'is-active' : ''} href="/buyer/order" aria-current={active === 'orders' ? 'page' : undefined}>Order</a>
         </nav>
@@ -225,7 +218,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
       <details className="buyer-mobile-menu">
         <summary aria-label="Open navigation"><Menu aria-hidden="true" /></summary>
         <nav aria-label="Mobile buyer navigation">
-          <a className={aboutActive ? 'is-active' : ''} href="/buyer#about" aria-current={aboutActive ? 'location' : undefined}>About Us</a>
+          <a className={aboutActive ? 'is-active' : ''} href="/buyer/about" aria-current={aboutActive ? 'page' : undefined}>About Us</a>
           <a className={homeActive ? 'is-active' : ''} href="/buyer" aria-current={homeActive ? 'page' : undefined}>Home</a>
           <a className={active === 'orders' ? 'is-active' : ''} href="/buyer/order" aria-current={active === 'orders' ? 'page' : undefined}>Order</a>
           <a className={active === 'cart' ? 'is-active' : ''} href="/buyer/cart" aria-current={active === 'cart' ? 'page' : undefined}>Shopping Cart</a>
@@ -265,7 +258,7 @@ export function BuyerJourneyNav({ current }) {
 
 export function BuyerFooter() {
   return (
-    <footer className="buyer-site-footer" id="about">
+    <footer className="buyer-site-footer">
       <div className="buyer-footer-grid">
         <section>
           <h2>About Jtoledo Trading</h2>
@@ -274,7 +267,7 @@ export function BuyerFooter() {
         <section>
           <h2>Navigation</h2>
           <nav className="buyer-footer-links" aria-label="Footer navigation">
-            <a href="/buyer#about">About Us</a>
+            <a href="/buyer/about">About Us</a>
             <a href="#contact">Contact Us</a>
           </nav>
         </section>
