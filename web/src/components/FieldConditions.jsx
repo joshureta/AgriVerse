@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Droplets, Sprout, Thermometer, Waves } from 'lucide-react'
 import { sensorSupabase } from '../lib/sensorSupabase.js'
-import { latestCurrentReading } from '../lib/sensorStatus.js'
+import { latestCurrentReading, latestMoistureReading } from '../lib/sensorStatus.js'
 
 const REFRESH_MS = 30000
 
@@ -31,7 +31,7 @@ export default function FieldConditions() {
     async function refresh() {
       const results = await Promise.allSettled([
         sensorSupabase.from('sensor_readings')
-          .select('id, device_id, temperature_c, humidity_percent, created_at')
+          .select('*')
           .order('created_at', { ascending: false }).limit(20),
         sensorSupabase.from('soil_readings')
           .select('id, device_id, moisture_percent, created_at')
@@ -54,7 +54,7 @@ export default function FieldConditions() {
 
   const temperature = latestCurrentReading(climateReadings, 'temperature_c', now)
   const humidity = latestCurrentReading(climateReadings, 'humidity_percent', now)
-  const moisture = latestCurrentReading(soilReadings, 'moisture_percent', now)
+  const moisture = latestMoistureReading(climateReadings, soilReadings, now)
   const activeCount = [temperature, humidity, moisture].filter(Boolean).length
   const lastReadingAt = Math.max(0, ...climateReadings.map((reading) => reading.measuredAt || 0), ...soilReadings.map((reading) => reading.measuredAt || 0))
   const lowMoisture = moisture && Number(moisture.moisture_percent) < 25

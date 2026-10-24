@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { countConnectedSensors, latestCurrentReading, SENSOR_ONLINE_WINDOW_MS } from '../src/lib/sensorStatus.js'
+import { countConnectedSensors, latestCurrentReading, latestMoistureReading, SENSOR_ONLINE_WINDOW_MS } from '../src/lib/sensorStatus.js'
 
 const now = Date.parse('2026-10-10T08:00:00Z')
 
@@ -31,4 +31,17 @@ test('tracks each sensor independently and ignores null or stale readings', () =
   assert.equal(latestCurrentReading(climate, 'humidity_percent', now), climate[0])
   assert.equal(latestCurrentReading(soil, 'moisture_percent', now), soil[0])
   assert.equal(latestCurrentReading(soil, 'moisture_percent', now + SENSOR_ONLINE_WINDOW_MS), null)
+})
+
+test('uses embedded soil moisture when the dedicated soil table has no current reading', () => {
+  const climate = [{ measuredAt: now - 30_000, soil_moisture: 43 }]
+  const staleSoil = [{ measuredAt: now - SENSOR_ONLINE_WINDOW_MS - 1, moisture_percent: 80 }]
+  assert.equal(latestMoistureReading(climate, staleSoil, now)?.moisture_percent, 43)
+})
+
+test('chooses the newest valid moisture reading across both firmware formats', () => {
+  const climate = [{ measuredAt: now - 20_000, soil_moisture: 0 }]
+  const soil = [{ measuredAt: now - 10_000, moisture_percent: 58 }]
+  assert.equal(latestMoistureReading(climate, soil, now), soil[0])
+  assert.equal(latestMoistureReading(climate, [], now)?.moisture_percent, 0)
 })

@@ -15,6 +15,15 @@ export function latestCurrentReading(readings, field, now = Date.now()) {
   }, null)
 }
 
+// Older ESP32 firmware stores moisture alongside climate values; newer firmware
+// writes it to soil_readings. Both can coexist while devices are upgraded.
+export function latestMoistureReading(climateReadings, soilReadings, now = Date.now()) {
+  const soil = latestCurrentReading(soilReadings, 'moisture_percent', now)
+  const climate = latestCurrentReading(climateReadings, 'soil_moisture', now)
+  if (!climate || (soil && soil.measuredAt >= climate.measuredAt)) return soil
+  return { ...climate, moisture_percent: climate.soil_moisture }
+}
+
 export function countConnectedSensors(readingGroups, now = Date.now()) {
   const recentDeviceIds = new Set()
 

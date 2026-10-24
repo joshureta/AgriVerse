@@ -28,7 +28,7 @@ import humidityMetricIcon from '../../assets/monitoring/metric-humidity.png'
 import soilMoistureMetricIcon from '../../assets/monitoring/metric-soil-moisture.png'
 import { supabase } from '../../lib/supabase.js'
 import { sensorSupabase } from '../../lib/sensorSupabase.js'
-import { countConnectedSensors, latestCurrentReading } from '../../lib/sensorStatus.js'
+import { countConnectedSensors, latestCurrentReading, latestMoistureReading } from '../../lib/sensorStatus.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/monitoring.css'
 
@@ -157,7 +157,7 @@ function combineSensorReadings(climateReadings, soilReadings) {
 async function loadSensorReadings() {
   const { data, error } = await sensorSupabase
     .from('sensor_readings')
-    .select('id, device_id, temperature_c, humidity_percent, created_at')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(MAX_READING_HISTORY)
 
@@ -190,7 +190,7 @@ export default function EnvironmentalMonitoring() {
   const [dismissedAlerts, setDismissedAlerts] = useState([])
   const currentTemperature = latestCurrentReading(readings, 'temperature_c', statusNow)
   const currentHumidity = latestCurrentReading(readings, 'humidity_percent', statusNow)
-  const currentSoil = latestCurrentReading(soilReadings, 'moisture_percent', statusNow)
+  const currentSoil = latestMoistureReading(readings, soilReadings, statusNow)
   const combinedReadings = useMemo(
     () => combineSensorReadings(readings, soilReadings),
     [readings, soilReadings],
