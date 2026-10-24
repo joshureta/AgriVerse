@@ -15,11 +15,11 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.js'
 import jtoledoLogo from '../assets/Jtoledologo.png'
+import { BUYER_NOTIFICATION_READ_EVENT, isBuyerNotificationRead, readBuyerNotificationIds, saveBuyerNotificationIds } from '../lib/buyerNotificationReadState.js'
 import { buyerCartQuantity, loadBuyerNotifications, readBuyerCart } from '../services/buyerMarketplace.js'
 import { loadBuyerUnreadCount } from '../services/buyerMessages.js'
 
 const UNREAD_POLL_INTERVAL_MS = 20000
-const NOTIFICATION_READ_KEY = 'agriverse_buyer_read_notifications_v1'
 
 function formatAlertTime(value) {
   const date = new Date(value)
@@ -34,12 +34,13 @@ function createOrderNotifications(records) {
   return records.map((record) => {
     return {
       id: String(record.id),
+      readAt: record.read_at,
       status: record.type === 'order_cancelled' ? 'cancelled' : 'updated',
       title: record.title,
       message: record.body,
       orderNumber: record.entity_id ? `Order #${record.entity_id}` : 'Order update',
       createdAt: record.created_at,
-      href: record.entity_id ? `/buyer/delivery-progress?track=${record.entity_id}` : '/buyer/delivery-progress',
+      href: record.entity_id ? `/buyer/delivery-progress?track=${encodeURIComponent(record.entity_id)}` : '/buyer/delivery-progress',
     }
   })
 }
@@ -52,12 +53,9 @@ export function BuyerHeader({ active = 'home', cartCount }) {
   const [notifications, setNotifications] = useState([])
   const [notificationsLoading, setNotificationsLoading] = useState(true)
   const [notificationsError, setNotificationsError] = useState(false)
-  const [readNotificationIds, setReadNotificationIds] = useState(() => {
-    try { return JSON.parse(window.localStorage.getItem(NOTIFICATION_READ_KEY) || '[]') }
-    catch { return [] }
-  })
+  const [readNotificationIds, setReadNotificationIds] = useState(readBuyerNotificationIds)
   const notificationMenuRef = useRef(null)
-  const notificationUnreadCount = notifications.filter((notification) => !readNotificationIds.includes(notification.id)).length
+  const notificationUnreadCount = notifications.filter((notification) => !isBuyerNotificationRead(notification, readNotificationIds)).length
   const aboutActive = active === 'about'
   const homeActive = active === 'home'
 
@@ -86,7 +84,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
 
     async function fetchNotifications() {
       try {
-          const result = await loadBuyerNotifications()
+        const result = await loadBuyerNotifications()
         if (!cancelled) {
           setNotifications(createOrderNotifications(result.notifications || []))
           setNotificationsError(false)
@@ -123,18 +121,28 @@ export function BuyerHeader({ active = 'home', cartCount }) {
     }
   }, [])
 
+  useEffect(() => {
+    const syncReadIds = () => setReadNotificationIds(readBuyerNotificationIds())
+    window.addEventListener(BUYER_NOTIFICATION_READ_EVENT, syncReadIds)
+    window.addEventListener('storage', syncReadIds)
+    return () => {
+      window.removeEventListener(BUYER_NOTIFICATION_READ_EVENT, syncReadIds)
+      window.removeEventListener('storage', syncReadIds)
+    }
+  }, [])
+
   function saveReadNotifications(ids) {
-    setReadNotificationIds(ids)
-    window.localStorage.setItem(NOTIFICATION_READ_KEY, JSON.stringify(ids))
+    setReadNotificationIds(saveBuyerNotificationIds(ids))
   }
 
   function markNotificationRead(id) {
-    if (readNotificationIds.includes(id)) return
-    saveReadNotifications([...readNotificationIds, id])
+    const currentIds = readBuyerNotificationIds()
+    if (currentIds.includes(id)) return
+    saveReadNotifications([...currentIds, id])
   }
 
   function markAllNotificationsRead() {
-    saveReadNotifications([...new Set([...readNotificationIds, ...notifications.map((notification) => notification.id)])])
+    saveReadNotifications([...readBuyerNotificationIds(), ...notifications.map((notification) => notification.id)])
   }
 
   async function handleSignOut() {
@@ -168,7 +176,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
                 <span className="buyer-status-dot">{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
             </a>
-            <details className="buyer-notification-menu" ref={notificationMenuRef}>
+            <details className={`buyer-notification-menu${active === 'notifications' ? ' is-active' : ''}`} ref={notificationMenuRef}>
               <summary className="buyer-icon-link" aria-label={notificationUnreadCount ? `Notifications (${notificationUnreadCount} unread)` : 'Notifications'}>
                 <Bell aria-hidden="true" />
                 {notificationUnreadCount > 0 && <span className="buyer-status-dot">{notificationUnreadCount > 99 ? '99+' : notificationUnreadCount}</span>}
@@ -180,16 +188,16 @@ export function BuyerHeader({ active = 'home', cartCount }) {
                   {!notificationsLoading && notificationsError && <p className="buyer-notification-state is-error">Notifications could not be refreshed.</p>}
                   {!notificationsLoading && !notificationsError && notifications.length === 0 && <p className="buyer-notification-state">You have no order updates yet.</p>}
                   {!notificationsLoading && notifications.slice(0, 4).map((notification) => (
-                    <a className={`buyer-notification-item${readNotificationIds.includes(notification.id) ? '' : ' is-unread'}`} href={notification.href} onClick={() => markNotificationRead(notification.id)} key={notification.id}>
+                    <a className={`buyer-notification-item${isBuyerNotificationRead(notification, readNotificationIds) ? '' : ' is-unread'}`} href={notification.href} onClick={() => markNotificationRead(notification.id)} key={notification.id}>
                       <span className={`buyer-notification-icon is-${notification.status}`}>
                         {notification.status === 'delivered' ? <CheckCircle2 aria-hidden="true" /> : notification.status === 'out_for_delivery' ? <Truck aria-hidden="true" /> : notification.status === 'pending' ? <Clock3 aria-hidden="true" /> : <PackageCheck aria-hidden="true" />}
                       </span>
                       <span className="buyer-notification-copy"><strong>{notification.title}</strong><small>{notification.orderNumber}</small><p>{notification.message}</p><time dateTime={notification.createdAt}>{formatAlertTime(notification.createdAt)}</time></span>
-                      {!readNotificationIds.includes(notification.id) && <i aria-label="Unread" />}
+                      {!isBuyerNotificationRead(notification, readNotificationIds) && <i aria-label="Unread" />}
                     </a>
                   ))}
                 </div>
-                {notifications.length > 0 && <footer><a href="/buyer/delivery-progress">View all notifications <span aria-hidden="true">→</span></a></footer>}
+                <footer><a href="/buyer/notifications">View all notifications <span aria-hidden="true">→</span></a></footer>
               </section>
             </details>
           </div>
@@ -223,6 +231,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
           <a className={active === 'orders' ? 'is-active' : ''} href="/buyer/order" aria-current={active === 'orders' ? 'page' : undefined}>Order</a>
           <a className={active === 'cart' ? 'is-active' : ''} href="/buyer/cart" aria-current={active === 'cart' ? 'page' : undefined}>Shopping Cart</a>
           <a className={active === 'messages' ? 'is-active' : ''} href="/buyer/messages" aria-current={active === 'messages' ? 'page' : undefined}>Messages</a>
+          <a className={active === 'notifications' ? 'is-active' : ''} href="/buyer/notifications" aria-current={active === 'notifications' ? 'page' : undefined}>Notifications{notificationUnreadCount > 0 ? ` (${notificationUnreadCount})` : ''}</a>
           <a href="/buyer/delivery-progress">My Orders</a>
           <a className={active === 'profile' ? 'is-active' : ''} href="/buyer/profile" aria-current={active === 'profile' ? 'page' : undefined}>My Profile</a>
           <button type="button" onClick={handleSignOut}>Sign Out</button>

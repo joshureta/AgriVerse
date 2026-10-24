@@ -13,9 +13,10 @@ async function readAccessToken(refresh = false) {
   return token
 }
 
-export async function loadBuyerNotifications() {
+export async function loadBuyerNotifications({ offset = 0, limit = 100 } = {}) {
   const token = await readAccessToken()
-  const response = await fetch(`${API_URL}/api/notifications`, {
+  const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
+  const response = await fetch(`${API_URL}/api/notifications?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   const body = await response.json().catch(() => ({}))

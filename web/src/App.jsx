@@ -21,6 +21,7 @@ import ReturnRequest from './pages/Buyer/ReturnRequest.jsx'
 import ReturnDetails from './pages/Buyer/ReturnDetails.jsx'
 import BuyerProfile from './pages/Buyer/BuyerProfile.jsx'
 import BuyerMessages from './pages/Buyer/BuyerMessages.jsx'
+import BuyerNotifications from './pages/Buyer/BuyerNotifications.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -83,6 +84,14 @@ function App() {
     return (
       <ProtectedRoute allowedRoles={['buyer']}>
         <BuyerMessages />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/buyer/notifications') {
+    return (
+      <ProtectedRoute allowedRoles={['buyer']}>
+        <BuyerNotifications />
       </ProtectedRoute>
     )
   }

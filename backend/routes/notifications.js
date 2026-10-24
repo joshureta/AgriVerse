@@ -21,9 +21,16 @@ function notificationId(value) {
 router.get("/", async (req, res, next) => {
   try {
     const unreadOnly = String(req.query.unread || "") === "true";
-    let query = getSupabase().from("notifications").select(notificationSelect)
-      .eq("recipient_id", req.user.id).order("created_at", { ascending: false }).limit(100);
+    const limit = req.query.limit === undefined ? 100 : Number(req.query.limit);
+    const offset = req.query.offset === undefined ? 0 : Number(req.query.offset);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw httpError(400, "Invalid notification limit");
+    if (!Number.isSafeInteger(offset) || offset < 0) throw httpError(400, "Invalid notification offset");
+    if (!Number.isSafeInteger(offset + limit - 1)) throw httpError(400, "Invalid notification offset");
+
+    let query = getSupabase().from("notifications").select(notificationSelect, { count: "exact" })
+      .eq("recipient_id", req.user.id).order("created_at", { ascending: false }).order("id", { ascending: false });
     if (unreadOnly) query = query.is("read_at", null);
+    query = query.range(offset, offset + limit - 1);
 
     const [listResult, unreadCountResult] = await Promise.all([
       query,
@@ -35,6 +42,7 @@ router.get("/", async (req, res, next) => {
 
     return res.json({
       notifications: listResult.data || [],
+      total_count: listResult.count || 0,
       unread_count: unreadCountResult.count || 0,
     });
   } catch (error) { return next(error); }
