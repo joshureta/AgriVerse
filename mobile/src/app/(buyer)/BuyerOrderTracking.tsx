@@ -14,6 +14,7 @@ import {
   confirmBuyerOrderReceipt,
   DisputeCategory,
   loadBuyerOrder,
+  qrphRefundLink,
   readBuyerCart,
   writeBuyerCart,
 } from '@/lib/buyer-marketplace';
@@ -406,6 +407,7 @@ type ReturnStep = { key: string; label: string; sub: string; state: 'done' | 'cu
 function buildReturnSteps(order: BuyerOrder): ReturnStep[] {
   const resolved = order.delivery_dispute_status === 'resolved';
   const dismissed = resolved && order.delivery_dispute_resolution === 'dismissed';
+  const refundComplete = order.refund_status === 'succeeded' || order.payment_status === 'refunded';
   const decisionSub = !resolved ? '1–2 days' : dismissed ? 'Dismissed' : 'Approved';
   return [
     {
@@ -418,7 +420,7 @@ function buildReturnSteps(order: BuyerOrder): ReturnStep[] {
     { key: 'decision', label: 'Decision', sub: decisionSub, state: resolved ? 'done' : 'current', icon: (color) => <HourglassIcon color={color} size={15} /> },
     dismissed
       ? { key: 'refund', label: 'No refund', sub: 'Not approved', state: 'declined', icon: (color) => <XIcon color={color} size={15} /> }
-      : { key: 'refund', label: 'Refund', sub: resolved ? 'Completed' : 'Pending', state: resolved ? 'done' : '', icon: (color) => <BanknoteIcon color={color} size={15} /> },
+      : { key: 'refund', label: 'Refund', sub: refundComplete ? 'Processed' : ['failed', 'review_required'].includes(order.refund_status || '') ? 'Needs review' : resolved ? 'Processing' : 'Pending', state: refundComplete ? 'done' : '', icon: (color) => <BanknoteIcon color={color} size={15} /> },
   ];
 }
 
@@ -706,13 +708,14 @@ function CancelledReceipt({
           {order.refund_amount != null ? (
             <View style={w.fact}>
               <Text style={w.factLabel}>Refund</Text>
-              <Text style={w.factValue}>{formatPeso(order.refund_amount)} · Refund requested</Text>
+              <Text style={w.factValue}>{formatPeso(order.refund_amount)} · {order.refund_status === 'succeeded' ? 'Refund processed' : order.refund_status === 'rejected' ? 'Not approved' : ['failed', 'review_required'].includes(order.refund_status || '') ? 'Needs review' : order.refund_status === 'processing' || order.refund_status === 'submitting' ? 'Processing' : 'Awaiting admin review'}</Text>
             </View>
           ) : null}
         </View>
         {order.refund_amount != null ? (
-          <Text style={w.refundNote}>We&apos;ll return the refund to your {paymentLabel}, the payment method you used.</Text>
+          <Text style={w.refundNote}>{order.refund_status === 'succeeded' ? `PayMongo processed this refund. Your ${paymentLabel} may take additional time to show it.` : order.refund_status === 'rejected' ? (order.refund_decision_notes || 'The admin did not approve this refund request.') : ['failed', 'review_required'].includes(order.refund_status || '') ? 'The admin is checking this refund with PayMongo.' : qrphRefundLink(order) ? 'Claim your QR Ph refund using the PayMongo link below within 3 days.' : order.refund_status === 'processing' ? 'PayMongo is processing your refund.' : `Your refund request is being reviewed for your ${paymentLabel} payment.`}</Text>
         ) : null}
+        {qrphRefundLink(order) ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(qrphRefundLink(order)!)}><Text style={[w.refundNote, { color: GREEN, textDecorationLine: 'underline', fontWeight: '700' }]}>Claim your QR Ph test refund</Text></Pressable> : null}
       </View>
 
       <View style={[w.card, { padding: 20 }]}>

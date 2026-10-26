@@ -87,6 +87,9 @@ export type BuyerOrder = {
   delivery_dispute_photo_urls: string[] | null;
   refund_amount: number | null;
   refund_reference: string | null;
+  refund_status: 'requested' | 'submitting' | 'processing' | 'succeeded' | 'failed' | 'rejected' | 'review_required' | null;
+  refund_decision_notes: string | null;
+  refund_decided_at: string | null;
   completed_at: string | null;
   completed_via: 'buyer_confirmed' | 'auto_timeout' | 'dispute_resolved' | 'pickup_verified' | null;
   buyer_rating: number | null;
@@ -95,6 +98,16 @@ export type BuyerOrder = {
   cancellation_reason: string | null;
   items: BuyerOrderItem[];
 };
+
+export function qrphRefundLink(order: BuyerOrder | null | undefined): string | null {
+  if (order?.payment_method !== 'qrph' || order.refund_status !== 'processing') return null;
+  try {
+    const url = new URL(order.refund_reference || '');
+    return url.protocol === 'https:' && /(^|\.)paymongo(?:-stg)?\.com$/i.test(url.hostname) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
 
 export type DeliveryAddress = {
   id: string;

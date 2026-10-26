@@ -1,11 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { BuyerHeader } from '@/components/buyer-header';
 import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
-import { BuyerOrder, BuyerOrderItem, DisputeCategory, loadBuyerOrder } from '@/lib/buyer-marketplace';
+import { BuyerOrder, BuyerOrderItem, DisputeCategory, loadBuyerOrder, qrphRefundLink } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-return-details.styles';
 
 const CATEGORY_LABELS: Record<DisputeCategory, string> = {
@@ -129,8 +129,10 @@ export default function BuyerReturnDetailsScreen() {
   const photos = order?.delivery_dispute_photo_urls || [];
   const isResolved = order?.delivery_dispute_status === 'resolved';
   const isDismissed = isResolved && order?.delivery_dispute_resolution === 'dismissed';
+  const refundComplete = order?.refund_status === 'succeeded' || order?.payment_status === 'refunded';
   // GCash refunds carry an internal "Recorded — …" placeholder; only show a reference a person typed in.
-  const manualRefundReference = order?.refund_reference && !order.refund_reference.startsWith('Recorded') ? order.refund_reference : null;
+  const claimLink = qrphRefundLink(order);
+  const manualRefundReference = order?.refund_reference && !order.refund_reference.startsWith('Recorded') && !claimLink ? order.refund_reference : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -178,10 +180,10 @@ export default function BuyerReturnDetailsScreen() {
                   <Text style={[styles.stepLabel, !isResolved && styles.stepLabelPending]}>Return decision</Text>
                 </View>
                 <View style={styles.step}>
-                  <View style={[styles.stepDot, isDismissed ? styles.stepDotDeclined : isResolved ? styles.stepDotDone : styles.stepDotPending]}>
-                    <Text style={[styles.stepDotText, isResolved && { color: '#fff' }]}>{isDismissed ? '✕' : isResolved ? '✓' : '3'}</Text>
+                  <View style={[styles.stepDot, isDismissed ? styles.stepDotDeclined : refundComplete ? styles.stepDotDone : styles.stepDotPending]}>
+                    <Text style={[styles.stepDotText, (isDismissed || refundComplete) && { color: '#fff' }]}>{isDismissed ? '✕' : refundComplete ? '✓' : '3'}</Text>
                   </View>
-                  <Text style={[styles.stepLabel, !isResolved && styles.stepLabelPending]}>{isDismissed ? 'No refund' : 'Refund completed'}</Text>
+                  <Text style={[styles.stepLabel, !refundComplete && styles.stepLabelPending]}>{isDismissed ? 'No refund' : refundComplete ? 'Refund processed' : order.refund_status === 'failed' || order.refund_status === 'review_required' ? 'Refund needs review' : 'Refund processing'}</Text>
                 </View>
               </View>
             </View>
@@ -222,6 +224,7 @@ export default function BuyerReturnDetailsScreen() {
                       <Text style={styles.decisionFactValue}>{manualRefundReference}</Text>
                     </View>
                   ) : null}
+                  {claimLink ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(claimLink)}><Text style={[styles.decisionFactValue, { color: GREEN, textDecorationLine: 'underline' }]}>Claim your QR Ph test refund within 3 days</Text></Pressable> : null}
                 </View>
 
                 <View style={styles.descriptionWrap}>

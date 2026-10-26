@@ -16,6 +16,7 @@ import Breadcrumb from '../../components/Breadcrumb.jsx'
 import ProgressStepper from '../../components/ProgressStepper.jsx'
 import { buildReturnSteps } from '../../components/returnSteps.js'
 import ReturnDecision from '../../components/ReturnDecision.jsx'
+import { qrphRefundLink } from '../../utils/paymongoRefund.js'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import { loadBuyerOrder } from '../../services/buyerMarketplace.js'
 import '../../styles/Buyer/buyerLanding.css'
@@ -275,8 +276,9 @@ export default function ReturnDetails() {
                     <article className="order-detail"><span className="delivery-icon-badge"><CalendarDays aria-hidden="true" /></span><p><strong>Order Date</strong><span>{formatDateTime(order.created_at)}</span></p></article>
                     <article className="order-detail">
                       <span className="delivery-icon-badge">{resolved ? <Check aria-hidden="true" /> : <Hourglass aria-hidden="true" />}</span>
-                      <p><strong>Status</strong><span>{!resolved ? 'Under review' : order.delivery_dispute_resolution === 'dismissed' ? 'Claim dismissed' : 'Refund approved'}</span></p>
+                      <p><strong>Status</strong><span>{!resolved ? 'Under review' : order.delivery_dispute_resolution === 'dismissed' ? 'Claim dismissed' : order.refund_status === 'succeeded' ? 'Refund processed' : ['failed', 'review_required'].includes(order.refund_status) ? 'Refund needs review' : 'Refund approved, processing'}</span></p>
                     </article>
+                    {qrphRefundLink(order) && <article className="order-detail"><span className="delivery-icon-badge"><ExternalLink aria-hidden="true" /></span><p><strong>QR Ph refund</strong><a href={qrphRefundLink(order)} target="_blank" rel="noopener noreferrer">Claim your test refund within 3 days</a></p></article>}
                   </div>
                 </section>
 

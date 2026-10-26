@@ -3,29 +3,45 @@ const { createHash } = require("node:crypto");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { paymongoGet } = require("../lib/paymongo");
+const { applyRefundResource, getRefundResource } = require("../lib/order-refunds");
 const { uploadImage } = require("../lib/storage");
-const { createDisputeOpenedNotifications } = require("../lib/order-notifications");
+const { createDisputeOpenedNotifications, createRefundRequestedNotifications } = require("../lib/order-notifications");
 const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("buyer"));
 
 const orderSelect = [
-  "id, order_number, delivery_method, payment_method, payment_status, order_status",
+  "id, order_number, buyer_id, delivery_method, payment_method, payment_status, order_status",
   "subtotal, shipping_fee, total_amount, customer_note",
   "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
   "estimated_delivery_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
   "ready_for_pickup_at, pickup_code, picked_up_at, picked_up_by",
-  "paymongo_payment_intent_id",
+  "paymongo_payment_intent_id, paymongo_payment_id",
   "delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at",
   "buyer_confirmed_at, delivery_dispute_status, delivery_dispute_reason, delivery_dispute_created_at, delivery_dispute_resolution, delivery_dispute_resolution_notes, delivery_dispute_resolved_at",
   "delivery_dispute_category, delivery_dispute_item_id, delivery_dispute_affected_quantity, delivery_dispute_photo_urls, delivery_dispute_responsible_role",
   "delivery_dispute_responder_id, delivery_dispute_response, delivery_dispute_response_at",
-  "refund_amount, refund_reference, refunded_at",
+  "refund_amount, refund_reference, refunded_at, refund_status, refund_decision_notes, refund_decided_at, paymongo_refund_id",
   "buyer_rating, buyer_rating_comment, buyer_rated_at",
   "completed_at, completed_via",
   "items:buyer_order_items!buyer_order_items_order_id_fkey(id, pineapple_size_id, product_name, weight_label, quantity, unit_price, line_total)",
 ].join(",");
+
+const legacyOrderSelect = orderSelect.split(",").filter((field) => ![
+  "paymongo_payment_id", "refund_status", "refund_decision_notes", "refund_decided_at", "paymongo_refund_id",
+].includes(field.trim())).join(",");
+
+async function refundSchemaReady() {
+  const { error } = await getSupabase().from("buyer_orders").select("refund_status").limit(1);
+  if (error?.code === "42703") return false;
+  if (error) throw error;
+  return true;
+}
+
+async function orderColumns() {
+  return await refundSchemaReady() ? orderSelect : legacyOrderSelect;
+}
 
 // A delivered order auto-completes if the buyer never confirms or disputes it.
 const AUTO_COMPLETE_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
@@ -48,13 +64,23 @@ async function reconcileOnlinePaymentStatus(order) {
         : null;
     if (!nextStatus) return order;
 
+    const paidPayment = nextStatus === "paid"
+      ? (attributes.payments || []).find((payment) => payment?.attributes?.status === "paid") || (attributes.payments || []).find((payment) => payment?.id)
+      : null;
     const { data: updated, error } = await getSupabase()
       .from("buyer_orders")
-      .update({ payment_status: nextStatus })
+      .update({ payment_status: nextStatus, ...(paidPayment?.id && await refundSchemaReady() ? { paymongo_payment_id: paidPayment.id } : {}) })
       .eq("id", order.id)
       .eq("payment_status", "pending")
-      .select(orderSelect)
+      .select(await orderColumns())
       .single();
+    if (!error && updated?.order_status === "cancelled" && updated.refund_status === "requested") {
+      try {
+        await createRefundRequestedNotifications({ buyerId: order.buyer_id, orderId: order.id, orderNumber: order.order_number });
+      } catch (notificationError) {
+        console.error("Failed to notify about late payment refund:", notificationError.message);
+      }
+    }
     return error ? order : updated;
   } catch {
     return order;
@@ -77,7 +103,7 @@ async function reconcileDeliveryCompletion(order) {
     .eq("id", order.id)
     .eq("order_status", "delivered")
     .is("delivery_dispute_status", null)
-    .select(orderSelect)
+    .select(await orderColumns())
     .single();
   if (error || !updated) return order;
 
@@ -92,7 +118,7 @@ async function reconcileDeliveryCompletion(order) {
 }
 
 function serializeOrder(order) {
-  const { paymongo_payment_intent_id, ...rest } = order;
+  const { paymongo_payment_intent_id, paymongo_payment_id, ...rest } = order;
   return {
     ...rest,
     subtotal: Number(order.subtotal),
@@ -245,7 +271,7 @@ router.get("/", async (req, res, next) => {
   try {
     const { data, error } = await getSupabase()
       .from("buyer_orders")
-      .select(orderSelect)
+      .select(await orderColumns())
       .eq("buyer_id", req.user.id)
       .order("created_at", { ascending: false })
       .limit(50);
@@ -262,14 +288,25 @@ router.get("/:id", async (req, res, next) => {
     if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid order ID");
     const { data, error } = await getSupabase()
       .from("buyer_orders")
-      .select(orderSelect)
+      .select(await orderColumns())
       .eq("id", id)
       .eq("buyer_id", req.user.id)
       .single();
     if (error?.code === "PGRST116") throw httpError(404, "Order not found");
     if (error) throw error;
     const paymentReconciledOrder = await reconcileOnlinePaymentStatus(data);
-    const reconciledOrder = await reconcileDeliveryCompletion(paymentReconciledOrder);
+    let reconciledOrder = await reconcileDeliveryCompletion(paymentReconciledOrder);
+    if (reconciledOrder.refund_status === "processing" && reconciledOrder.paymongo_refund_id) {
+      try {
+        const refund = await getRefundResource(reconciledOrder);
+        await applyRefundResource(reconciledOrder.id, refund.data);
+        const { data: refreshed, error: refreshError } = await getSupabase().from("buyer_orders")
+          .select(orderSelect).eq("id", id).eq("buyer_id", req.user.id).single();
+        if (!refreshError) reconciledOrder = refreshed;
+      } catch (refundError) {
+        console.error("Could not reconcile PayMongo refund:", refundError.message);
+      }
+    }
     return res.json({ order: await attachCancellationReason(serializeOrder(reconciledOrder)) });
   } catch (error) {
     return next(error);
@@ -288,7 +325,7 @@ router.post("/:id/confirm-receipt", async (req, res, next) => {
       .eq("buyer_id", req.user.id)
       .eq("order_status", "delivered")
       .is("delivery_dispute_status", null)
-      .select(orderSelect)
+      .select(await orderColumns())
       .maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "This order cannot be confirmed right now");
@@ -329,6 +366,16 @@ router.post("/:id/cancel", async (req, res, next) => {
     if (note.length > 500) throw httpError(400, "Note must not exceed 500 characters");
     if (category === "other" && !note) throw httpError(400, "Tell us what happened");
 
+    const { data: payment, error: paymentError } = await getSupabase().from("buyer_orders")
+      .select("payment_method, payment_status").eq("id", id).eq("buyer_id", req.user.id).maybeSingle();
+    if (paymentError) throw paymentError;
+    if (!payment) throw httpError(404, "Order not found");
+    if (["gcash", "qrph"].includes(payment.payment_method)
+        && ["paid", "pending"].includes(payment.payment_status)
+        && !await refundSchemaReady()) {
+      throw httpError(503, "Online cancellations need database update 042 before refunds can be reviewed");
+    }
+
     const { error: cancelError } = await getSupabase().rpc("cancel_buyer_order", {
       p_order_id: id,
       p_buyer_id: req.user.id,
@@ -338,18 +385,25 @@ router.post("/:id/cancel", async (req, res, next) => {
       if (/order not found/i.test(cancelError.message || "")) throw httpError(404, "Order not found");
       if (/no longer be cancelled/i.test(cancelError.message || "")) throw httpError(409, "This order can no longer be cancelled");
       if (cancelError.code === "PGRST202" || /cancel_buyer_order.*schema cache/i.test(cancelError.message || "")) {
-        throw httpError(503, "The Supabase cancel-order function is not installed. Run migration 027_buyer_order_cancellation.sql, then restart the backend");
+        throw httpError(503, "The Supabase cancel-order function is not installed. Apply the latest Supabase migrations, then restart the backend");
       }
       throw cancelError;
     }
 
     const { data, error } = await getSupabase()
       .from("buyer_orders")
-      .select(orderSelect)
+      .select(await orderColumns())
       .eq("id", id)
       .eq("buyer_id", req.user.id)
       .single();
     if (error) throw error;
+    if (data.refund_status === "requested") {
+      try {
+        await createRefundRequestedNotifications({ buyerId: req.user.id, orderId: id, orderNumber: data.order_number });
+      } catch (notificationError) {
+        console.error("Failed to notify about cancellation refund:", notificationError.message);
+      }
+    }
     return res.json({
       order: { ...serializeOrder(data), cancellation_reason: category === "other" ? note : CANCEL_REASON_LABELS[category] },
     });
@@ -436,7 +490,7 @@ router.post("/:id/dispute", async (req, res, next) => {
       .eq("buyer_id", req.user.id)
       .in("order_status", ["delivered", "completed"])
       .is("delivery_dispute_status", null)
-      .select(orderSelect)
+      .select(await orderColumns())
       .maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "This order cannot be reported right now");
@@ -470,7 +524,7 @@ router.post("/:id/rating", async (req, res, next) => {
       .eq("buyer_id", req.user.id)
       .eq("order_status", "completed")
       .is("buyer_rating", null)
-      .select(orderSelect)
+      .select(await orderColumns())
       .maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(409, "Only completed orders that haven't been rated yet can be rated");

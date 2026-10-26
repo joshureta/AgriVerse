@@ -117,10 +117,62 @@ async function createDisputeResolvedNotification({ buyerId, orderId, orderNumber
   if (error) throw error;
 }
 
+async function createRefundRequestedNotifications({ buyerId, orderId, orderNumber }) {
+  const { data: admins, error: adminError } = await getSupabase().from("profiles").select("id").eq("role", "admin");
+  if (adminError) throw adminError;
+  const orderLabel = orderNumber || `#${orderId}`;
+  const rows = [
+    { recipient_id: buyerId, type: "order_status_updated", title: "Refund awaiting review", body: `Your refund request for order ${orderLabel} is awaiting admin review.`, entity_type: "order", entity_id: orderId },
+    ...(admins || []).map((admin) => ({ recipient_id: admin.id, type: "dispute_opened", title: "Cancellation refund to review", body: `Order ${orderLabel} was cancelled after payment. Review its refund request.`, entity_type: "order", entity_id: orderId })),
+  ];
+  const { error } = await getSupabase().from("notifications").insert(rows);
+  if (error) throw error;
+}
+
+async function createRefundCompletedNotification({ buyerId, orderId, orderNumber, refundAmount }) {
+  const { error } = await getSupabase().from("notifications").insert({
+    recipient_id: buyerId,
+    type: "order_status_updated",
+    title: "Refund processed",
+    body: `PayMongo processed your PHP ${Number(refundAmount).toLocaleString("en-PH")} refund for order ${orderNumber || `#${orderId}`}. Your bank or wallet may take additional time to show it.`,
+    entity_type: "order",
+    entity_id: orderId,
+  });
+  if (error) throw error;
+}
+
+async function createRefundClaimNotification({ buyerId, orderId, orderNumber }) {
+  const { error } = await getSupabase().from("notifications").insert({
+    recipient_id: buyerId,
+    type: "order_status_updated",
+    title: "QR Ph refund ready to claim",
+    body: `Open order ${orderNumber || `#${orderId}`} and use its PayMongo transfer link to claim your test refund. The link expires after 3 days.`,
+    entity_type: "order",
+    entity_id: orderId,
+  });
+  if (error) throw error;
+}
+
+async function createRefundRejectedNotification({ buyerId, orderId, orderNumber }) {
+  const { error } = await getSupabase().from("notifications").insert({
+    recipient_id: buyerId,
+    type: "order_status_updated",
+    title: "Refund request reviewed",
+    body: `The refund request for order ${orderNumber || `#${orderId}`} was not approved. Open the order to read the admin's note.`,
+    entity_type: "order",
+    entity_id: orderId,
+  });
+  if (error) throw error;
+}
+
 module.exports = {
   createOrderStatusNotification,
   createDeliveryAssignedNotification,
   createDeliveryScheduleUpdatedNotification,
   createDisputeOpenedNotifications,
   createDisputeResolvedNotification,
+  createRefundRequestedNotifications,
+  createRefundCompletedNotification,
+  createRefundClaimNotification,
+  createRefundRejectedNotification,
 };

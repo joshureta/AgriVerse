@@ -21,6 +21,7 @@ import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import ProgressStepper from '../../components/ProgressStepper.jsx'
 import { buildReturnSteps } from '../../components/returnSteps.js'
 import ReturnDecision from '../../components/ReturnDecision.jsx'
+import { qrphRefundLink } from '../../utils/paymongoRefund.js'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import {
   buyerCartQuantity,
@@ -613,12 +614,13 @@ export default function DeliveryProgress() {
                 <div><dt>Payment</dt><dd>{PAYMENT_METHOD_LABELS[selectedOrder.payment_method] || selectedOrder.payment_method}</dd></div>
                 <div><dt>Placed</dt><dd>{formatDate(selectedOrder.created_at, true)}</dd></div>
                 {selectedOrder.refund_amount != null && (
-                  <div><dt>Refund</dt><dd>PHP {Number(selectedOrder.refund_amount).toLocaleString()} · Refund requested</dd></div>
+                  <div><dt>Refund</dt><dd>PHP {Number(selectedOrder.refund_amount).toLocaleString()} · {{ requested: 'Awaiting admin review', submitting: 'Submitting to PayMongo', processing: 'Processing', succeeded: 'Processed', failed: 'Needs review', review_required: 'Needs review', rejected: 'Not approved' }[selectedOrder.refund_status] || 'Awaiting review'}</dd></div>
                 )}
               </dl>
               {selectedOrder.refund_amount != null && (
-                <p className="cancelled-refund-note">A refund is recorded for review. Contact support for its payment status.</p>
+                <p className="cancelled-refund-note">{selectedOrder.refund_status === 'succeeded' ? 'PayMongo processed this refund. Your bank or wallet may take additional time to show it.' : selectedOrder.refund_status === 'rejected' ? (selectedOrder.refund_decision_notes || 'The admin did not approve this refund request.') : selectedOrder.refund_status === 'failed' || selectedOrder.refund_status === 'review_required' ? 'The admin is checking this refund with PayMongo.' : qrphRefundLink(selectedOrder) ? 'PayMongo is waiting for you to claim this QR Ph refund. The transfer link expires after 3 days.' : selectedOrder.refund_status === 'processing' ? 'PayMongo is processing your refund.' : 'The admin will review this refund request.'}</p>
               )}
+              {qrphRefundLink(selectedOrder) && <p className="cancelled-refund-note"><a href={qrphRefundLink(selectedOrder)} target="_blank" rel="noopener noreferrer">Claim your QR Ph test refund</a></p>}
             </section>
 
             <section className="delivery-card cancelled-items" aria-labelledby="cancelled-items-title">

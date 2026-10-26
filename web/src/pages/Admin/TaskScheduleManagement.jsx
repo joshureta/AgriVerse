@@ -7,6 +7,7 @@ import workersTaskIcon from '../../assets/task-workers-icon-white.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { WoField, WoList, WoRadios, WoRow, WoSection, WoSteps, WorkOrderDialog } from '../../components/WorkOrderDialog.jsx'
 import { supabase } from '../../lib/supabase.js'
+import { qrphRefundLink } from '../../utils/paymongoRefund.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/task-schedule-management.css'
 import '../../styles/work-order-dialogs.css'
@@ -75,6 +76,21 @@ function formatSchedule(value) {
   return new Intl.DateTimeFormat('en-US', {
     month: '2-digit', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit',
   }).format(date)
+}
+
+function refundReviewState(order) {
+  if (['failed', 'review_required'].includes(order.refund_status)) return 'open'
+  if (order.review_type === 'cancellation') return order.refund_status === 'requested' ? 'open' : 'resolved'
+  return order.delivery_dispute_status
+}
+
+function refundStatusLabel(order) {
+  if (qrphRefundLink(order)) return 'Awaiting buyer claim'
+  const labels = {
+    requested: 'Awaiting approval', submitting: 'Submitting to PayMongo', processing: 'Processing',
+    succeeded: 'Refund processed', failed: 'Refund failed', review_required: 'Check PayMongo', rejected: 'Not approved',
+  }
+  return labels[order.refund_status] || (order.delivery_dispute_status === 'resolved' ? 'Resolved' : 'Open')
 }
 
 function formatLongDate(value) {
@@ -270,7 +286,11 @@ function SummaryCard({ label, value, icon, className = '' }) {
 }
 
 export default function TaskScheduleManagement({ settingsOnly = false }) {
-  const [activeTab, setActiveTab] = useState(() => settingsOnly ? 'fields' : new URLSearchParams(window.location.search).get('tab') === 'disputes' ? 'disputes' : 'tasks')
+  const [activeTab, setActiveTab] = useState(() => {
+    if (settingsOnly) return 'fields'
+    const requestedTab = new URLSearchParams(window.location.search).get('tab')
+    return ['disputes', 'refunds'].includes(requestedTab) ? requestedTab : 'tasks'
+  })
   const [tasks, setTasks] = useState([])
   const [deliveryOrders, setDeliveryOrders] = useState([])
   const [workView, setWorkView] = useState('crop')
@@ -296,6 +316,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const [vehicles, setVehicles] = useState([])
   const [vehicleForm, setVehicleForm] = useState(emptyVehicleForm)
   const [disputeOrders, setDisputeOrders] = useState([])
+  const [refundSetupRequired, setRefundSetupRequired] = useState(false)
   const [disputeFilter, setDisputeFilter] = useState('all')
   const [disputeResolutionNotes, setDisputeResolutionNotes] = useState('')
   const [disputeRefundAmount, setDisputeRefundAmount] = useState('')
@@ -381,6 +402,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     try {
       const data = await apiRequest('/api/admin/deliveries/disputes')
       setDisputeOrders(data.orders || [])
+      setRefundSetupRequired(Boolean(data.refund_setup_required))
     } catch (requestError) {
       setError(requestError.message)
     }
@@ -390,9 +412,14 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     loadDisputeOrders()
   }, [loadDisputeOrders, refreshKey])
 
-  const openDisputeCount = disputeOrders.filter((order) => order.delivery_dispute_status === 'open').length
-  const resolvedDisputeCount = disputeOrders.length - openDisputeCount
-  const visibleDisputes = disputeFilter === 'all' ? disputeOrders : disputeOrders.filter((order) => order.delivery_dispute_status === disputeFilter)
+  const deliveryDisputes = disputeOrders.filter((order) => order.review_type !== 'cancellation')
+  const cancellationRefunds = disputeOrders.filter((order) => order.review_type === 'cancellation')
+  const openDisputeCount = deliveryDisputes.filter((order) => refundReviewState(order) === 'open').length
+  const openRefundCount = cancellationRefunds.filter((order) => refundReviewState(order) === 'open').length
+  const reviewOrders = activeTab === 'refunds' ? cancellationRefunds : deliveryDisputes
+  const openReviewCount = reviewOrders.filter((order) => refundReviewState(order) === 'open').length
+  const resolvedReviewCount = reviewOrders.length - openReviewCount
+  const visibleDisputes = disputeFilter === 'all' ? reviewOrders : reviewOrders.filter((order) => refundReviewState(order) === disputeFilter)
 
   const loadHarvestApprovalCount = useCallback(async () => {
     try {
@@ -471,7 +498,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
       const body = { resolution, notes: disputeResolutionNotes.trim() }
       if (resolution === 'refunded') {
         body.refund_amount = disputeRefundAmount.trim() || undefined
-        if (modal.order.payment_method !== 'gcash') body.refund_reference = disputeRefundReference.trim()
+        if (!['gcash', 'qrph'].includes(modal.order.payment_method)) body.refund_reference = disputeRefundReference.trim()
       }
       await apiRequest(`/api/admin/deliveries/${modal.order.id}/resolve-dispute`, {
         method: 'POST',
@@ -483,6 +510,52 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
       setDisputeRefundReference('')
       setDisputeDecision('refunded')
       setDisputeActivePhoto(null)
+      setRefreshKey((key) => key + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+      setRefreshKey((key) => key + 1)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function resolveCancellationRefund(decision) {
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/deliveries/${modal.order.id}/resolve-cancellation-refund`, {
+        method: 'POST', body: JSON.stringify({ decision, notes: disputeResolutionNotes.trim() }),
+      })
+      setModal(null)
+      setDisputeResolutionNotes('')
+      setRefreshKey((key) => key + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+      setRefreshKey((key) => key + 1)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function retryRefund(order) {
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/deliveries/${order.id}/retry-refund`, { method: 'POST', body: '{}' })
+      setRefreshKey((key) => key + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+      setRefreshKey((key) => key + 1)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function checkRefund(order) {
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/deliveries/${order.id}/check-refund`, { method: 'POST', body: '{}' })
       setRefreshKey((key) => key + 1)
     } catch (requestError) {
       setError(requestError.message)
@@ -530,7 +603,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   useEffect(() => {
     if (activeTab === 'archive') loadArchivedSettings()
     else if (activeTab === 'fleet') loadVehicles()
-    else if (activeTab !== 'tasks' && activeTab !== 'disputes') loadSettings()
+    else if (activeTab !== 'tasks' && activeTab !== 'disputes' && activeTab !== 'refunds') loadSettings()
   }, [activeTab, loadArchivedSettings, loadSettings, loadVehicles])
 
   function openVehicleModal(vehicle = null) {
@@ -775,7 +848,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     : { title: 'Fields & Locations', itemLabel: 'Location', resource: 'fields', nameKey: 'field_name', searchLabel: 'Search fields and locations', empty: 'No fields or locations found.' }
   const settingsSearch = search.trim().toLowerCase()
   const settingsSource = activeTab === 'archive' ? archivedSettings : settingsValues
-  const visibleSettings = activeTab === 'tasks' || activeTab === 'disputes' ? [] : settingsSource[settingsConfig.resource].filter((value) => !settingsSearch || `${value[settingsConfig.nameKey]} ${value.description || ''}`.toLowerCase().includes(settingsSearch))
+  const visibleSettings = ['tasks', 'disputes', 'refunds'].includes(activeTab) ? [] : settingsSource[settingsConfig.resource].filter((value) => !settingsSearch || `${value[settingsConfig.nameKey]} ${value.description || ''}`.toLowerCase().includes(settingsSearch))
   const visibleVehicles = vehicles.filter((vehicle) => !settingsSearch || `${vehicle.vehicle_name} ${vehicle.plate_number}`.toLowerCase().includes(settingsSearch))
   const visibleDeliveryOrders = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -808,7 +881,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             </div>
           </header>
 
-          {!settingsOnly && ((harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks) || (openDisputeCount > 0 && !dismissedReviewAlerts.disputes)) && (
+          {!settingsOnly && ((harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks) || (openDisputeCount + openRefundCount > 0 && !dismissedReviewAlerts.disputes)) && (
             <section className="task-review-alerts" aria-label="Items needing review">
               {harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks && (
                 <div className="task-review-alert is-tasks" role="status">
@@ -820,12 +893,12 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                   <button type="button" className="task-review-alert-dismiss" aria-label="Dismiss tasks to review alert" onClick={() => setDismissedReviewAlerts((current) => ({ ...current, tasks: true }))}><X aria-hidden="true" /></button>
                 </div>
               )}
-              {openDisputeCount > 0 && !dismissedReviewAlerts.disputes && (
+              {openDisputeCount + openRefundCount > 0 && !dismissedReviewAlerts.disputes && (
                 <div className="task-review-alert is-disputes" role="status">
                   <span className="task-review-alert-icon"><CircleAlert aria-hidden="true" /></span>
                   <p>
-                    <button type="button" className="task-review-alert-link" onClick={() => { setActiveTab('disputes'); setDisputeFilter('open'); setSearch(''); setPage(1) }}>Disputes to Review:</button>{' '}
-                    {openDisputeCount} open dispute{openDisputeCount === 1 ? '' : 's'} need{openDisputeCount === 1 ? 's' : ''} your decision. Review and resolve {openDisputeCount === 1 ? 'it' : 'them'}.
+                    <button type="button" className="task-review-alert-link" onClick={() => { setActiveTab(openDisputeCount ? 'disputes' : 'refunds'); setDisputeFilter('open'); setSearch(''); setPage(1) }}>Cases to Review:</button>{' '}
+                    {openDisputeCount + openRefundCount} dispute or refund case{openDisputeCount + openRefundCount === 1 ? '' : 's'} need{openDisputeCount + openRefundCount === 1 ? 's' : ''} attention.
                   </p>
                   <button type="button" className="task-review-alert-dismiss" aria-label="Dismiss disputes to review alert" onClick={() => setDismissedReviewAlerts((current) => ({ ...current, disputes: true }))}><X aria-hidden="true" /></button>
                 </div>
@@ -847,22 +920,25 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               {settingsOnly && <button className={activeTab === 'categories' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('categories'); setSearch(''); setPage(1) }}>Task Categories</button>}
               {settingsOnly && <button className={activeTab === 'fleet' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('fleet'); setSearch(''); setPage(1) }}>Fleet</button>}
               {!settingsOnly && <button className={activeTab === 'disputes' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('disputes'); setSearch(''); setPage(1) }}>Disputes</button>}
+              {!settingsOnly && <button className={activeTab === 'refunds' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('refunds'); setSearch(''); setPage(1) }}>Refund Reviews</button>}
               {settingsOnly && <button className={activeTab === 'archive' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('archive'); setSearch(''); setPage(1) }}>Archived Items</button>}
             </nav>
-            {activeTab === 'disputes' ? <>
+            {['disputes', 'refunds'].includes(activeTab) ? <>
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
-            <nav className="dispute-status-filter" aria-label="Filter disputes by status">
-              {[{ id: 'all', label: 'All', count: disputeOrders.length }, { id: 'open', label: 'Open', count: openDisputeCount }, { id: 'resolved', label: 'Resolved', count: resolvedDisputeCount }].map((option) => (
+            {activeTab === 'refunds' && refundSetupRequired && <div className="tasks-error" role="status">Refund reviews need the latest database update. Existing delivery disputes are still available in the Disputes tab.</div>}
+            <nav className="dispute-status-filter" aria-label="Filter refund cases by status">
+              {[{ id: 'all', label: 'All', count: reviewOrders.length }, { id: 'open', label: 'Needs action', count: openReviewCount }, { id: 'resolved', label: 'Reviewed / processing', count: resolvedReviewCount }].map((option) => (
                 <button key={option.id} type="button" className={disputeFilter === option.id ? 'is-active' : ''} aria-pressed={disputeFilter === option.id} onClick={() => setDisputeFilter(option.id)}>{option.label} <span>{option.count}</span></button>
               ))}
             </nav>
             <div className="tasks-table-wrap">
               <table className="tasks-table dispute-table">
-                <thead><tr><th>ORDER NUMBER</th><th>CUSTOMER</th><th>RESPONSIBLE</th><th>REPORTED</th><th>REASON</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                <thead><tr><th>ORDER NUMBER</th><th>CUSTOMER</th><th>TYPE</th><th>REPORTED</th><th>REASON</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
                 <tbody>{visibleDisputes.length ? visibleDisputes.map((order) => {
-                  const isResolved = order.delivery_dispute_status === 'resolved'
+                  const isCancellation = order.review_type === 'cancellation'
+                  const isResolved = refundReviewState(order) !== 'open'
                   const outcome = order.delivery_dispute_resolution === 'refunded'
-                    ? `Refunded${order.refund_amount != null ? ` ₱${Number(order.refund_amount).toFixed(2)}` : ''}`
+                    ? `${refundStatusLabel(order)}${order.refund_amount != null ? ` ₱${Number(order.refund_amount).toFixed(2)}` : ''}`
                     : order.delivery_dispute_resolution === 'dismissed' ? 'Claim dismissed' : ''
                   const responsibleName = order.delivery_dispute_responsible_role === 'seller'
                     ? (order.responsible_seller?.full_name || 'Seller (unidentified)')
@@ -870,22 +946,28 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                   const responsibleLabel = order.delivery_dispute_responsible_role === 'seller' ? 'Seller' : 'Driver'
                   const suggestedAmount = order.disputed_item ? (Number(order.disputed_item.unit_price) * Number(order.delivery_dispute_affected_quantity || 0)).toFixed(2) : ''
                   const parsedReason = parseDisputeReason(order.delivery_dispute_reason)
-                  const reasonSummary = parsedReason.userDescription || (order.delivery_dispute_category ? order.delivery_dispute_category.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) : 'Delivery issue report')
-                  const reasonDetail = [`Requested: ${parsedReason.resolutionLabel}`, parsedReason.itemBreakdownText].filter(Boolean).join(' · ')
+                  const reasonSummary = isCancellation ? (order.cancellation_reason || 'Order cancelled') : parsedReason.userDescription || (order.delivery_dispute_category ? order.delivery_dispute_category.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) : 'Delivery issue report')
+                  const reasonDetail = isCancellation ? `Full refund requested · ₱${Number(order.refund_amount || 0).toFixed(2)}` : [`Requested: ${parsedReason.resolutionLabel}`, parsedReason.itemBreakdownText].filter(Boolean).join(' · ')
                   return (
                   <tr key={`dispute-${order.id}`}>
                     <td><strong>{order.order_number}</strong></td>
                     <td>{order.delivery_full_name}</td>
-                    <td>{responsibleLabel} · {responsibleName}</td>
-                    <td>{formatSchedule(order.delivery_dispute_created_at)}</td>
+                    <td>{isCancellation ? 'Cancellation' : `Delivery dispute · ${responsibleLabel} ${responsibleName}`}</td>
+                    <td>{formatSchedule(isCancellation ? order.cancelled_at : order.delivery_dispute_created_at)}</td>
                     <td className="dispute-reason-cell" title={`${reasonSummary} (${reasonDetail})`}>
                       <strong>{reasonSummary}</strong>
                       <small>{reasonDetail}</small>
                     </td>
-                    <td><span className={`task-status-badge ${isResolved ? 'status-resolved' : 'status-open-dispute'}`}>{isResolved ? 'Resolved' : 'Open'}</span>{isResolved && (outcome || order.delivery_dispute_resolved_at) && <small className="dispute-outcome" title={order.delivery_dispute_resolution_notes || undefined}>{outcome}{outcome && order.delivery_dispute_resolved_at ? <br /> : null}{order.delivery_dispute_resolved_at ? formatSchedule(order.delivery_dispute_resolved_at) : null}</small>}</td>
+                    <td><span className={`task-status-badge ${isResolved ? 'status-resolved' : 'status-open-dispute'}`}>{refundStatusLabel(order)}</span>{(outcome || order.refund_error) && <small className="dispute-outcome" title={order.refund_error || order.refund_decision_notes || order.delivery_dispute_resolution_notes || undefined}>{isCancellation ? (order.refund_error || order.refund_decision_notes) : (order.refund_error || outcome)}</small>}</td>
                     <td>
                       <div className="task-actions">
-                        {isResolved ? (
+                        {['failed', 'review_required', 'submitting'].includes(order.refund_status) ? (
+                          <button type="button" disabled={saving} onClick={() => retryRefund(order)}>Retry / check</button>
+                        ) : order.refund_status === 'processing' ? (
+                          <button type="button" disabled={saving} onClick={() => checkRefund(order)}>Check status</button>
+                        ) : isCancellation ? (
+                          <button type="button" onClick={() => { setDisputeResolutionNotes(''); setModal({ mode: 'review-cancellation', order }) }}>{order.refund_status === 'requested' ? 'Review' : 'View'}</button>
+                        ) : isResolved ? (
                           <button className="task-view" type="button" onClick={() => { setDisputeActivePhoto(null); setModal({ mode: 'review-dispute', order }) }} aria-label={`View resolved dispute ${order.order_number}`}><Eye aria-hidden="true" size={14} /> View</button>
                         ) : (
                           <button type="button" onClick={() => { setDisputeResolutionNotes(''); setDisputeRefundAmount(suggestedAmount); setDisputeRefundReference(''); setDisputeDecision('refunded'); setDisputeActivePhoto(null); setModal({ mode: 'review-dispute', order }) }}>Review</button>
@@ -894,11 +976,11 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                     </td>
                   </tr>
                   )
-                }) : <tr><td className="tasks-empty" colSpan="7">{disputeFilter === 'resolved' ? 'No resolved disputes yet.' : disputeFilter === 'open' ? 'No open disputes.' : 'No disputes.'}</td></tr>}</tbody>
+                }) : <tr><td className="tasks-empty" colSpan="7">{activeTab === 'refunds' ? 'No cancellation refund requests in this view.' : 'No delivery disputes in this view.'}</td></tr>}</tbody>
               </table>
             </div>
             <footer className="task-pagination">
-              <span>{openDisputeCount} open · {resolvedDisputeCount} resolved</span>
+              <span>{openReviewCount} need action · {resolvedReviewCount} reviewed or processing</span>
             </footer>
             </> : activeTab === 'tasks' ? <>
             <nav className="task-work-type-tabs" aria-label="Work type view">
@@ -1228,6 +1310,52 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         )
       })()}
 
+      {modal?.mode === 'review-cancellation' && (() => {
+        const order = modal.order
+        const pending = order.refund_status === 'requested'
+        return (
+          <WorkOrderDialog
+            size="wide"
+            eyebrow="Cancellation refund"
+            id={`#${order.order_number}`}
+            title={pending ? 'Review Cancellation Refund' : 'Cancellation Refund Details'}
+            titleId="review-cancellation-title"
+            sub={`Cancelled ${formatSchedule(order.cancelled_at)}${order.delivery_full_name ? ` by ${order.delivery_full_name}` : ''}`}
+            onClose={() => setModal(null)}
+            footerNote={pending ? 'Approval submits a test refund to PayMongo. Completion is confirmed separately.' : `Status: ${refundStatusLabel(order)}`}
+            footer={pending ? (<>
+              <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Close</button>
+              <button type="button" className="wo-btn is-danger" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveCancellationRefund('rejected')}>Reject request</button>
+              <button type="button" className="wo-btn is-primary" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveCancellationRefund('approved')}>
+                {saving ? 'Submitting…' : `Approve test refund ₱${Number(order.refund_amount || 0).toFixed(2)}`}
+              </button>
+            </>) : <button type="button" className="wo-btn" onClick={() => setModal(null)}>Close</button>}
+          >
+            <div className="wo-two">
+              <WoSection title="Order and payment">
+                <WoList>
+                  <WoRow label="Customer">{order.delivery_full_name || 'Not provided'}</WoRow>
+                  <WoRow label="Payment">{order.payment_method === 'gcash' ? 'GCash' : 'QR Ph'} · {order.payment_status}</WoRow>
+                  <WoRow label="Refund amount"><strong>₱{Number(order.refund_amount || 0).toFixed(2)}</strong></WoRow>
+                  <WoRow label="Cancelled">{formatSchedule(order.cancelled_at)}</WoRow>
+                  <WoRow label="Reason">{order.cancellation_reason || 'Not provided'}</WoRow>
+                  {qrphRefundLink(order) ? <WoRow label="Buyer claim link"><a href={qrphRefundLink(order)} target="_blank" rel="noopener noreferrer">Open PayMongo transfer link</a></WoRow> : order.refund_reference && <WoRow label="PayMongo reference">{order.refund_reference}</WoRow>}
+                </WoList>
+              </WoSection>
+              <WoSection title={pending ? 'Admin decision' : 'Decision'}>
+                {pending ? (
+                  <WoField label="Decision note (required, visible to the buyer)" htmlFor="cancellation-refund-notes">
+                    <textarea id="cancellation-refund-notes" className="wo-input" value={disputeResolutionNotes} onChange={(event) => setDisputeResolutionNotes(event.target.value)} rows={4} maxLength={1000} placeholder="Explain your decision…" />
+                  </WoField>
+                ) : <p className="wo-prose">{order.refund_decision_notes || 'No decision note recorded.'}</p>}
+                {order.refund_error && <p className="wo-error" role="alert">{order.refund_error}</p>}
+                {error && <p className="wo-error" role="alert">{error}</p>}
+              </WoSection>
+            </div>
+          </WorkOrderDialog>
+        )
+      })()}
+
       {modal?.mode === 'review-dispute' && (() => {
         const order = modal.order
         const parsedReport = parseDisputeReason(order.delivery_dispute_reason)
@@ -1235,7 +1363,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
           ? (Number(order.disputed_item.unit_price) * Number(order.delivery_dispute_affected_quantity || 0)).toFixed(2)
           : null
         const buyerPhotos = Array.isArray(order.delivery_dispute_photo_urls) ? order.delivery_dispute_photo_urls : []
-        const isGcash = order.payment_method === 'gcash'
+        const isOnline = ['gcash', 'qrph'].includes(order.payment_method)
         const isSeller = order.delivery_dispute_responsible_role === 'seller'
         const responsibleName = isSeller
           ? order.responsible_seller?.full_name || 'Seller (unidentified)'
@@ -1246,7 +1374,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         const refunding = disputeDecision === 'refunded'
         const resolved = order.delivery_dispute_status === 'resolved'
         const resolutionOutcome = order.delivery_dispute_resolution === 'refunded'
-          ? `Refunded${order.refund_amount != null ? ` ₱${Number(order.refund_amount).toFixed(2)}` : ''}`
+          ? `${refundStatusLabel(order)}${order.refund_amount != null ? ` ₱${Number(order.refund_amount).toFixed(2)}` : ''}`
           : order.delivery_dispute_resolution === 'dismissed' ? 'Claim dismissed' : 'Resolved'
         const chooseDecision = (decision) => {
           setDisputeDecision(decision)
@@ -1262,7 +1390,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
           || !disputeRefundAmount
           || Number(disputeRefundAmount) <= 0
           || Number(disputeRefundAmount) > Number(order.total_amount)
-          || (!isGcash && !disputeRefundReference.trim())
+          || (!isOnline && !disputeRefundReference.trim())
         const presets = refunding
           ? [
             ['Damage approved', 'Produce damaged in transit. Approved partial refund of item cost.'],
@@ -1282,14 +1410,14 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             titleId="review-dispute-title"
             sub={`Reported ${formatSchedule(order.delivery_dispute_created_at)}${order.delivery_full_name ? ` by ${order.delivery_full_name}` : ''}${resolved && order.delivery_dispute_resolved_at ? ` · Resolved ${formatSchedule(order.delivery_dispute_resolved_at)}` : ''}`}
             onClose={() => setModal(null)}
-            footerNote={resolved ? 'This dispute is closed.' : 'The customer is notified of the decision.'}
+            footerNote={resolved ? 'The dispute decision is closed. PayMongo refund status is shown separately.' : 'The customer is notified of the decision.'}
             footer={resolved ? (
               <button type="button" className="wo-btn" onClick={() => setModal(null)}>Close</button>
             ) : (<>
               <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Cancel</button>
               {refunding ? (
                 <button type="button" className="wo-btn is-primary" disabled={refundInvalid} onClick={() => resolveDispute('refunded')}>
-                  {saving ? 'Processing refund…' : `Confirm refund ₱${Number(disputeRefundAmount || 0).toFixed(2)}`}
+                  {saving ? 'Submitting…' : `${isOnline ? 'Approve test refund' : 'Confirm manual refund'} ₱${Number(disputeRefundAmount || 0).toFixed(2)}`}
                 </button>
               ) : (
                 <button type="button" className="wo-btn is-danger" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveDispute('dismissed')}>
@@ -1421,13 +1549,12 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                           />
                         </div>
                       </WoField>
-                      {isGcash ? (
+                      {isOnline ? (
                         <p className="wo-note">
-                          Paid with GCash. A refund of ₱{Number(disputeRefundAmount || 0).toFixed(2)} will be recorded for review. PayMongo refunds are not automated yet.
+                          Admin approval submits this test refund to PayMongo. It will show as refunded after PayMongo confirms success.
                         </p>
                       ) : (
-                        <WoField label={order.payment_method === 'qrph' ? 'PayMongo refund reference (required after refunding)' : `Manual transfer reference (required for ${order.payment_method || 'cash'})`} htmlFor="dispute-refund-reference">
-                          {order.payment_method === 'qrph' && <p className="wo-note">Complete the refund in PayMongo first, then enter its reference here.</p>}
+                        <WoField label={`Manual refund reference (required for ${order.payment_method || 'cash'})`} htmlFor="dispute-refund-reference">
                           <input
                             id="dispute-refund-reference"
                             className="wo-input"
@@ -1435,7 +1562,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                             value={disputeRefundReference}
                             onChange={(event) => setDisputeRefundReference(event.target.value)}
                             maxLength={300}
-                            placeholder={order.payment_method === 'qrph' ? 'PayMongo refund ID or reference' : 'e.g. Cash returned on inspection, or transfer ref #123456'}
+                            placeholder="e.g. Cash returned on inspection, or transfer ref #123456"
                           />
                         </WoField>
                       )}
