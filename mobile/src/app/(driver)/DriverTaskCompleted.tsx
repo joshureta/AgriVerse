@@ -43,7 +43,7 @@ function CompletedDeliveryCard({ order }: { order: DriverOrder }) {
     order.delivery_barangay ||
     'Delivery';
 
-  const paymentLabel = order.payment_method === 'gcash' ? 'GCash' : 'COD';
+  const paymentLabel = order.payment_method === 'gcash' ? 'GCash' : order.payment_method === 'qrph' ? 'QR Ph' : 'COD';
   const orderCode = order.order_number || `Order #${order.id}`;
 
   const deliveredTime = order.delivered_at

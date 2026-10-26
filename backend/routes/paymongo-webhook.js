@@ -59,18 +59,23 @@ router.post("/", async (req, res) => {
 
   try {
     if (intentId && eventType === "payment.paid") {
-      await getSupabase()
+      const { error } = await getSupabase()
         .from("buyer_orders")
         .update({ payment_status: "paid" })
-        .eq("paymongo_payment_intent_id", intentId);
+        .eq("paymongo_payment_intent_id", intentId)
+        .in("payment_status", ["pending", "failed"]);
+      if (error) throw error;
     } else if (intentId && eventType === "payment.failed") {
-      await getSupabase()
+      const { error } = await getSupabase()
         .from("buyer_orders")
         .update({ payment_status: "failed" })
-        .eq("paymongo_payment_intent_id", intentId);
+        .eq("paymongo_payment_intent_id", intentId)
+        .eq("payment_status", "pending");
+      if (error) throw error;
     }
   } catch (error) {
     console.error("Failed to apply PayMongo webhook event:", error.message);
+    return res.status(500).json({ error: "Unable to record payment event" });
   }
 
   return res.status(200).json({ received: true });

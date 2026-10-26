@@ -310,7 +310,7 @@ export default function DriverCompletedDeliveryDetailsScreen() {
                   <View style={styles.paymentMethodBadge}>
                     <CheckIcon size={10} color="#166534" />
                     <Text style={styles.paymentMethodBadgeText}>
-                      {order.payment_method === 'gcash' ? 'GCash (Paid)' : `${order.payment_method.toUpperCase()} (Collected)`}
+                      {order.payment_method === 'gcash' ? 'GCash (Paid)' : order.payment_method === 'qrph' ? 'QR Ph (Paid)' : `${order.payment_method.toUpperCase()} (Collected)`}
                     </Text>
                   </View>
                 </View>

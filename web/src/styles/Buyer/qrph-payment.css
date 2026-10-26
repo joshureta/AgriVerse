@@ -1,0 +1,16 @@
+.qrph-payment-action {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  border: 1px solid #dce9d7;
+  border-radius: 14px;
+  padding: 20px;
+  background: #f8fbf6;
+}
+
+.qrph-payment-action > strong { color: #216934; font-size: 15px; }
+.qrph-payment-action > p { max-width: 430px; margin: 0; color: #4e5b50; font-size: 13px; line-height: 1.55; }
+.qrph-payment-action .payment-confirmation-actions { margin-top: 6px; }
+.qrph-image { width: min(280px, 100%); height: auto; border: 1px solid #d9e5d8; border-radius: 10px; background: #fff; }

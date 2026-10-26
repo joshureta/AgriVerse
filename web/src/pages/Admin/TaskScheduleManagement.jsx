@@ -1166,8 +1166,8 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                 </WoSection>
                 <WoSection title="Payment">
                   <WoList>
-                    <WoRow label="Method">{isGcash ? 'GCash' : (order.payment_method || 'Cash').toUpperCase()}</WoRow>
-                    <WoRow label="Status">{order.payment_status ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1) : (isGcash ? 'Paid' : 'COD / settled')}</WoRow>
+                    <WoRow label="Method">{isGcash ? 'GCash' : order.payment_method === 'qrph' ? 'QR Ph' : (order.payment_method || 'Cash').toUpperCase()}</WoRow>
+                    <WoRow label="Status">{order.payment_status ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1) : (['gcash', 'qrph'].includes(order.payment_method) ? 'Paid' : 'COD / settled')}</WoRow>
                     <WoRow label="Total"><strong>₱{Number(order.total_amount || 0).toFixed(2)}</strong></WoRow>
                   </WoList>
                 </WoSection>
@@ -1304,7 +1304,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                   <WoList>
                     <WoRow label="Customer">{order.delivery_full_name || 'Not provided'}</WoRow>
                     <WoRow label={isSeller ? 'Seller' : 'Driver'}>{responsibleName}</WoRow>
-                    <WoRow label="Payment">{isGcash ? 'GCash' : (order.payment_method || 'Cash').toUpperCase()}{order.payment_status ? `, ${order.payment_status}` : ''}</WoRow>
+                    <WoRow label="Payment">{order.payment_method === 'gcash' ? 'GCash' : order.payment_method === 'qrph' ? 'QR Ph' : (order.payment_method || 'Cash').toUpperCase()}{order.payment_status ? `, ${order.payment_status}` : ''}</WoRow>
                     <WoRow label="Reported">{formatSchedule(order.delivery_dispute_created_at)}</WoRow>
                   </WoList>
                 </WoSection>
@@ -1423,10 +1423,11 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                       </WoField>
                       {isGcash ? (
                         <p className="wo-note">
-                          Paid with GCash. A refund of ₱{Number(disputeRefundAmount || 0).toFixed(2)} will be recorded in the dispute record for audit (PayMongo automated disbursement is pending integration).
+                          Paid with GCash. A refund of ₱{Number(disputeRefundAmount || 0).toFixed(2)} will be recorded for review. PayMongo refunds are not automated yet.
                         </p>
                       ) : (
-                        <WoField label={`Manual transfer reference (required for ${order.payment_method || 'cash'})`} htmlFor="dispute-refund-reference">
+                        <WoField label={order.payment_method === 'qrph' ? 'PayMongo refund reference (required after refunding)' : `Manual transfer reference (required for ${order.payment_method || 'cash'})`} htmlFor="dispute-refund-reference">
+                          {order.payment_method === 'qrph' && <p className="wo-note">Complete the refund in PayMongo first, then enter its reference here.</p>}
                           <input
                             id="dispute-refund-reference"
                             className="wo-input"
@@ -1434,7 +1435,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                             value={disputeRefundReference}
                             onChange={(event) => setDisputeRefundReference(event.target.value)}
                             maxLength={300}
-                            placeholder="e.g. Cash returned on inspection, or GCash ref #123456"
+                            placeholder={order.payment_method === 'qrph' ? 'PayMongo refund ID or reference' : 'e.g. Cash returned on inspection, or transfer ref #123456'}
                           />
                         </WoField>
                       )}

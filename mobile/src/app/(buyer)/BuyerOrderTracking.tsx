@@ -32,6 +32,7 @@ const PAYMENT_METHOD_LABELS: Record<BuyerOrder['payment_method'], string> = {
   cash: 'Cash on Delivery',
   bank: 'Bank Transfer',
   gcash: 'GCash',
+  qrph: 'QR Ph',
 };
 
 const STATUS_RANK: Record<BuyerOrder['order_status'], number> = {
@@ -102,7 +103,7 @@ function getStatusLabel(status: BuyerOrder['order_status']) {
   }
 }
 
-// A cancelled order (refunded automatically if it was paid) is not a return.
+// A cancelled order stays under Cancelled, including while its refund is pending.
 function isReturnOrRefund(order: BuyerOrder) {
   if (order.order_status === 'cancelled') return false;
   return order.payment_status === 'refunded' || Boolean(order.delivery_dispute_status);
@@ -878,6 +879,12 @@ export default function BuyerOrderTrackingScreen() {
       <ScrollView contentContainerStyle={w.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={w.title}>Order {order.order_number}</Text>
 
+        {order.payment_method === 'qrph' && !isCancelled && !['paid', 'refunded'].includes(order.payment_status) ? (
+          <Pressable style={[w.bigButton, w.bigButtonFilled, { marginBottom: 18 }]} onPress={() => router.push({ pathname: '/BuyerQrphPayment', params: { id: String(order.id) } })}>
+            <Text style={[w.bigButtonText, w.bigButtonFilledText]}>Complete QR Ph payment</Text>
+          </Pressable>
+        ) : null}
+
         {showReceipt ? (
           <CancelledReceipt
             buyingAgain={buyingAgain}
@@ -970,7 +977,7 @@ export default function BuyerOrderTrackingScreen() {
                 <Text style={w.actionTitle}>Need to cancel this order?</Text>
                 <Text style={w.actionText}>
                   This order hasn&apos;t started preparing yet, so you can still cancel it
-                  {order.payment_method === 'gcash' && order.payment_status === 'paid' ? ' for a full refund to your GCash.' : '.'}
+                  {['gcash', 'qrph'].includes(order.payment_method) && order.payment_status === 'paid' ? ' and request a refund of the payment.' : '.'}
                 </Text>
                 <View style={w.actionButtons}>
                   <Pressable accessibilityRole="button" onPress={() => setShowCancelModal(true)} style={[w.button, w.buttonDanger]}>

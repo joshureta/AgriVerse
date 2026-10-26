@@ -33,9 +33,9 @@ const AUTO_COMPLETE_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
 // Webhooks are the primary way payment_status gets updated, but they can't reach a
 // backend that PayMongo can't route to (e.g. local dev without a public tunnel) and
 // can occasionally be missed in production. As a fallback, whenever a buyer looks up
-// a still-pending GCash order we also ask PayMongo directly and reconcile.
-async function reconcileGcashPaymentStatus(order) {
-  if (order.payment_method !== "gcash" || order.payment_status !== "pending" || !order.paymongo_payment_intent_id) {
+// a still-pending online order we also ask PayMongo directly and reconcile.
+async function reconcileOnlinePaymentStatus(order) {
+  if (!["gcash", "qrph"].includes(order.payment_method) || order.payment_status !== "pending" || !order.paymongo_payment_intent_id) {
     return order;
   }
   try {
@@ -43,7 +43,7 @@ async function reconcileGcashPaymentStatus(order) {
     const attributes = intent?.data?.attributes;
     const nextStatus = attributes?.status === "succeeded"
       ? "paid"
-      : attributes?.status === "awaiting_payment_method" && attributes?.last_payment_error
+      : attributes?.status === "awaiting_payment_method" && (attributes?.last_payment_error || order.payment_method === "qrph")
         ? "failed"
         : null;
     if (!nextStatus) return order;
@@ -62,7 +62,7 @@ async function reconcileGcashPaymentStatus(order) {
 }
 
 // If the buyer never confirms or disputes a delivered order within the window,
-// it auto-completes the next time they look at it (same idea as reconcileGcashPaymentStatus above).
+// it auto-completes the next time they look at it (same idea as payment reconciliation above).
 async function reconcileDeliveryCompletion(order) {
   if (order.order_status !== "delivered" || order.delivery_dispute_status || order.buyer_confirmed_at || !order.delivery_proof_submitted_at) {
     return order;
@@ -268,7 +268,7 @@ router.get("/:id", async (req, res, next) => {
       .single();
     if (error?.code === "PGRST116") throw httpError(404, "Order not found");
     if (error) throw error;
-    const paymentReconciledOrder = await reconcileGcashPaymentStatus(data);
+    const paymentReconciledOrder = await reconcileOnlinePaymentStatus(data);
     const reconciledOrder = await reconcileDeliveryCompletion(paymentReconciledOrder);
     return res.json({ order: await attachCancellationReason(serializeOrder(reconciledOrder)) });
   } catch (error) {
@@ -490,7 +490,7 @@ router.post("/", async (req, res, next) => {
     const idempotencyKey = req.body.idempotency_key == null ? null : String(req.body.idempotency_key);
 
     if (!['delivery', 'pickup'].includes(deliveryMethod)) throw httpError(400, "Select a valid delivery method");
-    if (!['cash', 'bank', 'gcash'].includes(paymentMethod)) throw httpError(400, "Select a valid payment method");
+    if (!['cash', 'bank', 'gcash', 'qrph'].includes(paymentMethod)) throw httpError(400, "Select a valid payment method");
     if (note.length > 1000) throw httpError(400, "Additional information must not exceed 1000 characters");
     if (items.length < 1 || items.length > 20) throw httpError(400, "The shopping cart is empty or invalid");
     if (idempotencyKey !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
@@ -553,6 +553,9 @@ router.post("/", async (req, res, next) => {
 
     if (error) {
       if (/insufficient stock/i.test(error.message || "")) throw httpError(409, error.message);
+      if (paymentMethod === "qrph" && (/invalid payment method|buyer_orders_payment_method_check/i.test(error.message || ""))) {
+        throw httpError(503, "Run Supabase migration 041_qrph_payments.sql before accepting QR Ph orders");
+      }
       if (idempotencyKey && (error.code === "PGRST202" || /place_buyer_order_idempotent.*schema cache/i.test(error.message || ""))) {
         throw httpError(503, "Run Supabase migration 039_checkout_idempotency.sql before accepting web checkout orders");
       }

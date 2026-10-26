@@ -209,7 +209,7 @@ router.post("/:id/resolve-dispute", async (req, res, next) => {
         refundReference = "Recorded — GCash refund not yet automated, no money moved by this action";
       } else {
         refundReference = String(req.body.refund_reference || "").trim();
-        if (!refundReference) throw httpError(400, "Add a reference for the manual cash/bank transfer before confirming");
+        if (!refundReference) throw httpError(400, "Add a reference for the completed manual refund before confirming");
         if (refundReference.length > 300) throw httpError(400, "Refund reference must not exceed 300 characters");
       }
 

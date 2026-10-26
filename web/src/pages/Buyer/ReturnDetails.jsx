@@ -189,7 +189,7 @@ export default function ReturnDetails() {
                 <ReturnDecision
                   order={order}
                   formatDate={formatDateTime}
-                  paymentLabel={order.payment_method === 'gcash' ? 'Your GCash account' : 'Cash or bank transfer'}
+                  paymentLabel={order.payment_method === 'gcash' ? 'GCash' : order.payment_method === 'qrph' ? 'QR Ph' : 'Cash or bank transfer'}
                 />
 
                 <section className="delivery-card return-panel" aria-labelledby="return-produce-title">

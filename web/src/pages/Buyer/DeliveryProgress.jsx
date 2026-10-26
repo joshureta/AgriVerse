@@ -80,6 +80,7 @@ const PAYMENT_METHOD_LABELS = {
   cash: 'Cash on Delivery',
   bank: 'Bank Transfer',
   gcash: 'GCash',
+  qrph: 'QR Ph',
 }
 
 function canCancelOrder(order) {
@@ -122,13 +123,13 @@ const ORDER_FILTERS = [
 ]
 
 function isReturnOrRefund(order) {
-  // A cancelled order (refunded automatically if it was paid) stays under Cancelled.
+  // A cancelled order stays under Cancelled, including while its refund is pending.
   if (order.order_status === 'cancelled') return false
   return order.payment_status === 'refunded' || Boolean(order.delivery_dispute_status)
 }
 
 function needsPayment(order) {
-  return order.payment_method === 'gcash' && order.order_status !== 'cancelled' && ['unpaid', 'pending', 'failed'].includes(order.payment_status)
+  return ['gcash', 'qrph'].includes(order.payment_method) && order.order_status !== 'cancelled' && ['unpaid', 'pending', 'failed'].includes(order.payment_status)
 }
 
 function matchesOrderFilter(order, filter) {
@@ -616,7 +617,7 @@ export default function DeliveryProgress() {
                 )}
               </dl>
               {selectedOrder.refund_amount != null && (
-                <p className="cancelled-refund-note">We'll return the refund to your {PAYMENT_METHOD_LABELS[selectedOrder.payment_method] || selectedOrder.payment_method}, the payment method you used.</p>
+                <p className="cancelled-refund-note">A refund is recorded for review. Contact support for its payment status.</p>
               )}
             </section>
 
@@ -653,6 +654,13 @@ export default function DeliveryProgress() {
           )}
           <div className="order-detail-layout">
           <div className="order-detail-main">
+          {selectedOrder.payment_method === 'qrph' && needsPayment(selectedOrder) && (
+            <section className="delivery-card" aria-label="QR Ph payment">
+              <h2>QR Ph payment pending</h2>
+              <p>Use BDO Pay or another QR Ph app to complete this order.</p>
+              <a className="order-detail-link-button" href={`/buyer/qrph-payment?order=${encodeURIComponent(selectedOrder.id)}`}>Open QR Ph payment</a>
+            </section>
+          )}
           <section
             className={`delivery-card delivery-route ${progressCollapsed ? 'is-collapsed' : ''}`}
             aria-label={progressCollapsed ? 'Order progress' : undefined}
@@ -803,7 +811,7 @@ export default function DeliveryProgress() {
                 <h2 id="delivery-cancel-title">Need to cancel this order?</h2>
                 <p>
                   This order hasn't started preparing yet, so you can still cancel it
-                  {selectedOrder.payment_method === 'gcash' && selectedOrder.payment_status === 'paid' ? ' for a full refund to your GCash.' : '.'}
+                  {['gcash', 'qrph'].includes(selectedOrder.payment_method) && selectedOrder.payment_status === 'paid' ? ' and request a refund of the payment.' : '.'}
                 </p>
                 <div className="delivery-confirmation-actions">
                   <button type="button" className="is-danger" onClick={() => openCancelModal(selectedOrder)}>Cancel Order</button>
@@ -880,9 +888,9 @@ export default function DeliveryProgress() {
               )}
             </fieldset>
 
-            {cancelTarget.payment_method === 'gcash' && cancelTarget.payment_status === 'paid' && (
+            {['gcash', 'qrph'].includes(cancelTarget.payment_method) && cancelTarget.payment_status === 'paid' && (
               <div className="cancel-modal-refund-note">
-                Paid via GCash — PHP {Number(cancelTarget.total_amount || 0).toLocaleString()} will be refunded to your GCash account.
+                PHP {Number(cancelTarget.total_amount || 0).toLocaleString()} was paid online. Cancelling records a refund request for review; it does not send funds automatically.
               </div>
             )}
 

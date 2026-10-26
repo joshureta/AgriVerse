@@ -213,7 +213,7 @@ export default function BuyerReturnDetailsScreen() {
                   {!isDismissed ? (
                     <View>
                       <Text style={styles.decisionFactLabel}>Refund to</Text>
-                      <Text style={styles.decisionFactValue}>{order.payment_method === 'gcash' ? 'Your GCash account' : 'Cash or bank transfer'}</Text>
+                      <Text style={styles.decisionFactValue}>{order.payment_method === 'gcash' ? 'GCash' : order.payment_method === 'qrph' ? 'QR Ph' : 'Cash or bank transfer'}</Text>
                     </View>
                   ) : null}
                   {!isDismissed && manualRefundReference ? (

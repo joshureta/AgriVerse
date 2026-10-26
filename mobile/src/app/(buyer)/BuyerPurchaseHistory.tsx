@@ -69,7 +69,7 @@ function isReturnOrRefund(order: BuyerOrder) {
 }
 
 function needsPayment(order: BuyerOrder) {
-  return order.payment_method === 'gcash' && !['paid', 'refunded'].includes(order.payment_status) && order.order_status !== 'cancelled';
+  return ['gcash', 'qrph'].includes(order.payment_method) && !['paid', 'refunded'].includes(order.payment_status) && order.order_status !== 'cancelled';
 }
 
 function matchesOrderFilter(order: BuyerOrder, filter: OrderFilter) {

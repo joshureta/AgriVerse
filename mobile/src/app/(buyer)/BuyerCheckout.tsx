@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { openBrowserAsync } from 'expo-web-browser';
+import { QrCode } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
@@ -165,16 +166,6 @@ function CashIcon({ color = GREEN, size = 20 }: { color?: string; size?: number 
   );
 }
 
-function CardIcon({ color = GREEN, size = 20 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x={2} y={5} width={20} height={14} rx={2} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M2 10h20" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M6 15h2M10 15h4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
 function CloseIcon({ color = '#556658', size = 15 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -204,7 +195,7 @@ const DELIVERY_METHODS = [
 
 const PAYMENT_METHODS = [
   { key: 'cash', label: 'Cash on Delivery', sub: 'Pay with cash when your pineapples arrive.' },
-  { key: 'bank', label: 'Bank Transfer', sub: 'Transfer directly to the JToledo bank account.' },
+  { key: 'qrph', label: 'QR Ph', sub: 'Pay using BDO Pay or another QR Ph banking app.' },
   { key: 'gcash', label: 'GCash', sub: 'Pay securely using your GCash mobile wallet.' },
 ] as const;
 
@@ -231,8 +222,8 @@ function OptionCard({
         return <PackageIcon color={iconColor} size={20} />;
       case 'cash':
         return <CashIcon color={iconColor} size={20} />;
-      case 'bank':
-        return <CardIcon color={iconColor} size={20} />;
+      case 'qrph':
+        return <View style={styles.qrphBadge}><QrCode color="#ffffff" size={24} /></View>;
       case 'gcash':
         return (
           <View style={styles.gcashBadge}>
@@ -251,7 +242,7 @@ function OptionCard({
       accessibilityState={{ selected: active }}
       onPress={onPress}
       style={({ pressed }) => [styles.optionCard, active && styles.optionCardActive, pressed && styles.optionCardPressed]}>
-      {methodKey === 'gcash' ? (
+      {['gcash', 'qrph'].includes(methodKey) ? (
         renderIcon()
       ) : (
         <View style={[styles.optionIconCircle, active && styles.optionIconCircleActive]}>{renderIcon()}</View>
@@ -420,6 +411,11 @@ export default function BuyerCheckoutScreen() {
         }
       }
 
+      if (paymentMethod === 'qrph') {
+        router.replace({ pathname: '/BuyerQrphPayment', params: { id: String(order.id) } });
+        return;
+      }
+
       router.replace({ pathname: '/BuyerOrderTracking', params: { id: String(order.id) } });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not place your order.');
@@ -564,22 +560,6 @@ export default function BuyerCheckoutScreen() {
             />
           ))}
 
-          {paymentMethod === 'bank' ? (
-            <View style={styles.bankDetailsCard}>
-              <View style={styles.bankDetailRow}>
-                <Text style={styles.bankDetailLabel}>Account Name</Text>
-                <Text style={styles.bankDetailValue}>Joseph Toledo</Text>
-              </View>
-              <View style={styles.bankDetailRow}>
-                <Text style={styles.bankDetailLabel}>Bank Name</Text>
-                <Text style={styles.bankDetailValue}>BDO</Text>
-              </View>
-              <View style={styles.bankDetailRow}>
-                <Text style={styles.bankDetailLabel}>Account Number</Text>
-                <Text style={styles.bankDetailValue}>J090037738346</Text>
-              </View>
-            </View>
-          ) : null}
         </View>
 
         {/* COST BREAKDOWN */}

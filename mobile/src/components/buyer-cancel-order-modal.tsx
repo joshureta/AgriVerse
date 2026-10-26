@@ -72,7 +72,7 @@ export function BuyerCancelOrderModal({
     }
   }
 
-  const willRefundGcash = order?.payment_method === 'gcash' && order?.payment_status === 'paid';
+  const hasPaidOnline = ['gcash', 'qrph'].includes(order?.payment_method || '') && order?.payment_status === 'paid';
 
   return (
     <Modal animationType="slide" onRequestClose={handleClose} transparent visible={Boolean(order)}>
@@ -131,11 +131,10 @@ export function BuyerCancelOrderModal({
             />
           ) : null}
 
-          {willRefundGcash ? (
+          {hasPaidOnline ? (
             <View style={styles.refundNote}>
               <Text style={styles.refundNoteText}>
-                Paid via GCash — ₱{Number(order?.total_amount || 0).toFixed(2)} will be refunded to your GCash
-                account.
+                ₱{Number(order?.total_amount || 0).toFixed(2)} was paid online. Cancelling records a refund request for review; it does not send funds automatically.
               </Text>
             </View>
           ) : null}
