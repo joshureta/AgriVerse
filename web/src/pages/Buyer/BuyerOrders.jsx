@@ -18,36 +18,6 @@ import { loadBuyerReviews, loadPineappleProducts, readBuyerCart, writeBuyerCart 
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/shoppingCart.css'
 
-const reviewTitles = ['Fresh and naturally sweet', 'Carefully packed', 'Good value for the size', 'Perfect for sharing', 'Easy farm pickup', 'Fresh with a small caveat']
-const reviewSizes = ['Medium Pineapple', 'Large Pineapple', 'Large Pineapple', 'Medium Pineapple', 'Small Pineapple', 'Small Pineapple']
-
-const reviews = [
-  { id: 1, name: 'Juan D.', date: 'May 12, 2026', text: 'Ordered two medium pineapples. Both were ripe, juicy, and sweeter than the ones I usually get at the grocery.', rating: 5 },
-  { id: 2, name: 'Maria S.', date: 'May 9, 2026', text: 'Delivered the next morning and packed carefully. The pineapple was ready to eat when it arrived.', rating: 5 },
-  { id: 3, name: 'Kevin L.', date: 'May 7, 2026', text: 'The box had a small dent, but the fruit inside was fine. Good flavor and a fair price for the large size.', rating: 4 },
-  { id: 4, name: 'Angela R.', date: 'May 5, 2026', text: 'Used the large pineapple for fruit salad. It was fragrant, sweet, and had very little sourness.', rating: 5 },
-  { id: 5, name: 'Paolo M.', date: 'May 2, 2026', text: 'Ordering was straightforward and the stock count was accurate. Pickup only took a few minutes.', rating: 5 },
-  { id: 6, name: 'Leah C.', date: 'April 29, 2026', text: 'Sweet and fresh, although the small pineapple was a little smaller than I expected. Still good for one person.', rating: 4 },
-  { id: 7, name: 'Carlo B.', date: 'April 26, 2026', text: 'Arrived within the delivery window with no bruises. We chilled it overnight and it tasted great the next day.', rating: 5 },
-  { id: 8, name: 'Grace T.', date: 'April 23, 2026', text: 'Bought three for a family gathering. All three had consistent ripeness and none had soft or damaged spots.', rating: 5 },
-  { id: 9, name: 'Miguel A.', date: 'April 20, 2026', text: 'The fruit was good, but delivery came one day later than the estimate. Customer support replied quickly.', rating: 3 },
-  { id: 10, name: 'Nina P.', date: 'April 17, 2026', text: 'The large size had plenty of flesh and only a small core. Sweet enough to eat without adding sugar.', rating: 5 },
-  { id: 11, name: 'Ramon G.', date: 'April 14, 2026', text: 'Cleanly packed and still firm on arrival. I left it on the counter for a day and the flavor improved.', rating: 4 },
-  { id: 12, name: 'Ella V.', date: 'April 11, 2026', text: 'This was my second order. The quality was just as good as the first, and the pineapple smelled very fresh.', rating: 5 },
-  { id: 13, name: 'Marco F.', date: 'April 8, 2026', text: 'Mine arrived slightly underripe, but it became sweet after two days. No bruising and the leaves were healthy.', rating: 4 },
-  { id: 14, name: 'Joyce N.', date: 'April 5, 2026', text: 'Good balance of sweetness and acidity. The medium size was enough for dessert for four people.', rating: 5 },
-  { id: 15, name: 'Luis E.', date: 'April 2, 2026', text: 'Pickup instructions were clear and the staff had my order ready. The pineapple was firm and evenly colored.', rating: 5 },
-  { id: 16, name: 'Bea H.', date: 'March 30, 2026', text: 'Fresh and tasty, but I would prefer an option to request a riper fruit for same-day serving.', rating: 4 },
-  { id: 17, name: 'Daniel K.', date: 'March 27, 2026', text: 'The small pineapple was perfect for smoothies. It had a strong natural flavor and was not watery.', rating: 5 },
-  { id: 18, name: 'Sofia J.', date: 'March 24, 2026', text: 'First time ordering directly from the farm. The fruit arrived fresh, and I liked knowing where it came from.', rating: 5 },
-].map((review, index) => ({
-  ...review,
-  title: reviewTitles[index % reviewTitles.length],
-  productSize: reviewSizes[index % reviewSizes.length],
-  helpful: [12, 8, 6, 9, 4, 5][index % 6],
-  verified: true,
-}))
-
 export default function BuyerOrders() {
   const [products, setProducts] = useState([])
   const [quantities, setQuantities] = useState({})
@@ -56,6 +26,9 @@ export default function BuyerOrders() {
   const [stockNotice, setStockNotice] = useState('')
   const [cartNotice, setCartNotice] = useState('')
   const [customerReviews, setCustomerReviews] = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(true)
+  const [reviewsError, setReviewsError] = useState('')
+  const [reviewsRetry, setReviewsRetry] = useState(0)
   const [reviewIndex, setReviewIndex] = useState(0)
   const [reviewSort, setReviewSort] = useState('recent')
   const [reviewFilter, setReviewFilter] = useState('all')
@@ -129,11 +102,22 @@ export default function BuyerOrders() {
 
   useEffect(() => {
     let cancelled = false
+    setReviewsLoading(true)
+    setReviewsError('')
     loadBuyerReviews()
-      .then((loaded) => { if (!cancelled) setCustomerReviews(loaded.map((review) => ({ ...review, date: new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(review.date)), title: 'Verified purchase', helpful: 0, verified: true }))) })
-      .catch(() => { if (!cancelled) setCustomerReviews(reviews) })
+      .then((loaded) => {
+        if (cancelled) return
+        setCustomerReviews(loaded.map((review) => ({ ...review, date: new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(review.date)), title: 'Verified purchase', helpful: 0, verified: true })))
+        setReviewIndex(0)
+      })
+      .catch((requestError) => {
+        if (cancelled) return
+        setCustomerReviews([])
+        setReviewsError(requestError.message || 'Unable to load customer reviews.')
+      })
+      .finally(() => { if (!cancelled) setReviewsLoading(false) })
     return () => { cancelled = true }
-  }, [])
+  }, [reviewsRetry])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -296,6 +280,17 @@ export default function BuyerOrders() {
               </div>
             </div>
 
+            {reviewsLoading ? (
+              <div className="marketplace-review-empty" role="status">Loading customer reviews...</div>
+            ) : reviewsError ? (
+              <div className="marketplace-review-empty" role="alert">
+                <p>{reviewsError}</p>
+                <button className="marketplace-review-view-all" type="button" onClick={() => setReviewsRetry((current) => current + 1)}>Try again</button>
+              </div>
+            ) : customerReviews.length === 0 ? (
+              <div className="marketplace-review-empty">No customer reviews yet.</div>
+            ) : (
+              <>
             <div className="marketplace-review-overview">
               <div className="review-average">
                 <strong>{reviewAverage.toFixed(1)}</strong>
@@ -349,6 +344,8 @@ export default function BuyerOrders() {
               </>
             )}
             <button className="marketplace-review-view-all" type="button" onClick={() => setShowAllReviews((current) => !current)}>{showAllReviews ? 'Show review gallery' : `View all ${filteredReviews.length} reviews`}</button>
+              </>
+            )}
           </section>
         </div>
 
