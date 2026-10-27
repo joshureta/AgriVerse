@@ -63,6 +63,13 @@ test("protected routes require an access token", async () => {
   assert.equal(body.error, "Authentication required");
 });
 
+test("daily environmental reports require an admin session", async () => {
+  const response = await fetch(`${baseUrl}/api/admin/environmental-reports?field=Field%20A&date=2026-10-27`);
+  const body = await response.json();
+  assert.equal(response.status, 401);
+  assert.equal(body.error, "Authentication required");
+});
+
 test("initial password change requires an access token", async () => {
   const response = await fetch(`${baseUrl}/api/mobile/auth/change-initial-password`, {
     method: "POST",

@@ -27,6 +27,7 @@ const weatherRouter = require("./routes/weather");
 const notificationsRouter = require("./routes/notifications");
 const adminDashboardRouter = require("./routes/admin-dashboard");
 const sellerDashboardRouter = require("./routes/seller-dashboard");
+const environmentalReportsRouter = require("./routes/environmental-reports");
 
 const app = express();
 
@@ -117,6 +118,7 @@ app.use("/api/driver/orders", driverOrdersRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/weather", weatherRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/admin/environmental-reports", environmentalReportsRouter);
 
 const PORT = process.env.PORT || 5000;
 
@@ -143,6 +145,22 @@ if (require.main === module) {
       console.warn(`Supabase is not configured: ${supabaseConfig.error}`);
     }
   });
+
+  const { finalizeYesterday } = require("./lib/environmental-report-service");
+  const runFinalization = () => finalizeYesterday().catch((error) => {
+    console.error("Environmental report finalization failed:", error);
+  });
+  const scheduleNextFinalization = () => {
+    const now = Date.now();
+    const nextManila = new Date(now + 8 * 60 * 60 * 1000);
+    nextManila.setUTCHours(24, 5, 0, 0);
+    const delay = nextManila.getTime() - 8 * 60 * 60 * 1000 - now;
+    setTimeout(() => {
+      runFinalization().finally(scheduleNextFinalization);
+    }, delay);
+  };
+  runFinalization();
+  scheduleNextFinalization();
 }
 
 module.exports = app;

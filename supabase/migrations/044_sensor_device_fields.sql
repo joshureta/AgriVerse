@@ -1,5 +1,5 @@
--- Run this migration in the sensor Supabase project.
--- The esp32-01 device is assigned to Field A below.
+-- Run this migration in the sensor Supabase project. Assign each installed
+-- device to its physical field in the SQL editor after confirming its location.
 create table if not exists public.sensor_device_fields (
   device_id text primary key,
   field_name text not null check (field_name in ('Field A', 'Field B', 'Field C', 'Field D'))
@@ -49,8 +49,9 @@ create index if not exists sensor_readings_device_time_idx
 create index if not exists soil_readings_device_time_idx
   on public.soil_readings (device_id, created_at desc);
 
-insert into public.sensor_device_fields (device_id, field_name)
-values ('esp32-01', 'Field A')
-on conflict (device_id) do update set field_name = excluded.field_name;
+-- Example after verifying where the ESP32 is installed:
+-- insert into public.sensor_device_fields (device_id, field_name)
+-- values ('esp32-01', 'Field A')
+-- on conflict (device_id) do update set field_name = excluded.field_name;
 -- Existing readings remain unassigned. Backfill them only after verifying
 -- that the device was in the same field for the entire historical period.

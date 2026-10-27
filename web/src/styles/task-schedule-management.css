@@ -2850,7 +2850,7 @@
 .task-schedule-page { background: #f6f8f5; }
 .task-schedule-content { width: min(1240px, calc(100% - 56px)); padding: 30px 0 52px; }
 .task-page-heading { margin-bottom: 24px; }
-.task-page-heading h1 { color: #173b24; font-size: clamp(27px, 2.4vw, 34px); letter-spacing: -.035em; }
+.task-page-heading h1 { font-size: clamp(27px, 2.4vw, 34px); letter-spacing: -.035em; }
 .task-page-heading p { color: #66756b !important; font-size: 12px !important; }
 .task-review-alerts { display: grid; gap: 10px; margin-bottom: 22px; }
 .task-review-alert { min-height: 54px; display: flex; align-items: center; gap: 12px; box-sizing: border-box; border: 1px solid; border-left-width: 5px; border-radius: 8px; padding: 9px 14px; }

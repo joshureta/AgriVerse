@@ -70,6 +70,27 @@ async function loadWeather() {
   return body
 }
 
+async function requestEnvironmentalReport(field, date, generate = false) {
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw error
+  const token = data.session?.access_token
+  if (!token) throw new Error('Your session has ended. Please sign in again.')
+  const url = generate
+    ? `${API_URL}/api/admin/environmental-reports`
+    : `${API_URL}/api/admin/environmental-reports?${new URLSearchParams({ field, date })}`
+  const response = await fetch(url, {
+    method: generate ? 'POST' : 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(generate ? { 'Content-Type': 'application/json' } : {}),
+    },
+    ...(generate ? { body: JSON.stringify({ field, date }) } : {}),
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load the daily report.')
+  return body
+}
+
 function formatSensorReading(reading) {
   const measuredAt = new Date(reading.created_at)
   return {
@@ -168,6 +189,11 @@ function mergeReadings(current, fresh) {
 
 export default function EnvironmentalMonitoring() {
   const [activeField, setActiveField] = useState('Field A')
+  const [reportDate, setReportDate] = useState(() => manilaDayBounds().day)
+  const [dailyReport, setDailyReport] = useState(null)
+  const [reportLoading, setReportLoading] = useState(true)
+  const [reportGenerating, setReportGenerating] = useState(false)
+  const [reportError, setReportError] = useState('')
   const [page, setPage] = useState(1)
   const readingsPerPage = READINGS_PER_PAGE
   const [weather, setWeather] = useState(null)
@@ -180,6 +206,9 @@ export default function EnvironmentalMonitoring() {
   const [sensorLoading, setSensorLoading] = useState(true)
   const [statusNow, setStatusNow] = useState(() => Date.now())
   const [dismissedAlerts, setDismissedAlerts] = useState([])
+  const todayInManila = manilaDayBounds(statusNow).day
+  const reportData = dailyReport?.report
+  const savedSummary = dailyReport?.saved
   const fieldReadings = useMemo(() => readingsForField(readings, activeField), [readings, activeField])
   const fieldSoilReadings = useMemo(() => readingsForField(soilReadings, activeField), [soilReadings, activeField])
   const currentTemperature = latestCurrentReading(fieldReadings, 'temperature_c', statusNow)
@@ -335,6 +364,50 @@ export default function EnvironmentalMonitoring() {
     })
     return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    let active = true
+    setDailyReport(null)
+    setReportError('')
+    setReportLoading(true)
+    const refreshReport = () => {
+      requestEnvironmentalReport(activeField, reportDate).then((result) => {
+        if (active) {
+          setDailyReport((current) => current?.saved?.ephemeral && !result.saved
+            ? { ...result, saved: current.saved }
+            : result)
+          setReportError('')
+        }
+      }).catch((error) => {
+        if (active) setReportError(error.message)
+      }).finally(() => {
+        if (active) setReportLoading(false)
+      })
+    }
+    refreshReport()
+    const refreshTimer = window.setInterval(() => {
+      if (reportDate === manilaDayBounds().day) refreshReport()
+    }, 5 * 60 * 1000)
+    return () => {
+      active = false
+      window.clearInterval(refreshTimer)
+    }
+  }, [activeField, reportDate])
+
+  const generateReport = async () => {
+    setReportGenerating(true)
+    setReportError('')
+    try {
+      const result = await requestEnvironmentalReport(activeField, reportDate, true)
+      setDailyReport((current) => current?.report?.field === activeField && current?.report?.date === reportDate
+        ? result
+        : current)
+    } catch (error) {
+      setReportError(error.message)
+    } finally {
+      setReportGenerating(false)
+    }
+  }
 
   useEffect(() => {
     if (!sensorSupabase) {
@@ -636,12 +709,76 @@ export default function EnvironmentalMonitoring() {
             )}
           </section>
 
-          <section className="environment-insights-card">
-            <header><Antenna aria-hidden="true" /><h2>Environmental Insights</h2></header>
-            <div className="environment-insights-copy">
-              <p>Specific environmental guidance for {activeField}:</p>
-              <p>Insights will be dynamically generated as the latest field and weather data is analyzed.</p>
-            </div>
+          <section className="environment-report-card" aria-label="Daily environmental report">
+            <header className="environment-report-header">
+              <div>
+                <h2><Antenna aria-hidden="true" />Daily Environmental Report</h2>
+                <p>{activeField} · Manila time</p>
+              </div>
+              <div className="environment-report-controls">
+                <label htmlFor="environment-report-date">Date</label>
+                <input id="environment-report-date" type="date" max={todayInManila} value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
+              </div>
+            </header>
+
+            {reportLoading && <p className="environment-report-state">Loading daily readings…</p>}
+            {reportError && <p className="environment-report-state is-error" role="alert"><AlertTriangle aria-hidden="true" />{reportError}</p>}
+            {!reportLoading && reportData && (
+              <>
+                <div className="environment-report-status-row">
+                  <span className={`environment-report-status is-${reportData.status}`}>
+                    {reportData.status === 'insufficient'
+                      ? reportData.hasReadings ? 'Partial readings' : 'No readings'
+                      : reportData.isToday ? 'Day in progress' : 'Final day'}
+                  </span>
+                  <span>{reportData.firstAt && reportData.lastAt
+                    ? `Recorded ${new Date(reportData.firstAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}–${new Date(reportData.lastAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}`
+                    : 'No readings recorded'}</span>
+                </div>
+                <div className="environment-report-metrics">
+                  {[
+                    ['Soil temperature', reportData.metrics.soilTemperature, '°C'],
+                    ['Humidity', reportData.metrics.humidity, '%'],
+                    ['Soil moisture', reportData.metrics.soilMoisture, '%'],
+                  ].map(([label, metric, unit]) => (
+                    <article key={label}>
+                      <h3>{label}</h3>
+                      <strong>{metric.count ? `${metric.average}${unit}` : '—'}</strong>
+                      <span>{metric.count ? `Range ${metric.min}–${metric.max}${unit}` : 'No readings'}</span>
+                      <small>{metric.count} valid readings · {metric.coveragePercent}% coverage</small>
+                    </article>
+                  ))}
+                </div>
+                <div className="environment-report-summary">
+                  <div className="environment-report-summary-heading">
+                    <h3>Environmental Summary</h3>
+                    {reportData.hasReadings && (
+                      <button type="button" onClick={generateReport} disabled={reportGenerating}>
+                        {reportGenerating ? 'Generating…' : savedSummary ? 'Refresh summary' : 'Generate summary'}
+                      </button>
+                    )}
+                  </div>
+                  {savedSummary?.summary ? (
+                    <>
+                      {savedSummary.metrics?.status === 'insufficient' && <p>Partial summary based on the readings collected when this was generated.</p>}
+                      <p>{savedSummary.summary}</p>
+                      {savedSummary.suggested_check && <p><strong>Suggested check:</strong> {savedSummary.suggested_check}</p>}
+                      <small>Generated {new Date(savedSummary.generated_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })}</small>
+                      {savedSummary.ephemeral && <p>To keep this summary after leaving the page, set up daily report storage.</p>}
+                    </>
+                  ) : !reportData.hasReadings ? (
+                    <p>No sensor readings are available for {activeField} on this date.</p>
+                  ) : reportData.status === 'insufficient' ? (
+                    <p>A summary may be generated from the sensor readings available for this date.</p>
+                  ) : (
+                    <p>Generate a summary of the readings collected for this day.</p>
+                  )}
+                  {!dailyReport.storageReady && reportData.hasReadings && !savedSummary?.ephemeral && (
+                    <small>Daily report storage is not set up yet, so generated summaries will not be saved.</small>
+                  )}
+                </div>
+              </>
+            )}
           </section>
         </div>
       </section>

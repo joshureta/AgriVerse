@@ -188,7 +188,7 @@
 .environment-weather-forecast article small { color: #66cbed; font-size: 12px; font-weight: 850; }
 .environment-weather-forecast article strong { color: #f8fdff; font-size: 12px; white-space: nowrap; }
 .environment-forecast-empty { grid-column: 1 / -1; margin: 0; padding: 28px 18px; color: #e2f2f3; font-size: 12px; }
-.environment-sensor-panel, .environment-insights-card { box-sizing: border-box; border: 1px solid #d5ddd3; border-radius: 10px; background: #fff; box-shadow: 0 4px 11px rgba(39,67,44,.08); }
+.environment-sensor-panel, .environment-report-card { box-sizing: border-box; border: 1px solid #d5ddd3; border-radius: 10px; background: #fff; box-shadow: 0 4px 11px rgba(39,67,44,.08); }
 .environment-sensor-panel { overflow: hidden; padding: 0 18px 16px; }
 .environment-field-tabs { display: flex; align-items: end; gap: 4px; border: 0; border-bottom: 1px solid #dce4dc; }
 .environment-field-tabs { margin: 0 -18px; padding: 11px 16px 0; }
@@ -227,13 +227,31 @@
 .environment-pagination button:hover:not(:disabled) { background: #e4efe2; color: #0d4d22; }
 .environment-pagination button:disabled { opacity: 0.3; cursor: not-allowed; color: #8ea392; background: transparent; }
 .environment-pagination-ellipsis { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 32px; color: #728274; font-size: 13px; font-weight: 700; }
-.environment-insights-card { min-height: 202px; box-sizing: border-box; margin-top: 16px; padding: 28px 30px; }
-.environment-insights-card header { display: flex; align-items: center; gap: 10px; }
-.environment-insights-card header svg { width: 20px; height: 20px; color: #19743a; }
-.environment-insights-card h2 { margin: 0; color: #172f1d; font-size: 16px; }
-.environment-insights-copy { margin-top: 22px; color: #647b6d; font-size: 13px; line-height: 1.55; }
-.environment-insights-copy p { margin: 0; }
-.environment-insights-copy p + p { margin-top: 26px; }
+.environment-report-card { margin-top: 16px; padding: 24px 28px; }
+.environment-report-header, .environment-report-controls, .environment-report-status-row, .environment-report-summary-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.environment-report-header h2 { display: flex; align-items: center; gap: 9px; margin: 0; color: #172f1d; font-size: 17px; }
+.environment-report-header h2 svg { width: 20px; height: 20px; color: #19743a; }
+.environment-report-header p { margin: 5px 0 0 29px; color: #6c7c70; font-size: 12px; }
+.environment-report-controls label { color: #587060; font-size: 12px; font-weight: 750; }
+.environment-report-controls input { min-height: 34px; box-sizing: border-box; border: 1px solid #cbd9cd; border-radius: 6px; padding: 6px 9px; color: #1c3e27; background: #fff; font: inherit; font-size: 12px; }
+.environment-report-status-row { justify-content: flex-start; margin-top: 22px; color: #6d7d70; font-size: 12px; }
+.environment-report-status { border-radius: 999px; padding: 5px 9px; color: #166834; background: #e9f5e9; font-size: 11px; font-weight: 800; }
+.environment-report-status.is-insufficient { color: #9e5c0d; background: #fff3d9; }
+.environment-report-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-top: 18px; }
+.environment-report-metrics article { display: flex; flex-direction: column; gap: 7px; border: 1px solid #e1e9df; border-radius: 8px; padding: 16px; background: #f9fbf8; }
+.environment-report-metrics h3 { margin: 0; color: #405e49; font-size: 12px; font-weight: 800; }
+.environment-report-metrics strong { color: #173d23; font-size: 24px; line-height: 1.1; }
+.environment-report-metrics span, .environment-report-metrics small { color: #647869; font-size: 11px; }
+.environment-report-summary { margin-top: 20px; border-top: 1px solid #e4ebe3; padding-top: 18px; }
+.environment-report-summary h3 { margin: 0; color: #183f25; font-size: 14px; }
+.environment-report-summary p { margin: 12px 0 0; color: #405b47; font-size: 13px; line-height: 1.6; }
+.environment-report-summary small { display: block; margin-top: 12px; color: #7b8a7d; font-size: 11px; }
+.environment-report-summary button { border: 1px solid #217241; border-radius: 6px; padding: 8px 12px; color: #fff; background: #19743a; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.environment-report-summary button:hover:not(:disabled) { background: #105e2b; }
+.environment-report-summary button:disabled { opacity: .65; cursor: wait; }
+.environment-report-state { margin: 20px 0 0; color: #63766a; font-size: 13px; }
+.environment-report-state.is-error { display: flex; align-items: center; gap: 8px; color: #b33629; }
+.environment-report-state svg { width: 16px; height: 16px; flex: 0 0 16px; }
 .environment-alerts-list { display: grid; gap: 10px; margin-bottom: 16px; }
 .environment-alert-item { display: flex; align-items: center; gap: 12px; border-radius: 6px; padding: 10px 14px; border: 1px solid #e1e7e0; border-left-width: 4px; background: #f9faf8; transition: all 0.15s ease; }
 .environment-alert-icon { width: 22px; height: 22px; flex: 0 0 22px; display: grid; place-items: center; border-radius: 50%; color: #fff; }
@@ -252,5 +270,5 @@
 .environment-alert-item.is-success { border-color: #cde8ca; border-left-color: #278538; background: #f4faf3; }
 .environment-alert-item.is-success .environment-alert-icon { background: #278538; color: #fff; }
 
-@media (max-width: 760px) { .environment-monitor-content { width: min(100% - 26px,680px); } .environment-network-status { padding: 10px 12px; } .environment-network-status strong { font-size: 15px; } .environment-weather-banner { min-height: 370px; padding: 16px; } .environment-weather-reading { gap: 9px; } .environment-weather-reading em { padding: 5px 7px; } .environment-weather-forecast > div { grid-template-columns: repeat(5,130px); } .environment-weather-forecast article { min-height: 145px; } .environment-field-tabs { overflow-x: auto; } .environment-reading-grid { grid-template-columns: 1fr; } .environment-insights-card { min-height: 180px; padding: 24px 20px; } .environment-pagination { align-items: flex-start; flex-direction: column; padding: 12px; } }
+@media (max-width: 760px) { .environment-monitor-content { width: min(100% - 26px,680px); } .environment-network-status { padding: 10px 12px; } .environment-network-status strong { font-size: 15px; } .environment-weather-banner { min-height: 370px; padding: 16px; } .environment-weather-reading { gap: 9px; } .environment-weather-reading em { padding: 5px 7px; } .environment-weather-forecast > div { grid-template-columns: repeat(5,130px); } .environment-weather-forecast article { min-height: 145px; } .environment-field-tabs { overflow-x: auto; } .environment-reading-grid, .environment-report-metrics { grid-template-columns: 1fr; } .environment-report-card { padding: 20px; } .environment-report-header { align-items: flex-start; flex-direction: column; } .environment-pagination { align-items: flex-start; flex-direction: column; padding: 12px; } }
 @media (max-width: 480px) { .environment-network-status { align-items: flex-start; flex-direction: column; } .environment-network-status > span { margin-left: 46px; } }
