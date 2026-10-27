@@ -99,6 +99,7 @@ function qrResponse(intent) {
 
 router.post("/:orderId/qrph-checkout", async (req, res, next) => {
   try {
+    if (process.env.ENABLE_QRPH_PAYMENTS !== "true") throw httpError(503, "QR Ph payments are temporarily unavailable. Choose GCash or cash on delivery.");
     const orderId = readOrderId(req.params.orderId);
     const supabase = getSupabase();
     const { data: order, error } = await supabase

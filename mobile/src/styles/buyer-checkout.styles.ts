@@ -226,14 +226,6 @@ export const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '900',
   },
-  qrphBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: GREEN,
-  },
   optionTextBlock: {
     flex: 1,
     marginLeft: 12,

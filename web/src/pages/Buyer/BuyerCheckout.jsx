@@ -4,7 +4,6 @@ import {
   Check,
   Pencil,
   Plus,
-  QrCode,
   Trash2,
   WalletCards,
   X,
@@ -544,12 +543,8 @@ export default function BuyerCheckout() {
     setRetryingPayment(true)
     setError('')
     try {
-      if (placedOrder.payment_method === 'qrph') {
-        window.location.href = `/buyer/qrph-payment?order=${encodeURIComponent(placedOrder.id)}`
-      } else {
-        const checkoutUrl = await createGcashCheckout(placedOrder.id)
-        window.location.href = checkoutUrl
-      }
+      const checkoutUrl = await createGcashCheckout(placedOrder.id)
+      window.location.href = checkoutUrl
     } catch (requestError) {
       setError(requestError.message)
       setRetryingPayment(false)
@@ -563,7 +558,7 @@ export default function BuyerCheckout() {
   }, [error])
 
   useEffect(() => {
-    if (!placedOrder || ['gcash', 'qrph'].includes(placedOrder.payment_method)) return undefined
+    if (!placedOrder || placedOrder.payment_method === 'gcash') return undefined
     const redirectTimer = window.setTimeout(() => {
       window.location.replace(`/buyer/delivery-progress?track=${encodeURIComponent(placedOrder.id)}`)
     }, 2000)
@@ -750,11 +745,6 @@ export default function BuyerCheckout() {
           setError(`Order placed, but GCash checkout could not be started: ${paymentError.message}. You can retry payment below.`)
           return
         }
-      }
-
-      if (paymentMethod === 'qrph') {
-        window.location.href = `/buyer/qrph-payment?order=${encodeURIComponent(order.id)}`
-        return
       }
 
       setOrderToastVisible(true)
@@ -950,10 +940,6 @@ export default function BuyerCheckout() {
                 <CheckoutIcon name="cash" />
                 <span><strong>Cash on Delivery</strong><small>Pay with cash when your pineapples arrive.</small></span>
               </ChoiceCard>
-              <ChoiceCard checked={paymentMethod === 'qrph'} onSelect={() => setPaymentMethod('qrph')}>
-                <QrCode aria-hidden="true" />
-                <span><strong>QR Ph</strong><small>Pay with BDO Pay or another supported banking app.</small></span>
-              </ChoiceCard>
               <ChoiceCard checked={paymentMethod === 'gcash'} onSelect={() => setPaymentMethod('gcash')}>
                 <WalletCards aria-hidden="true" />
                 <span><strong>GCash</strong><small>Pay securely using your GCash mobile wallet.</small></span>
@@ -965,12 +951,12 @@ export default function BuyerCheckout() {
             {orderButtonLabel}
           </button>
           {placedOrder && orderToastVisible && (
-            <aside className={`checkout-order-toast ${['gcash', 'qrph'].includes(placedOrder.payment_method) ? '' : 'is-success'}`} role="status" aria-live="polite">
+            <aside className={`checkout-order-toast ${placedOrder.payment_method === 'gcash' ? '' : 'is-success'}`} role="status" aria-live="polite">
               <span className="checkout-order-toast-icon"><Check aria-hidden="true" /></span>
               <div>
-                {['gcash', 'qrph'].includes(placedOrder.payment_method) ? (
+                {placedOrder.payment_method === 'gcash' ? (
                   <>
-                    <strong>{placedOrder.payment_method === 'gcash' ? 'GCash' : 'QR Ph'} payment not started</strong>
+                    <strong>GCash payment not started</strong>
                     <p>Order <b>{placedOrder.order_number}</b> was placed. Continue to payment.</p>
                     <button type="button" className="checkout-retry-payment" onClick={retryOnlinePayment} disabled={retryingPayment}>
                       {retryingPayment ? 'Opening…' : 'Continue to Payment'}
@@ -984,7 +970,7 @@ export default function BuyerCheckout() {
                 )}
               </div>
               <a href={`/buyer/delivery-progress?track=${encodeURIComponent(placedOrder.id)}`}>View Order Details</a>
-              {['gcash', 'qrph'].includes(placedOrder.payment_method) && <button type="button" onClick={() => setOrderToastVisible(false)} aria-label="Dismiss order notification"><X aria-hidden="true" /></button>}
+              {placedOrder.payment_method === 'gcash' && <button type="button" onClick={() => setOrderToastVisible(false)} aria-label="Dismiss order notification"><X aria-hidden="true" /></button>}
             </aside>
           )}
         </form>

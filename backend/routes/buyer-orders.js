@@ -544,6 +544,7 @@ router.post("/", async (req, res, next) => {
     const idempotencyKey = req.body.idempotency_key == null ? null : String(req.body.idempotency_key);
 
     if (!['delivery', 'pickup'].includes(deliveryMethod)) throw httpError(400, "Select a valid delivery method");
+    if (paymentMethod === 'qrph' && process.env.ENABLE_QRPH_PAYMENTS !== 'true') throw httpError(503, "QR Ph payments are temporarily unavailable. Choose GCash or cash on delivery.");
     if (!['cash', 'bank', 'gcash', 'qrph'].includes(paymentMethod)) throw httpError(400, "Select a valid payment method");
     if (note.length > 1000) throw httpError(400, "Additional information must not exceed 1000 characters");
     if (items.length < 1 || items.length > 20) throw httpError(400, "The shopping cart is empty or invalid");

@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 import { openBrowserAsync } from 'expo-web-browser';
-import { QrCode } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
@@ -195,7 +194,6 @@ const DELIVERY_METHODS = [
 
 const PAYMENT_METHODS = [
   { key: 'cash', label: 'Cash on Delivery', sub: 'Pay with cash when your pineapples arrive.' },
-  { key: 'qrph', label: 'QR Ph', sub: 'Pay using BDO Pay or another QR Ph banking app.' },
   { key: 'gcash', label: 'GCash', sub: 'Pay securely using your GCash mobile wallet.' },
 ] as const;
 
@@ -222,8 +220,6 @@ function OptionCard({
         return <PackageIcon color={iconColor} size={20} />;
       case 'cash':
         return <CashIcon color={iconColor} size={20} />;
-      case 'qrph':
-        return <View style={styles.qrphBadge}><QrCode color="#ffffff" size={24} /></View>;
       case 'gcash':
         return (
           <View style={styles.gcashBadge}>
@@ -242,7 +238,7 @@ function OptionCard({
       accessibilityState={{ selected: active }}
       onPress={onPress}
       style={({ pressed }) => [styles.optionCard, active && styles.optionCardActive, pressed && styles.optionCardPressed]}>
-      {['gcash', 'qrph'].includes(methodKey) ? (
+      {methodKey === 'gcash' ? (
         renderIcon()
       ) : (
         <View style={[styles.optionIconCircle, active && styles.optionIconCircleActive]}>{renderIcon()}</View>
@@ -409,11 +405,6 @@ export default function BuyerCheckoutScreen() {
             `Your order was placed, but GCash checkout could not be started: ${paymentError instanceof Error ? paymentError.message : 'unknown error'}. You can retry payment from your order.`,
           );
         }
-      }
-
-      if (paymentMethod === 'qrph') {
-        router.replace({ pathname: '/BuyerQrphPayment', params: { id: String(order.id) } });
-        return;
       }
 
       router.replace({ pathname: '/BuyerOrderTracking', params: { id: String(order.id) } });
