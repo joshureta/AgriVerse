@@ -921,6 +921,37 @@ body:has(.buyer-page) #root {
   line-height: 1;
 }
 
+.marketplace-testimonial-rating {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  color: #d9a51d;
+}
+
+.marketplace-testimonial-rating svg { width: 17px; height: 17px; }
+
+.marketplace-testimonial .marketplace-testimonial-status {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: #526557;
+  font-size: 13px;
+  text-align: center;
+}
+
+.marketplace-testimonial-status p { margin: 0; }
+
+.marketplace-testimonial-status button {
+  border: 1px solid #26783b;
+  border-radius: 7px;
+  padding: 8px 14px;
+  color: #26783b;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
 .marketplace-testimonial blockquote {
   margin: 15px 0 24px;
   color: #3d483e;
@@ -943,21 +974,34 @@ body:has(.buyer-page) #root {
   font-size: 9px;
 }
 
-.marketplace-review-dots {
+.marketplace-testimonial-dots {
   display: flex;
   justify-content: center;
   gap: 6px;
-  margin-top: 13px;
+  margin-top: 12px;
 }
 
-.marketplace-review-dots span {
-  width: 7px;
-  height: 7px;
+.marketplace-testimonial-dots button {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.marketplace-testimonial-dots button::before {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #cbd1c7;
+  content: '';
 }
 
-.marketplace-review-dots .is-active { background: #23743a; }
+.marketplace-testimonial-dots button.is-active::before { background: #23743a; }
+.marketplace-testimonial-dots button:focus-visible { outline: 2px solid #23743a; }
 
 .buyer-site-footer {
   padding: 39px clamp(28px, 5vw, 74px) 18px;

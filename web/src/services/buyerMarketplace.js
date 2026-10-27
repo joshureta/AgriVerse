@@ -59,6 +59,14 @@ export async function loadBuyerReviews() {
   return body.reviews || []
 }
 
+export async function loadFeaturedBuyerReviews() {
+  const token = await readAccessToken()
+  const response = await fetch(`${API_URL}/api/buyer/products/reviews/featured`, { headers: { Authorization: `Bearer ${token}` } })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load featured customer reviews')
+  return body.reviews || []
+}
+
 export async function placeBuyerOrder(order, retry = true) {
   const token = await readAccessToken()
   const controller = new AbortController()

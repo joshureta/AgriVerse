@@ -10,6 +10,12 @@ function one(value) {
   return Array.isArray(value) ? value[0] || null : value || null;
 }
 
+function reviewerName(value) {
+  const name = String(value || "Verified buyer").trim();
+  const parts = name.split(/\s+/).filter(Boolean);
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0] || "Verified buyer";
+}
+
 router.get("/pineapples", async (req, res, next) => {
   try {
     const supabase = getSupabase();
@@ -75,6 +81,33 @@ router.get("/pineapples", async (req, res, next) => {
   }
 });
 
+router.get("/reviews/featured", async (req, res, next) => {
+  try {
+    const { data, error } = await getSupabase()
+      .from("buyer_orders")
+      .select("id, buyer_rating, buyer_rating_comment, buyer_rated_at, items:buyer_order_items!buyer_order_items_order_id_fkey(weight_label), buyer:profiles!buyer_orders_buyer_id_fkey(full_name)")
+      .not("buyer_rating", "is", null)
+      .not("buyer_rating_comment", "is", null)
+      .neq("buyer_rating_comment", "")
+      .eq("order_status", "completed")
+      .order("buyer_rating", { ascending: false })
+      .order("buyer_rated_at", { ascending: false })
+      .limit(5);
+    if (error) throw error;
+    const reviews = (data || []).map((order) => ({
+      id: order.id,
+      name: reviewerName(one(order.buyer)?.full_name),
+      rating: order.buyer_rating,
+      text: order.buyer_rating_comment,
+      date: order.buyer_rated_at,
+      productSize: one(order.items)?.weight_label || "Pineapple",
+    }));
+    return res.json({ reviews });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get("/reviews", async (req, res, next) => {
   try {
     const { data, error } = await getSupabase()
@@ -86,12 +119,9 @@ router.get("/reviews", async (req, res, next) => {
       .limit(100);
     if (error) throw error;
     const reviews = (data || []).map((order) => {
-      const name = String(order.buyer?.full_name || "Verified buyer").trim();
-      const parts = name.split(/\s+/).filter(Boolean);
-      const displayName = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0] || "Verified buyer";
       return {
         id: order.id,
-        name: displayName,
+        name: reviewerName(one(order.buyer)?.full_name),
         rating: order.buyer_rating,
         text: order.buyer_rating_comment || "Verified purchase",
         date: order.buyer_rated_at,

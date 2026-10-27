@@ -1,5 +1,7 @@
-import { ArrowRight, CheckCircle2, MapPin } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowRight, CheckCircle2, MapPin, Star } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import { loadFeaturedBuyerReviews } from '../../services/buyerMarketplace.js'
 import marketplaceHero from '../../assets/buyer/pineapple-farmer-marketplace-hero.png'
 import trustIcons from '../../assets/buyer/buyer-trust-icons.png'
 import pineappleProduct from '../../assets/buyer/pineapple-product-clean.png'
@@ -72,6 +74,35 @@ const businessPartners = [
 ]
 
 export default function BuyerLanding() {
+  const [featuredReviews, setFeaturedReviews] = useState([])
+  const [activeReviewIndex, setActiveReviewIndex] = useState(0)
+  const [reviewLoading, setReviewLoading] = useState(true)
+  const [reviewError, setReviewError] = useState(false)
+  const [reviewRetry, setReviewRetry] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    setReviewLoading(true)
+    setReviewError(false)
+    loadFeaturedBuyerReviews()
+      .then((reviews) => {
+        if (!cancelled) {
+          setFeaturedReviews(reviews.filter((review) => review?.text?.trim()))
+          setActiveReviewIndex(0)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFeaturedReviews([])
+          setReviewError(true)
+        }
+      })
+      .finally(() => { if (!cancelled) setReviewLoading(false) })
+    return () => { cancelled = true }
+  }, [reviewRetry])
+
+  const featuredReview = featuredReviews[activeReviewIndex]
+
   return (
     <main className="buyer-page buyer-marketplace-page">
       <BuyerHeader active="home" />
@@ -186,17 +217,42 @@ export default function BuyerLanding() {
 
         <div className="marketplace-testimonial">
           <h2>What Our Customers Say</h2>
-          <article>
-            <span className="marketplace-review-mark" aria-hidden="true">“</span>
-            <blockquote>
-              The pineapples from JToledo are consistently sweet and fresh. Our customers love the quality!
-            </blockquote>
-            <footer>
-              <strong>Mark D.</strong>
-              <span>Grocery Store Owner, Metro Manila</span>
-            </footer>
-          </article>
-          <div className="marketplace-review-dots" aria-label="Review 1 of 3"><span className="is-active" /><span /><span /></div>
+          {reviewLoading ? (
+            <article className="marketplace-testimonial-status" role="status">Loading customer feedback...</article>
+          ) : reviewError ? (
+            <article className="marketplace-testimonial-status" role="alert">
+              <p>Customer feedback is unavailable right now.</p>
+              <button type="button" onClick={() => setReviewRetry((current) => current + 1)}>Try again</button>
+            </article>
+          ) : featuredReview ? (
+            <article>
+              <span className="marketplace-review-mark" aria-hidden="true">“</span>
+              <div className="marketplace-testimonial-rating" role="img" aria-label={`${featuredReview.rating} out of 5 stars`}>
+                {Array.from({ length: 5 }, (_, index) => <Star key={index} fill={index < featuredReview.rating ? 'currentColor' : 'none'} aria-hidden="true" />)}
+              </div>
+              <blockquote>{featuredReview.text}</blockquote>
+              <footer>
+                <strong>{featuredReview.name}</strong>
+                <span>Verified buyer · {featuredReview.productSize}</span>
+              </footer>
+            </article>
+          ) : (
+            <article className="marketplace-testimonial-status">No written customer reviews yet.</article>
+          )}
+          {featuredReviews.length > 1 && !reviewLoading && !reviewError && (
+            <div className="marketplace-testimonial-dots" role="group" aria-label="Choose a customer review">
+              {featuredReviews.map((review, index) => (
+                <button
+                  className={index === activeReviewIndex ? 'is-active' : ''}
+                  type="button"
+                  key={review.id}
+                  onClick={() => setActiveReviewIndex(index)}
+                  aria-label={`Show customer review ${index + 1} of ${featuredReviews.length}`}
+                  aria-current={index === activeReviewIndex ? 'true' : undefined}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
