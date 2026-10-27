@@ -11,6 +11,14 @@ temperature or humidity reading to be saved even when the other sensor fails.
 The website shows an offline alert for each sensor without a valid reading in
 the last two minutes.
 
+For field-specific monitoring, also run `supabase/migrations/044_sensor_device_fields.sql`
+in the sensor Supabase project. It assigns `esp32-01` to **Field A**. Other
+devices must also be assigned to a field before their readings appear on the
+monitoring page.
+The field is saved on each new reading, so moving a device later does not
+relabel its earlier data. Existing readings stay unassigned unless you verify
+their historical location and backfill them separately.
+
 The capacitive probe uses an analog signal. The firmware rejects readings near
 the ADC rails, but an unplugged probe can sometimes produce a plausible
 number. Its website status means "recent valid reading received," not proof of

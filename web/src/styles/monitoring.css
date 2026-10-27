@@ -187,6 +187,7 @@
 .environment-weather-forecast article img { width: 48px; height: 48px; object-fit: contain; }
 .environment-weather-forecast article small { color: #66cbed; font-size: 12px; font-weight: 850; }
 .environment-weather-forecast article strong { color: #f8fdff; font-size: 12px; white-space: nowrap; }
+.environment-forecast-empty { grid-column: 1 / -1; margin: 0; padding: 28px 18px; color: #e2f2f3; font-size: 12px; }
 .environment-sensor-panel, .environment-insights-card { box-sizing: border-box; border: 1px solid #d5ddd3; border-radius: 10px; background: #fff; box-shadow: 0 4px 11px rgba(39,67,44,.08); }
 .environment-sensor-panel { overflow: hidden; padding: 0 18px 16px; }
 .environment-field-tabs { display: flex; align-items: end; gap: 4px; border: 0; border-bottom: 1px solid #dce4dc; }
@@ -194,6 +195,7 @@
 .environment-field-tabs button { min-width: 76px; min-height: 37px; border: 1px solid transparent; border-bottom: 0; border-radius: 7px 7px 0 0; padding: 0 16px; color: #6b7d72; background: transparent; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
 .environment-field-tabs button:hover, .environment-field-tabs button:focus-visible, .environment-field-tabs button.is-active { position: relative; z-index: 1; border-color: #d5e2d6; color: #176d33; background: #fff; outline: none; }
 .environment-field-tabs button.is-active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; content: ''; background: #fff; }
+.environment-field-message { margin: 12px 0 0; color: #647b6d; font-size: 12px; }
 .environment-reading-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin: 22px 0 16px; }
 .environment-reading-grid article { min-height: 132px; display: grid; align-content: center; justify-items: stretch; border: 1px solid #cfd6ce; border-radius: 10px; padding: 18px 22px; background: #fff; box-shadow: 0 3px 9px rgba(32,57,36,.1); }
 .environment-reading-grid h2 { margin: 0 0 7px; color: #405c48; font-size: 10px; font-weight: 850; text-transform: uppercase; }

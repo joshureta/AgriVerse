@@ -28,28 +28,15 @@ import humidityMetricIcon from '../../assets/monitoring/metric-humidity.png'
 import soilMoistureMetricIcon from '../../assets/monitoring/metric-soil-moisture.png'
 import { supabase } from '../../lib/supabase.js'
 import { sensorSupabase } from '../../lib/sensorSupabase.js'
-import { countConnectedSensors, latestCurrentReading, latestMoistureReading } from '../../lib/sensorStatus.js'
+import { countConnectedSensors, latestCurrentReading, latestMoistureReading, SENSOR_ONLINE_WINDOW_MS } from '../../lib/sensorStatus.js'
+import { loadDailySensorRows, manilaDayBounds, readingsForField } from '../../lib/environmentalData.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/monitoring.css'
 
 const fields = ['Field A', 'Field B', 'Field C', 'Field D']
 const READINGS_PER_PAGE = 10
-const MAX_READING_HISTORY = 100
-
-
 const SENSOR_PAIR_WINDOW_MS = 15000
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
-const WEATHER_FALLBACK = {
-  condition: 'rainy', label: 'Raining', temp: 28, highTemp: 31, lowTemp: 24,
-  locationLabel: 'Silang, Cavite',
-  dailyForecast: [
-    { day: 'Today', condition: 'rainy', lowTemp: 24, highTemp: 31, rainChance: 80 },
-    { day: 'Tomorrow', condition: 'cloudy', lowTemp: 24, highTemp: 31, rainChance: 33 },
-    { day: 'Thu', condition: 'rainy', lowTemp: 26, highTemp: 32, rainChance: 63 },
-    { day: 'Fri', condition: 'stormy', lowTemp: 26, highTemp: 32, rainChance: 73 },
-    { day: 'Sat', condition: 'cloudy', lowTemp: 25, highTemp: 31, rainChance: 30 },
-  ],
-}
 const WEATHER_IMAGES = {
   sunny: weatherSunnyImage,
   cloudy: weatherCloudyImage,
@@ -91,7 +78,7 @@ function formatSensorReading(reading) {
     measuredAt: measuredAt.getTime(),
     time: Number.isNaN(measuredAt.getTime())
       ? 'Unknown'
-      : measuredAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      : measuredAt.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }),
     temperature: reading.temperature_c == null ? '—' : `${Number(reading.temperature_c).toFixed(1)}°C`,
     humidity: reading.humidity_percent == null ? '—' : `${Number(reading.humidity_percent).toFixed(1)}%`,
     moisture: reading.soil_moisture == null
@@ -108,7 +95,7 @@ function formatSoilReading(reading) {
     measuredAt: measuredAt.getTime(),
     time: Number.isNaN(measuredAt.getTime())
       ? 'Unknown'
-      : measuredAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      : measuredAt.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }),
     temperature: '—',
     humidity: '—',
     moisture: `${Number(reading.moisture_percent).toFixed(1)}%`,
@@ -117,18 +104,28 @@ function formatSoilReading(reading) {
 
 function combineSensorReadings(climateReadings, soilReadings) {
   const unusedSoilIds = new Set(soilReadings.map((reading) => reading.id))
+  const soilBuckets = new Map()
+  soilReadings.forEach((soil) => {
+    const bucketKey = `${soil.device_id}:${soil.field_name || ''}:${Math.floor(soil.measuredAt / SENSOR_PAIR_WINDOW_MS)}`
+    const bucket = soilBuckets.get(bucketKey) || []
+    bucket.push(soil)
+    soilBuckets.set(bucketKey, bucket)
+  })
   const combined = climateReadings.map((climate) => {
     let nearestSoil = null
     let nearestDifference = Number.POSITIVE_INFINITY
 
-    soilReadings.forEach((soil) => {
-      if (!unusedSoilIds.has(soil.id) || soil.device_id !== climate.device_id) return
-      const difference = Math.abs(soil.measuredAt - climate.measuredAt)
-      if (difference <= SENSOR_PAIR_WINDOW_MS && difference < nearestDifference) {
-        nearestSoil = soil
-        nearestDifference = difference
+    const centerBucket = Math.floor(climate.measuredAt / SENSOR_PAIR_WINDOW_MS)
+    for (let offset = -1; offset <= 1; offset += 1) {
+      for (const soil of soilBuckets.get(`${climate.device_id}:${climate.field_name || ''}:${centerBucket + offset}`) || []) {
+        if (!unusedSoilIds.has(soil.id)) continue
+        const difference = Math.abs(soil.measuredAt - climate.measuredAt)
+        if (difference <= SENSOR_PAIR_WINDOW_MS && difference < nearestDifference) {
+          nearestSoil = soil
+          nearestDifference = difference
+        }
       }
-    })
+    }
 
     if (!nearestSoil) return climate
     unusedSoilIds.delete(nearestSoil.id)
@@ -138,7 +135,7 @@ function combineSensorReadings(climateReadings, soilReadings) {
       ...climate,
       id: `${climate.id}-${nearestSoil.id}`,
       measuredAt,
-      time: new Date(measuredAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      time: new Date(measuredAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }),
       moisture: nearestSoil.moisture,
       moisture_percent: nearestSoil.moisture_percent,
       moisture_raw: nearestSoil.moisture_raw,
@@ -151,36 +148,31 @@ function combineSensorReadings(climateReadings, soilReadings) {
 
   return combined
     .sort((left, right) => (right.measuredAt || 0) - (left.measuredAt || 0))
-    .slice(0, MAX_READING_HISTORY)
 }
 
-async function loadSensorReadings() {
-  const { data, error } = await sensorSupabase
-    .from('sensor_readings')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(MAX_READING_HISTORY)
-
-  if (error) throw error
-  return (data || []).map(formatSensorReading)
+async function loadSensorReadings(bounds) {
+  const data = await loadDailySensorRows(sensorSupabase, 'sensor_readings', '*', bounds)
+  return data.map(formatSensorReading)
 }
 
-async function loadSoilReadings() {
-  const { data, error } = await sensorSupabase
-    .from('soil_readings')
-    .select('id, device_id, moisture_raw, moisture_percent, created_at')
-    .order('created_at', { ascending: false })
-    .limit(MAX_READING_HISTORY)
+async function loadSoilReadings(bounds) {
+  const data = await loadDailySensorRows(sensorSupabase, 'soil_readings', '*', bounds)
+  return data.map(formatSoilReading)
+}
 
-  if (error) throw error
-  return (data || []).map(formatSoilReading)
+function mergeReadings(current, fresh) {
+  const byId = new Map(current.map((reading) => [reading.id, reading]))
+  fresh.forEach((reading) => byId.set(reading.id, reading))
+  return [...byId.values()].sort((left, right) => right.measuredAt - left.measuredAt)
 }
 
 export default function EnvironmentalMonitoring() {
   const [activeField, setActiveField] = useState('Field A')
   const [page, setPage] = useState(1)
   const readingsPerPage = READINGS_PER_PAGE
-  const [weather, setWeather] = useState(WEATHER_FALLBACK)
+  const [weather, setWeather] = useState(null)
+  const [deviceFields, setDeviceFields] = useState({})
+  const [fieldMappingError, setFieldMappingError] = useState('')
   const [readings, setReadings] = useState([])
   const [soilReadings, setSoilReadings] = useState([])
   const [sensorError, setSensorError] = useState('')
@@ -188,12 +180,14 @@ export default function EnvironmentalMonitoring() {
   const [sensorLoading, setSensorLoading] = useState(true)
   const [statusNow, setStatusNow] = useState(() => Date.now())
   const [dismissedAlerts, setDismissedAlerts] = useState([])
-  const currentTemperature = latestCurrentReading(readings, 'temperature_c', statusNow)
-  const currentHumidity = latestCurrentReading(readings, 'humidity_percent', statusNow)
-  const currentSoil = latestMoistureReading(readings, soilReadings, statusNow)
+  const fieldReadings = useMemo(() => readingsForField(readings, activeField), [readings, activeField])
+  const fieldSoilReadings = useMemo(() => readingsForField(soilReadings, activeField), [soilReadings, activeField])
+  const currentTemperature = latestCurrentReading(fieldReadings, 'temperature_c', statusNow)
+  const currentHumidity = latestCurrentReading(fieldReadings, 'humidity_percent', statusNow)
+  const currentSoil = latestMoistureReading(fieldReadings, fieldSoilReadings, statusNow)
   const combinedReadings = useMemo(
-    () => combineSensorReadings(readings, soilReadings),
-    [readings, soilReadings],
+    () => combineSensorReadings(fieldReadings, fieldSoilReadings),
+    [fieldReadings, fieldSoilReadings],
   )
 
   const pageCount = Math.max(1, Math.ceil(combinedReadings.length / readingsPerPage))
@@ -205,15 +199,17 @@ export default function EnvironmentalMonitoring() {
     page * readingsPerPage,
   )
   const reportingSensors = [currentTemperature, currentHumidity, currentSoil].filter(Boolean).length
-  const connectedDevices = countConnectedSensors([readings, soilReadings], statusNow)
+  const connectedDevices = countConnectedSensors([fieldReadings, fieldSoilReadings], statusNow)
   const deviceIsLive = connectedDevices > 0
+  const fieldAssigned = Object.values(deviceFields).includes(activeField)
   const sensorHasError = !sensorSupabase || Boolean(sensorError && soilError)
   const sensorStatusTitle = sensorLoading
     ? 'Checking Device'
-    : sensorHasError && !deviceIsLive
-      ? 'Device Status Unavailable'
-      : deviceIsLive ? 'Device Active' : 'Sensor Offline'
-  const sensorStatusBadge = sensorLoading ? 'Checking' : sensorHasError && !deviceIsLive ? 'Unavailable' : !deviceIsLive ? 'Offline' : reportingSensors === 3 ? 'Live' : 'Sensor Alert'
+    : deviceIsLive ? 'Device Active'
+      : fieldMappingError ? 'Field Setup Unavailable'
+        : !fieldAssigned ? 'No Device Assigned'
+          : sensorHasError ? 'Device Status Unavailable' : 'Sensor Offline'
+  const sensorStatusBadge = sensorLoading ? 'Checking' : deviceIsLive ? reportingSensors === 3 ? 'Live' : 'Sensor Alert' : fieldMappingError || sensorHasError ? 'Unavailable' : !fieldAssigned ? 'Unassigned' : 'Offline'
   const SensorStatusIcon = deviceIsLive ? Radio : sensorLoading ? Antenna : WifiOff
   const soilStatus = !currentSoil
     ? 'Offline'
@@ -226,7 +222,7 @@ export default function EnvironmentalMonitoring() {
   const activeAlerts = useMemo(() => {
     const list = []
 
-    if (!sensorLoading) {
+    if (!sensorLoading && fieldAssigned) {
       for (const [id, name, reading, error] of [
         ['soil-temperature-offline', 'Soil Temperature', currentTemperature, sensorError],
         ['humidity-offline', 'Humidity', currentHumidity, sensorError],
@@ -286,8 +282,8 @@ export default function EnvironmentalMonitoring() {
       }
     }
 
-    const rainChance = weather.dailyForecast?.[0]?.rainChance || 0
-    if (weather.condition === 'rainy' || weather.condition === 'stormy' || rainChance >= 60) {
+    const rainChance = weather?.dailyForecast?.[0]?.rainChance || 0
+    if (weather && (weather.condition === 'rainy' || weather.condition === 'stormy' || rainChance >= 60)) {
       list.push({
         id: 'rain-spray',
         type: 'info',
@@ -310,7 +306,7 @@ export default function EnvironmentalMonitoring() {
     }
 
     return list
-  }, [sensorError, soilError, sensorLoading, currentTemperature, currentHumidity, currentSoil, reportingSensors, weather, activeField])
+  }, [sensorError, soilError, sensorLoading, currentTemperature, currentHumidity, currentSoil, reportingSensors, weather, activeField, fieldAssigned])
 
   const visibleAlerts = useMemo(
     () => activeAlerts.filter((alert) => !dismissedAlerts.includes(alert.id)),
@@ -335,7 +331,7 @@ export default function EnvironmentalMonitoring() {
     loadWeather().then((snapshot) => {
       if (active) setWeather(snapshot)
     }).catch(() => {
-      // The weather card remains useful with its local fallback when the provider is unavailable.
+      if (active) setWeather(null)
     })
     return () => { active = false }
   }, [])
@@ -348,25 +344,47 @@ export default function EnvironmentalMonitoring() {
     }
 
     let active = true
+    let currentDay = manilaDayBounds()
+
+    const refreshDeviceFields = async () => {
+      try {
+        const { data, error } = await sensorSupabase.from('sensor_device_fields').select('device_id, field_name')
+        if (!active) return
+        if (error) throw error
+        setDeviceFields(Object.fromEntries((data || []).map(({ device_id, field_name }) => [device_id, field_name])))
+        setFieldMappingError('')
+      } catch {
+        if (active) setFieldMappingError('Field assignments are unavailable. Apply the sensor device fields migration in the sensor database.')
+      }
+    }
 
     const refreshReadings = async () => {
+      const bounds = manilaDayBounds()
+      if (bounds.day !== currentDay.day) {
+        setReadings([])
+        setSoilReadings([])
+        setPage(1)
+        setSensorLoading(true)
+      }
+      currentDay = bounds
       // Either sensor type can be online independently; a missing soil table
       // must not hide DHT22 readings.
       const [climateResult, soilResult] = await Promise.allSettled([
-        loadSensorReadings(),
-        loadSoilReadings(),
+        loadSensorReadings(bounds),
+        loadSoilReadings(bounds),
       ])
       if (!active) return
+      if (manilaDayBounds().day !== bounds.day) return
 
       if (climateResult.status === 'fulfilled') {
-        setReadings(climateResult.value)
+        setReadings((current) => mergeReadings(current, climateResult.value))
         setSensorError('')
       } else {
         setSensorError(climateResult.reason?.message || 'Unable to load sensor readings.')
       }
 
       if (soilResult.status === 'fulfilled') {
-        setSoilReadings(soilResult.value)
+        setSoilReadings((current) => mergeReadings(current, soilResult.value))
         setSoilError('')
       } else {
         setSoilError(soilResult.reason?.message || 'Unable to load soil readings.')
@@ -376,11 +394,43 @@ export default function EnvironmentalMonitoring() {
       setSensorLoading(false)
     }
 
-    refreshReadings()
-    const refreshTimer = window.setInterval(() => {
+    const refreshRecentReadings = async () => {
+      const bounds = manilaDayBounds()
+      if (bounds.day !== currentDay.day) {
+        refreshReadings()
+        return
+      }
+      const recentBounds = { ...bounds, start: Math.max(bounds.start, Date.now() - SENSOR_ONLINE_WINDOW_MS) }
+      const [climateResult, soilResult] = await Promise.allSettled([
+        loadSensorReadings(recentBounds),
+        loadSoilReadings(recentBounds),
+      ])
+      if (!active || manilaDayBounds().day !== bounds.day) return
+      if (climateResult.status === 'fulfilled') {
+        setReadings((current) => mergeReadings(current, climateResult.value))
+        setSensorError('')
+      } else {
+        setSensorError(climateResult.reason?.message || 'Unable to load sensor readings.')
+      }
+      if (soilResult.status === 'fulfilled') {
+        setSoilReadings((current) => mergeReadings(current, soilResult.value))
+        setSoilError('')
+      } else {
+        setSoilError(soilResult.reason?.message || 'Unable to load soil readings.')
+      }
       setStatusNow(Date.now())
-      refreshReadings()
+    }
+
+    refreshDeviceFields()
+    refreshReadings()
+    const statusTimer = window.setInterval(() => {
+      setStatusNow(Date.now())
+      refreshRecentReadings()
     }, 30000)
+    const historyTimer = window.setInterval(() => {
+      refreshReadings()
+      refreshDeviceFields()
+    }, 5 * 60 * 1000)
     const climateChannel = sensorSupabase
       .channel('environmental-sensor-readings')
       .on(
@@ -388,10 +438,12 @@ export default function EnvironmentalMonitoring() {
         { event: 'INSERT', schema: 'public', table: 'sensor_readings' },
         ({ new: reading }) => {
           if (!active) return
+          const measuredAt = Date.parse(reading.created_at)
+          if (measuredAt < currentDay.start || measuredAt >= currentDay.end) return
           setReadings((current) => [
             formatSensorReading(reading),
             ...current.filter((item) => item.id !== `climate-${reading.id}`),
-          ].slice(0, MAX_READING_HISTORY))
+          ])
           setSensorError('')
           setSensorLoading(false)
           setStatusNow(Date.now())
@@ -406,10 +458,12 @@ export default function EnvironmentalMonitoring() {
         { event: 'INSERT', schema: 'public', table: 'soil_readings' },
         ({ new: reading }) => {
           if (!active) return
+          const measuredAt = Date.parse(reading.created_at)
+          if (measuredAt < currentDay.start || measuredAt >= currentDay.end) return
           setSoilReadings((current) => [
             formatSoilReading(reading),
             ...current.filter((item) => item.id !== `soil-${reading.id}`),
-          ].slice(0, MAX_READING_HISTORY))
+          ])
           setSoilError('')
           setSensorLoading(false)
           setStatusNow(Date.now())
@@ -420,7 +474,8 @@ export default function EnvironmentalMonitoring() {
 
     return () => {
       active = false
-      window.clearInterval(refreshTimer)
+      window.clearInterval(statusTimer)
+      window.clearInterval(historyTimer)
       sensorSupabase.removeChannel(climateChannel)
       sensorSupabase.removeChannel(soilChannel)
     }
@@ -434,9 +489,9 @@ export default function EnvironmentalMonitoring() {
     const hour = new Date().getHours()
     return hour < 6 || hour >= 18
   }, [])
-  const condition = weather.condition || 'cloudy'
+  const condition = weather?.condition || 'cloudy'
   const backgroundImage = isNight ? weatherNightImage : (WEATHER_IMAGES[condition] || weatherCloudyImage)
-  const forecast = weather.dailyForecast?.length ? weather.dailyForecast.slice(0, 5) : WEATHER_FALLBACK.dailyForecast
+  const forecast = weather?.dailyForecast?.slice(0, 5) || []
 
   return (
     <main className="admin-dashboard environmental-monitor-page">
@@ -453,7 +508,7 @@ export default function EnvironmentalMonitoring() {
           </header>
 
           <section className={`environment-network-status${sensorLoading ? ' is-checking' : !deviceIsLive ? ' is-offline' : reportingSensors < 3 ? ' is-partial' : ''}`} aria-label="Device status">
-            <div><i aria-hidden="true" /><span><strong>{sensorStatusTitle}</strong><small>{sensorLoading ? 'Checking for recent readings…' : deviceIsLive ? `${connectedDevices} ${connectedDevices === 1 ? 'device' : 'devices'} connected` : 'No recent sensor readings'}</small></span></div>
+            <div><i aria-hidden="true" /><span><strong>{sensorStatusTitle}</strong><small>{sensorLoading ? 'Checking for recent readings…' : deviceIsLive ? `${connectedDevices} ${connectedDevices === 1 ? 'device' : 'devices'} connected` : fieldMappingError ? 'Field assignments could not be loaded' : !fieldAssigned ? `No device assigned to ${activeField}` : 'No recent sensor readings'}</small></span></div>
             <span><SensorStatusIcon aria-hidden="true" /> {sensorStatusBadge}</span>
           </section>
 
@@ -487,23 +542,24 @@ export default function EnvironmentalMonitoring() {
           <section
             className={`environment-weather-banner is-${condition}${isNight ? ' is-night' : ''}`}
             style={{ backgroundImage: `url(${backgroundImage})` }}
-            aria-label={`Current weather: ${weather.label} in ${weather.locationLabel}`}
+            aria-label={weather ? `Current weather: ${weather.label} in ${weather.locationLabel}` : 'Current weather unavailable'}
           >
             <div className="environment-weather-shade" aria-hidden="true" />
             <div className="environment-weather-main">
               <div className="environment-weather-topline">
-                <span className="environment-weather-location"><MapPin aria-hidden="true" />{weather.locationLabel || WEATHER_FALLBACK.locationLabel}</span>
+                <span className="environment-weather-location"><MapPin aria-hidden="true" />{weather?.locationLabel || 'Weather unavailable'}</span>
                 <img className="environment-weather-icon" src={isNight ? weatherNightIcon : (WEATHER_ICONS[condition] || weatherCloudyIcon)} alt="" />
               </div>
               <div className="environment-weather-reading">
-                <strong>{weather.temp > 0 ? '+' : ''}{weather.temp ?? WEATHER_FALLBACK.temp}°C</strong>
-                <span>H: {weather.highTemp ?? WEATHER_FALLBACK.highTemp}°C<br />L: {weather.lowTemp ?? WEATHER_FALLBACK.lowTemp}°C</span>
-                <em>{weather.label || 'Cloudy'}</em>
+                <strong>{weather?.temp == null ? '—' : `${weather.temp > 0 ? '+' : ''}${weather.temp}°C`}</strong>
+                <span>H: {weather?.highTemp == null ? '—' : `${weather.highTemp}°C`}<br />L: {weather?.lowTemp == null ? '—' : `${weather.lowTemp}°C`}</span>
+                <em>{weather?.label || 'No live weather'}</em>
               </div>
             </div>
             <section className="environment-weather-forecast" aria-label="Five day forecast">
-              <header><span><CalendarDays aria-hidden="true" />5-Day Forecast</span><small>Live weather</small></header>
+              <header><span><CalendarDays aria-hidden="true" />5-Day Forecast</span><small>{weather ? 'Live weather' : 'Unavailable'}</small></header>
               <div>
+                {!forecast.length && <p className="environment-forecast-empty">Weather data is temporarily unavailable.</p>}
                 {forecast.map((day, index) => (
                   <article key={`${day.date || day.day}-${index}`}>
                     <b>{day.day}</b>
@@ -519,9 +575,13 @@ export default function EnvironmentalMonitoring() {
           <section className="environment-sensor-panel">
             <nav className="environment-field-tabs" aria-label="Select farm field">
               {fields.map((field) => (
-                <button className={field === activeField ? 'is-active' : ''} type="button" key={field} onClick={() => setActiveField(field)} aria-pressed={field === activeField}>{field}</button>
+                <button className={field === activeField ? 'is-active' : ''} type="button" key={field} onClick={() => { setActiveField(field); setPage(1); setDismissedAlerts([]) }} aria-pressed={field === activeField}>{field}</button>
               ))}
             </nav>
+            {fieldMappingError && <p className="environment-field-message" role="status">{fieldMappingError}</p>}
+            {!fieldMappingError && !fieldAssigned && (
+              <p className="environment-field-message" role="status">No sensor device is assigned to {activeField}. Assign its device ID in the sensor database to show field readings.</p>
+            )}
 
             <section className="environment-reading-grid" aria-label={`${activeField} latest readings`}>
               <article className={!sensorLoading && !currentTemperature ? 'is-disconnected' : ''}>
@@ -558,20 +618,22 @@ export default function EnvironmentalMonitoring() {
                     </tr>
                   ))}
                   {!visibleReadings.length && (
-                    <tr><td colSpan="4">{sensorError || 'Waiting for the first device reading…'}</td></tr>
+                    <tr><td colSpan="4">{sensorError || `No readings received for ${activeField} today.`}</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
 
-            <footer className="environment-pagination">
-              <span>Showing {startReading}–{endReading} of {totalReadings} readings</span>
-              <nav aria-label="Sensor reading pages" className="environment-pagination-right">
-                <button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>‹</button>
-                <span className="environment-page-indicator">{page} / {pageCount}</span>
-                <button type="button" aria-label="Next page" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>›</button>
-              </nav>
-            </footer>
+            {totalReadings > 0 && (
+              <footer className="environment-pagination">
+                <span>Today (Manila time) · Showing {startReading}–{endReading} of {totalReadings} readings</span>
+                <nav aria-label="Sensor reading pages" className="environment-pagination-right">
+                  <button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>‹</button>
+                  <span className="environment-page-indicator">{page} / {pageCount}</span>
+                  <button type="button" aria-label="Next page" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>›</button>
+                </nav>
+              </footer>
+            )}
           </section>
 
           <section className="environment-insights-card">
