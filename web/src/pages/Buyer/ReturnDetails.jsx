@@ -278,7 +278,7 @@ export default function ReturnDetails() {
                       <span className="delivery-icon-badge">{resolved ? <Check aria-hidden="true" /> : <Hourglass aria-hidden="true" />}</span>
                       <p><strong>Status</strong><span>{!resolved ? 'Under review' : order.delivery_dispute_resolution === 'dismissed' ? 'Claim dismissed' : order.refund_status === 'succeeded' ? 'Refund processed' : ['failed', 'review_required'].includes(order.refund_status) ? 'Refund needs review' : 'Refund approved, processing'}</span></p>
                     </article>
-                    {qrphRefundLink(order) && <article className="order-detail"><span className="delivery-icon-badge"><ExternalLink aria-hidden="true" /></span><p><strong>QR Ph refund</strong><a href={qrphRefundLink(order)} target="_blank" rel="noopener noreferrer">Claim your test refund within 3 days</a></p></article>}
+                    {qrphRefundLink(order) && <article className="order-detail"><span className="delivery-icon-badge"><ExternalLink aria-hidden="true" /></span><p><strong>QR Ph refund</strong><a href={qrphRefundLink(order)} target="_blank" rel="noopener noreferrer">Open refund claim link (expires in 3 days)</a></p></article>}
                   </div>
                 </section>
 

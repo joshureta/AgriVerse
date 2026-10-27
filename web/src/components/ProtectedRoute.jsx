@@ -29,8 +29,7 @@ export default function ProtectedRoute({ children, allowedRoles, allowedWorkerCa
         <div className="auth-status-card auth-status-error">
           <h1>Profile unavailable</h1>
           <p>
-            Your account is signed in, but its AgriVerse profile could not be
-            loaded. Make sure the database migration has been applied.
+            We couldn&apos;t load your AgriVerse profile. Please try again later or contact support.
           </p>
           <a href="/login">Return to login</a>
         </div>

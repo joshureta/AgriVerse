@@ -23,6 +23,7 @@ export function AuthProvider({ children }) {
       .single()
 
     if (error) {
+      console.error('AgriVerse profile lookup failed; check the profiles table and access policies:', error)
       setProfile(null)
       setProfileError(error.message)
       return null

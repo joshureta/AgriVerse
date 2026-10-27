@@ -25,7 +25,10 @@ export default function FieldConditions() {
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
-    if (!sensorSupabase) return undefined
+    if (!sensorSupabase) {
+      console.warn('Sensor monitoring requires VITE_SENSOR_SUPABASE_URL and VITE_SENSOR_SUPABASE_PUBLISHABLE_KEY in web/.env.local.')
+      return undefined
+    }
     let active = true
 
     async function refresh() {
@@ -61,7 +64,7 @@ export default function FieldConditions() {
   const highTemperature = temperature && Number(temperature.temperature_c) >= 33
   const fungalRisk = temperature && humidity && Number(temperature.temperature_c) >= 24 && Number(humidity.humidity_percent) >= 80
   const alert = !sensorSupabase
-    ? 'Sensor monitoring is not configured.'
+    ? 'Sensor monitoring is currently unavailable.'
     : loading ? 'Checking sensor readings…'
       : activeCount < 3 ? (error || 'Some sensors are offline. Check the device connection.')
         : lowMoisture ? 'Low soil moisture — check irrigation.'

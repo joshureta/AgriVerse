@@ -114,7 +114,7 @@ export default function QrphPayment() {
                   <strong>PayMongo test mode</strong>
                   <p>Use the test simulator to complete this payment. Do not scan a test QR with a real banking app.</p>
                   {payment.test_url
-                    ? <div className="payment-confirmation-actions"><a className="is-primary" href={payment.test_url} target="_blank" rel="noreferrer">Simulate Test Payment</a></div>
+                    ? <div className="payment-confirmation-actions"><a className="is-primary" href={payment.test_url} target="_blank" rel="noreferrer">Open payment simulator</a></div>
                     : <p>The test payment link was not returned. Check this order in PayMongo&apos;s test dashboard.</p>}
                 </div>
               ) : qrImage ? (

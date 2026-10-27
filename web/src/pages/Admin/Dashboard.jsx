@@ -228,7 +228,7 @@ export default function AdminDashboard() {
                 <div className="panel-heading">
                   <div>
                     <span>Revenue trend</span>
-                    <strong>{revenueData?.period_label || `Current ${revenuePeriodLabels[revenuePeriod]}`} · database performance</strong>
+                    <strong>{revenueData?.period_label || `Current ${revenuePeriodLabels[revenuePeriod]}`}</strong>
                   </div>
                   <div className="revenue-heading-actions">
                     <div className="revenue-period-filter" aria-label="Revenue period">
@@ -247,7 +247,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {revenueLoading && <div className="revenue-state">Loading revenue from the database…</div>}
+                {revenueLoading && <div className="revenue-state">Loading revenue…</div>}
                 {!revenueLoading && revenueError && (
                   <div className="revenue-state is-error">
                     <span>{revenueError}</span>

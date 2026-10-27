@@ -279,7 +279,8 @@ router.delete("/:id", async (req, res, next) => {
 
     if (error) {
       if (error.code === "23503" || /foreign key|still referenced/i.test(error.message || "")) {
-        throw httpError(409, "This Buyer has order history. Apply migration 013 before deleting the account");
+        console.error("Account deletion is blocked by related records. Check migration 013_allow_buyer_deletion_preserve_orders.sql and foreign key constraints:", error);
+        throw httpError(409, "This account is linked to existing records and cannot be deleted right now. Contact support.");
       }
       throw httpError(400, error.message);
     }

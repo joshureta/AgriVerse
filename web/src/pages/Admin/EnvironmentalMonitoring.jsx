@@ -91,6 +91,10 @@ async function requestEnvironmentalReport(field, date, generate = false) {
     ...(generate ? { body: JSON.stringify({ field, date }) } : {}),
   })
   const body = await response.json().catch(() => ({}))
+  if (response.status >= 500) {
+    console.error('Daily report service is unavailable:', { status: response.status, error: body.error })
+    throw new Error('Daily summaries are currently unavailable. Please try again later.')
+  }
   if (!response.ok) throw new Error(body.error || 'Unable to load the daily report.')
   return body
 }
@@ -415,7 +419,8 @@ export default function EnvironmentalMonitoring() {
 
   useEffect(() => {
     if (!sensorSupabase) {
-      setSensorError('Sensor monitoring is not configured. Add VITE_SENSOR_SUPABASE_URL and VITE_SENSOR_SUPABASE_PUBLISHABLE_KEY to web/.env.local.')
+      console.warn('Sensor monitoring requires VITE_SENSOR_SUPABASE_URL and VITE_SENSOR_SUPABASE_PUBLISHABLE_KEY in web/.env.local.')
+      setSensorError('Sensor monitoring is currently unavailable. Please contact support.')
       setSensorLoading(false)
       return
     }
@@ -430,8 +435,11 @@ export default function EnvironmentalMonitoring() {
         if (error) throw error
         setDeviceFields(Object.fromEntries((data || []).map(({ device_id, field_name }) => [device_id, field_name])))
         setFieldMappingError('')
-      } catch {
-        if (active) setFieldMappingError('Field assignments are unavailable. Apply the sensor device fields migration in the sensor database.')
+      } catch (error) {
+        if (active) {
+          console.error('Sensor device field lookup failed; check migration 044_sensor_device_fields.sql:', error)
+          setFieldMappingError('Field assignments are currently unavailable. Please contact support.')
+        }
       }
     }
 
@@ -457,14 +465,16 @@ export default function EnvironmentalMonitoring() {
         setReadings((current) => mergeReadings(current, climateResult.value))
         setSensorError('')
       } else {
-        setSensorError(climateResult.reason?.message || 'Unable to load sensor readings.')
+        console.error('Sensor readings could not be loaded:', climateResult.reason)
+        setSensorError('Sensor readings are currently unavailable.')
       }
 
       if (soilResult.status === 'fulfilled') {
         setSoilReadings((current) => mergeReadings(current, soilResult.value))
         setSoilError('')
       } else {
-        setSoilError(soilResult.reason?.message || 'Unable to load soil readings.')
+        console.error('Soil readings could not be loaded:', soilResult.reason)
+        setSoilError('Soil readings are currently unavailable.')
       }
 
       setStatusNow(Date.now())
@@ -487,13 +497,15 @@ export default function EnvironmentalMonitoring() {
         setReadings((current) => mergeReadings(current, climateResult.value))
         setSensorError('')
       } else {
-        setSensorError(climateResult.reason?.message || 'Unable to load sensor readings.')
+        console.error('Sensor readings could not be loaded:', climateResult.reason)
+        setSensorError('Sensor readings are currently unavailable.')
       }
       if (soilResult.status === 'fulfilled') {
         setSoilReadings((current) => mergeReadings(current, soilResult.value))
         setSoilError('')
       } else {
-        setSoilError(soilResult.reason?.message || 'Unable to load soil readings.')
+        console.error('Soil readings could not be loaded:', soilResult.reason)
+        setSoilError('Soil readings are currently unavailable.')
       }
       setStatusNow(Date.now())
     }
@@ -776,7 +788,7 @@ export default function EnvironmentalMonitoring() {
                       <p>{savedSummary.summary}</p>
                       {savedSummary.suggested_check && <p><strong>Suggested check:</strong> {savedSummary.suggested_check}</p>}
                       <small>Generated {new Date(savedSummary.generated_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })}</small>
-                      {savedSummary.ephemeral && <p>To keep this summary after leaving the page, set up daily report storage.</p>}
+                      {savedSummary.ephemeral && <p>This summary is temporary and may be lost when you leave this page.</p>}
                     </>
                   ) : !reportData.hasReadings ? (
                     <p>No sensor readings are available for {activeField} on this date.</p>
@@ -786,7 +798,7 @@ export default function EnvironmentalMonitoring() {
                     <p>Generate a summary of the readings collected for this day.</p>
                   )}
                   {!dailyReport.storageReady && reportData.hasReadings && !savedSummary?.ephemeral && (
-                    <small>Daily report storage is not set up yet, so generated summaries will not be saved.</small>
+                    <small>Daily summaries can&apos;t be saved right now.</small>
                   )}
                 </div>
               </>

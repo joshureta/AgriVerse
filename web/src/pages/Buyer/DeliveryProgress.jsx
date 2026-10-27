@@ -620,7 +620,7 @@ export default function DeliveryProgress() {
               {selectedOrder.refund_amount != null && (
                 <p className="cancelled-refund-note">{selectedOrder.refund_status === 'succeeded' ? 'PayMongo processed this refund. Your bank or wallet may take additional time to show it.' : selectedOrder.refund_status === 'rejected' ? (selectedOrder.refund_decision_notes || 'The admin did not approve this refund request.') : selectedOrder.refund_status === 'failed' || selectedOrder.refund_status === 'review_required' ? 'The admin is checking this refund with PayMongo.' : qrphRefundLink(selectedOrder) ? 'PayMongo is waiting for you to claim this QR Ph refund. The transfer link expires after 3 days.' : selectedOrder.refund_status === 'processing' ? 'PayMongo is processing your refund.' : 'The admin will review this refund request.'}</p>
               )}
-              {qrphRefundLink(selectedOrder) && <p className="cancelled-refund-note"><a href={qrphRefundLink(selectedOrder)} target="_blank" rel="noopener noreferrer">Claim your QR Ph test refund</a></p>}
+              {qrphRefundLink(selectedOrder) && <p className="cancelled-refund-note"><a href={qrphRefundLink(selectedOrder)} target="_blank" rel="noopener noreferrer">Open refund claim link</a></p>}
             </section>
 
             <section className="delivery-card cancelled-items" aria-labelledby="cancelled-items-title">

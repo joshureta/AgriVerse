@@ -136,7 +136,10 @@ const legacyDisputeSelect = disputeSelect.split(",").filter((field) => ![
 
 async function hasRefundSchema(supabase) {
   const { error } = await supabase.from("buyer_orders").select("refund_status").limit(1);
-  if (error?.code === "42703") return false;
+  if (error?.code === "42703") {
+    console.warn("Refund review fields are unavailable. Apply migration 042_admin_paymongo_refunds.sql:", error);
+    return false;
+  }
   if (error) throw error;
   return true;
 }

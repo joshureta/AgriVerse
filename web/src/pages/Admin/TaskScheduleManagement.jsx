@@ -926,7 +926,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             </nav>
             {['disputes', 'refunds'].includes(activeTab) ? <>
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
-            {activeTab === 'refunds' && refundSetupRequired && <div className="tasks-error" role="status">Refund reviews need the latest database update. Existing delivery disputes are still available in the Disputes tab.</div>}
+            {activeTab === 'refunds' && refundSetupRequired && <div className="tasks-error" role="status">Refund reviews are temporarily unavailable. Delivery disputes remain available in the Disputes tab.</div>}
             <nav className="dispute-status-filter" aria-label="Filter refund cases by status">
               {[{ id: 'all', label: 'All', count: reviewOrders.length }, { id: 'open', label: 'Needs action', count: openReviewCount }, { id: 'resolved', label: 'Reviewed / processing', count: resolvedReviewCount }].map((option) => (
                 <button key={option.id} type="button" className={disputeFilter === option.id ? 'is-active' : ''} aria-pressed={disputeFilter === option.id} onClick={() => setDisputeFilter(option.id)}>{option.label} <span>{option.count}</span></button>
@@ -1320,7 +1320,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Close</button>
               <button type="button" className="wo-btn is-danger" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveCancellationRefund('rejected')}>Reject request</button>
               <button type="button" className="wo-btn is-primary" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveCancellationRefund('approved')}>
-                {saving ? 'Submitting…' : `Approve test refund ₱${Number(order.refund_amount || 0).toFixed(2)}`}
+                {saving ? 'Submitting…' : `Approve refund ₱${Number(order.refund_amount || 0).toFixed(2)}`}
               </button>
             </>) : <button type="button" className="wo-btn" onClick={() => setModal(null)}>Close</button>}
           >
@@ -1410,7 +1410,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Cancel</button>
               {refunding ? (
                 <button type="button" className="wo-btn is-primary" disabled={refundInvalid} onClick={() => resolveDispute('refunded')}>
-                  {saving ? 'Submitting…' : `${isOnline ? 'Approve test refund' : 'Confirm manual refund'} ₱${Number(disputeRefundAmount || 0).toFixed(2)}`}
+                  {saving ? 'Submitting…' : `${isOnline ? 'Approve refund' : 'Confirm manual refund'} ₱${Number(disputeRefundAmount || 0).toFixed(2)}`}
                 </button>
               ) : (
                 <button type="button" className="wo-btn is-danger" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveDispute('dismissed')}>

@@ -52,7 +52,10 @@ async function getSavedReport(field, date) {
     .eq("report_date", date)
     .maybeSingle();
   if (error) {
-    if (missingReportTable(error)) return { storageReady: false, saved: null };
+    if (missingReportTable(error)) {
+      console.warn("Daily report storage is unavailable. Apply migration 045_environmental_daily_reports.sql:", error);
+      return { storageReady: false, saved: null };
+    }
     throw error;
   }
   return { storageReady: true, saved: data || null };

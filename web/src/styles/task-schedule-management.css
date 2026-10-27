@@ -85,6 +85,7 @@
 .work-list-table th { padding: 14px 18px; text-align: left; }
 .work-list-table td { height: 84px; padding: 14px 18px; text-align: left; line-height: 1.45; vertical-align: middle; }
 .work-list-table td:last-child { text-align: right; }
+.work-list-table td.tasks-empty { text-align: center; }
 .work-list-table .task-actions { justify-content: flex-end; }
 .work-list-table .task-actions button { min-width: 79px; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #bcd4be; border-radius: 9px; color: #196c35; background: #fff; }
 .work-list-table .task-actions button:hover { border-color: #196c35; color: #fff; background: #196c35; }
