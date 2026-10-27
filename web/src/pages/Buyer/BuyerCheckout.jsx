@@ -525,6 +525,7 @@ export default function BuyerCheckout() {
   const [savingAddress, setSavingAddress] = useState(false)
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState('')
+  const [orderConnectionUncertain, setOrderConnectionUncertain] = useState(false)
   const [notice, setNotice] = useState('')
   const [placedOrder, setPlacedOrder] = useState(null)
   const [orderToastVisible, setOrderToastVisible] = useState(false)
@@ -552,10 +553,14 @@ export default function BuyerCheckout() {
   }
 
   useEffect(() => {
-    if (!error) return undefined
+    if (!error || orderConnectionUncertain) return undefined
     const dismissTimer = window.setTimeout(() => setError(''), 4000)
     return () => window.clearTimeout(dismissTimer)
-  }, [error])
+  }, [error, orderConnectionUncertain])
+
+  useEffect(() => {
+    if (!error && orderConnectionUncertain) setOrderConnectionUncertain(false)
+  }, [error, orderConnectionUncertain])
 
   useEffect(() => {
     if (!placedOrder || placedOrder.payment_method === 'gcash') return undefined
@@ -714,6 +719,7 @@ export default function BuyerCheckout() {
   async function completeOrder(confirmedAddress = null) {
     if (items.length === 0 || placedOrder || placing) return
     setPlacing(true)
+    setOrderConnectionUncertain(false)
     setError('')
     try {
       const orderDetails = {
@@ -749,6 +755,7 @@ export default function BuyerCheckout() {
 
       setOrderToastVisible(true)
     } catch (requestError) {
+      setOrderConnectionUncertain(requestError.code === 'CHECKOUT_CONNECTION_UNCERTAIN')
       setError(requestError.message)
     } finally {
       setPlacing(false)
@@ -831,9 +838,13 @@ export default function BuyerCheckout() {
 
         {notice && <p className="checkout-notice" role="status">{notice}</p>}
         {error && !addressLoadError && (
-          <aside className="checkout-error-toast" role="alert" aria-live="assertive">
+          <aside className={`checkout-error-toast${orderConnectionUncertain ? ' is-persistent' : ''}`} role="alert" aria-live="assertive">
             <span className="checkout-error-toast-icon"><CircleAlert aria-hidden="true" /></span>
-            <div><strong>Unable to continue</strong><p>{error}</p></div>
+            <div>
+              <strong>{orderConnectionUncertain ? 'Order status uncertain' : 'Unable to continue'}</strong>
+              <p>{error}</p>
+              {orderConnectionUncertain && <a href="/buyer/delivery-progress">View orders</a>}
+            </div>
           </aside>
         )}
         {addressLoadError && (

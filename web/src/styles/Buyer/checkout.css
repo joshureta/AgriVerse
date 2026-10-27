@@ -684,6 +684,7 @@
 .checkout-error-toast-icon svg { width: 27px; height: 27px; stroke-width: 2.6; }
 .checkout-error-toast > div strong { color: #a42626; font-size: 17px; }
 .checkout-error-toast > div p { margin: 4px 0 0; color: #755454; font-size: 12px; line-height: 1.45; }
+.checkout-error-toast > div a { display: inline-block; margin-top: 8px; color: #a42626; font-size: 12px; font-weight: 750; text-decoration: underline; }
 .checkout-order-toast-icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #2f833f; }
 .checkout-order-toast-icon svg { width: 27px; height: 27px; stroke-width: 3; }
 .checkout-order-toast > div strong { color: #1d6632; font-size: 17px; }

@@ -23,7 +23,7 @@ async function getRefundResource(order) {
 
 function requireTestRefundKey() {
   if (!process.env.PAYMONGO_SECRET_KEY?.startsWith("sk_test_")) {
-    throw httpError(503, "Test refunds require a PayMongo test secret key");
+    throw httpError(503, "Refund service unavailable");
   }
 }
 
@@ -46,7 +46,7 @@ async function resolvePaidPayment(order, amountCentavos) {
   if (!paymentId) {
     const intent = await paymongoGet(`/payment_intents/${encodeURIComponent(order.paymongo_payment_intent_id)}`);
     if (intent?.data?.attributes?.livemode !== false || intent?.data?.attributes?.status !== "succeeded") {
-      throw httpError(409, "The original test payment is not confirmed as paid");
+      throw httpError(409, "The payment has not been confirmed");
     }
     const payment = (intent.data.attributes.payments || []).find((item) => item?.attributes?.status === "paid")
       || (intent.data.attributes.payments || []).find((item) => item?.id);
@@ -58,7 +58,7 @@ async function resolvePaidPayment(order, amountCentavos) {
   const attributes = payment?.data?.attributes || {};
   if (payment?.data?.id !== paymentId || attributes.livemode !== false || attributes.status !== "paid"
       || attributes.payment_intent_id !== order.paymongo_payment_intent_id || attributes.currency !== "PHP") {
-    throw httpError(409, "The original test payment is not eligible for a refund");
+    throw httpError(409, "This payment is not eligible for a refund");
   }
   if (amountCentavos > Number(attributes.amount)) throw httpError(400, "Refund cannot exceed the original payment");
   return paymentId;
@@ -68,7 +68,7 @@ async function applyRefundResource(orderId, resource) {
   const refundId = resource?.id;
   const attributes = resource?.attributes || {};
   if (!refundId || resource?.type !== "refund" || attributes.livemode !== false) {
-    throw httpError(502, "PayMongo returned an invalid test refund");
+    throw httpError(502, "The refund could not be processed");
   }
   const status = attributes.status;
   if (!["pending", "processing", "refunding", "succeeded", "failed"].includes(status)) {
@@ -139,7 +139,7 @@ async function submitApprovedRefund(order) {
       const updated = await applyRefundResource(order.id, resource);
       if (updated.refund_status === "failed") {
         const { error: saveError } = await getSupabase().from("buyer_orders")
-          .update({ refund_error: `PayMongo declined the QR Ph test refund (HTTP ${error.paymongoStatus}). Check this payment's refund details in PayMongo.` })
+          .update({ refund_error: "The QR Ph refund was declined. Review the payment in PayMongo." })
           .eq("id", order.id).eq("paymongo_refund_id", resource.id);
         if (saveError) throw saveError;
       }

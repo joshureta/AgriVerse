@@ -38,7 +38,7 @@ async function apiRequest(path, options = {}, retry = true) {
     if (!response.ok) throw new Error(body?.error || `Request failed (${response.status})`)
     return body
   } catch (error) {
-    if (error.name === 'AbortError') throw new Error('The backend did not respond. Make sure it is running on port 5000.')
+    if (error.name === 'AbortError') throw new Error('Records are temporarily unavailable. Please try again.')
     throw error
   } finally {
     window.clearTimeout(timeout)

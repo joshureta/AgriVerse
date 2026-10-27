@@ -33,7 +33,7 @@ async function sellerRequest(path, options = {}, retry = true) {
     if (!response.ok) throw new Error(body.error || `Order request failed (${response.status})`)
     return body
   } catch (error) {
-    if (error.name === 'AbortError') throw new Error('The order server did not respond. Make sure the Express backend is running.')
+    if (error.name === 'AbortError') throw new Error('Order service is temporarily unavailable. Please try again.')
     throw error
   } finally {
     window.clearTimeout(timeout)

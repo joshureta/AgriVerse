@@ -855,8 +855,7 @@ export default function DeliveryProgress() {
         <div className="cancel-modal-overlay" onClick={closeCancelModal}>
           <form className="cancel-modal" onClick={(event) => event.stopPropagation()} onSubmit={handleCancelOrder}>
             <div className="cancel-modal-icon"><XCircle aria-hidden="true" /></div>
-            <h3>Cancel this order?</h3>
-            <p>This can't be undone. The farm will be notified right away and stock will be released back to the shop.</p>
+            <h3>Cancel Order</h3>
 
             <div className="cancel-modal-summary">
               <div>
@@ -867,7 +866,7 @@ export default function DeliveryProgress() {
             </div>
 
             <fieldset className="cancel-modal-reasons">
-              <legend>Tell us why (helps us improve)</legend>
+              <legend>Reason for cancellation</legend>
               {CANCEL_REASONS.map((reasonOption) => (
                 <label key={reasonOption.value}>
                   <input
@@ -884,17 +883,11 @@ export default function DeliveryProgress() {
                 <textarea
                   value={cancelNote}
                   onChange={(event) => setCancelNote(event.target.value)}
-                  placeholder="What happened?"
+                  placeholder="Enter the reason"
                   maxLength={500}
                 />
               )}
             </fieldset>
-
-            {['gcash', 'qrph'].includes(cancelTarget.payment_method) && cancelTarget.payment_status === 'paid' && (
-              <div className="cancel-modal-refund-note">
-                PHP {Number(cancelTarget.total_amount || 0).toLocaleString()} was paid online. Cancelling records a refund request for review; it does not send funds automatically.
-              </div>
-            )}
 
             {cancelError && <div className="delivery-message is-error" role="alert">{cancelError}</div>}
 

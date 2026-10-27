@@ -63,6 +63,21 @@ test("protected routes require an access token", async () => {
   assert.equal(body.error, "Authentication required");
 });
 
+test("local Vite checkout origins pass CORS preflight in development", async () => {
+  for (const origin of ["http://127.0.0.1:5173", "http://localhost:5174"]) {
+    const response = await fetch(`${baseUrl}/api/buyer/orders`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: origin,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "authorization,content-type",
+      },
+    });
+    assert.equal(response.status, 204);
+    assert.equal(response.headers.get("access-control-allow-origin"), origin);
+  }
+});
+
 test("daily environmental reports require an admin session", async () => {
   const response = await fetch(`${baseUrl}/api/admin/environmental-reports?field=Field%20A&date=2026-10-27`);
   const body = await response.json();

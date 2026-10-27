@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js'
+import { isCheckoutTransportError, retryCheckoutTransport } from './checkoutTransport.js'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const CART_STORAGE_KEY = 'agriverseBuyerCart'
@@ -43,7 +44,7 @@ export async function loadPineappleProducts(retry = true) {
     return body.products || []
   } catch (error) {
     if (error.name === 'AbortError') {
-      throw new Error('The inventory server did not respond. Make sure the Express backend is running on port 5000.')
+      throw new Error('Products are temporarily unavailable. Please try again.')
     }
     throw error
   } finally {
@@ -68,17 +69,26 @@ export async function loadFeaturedBuyerReviews() {
 }
 
 export async function placeBuyerOrder(order, retry = true) {
-  const token = await readAccessToken()
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 15000)
-
+  const orderBody = JSON.stringify(order)
+  async function sendOrder() {
+    const token = await readAccessToken()
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 15000)
+    try {
+      return await fetch(`${API_URL}/api/buyer/orders`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: orderBody,
+      })
+    } finally {
+      window.clearTimeout(timeout)
+    }
+  }
   try {
-    const response = await fetch(`${API_URL}/api/buyer/orders`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(order),
-    })
+    const response = order.idempotency_key
+      ? await retryCheckoutTransport(sendOrder)
+      : await sendOrder()
     if (response.status === 401 && retry) {
       await readAccessToken(true)
       return placeBuyerOrder(order, false)
@@ -87,12 +97,12 @@ export async function placeBuyerOrder(order, retry = true) {
     if (!response.ok) throw new Error(body.error || `Unable to place order (${response.status})`)
     return body.order
   } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new Error('Checkout timed out. Please verify your connection and try again.')
+    if (isCheckoutTransportError(error)) {
+      const uncertainError = new Error('Order status could not be confirmed. Check your orders before submitting again.')
+      uncertainError.code = 'CHECKOUT_CONNECTION_UNCERTAIN'
+      throw uncertainError
     }
     throw error
-  } finally {
-    window.clearTimeout(timeout)
   }
 }
 

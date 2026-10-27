@@ -572,12 +572,11 @@ a.delivery-back-button { text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 14px;
+  margin: 0 auto 14px;
 }
 .cancel-modal-icon svg { width: 21px; height: 21px; }
 
-.cancel-modal h3 { margin: 0 0 6px; font-size: 17px; font-weight: 800; color: #17331f; }
-.cancel-modal > p { margin: 0 0 16px; font-size: 12.5px; color: #5a695d; line-height: 1.5; }
+.cancel-modal h3 { margin: 0 0 16px; font-size: 17px; font-weight: 800; color: #17331f; }
 
 .cancel-modal-summary {
   display: flex;
@@ -618,19 +617,6 @@ a.delivery-back-button { text-decoration: none; }
   font-size: 12px;
   resize: vertical;
   min-height: 54px;
-}
-
-.cancel-modal-refund-note {
-  display: flex;
-  gap: 9px;
-  background: #fdf3df;
-  color: #9a710e;
-  border-radius: 9px;
-  padding: 10px 12px;
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 1.4;
-  margin-bottom: 18px;
 }
 
 .cancel-modal-actions.delivery-confirmation-actions { margin-top: 4px; flex-wrap: nowrap; }

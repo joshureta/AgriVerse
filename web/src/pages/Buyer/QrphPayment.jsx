@@ -102,7 +102,7 @@ export default function QrphPayment() {
             <>
               <span className="payment-confirmation-icon is-pending"><QrCode aria-hidden="true" /></span>
               <h1>Complete Your QR Ph Payment</h1>
-              <p>{payment?.test_mode ? 'Use the PayMongo simulator to test payment for order ' : 'Pay for order '}<b>{order?.order_number}</b>{payment?.test_mode ? '.' : ' using BDO Pay or another QR Ph banking app.'}</p>
+              <p>Order <b>{order?.order_number}</b></p>
               <dl className="payment-confirmation-summary">
                 <div><dt>Order Number</dt><dd>{order?.order_number}</dd></div>
                 <div><dt>Amount to Pay</dt><dd>PHP {Number(order?.total_amount || 0).toLocaleString()}</dd></div>
@@ -111,11 +111,9 @@ export default function QrphPayment() {
 
               {payment?.test_mode ? (
                 <div className="qrph-payment-action">
-                  <strong>PayMongo test mode</strong>
-                  <p>Use the test simulator to complete this payment. Do not scan a test QR with a real banking app.</p>
                   {payment.test_url
-                    ? <div className="payment-confirmation-actions"><a className="is-primary" href={payment.test_url} target="_blank" rel="noreferrer">Open payment simulator</a></div>
-                    : <p>The test payment link was not returned. Check this order in PayMongo&apos;s test dashboard.</p>}
+                    ? <div className="payment-confirmation-actions"><a className="is-primary" href={payment.test_url} target="_blank" rel="noreferrer">Open payment page</a></div>
+                    : <p>Payment is temporarily unavailable.</p>}
                 </div>
               ) : qrImage ? (
                 <div className="qrph-payment-action">

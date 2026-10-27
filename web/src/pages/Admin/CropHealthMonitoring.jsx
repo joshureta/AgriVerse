@@ -596,7 +596,7 @@ export default function CropHealthMonitoring() {
                     <tr>
                       <td colSpan={4} style={{ padding: '48px 20px', textAlign: 'center', color: '#657168' }}>
                         <RefreshCw className="spin" size={24} style={{ margin: '0 auto 10px', animation: 'spin 1s linear infinite', color: '#196c35' }} />
-                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>Loading inspection history from database…</p>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>Loading inspection history…</p>
                       </td>
                     </tr>
                   ) : paginatedActivities.length > 0 ? (

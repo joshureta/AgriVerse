@@ -40,7 +40,9 @@ app.disable("x-powered-by");
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      const localViteOrigin = process.env.NODE_ENV !== "production"
+        && /^http:\/\/(?:localhost|127\.0\.0\.1):517[3-9]$/.test(origin || "");
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin) || localViteOrigin) {
         return callback(null, true);
       }
 
@@ -132,7 +134,7 @@ app.use((error, req, res, next) => {
   }
 
   const status = Number.isInteger(error.status) ? error.status : 500;
-  const message = status >= 500 ? "Internal server error" : error.message;
+  const message = status >= 500 ? "Service temporarily unavailable." : error.message;
   if (status >= 500) console.error(error);
 
   return res.status(status).json({ error: message });

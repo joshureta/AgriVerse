@@ -146,7 +146,7 @@ async function createRefundClaimNotification({ buyerId, orderId, orderNumber }) 
     recipient_id: buyerId,
     type: "order_status_updated",
     title: "QR Ph refund ready to claim",
-    body: `Open order ${orderNumber || `#${orderId}`} and use its PayMongo transfer link to claim your test refund. The link expires after 3 days.`,
+    body: `Claim the refund for order ${orderNumber || `#${orderId}`}. The claim link expires in 3 days.`,
     entity_type: "order",
     entity_id: orderId,
   });

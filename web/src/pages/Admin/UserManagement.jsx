@@ -70,7 +70,7 @@ async function apiRequest(path, options = {}, retry = true) {
     return body
   } catch (error) {
     if (error.name === 'AbortError') {
-      throw new Error('The backend did not respond. Make sure it is running on port 5000.')
+      throw new Error('User management is temporarily unavailable. Please try again.')
     }
     throw error
   } finally {

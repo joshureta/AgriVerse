@@ -33,7 +33,7 @@ test("a test refund requires a paid test payment linked to the order", async () 
 
 test("a live key cannot send an automated refund in the test account flow", async () => {
   process.env.PAYMONGO_SECRET_KEY = "sk_live_example";
-  await assert.rejects(resolvePaidPayment({ payment_method: "gcash", payment_status: "paid" }, 100), /test secret key/);
+  await assert.rejects(resolvePaidPayment({ payment_method: "gcash", payment_status: "paid" }, 100), /Refund service unavailable/);
 });
 
 test("PayMongo refund creation sends a stable idempotency key", async () => {

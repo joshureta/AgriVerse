@@ -63,7 +63,7 @@ async function apiRequest(path, options = {}, retry = true) {
     if (!response.ok) throw new Error(body?.error || `Request failed (${response.status})`)
     return body
   } catch (error) {
-    if (error.name === 'AbortError') throw new Error('The backend did not respond. Make sure it is running on port 5000.')
+    if (error.name === 'AbortError') throw new Error('Task and schedule management is temporarily unavailable. Please try again.')
     throw error
   } finally {
     window.clearTimeout(timeout)
@@ -1315,7 +1315,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             titleId="review-cancellation-title"
             sub={`Cancelled ${formatSchedule(order.cancelled_at)}${order.delivery_full_name ? ` by ${order.delivery_full_name}` : ''}`}
             onClose={() => setModal(null)}
-            footerNote={pending ? 'Approval submits a test refund to PayMongo. Completion is confirmed separately.' : `Status: ${refundStatusLabel(order)}`}
+            footerNote={pending ? null : `Status: ${refundStatusLabel(order)}`}
             footer={pending ? (<>
               <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Close</button>
               <button type="button" className="wo-btn is-danger" disabled={saving || !disputeResolutionNotes.trim()} onClick={() => resolveCancellationRefund('rejected')}>Reject request</button>
@@ -1542,11 +1542,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                           />
                         </div>
                       </WoField>
-                      {isOnline ? (
-                        <p className="wo-note">
-                          Admin approval submits this test refund to PayMongo. It will show as refunded after PayMongo confirms success.
-                        </p>
-                      ) : (
+                      {!isOnline && (
                         <WoField label={`Manual refund reference (required for ${order.payment_method || 'cash'})`} htmlFor="dispute-refund-reference">
                           <input
                             id="dispute-refund-reference"

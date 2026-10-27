@@ -235,7 +235,7 @@ export default function BuyerOrders() {
 
             {error && <div className="marketplace-inventory-message is-error" role="alert"><p>{error}</p><button type="button" onClick={() => fetchProducts()}>Try again</button></div>}
             {loading && <div className="marketplace-inventory-message" role="status">Loading available pineapples...</div>}
-            {!loading && !error && products.length === 0 && <div className="marketplace-inventory-message">No pineapple products are currently configured.</div>}
+            {!loading && !error && products.length === 0 && <div className="marketplace-inventory-message">No pineapple products are available.</div>}
 
             {!loading && !error && products.length > 0 && <div className="pineapple-product-grid">
               {products.map((product) => {
