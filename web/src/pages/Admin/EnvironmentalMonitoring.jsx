@@ -5,6 +5,9 @@ import {
   CheckCircle2,
   CloudRain,
   Droplets,
+  FileText,
+  RefreshCw,
+  Sparkles,
   ThermometerSun,
   WifiOff,
   CalendarDays,
@@ -699,7 +702,7 @@ export default function EnvironmentalMonitoring() {
 
             {totalReadings > 0 && (
               <footer className="environment-pagination">
-                <span>Today (Manila time) · Showing {startReading}–{endReading} of {totalReadings} readings</span>
+                <span>Today · Showing {startReading}–{endReading} of {totalReadings} readings</span>
                 <nav aria-label="Sensor reading pages" className="environment-pagination-right">
                   <button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>‹</button>
                   <span className="environment-page-indicator">{page} / {pageCount}</span>
@@ -712,12 +715,19 @@ export default function EnvironmentalMonitoring() {
           <section className="environment-report-card" aria-label="Daily environmental report">
             <header className="environment-report-header">
               <div>
-                <h2><Antenna aria-hidden="true" />Daily Environmental Report</h2>
-                <p>{activeField} · Manila time</p>
+                <h2><FileText aria-hidden="true" />Daily Environmental Report</h2>
+                <p>{activeField}</p>
               </div>
               <div className="environment-report-controls">
-                <label htmlFor="environment-report-date">Date</label>
-                <input id="environment-report-date" type="date" max={todayInManila} value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
+                {!reportLoading && reportData && (
+                  <span className="environment-report-recorded">{reportData.firstAt && reportData.lastAt
+                    ? `Recorded ${new Date(reportData.firstAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}–${new Date(reportData.lastAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}`
+                    : 'No readings recorded'}</span>
+                )}
+                <div className="environment-report-date-control">
+                  <label htmlFor="environment-report-date">Date</label>
+                  <input id="environment-report-date" type="date" max={todayInManila} value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
+                </div>
               </div>
             </header>
 
@@ -725,16 +735,6 @@ export default function EnvironmentalMonitoring() {
             {reportError && <p className="environment-report-state is-error" role="alert"><AlertTriangle aria-hidden="true" />{reportError}</p>}
             {!reportLoading && reportData && (
               <>
-                <div className="environment-report-status-row">
-                  <span className={`environment-report-status is-${reportData.status}`}>
-                    {reportData.status === 'insufficient'
-                      ? reportData.hasReadings ? 'Partial readings' : 'No readings'
-                      : reportData.isToday ? 'Day in progress' : 'Final day'}
-                  </span>
-                  <span>{reportData.firstAt && reportData.lastAt
-                    ? `Recorded ${new Date(reportData.firstAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}–${new Date(reportData.lastAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}`
-                    : 'No readings recorded'}</span>
-                </div>
                 <div className="environment-report-metrics">
                   {[
                     ['Soil temperature', reportData.metrics.soilTemperature, '°C'],
@@ -754,7 +754,22 @@ export default function EnvironmentalMonitoring() {
                     <h3>Environmental Summary</h3>
                     {reportData.hasReadings && (
                       <button type="button" onClick={generateReport} disabled={reportGenerating}>
-                        {reportGenerating ? 'Generating…' : savedSummary ? 'Refresh summary' : 'Generate summary'}
+                        {reportGenerating ? (
+                        <>
+                          <RefreshCw size={13} className="spin" aria-hidden="true" />
+                          <span>Generating…</span>
+                        </>
+                      ) : savedSummary ? (
+                        <>
+                          <Sparkles size={13} aria-hidden="true" />
+                          <span>Refresh summary</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={13} aria-hidden="true" />
+                          <span>Generate summary</span>
+                        </>
+                      )}
                       </button>
                     )}
                   </div>
