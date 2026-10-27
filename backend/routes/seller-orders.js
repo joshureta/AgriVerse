@@ -95,13 +95,31 @@ router.patch("/:id/status", async (req, res, next) => {
       if (/cannot move|invalid|only seller/i.test(error.message || "")) throw httpError(409, error.message);
       throw error;
     }
+    let completedOrder = data;
+    // The database trigger keeps this atomic once migration 043 is installed.
+    // Also settle cash pickups on older databases that have not applied it yet.
+    if (status === "completed" && data.delivery_method === "pickup" && data.payment_method === "cash" && data.payment_status === "unpaid") {
+      const { data: paidOrder, error: paymentError } = await getSupabase().from("buyer_orders")
+        .update({ payment_status: "paid" })
+        .eq("id", data.id).eq("payment_status", "unpaid")
+        .select(orderSelect).maybeSingle();
+      if (paymentError) throw paymentError;
+      if (paidOrder) {
+        completedOrder = paidOrder;
+      } else {
+        const { data: latestOrder, error: latestError } = await getSupabase().from("buyer_orders")
+          .select(orderSelect).eq("id", data.id).single();
+        if (latestError) throw latestError;
+        completedOrder = latestOrder;
+      }
+    }
     await createOrderStatusNotification({
-      buyerId: data.buyer_id,
-      orderId: data.id,
-      orderNumber: data.order_number,
+      buyerId: completedOrder.buyer_id,
+      orderId: completedOrder.id,
+      orderNumber: completedOrder.order_number,
       status,
     });
-    return res.json({ order: serializeOrder(data) });
+    return res.json({ order: serializeOrder(completedOrder) });
   } catch (error) {
     return next(error);
   }
