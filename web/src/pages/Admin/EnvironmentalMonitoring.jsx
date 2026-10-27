@@ -578,9 +578,9 @@ export default function EnvironmentalMonitoring() {
                 <button className={field === activeField ? 'is-active' : ''} type="button" key={field} onClick={() => { setActiveField(field); setPage(1); setDismissedAlerts([]) }} aria-pressed={field === activeField}>{field}</button>
               ))}
             </nav>
-            {fieldMappingError && <p className="environment-field-message" role="status">{fieldMappingError}</p>}
+            {fieldMappingError && <p className="environment-field-message" role="status"><AlertTriangle aria-hidden="true" />{fieldMappingError}</p>}
             {!fieldMappingError && !fieldAssigned && (
-              <p className="environment-field-message" role="status">No sensor device is assigned to {activeField}. Assign its device ID in the sensor database to show field readings.</p>
+              <p className="environment-field-message" role="status"><WifiOff aria-hidden="true" />No sensors assigned to {activeField}.</p>
             )}
 
             <section className="environment-reading-grid" aria-label={`${activeField} latest readings`}>
