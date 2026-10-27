@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import Pagination from '../../components/Pagination.jsx'
 import weatherSunnyImage from '../../assets/weather/mobile/weather-real-sunny.png'
 import weatherRainyImage from '../../assets/weather/mobile/weather-real-rainy.png'
 import weatherCloudyImage from '../../assets/weather/mobile/weather-real-cloudy.png'
@@ -701,13 +702,9 @@ export default function EnvironmentalMonitoring() {
             </div>
 
             {totalReadings > 0 && (
-              <footer className="environment-pagination">
+              <footer className="pagination-footer">
                 <span>Today · Showing {startReading}–{endReading} of {totalReadings} readings</span>
-                <nav aria-label="Sensor reading pages" className="environment-pagination-right">
-                  <button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>‹</button>
-                  <span className="environment-page-indicator">{page} / {pageCount}</span>
-                  <button type="button" aria-label="Next page" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>›</button>
-                </nav>
+                <Pagination page={page} totalPages={pageCount} onChange={setPage} ariaLabel="Sensor reading pages" />
               </footer>
             )}
           </section>

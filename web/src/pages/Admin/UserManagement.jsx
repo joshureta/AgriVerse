@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, Eye, EyeOff, X } from 'lucide-react'
 import deleteIcon from '../../assets/delete-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import Pagination from '../../components/Pagination.jsx'
 import { workerCategories } from '../../constants/user-options.js'
 import { useAuth } from '../../hooks/useAuth.js'
 import { supabase } from '../../lib/supabase.js'
@@ -309,13 +310,9 @@ export default function UserManagement() {
                 </tbody>
               </table>
             </div>
-            <footer className="users-footer">
+            <footer className="pagination-footer">
               <span>{pagination.total} total user{pagination.total === 1 ? '' : 's'}</span>
-              <div>
-                <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button>
-                <strong>{page}</strong>
-                <button type="button" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button>
-              </div>
+              <Pagination page={page} totalPages={pagination.totalPages} onChange={setPage} disabled={loading} ariaLabel="User pages" />
             </footer>
           </section>
         </div>

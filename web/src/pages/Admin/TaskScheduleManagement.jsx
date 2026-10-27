@@ -5,6 +5,7 @@ import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
 import workersTaskIcon from '../../assets/task-workers-icon-white.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import Pagination from '../../components/Pagination.jsx'
 import { WoField, WoList, WoRadios, WoRow, WoSection, WoSteps, WorkOrderDialog } from '../../components/WorkOrderDialog.jsx'
 import { supabase } from '../../lib/supabase.js'
 import { qrphRefundLink } from '../../utils/paymongoRefund.js'
@@ -1029,13 +1030,9 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                 </>}</tbody>
               </table>
             </div>
-            <footer className="task-pagination">
+            <footer className="pagination-footer">
               <span>{workView === 'deliveries' ? `${visibleDeliveryOrders.length} assigned delivery order${visibleDeliveryOrders.length === 1 ? '' : 's'}` : `${pagination.total} crop task${pagination.total === 1 ? '' : 's'}${workView === 'all' ? ` · ${visibleDeliveryOrders.length} delivery order${visibleDeliveryOrders.length === 1 ? '' : 's'}` : ''}`}</span>
-              <div>
-                <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((v) => v - 1)}>← Previous</button>
-                <strong>{page} / {workView === 'deliveries' ? deliveryTotalPages : pagination.totalPages || 1}</strong>
-                <button type="button" disabled={(workView === 'deliveries' ? page >= deliveryTotalPages : page >= (pagination.totalPages || 1)) || loading} onClick={() => setPage((v) => v + 1)}>Next →</button>
-              </div>
+              <Pagination page={page} totalPages={workView === 'deliveries' ? deliveryTotalPages : pagination.totalPages || 1} onChange={setPage} disabled={loading} ariaLabel="Work assignment pages" />
             </footer>
             </> : activeTab === 'fleet' ? <>
               <div className="task-settings-toolbar">
@@ -1064,14 +1061,10 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                   <tbody>{paginatedSettings.length ? paginatedSettings.map((value) => <tr key={value.id}><td><strong>{value[settingsConfig.nameKey]}</strong></td>{settingsResource === 'categories' && <td>{value.description || 'No description added'}</td>}<td><span className="task-status status-pending">{activeTab === 'archive' ? 'Archived' : 'Active'}</span></td><td><div className="task-actions">{activeTab === 'archive' ? <button type="button" onClick={() => restoreSetting(settingsConfig.resource, value)}>Restore</button> : <><button type="button" onClick={() => openSettingModal(settingsConfig.resource, value)}>Edit</button><button className="task-archive" type="button" onClick={() => archiveSetting(settingsConfig.resource, value)}>Archive</button></>}</div></td></tr>) : <tr><td className="tasks-empty" colSpan={settingsResource === 'categories' ? 4 : 3}>{activeTab === 'archive' ? `No archived ${settingsConfig.itemLabel.toLowerCase()}s found.` : settingsConfig.empty}</td></tr>}</tbody>
                 </table>
               </div>
-              <footer className="task-pagination">
+              <footer className="pagination-footer">
                 <span>{visibleSettings.length} {activeTab === 'archive' ? 'archived' : 'active'} {settingsConfig.itemLabel.toLowerCase()}{visibleSettings.length === 1 ? '' : 's'}</span>
                 {settingsTotalPages > 1 && (
-                  <div>
-                    <button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>← Previous</button>
-                    <strong>{page} / {settingsTotalPages}</strong>
-                    <button type="button" disabled={page >= settingsTotalPages} onClick={() => setPage((value) => value + 1)}>Next →</button>
-                  </div>
+                  <Pagination page={page} totalPages={settingsTotalPages} onChange={setPage} ariaLabel="Settings pages" />
                 )}
               </footer>
             </>}

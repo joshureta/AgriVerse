@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import Pagination from '../../components/Pagination.jsx'
 import { CropInspection, FIELDS } from '../../features/cropHealth/CropInspection.js'
 import { CropInspectionApi } from '../../features/cropHealth/CropInspectionApi.js'
 import '../../styles/admin-dashboard.css'
@@ -728,25 +729,9 @@ export default function CropHealthMonitoring() {
 
             {/* Pagination footer */}
             {fieldActivities.length > 0 && (
-              <footer className="task-pagination" style={{ margin: '10px 14px' }}>
+              <footer className="pagination-footer" style={{ margin: '10px 14px' }}>
                 <span>{activeField}: {fieldActivities.length} inspection record{fieldActivities.length === 1 ? '' : 's'}</span>
-                <div>
-                  <button
-                    type="button"
-                    disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((value) => Math.max(1, value - 1))}
-                  >
-                    ← Previous
-                  </button>
-                  <strong>{currentPage}</strong>
-                  <button
-                    type="button"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage((value) => Math.min(totalPages, value + 1))}
-                  >
-                    Next →
-                  </button>
-                </div>
+                <Pagination page={currentPage} totalPages={totalPages} onChange={setCurrentPage} ariaLabel="Inspection record pages" />
               </footer>
             )}
           </section>

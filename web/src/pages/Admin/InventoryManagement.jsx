@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ArrowRight, Check, CheckCircle2, CircleAlert, PackageMinus, PackagePlus, TriangleAlert, X } from 'lucide-react'
 import archiveIcon from '../../assets/archive-inventory-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import Pagination from '../../components/Pagination.jsx'
 import { SellerSidebar, SellerTopbar } from '../../components/SellerNavigation.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
@@ -513,13 +514,9 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                 </tbody>
               </table>}
             </div>
-            {activeView !== 'stock' && <footer className="inventory-pagination">
+            {activeView !== 'stock' && <footer className="pagination-footer">
               <span>{pagination.total} total item{pagination.total === 1 ? '' : 's'}</span>
-              <div>
-                <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button>
-                <strong>{page}</strong>
-                <button type="button" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button>
-              </div>
+              <Pagination page={page} totalPages={pagination.totalPages} onChange={setPage} disabled={loading} ariaLabel="Inventory pages" />
             </footer>}
             {activeView === 'stock' && <section className="stock-history-section">
               <header><div><h2>Stock Movement History</h2><p>Recent pineapple stock additions and deductions</p></div></header>
@@ -539,13 +536,9 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                   </tbody>
                 </table>
               </div>
-              <footer className="inventory-pagination">
+              <footer className="pagination-footer">
                 <span>{stockHistoryPagination.total} movement{stockHistoryPagination.total === 1 ? '' : 's'}</span>
-                <div>
-                  <button type="button" disabled={stockHistoryPage <= 1 || historyLoading} onClick={() => setStockHistoryPage((value) => value - 1)}>← Previous</button>
-                  <strong>{stockHistoryPage}</strong>
-                  <button type="button" disabled={stockHistoryPage >= stockHistoryPagination.totalPages || historyLoading} onClick={() => setStockHistoryPage((value) => value + 1)}>Next →</button>
-                </div>
+                <Pagination page={stockHistoryPage} totalPages={stockHistoryPagination.totalPages} onChange={setStockHistoryPage} disabled={historyLoading} ariaLabel="Stock movement pages" />
               </footer>
             </section>}
             </div>

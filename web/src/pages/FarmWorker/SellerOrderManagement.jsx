@@ -16,6 +16,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { SellerSidebar, SellerTopbar } from '../../components/SellerNavigation.jsx'
+import Pagination from '../../components/Pagination.jsx'
 import { changeSellerOrderStatus, loadSellerOrders } from '../../services/sellerOrders.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/seller-order-management.css'
@@ -274,13 +275,9 @@ export default function SellerOrderManagement() {
                 </tbody>
               </table>
             </div>
-            <footer className="seller-order-pagination">
+            <footer className="pagination-footer">
               <span>{filtered.length} total order{filtered.length === 1 ? '' : 's'}</span>
-              <div>
-                <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button>
-                <strong>{page}</strong>
-                <button type="button" disabled={page >= pages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button>
-              </div>
+              <Pagination page={page} totalPages={pages} onChange={setPage} disabled={loading} ariaLabel="Seller order pages" />
             </footer>
           </section>
         </div>

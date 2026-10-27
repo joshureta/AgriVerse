@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Download, Eye, Search, X } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import Pagination from '../../components/Pagination.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/task-schedule-management.css'
@@ -413,13 +414,9 @@ export default function RecordsManagement() {
               </table>
             </div>
 
-            <footer className="task-pagination">
+            <footer className="pagination-footer">
               <span>Showing {firstVisibleRecord}–{lastVisibleRecord} of {recordCount}</span>
-              <div>
-                <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>← Previous</button>
-                <strong>{page} / {totalPages}</strong>
-                <button type="button" disabled={page >= totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button>
-              </div>
+              <Pagination page={page} totalPages={totalPages} onChange={setPage} disabled={loading} ariaLabel="Record pages" />
             </footer>
           </section>
         </div>
