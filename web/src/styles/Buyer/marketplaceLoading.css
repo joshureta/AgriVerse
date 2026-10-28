@@ -82,30 +82,6 @@
 .marketplace-loading-hero-copy .is-description-short { width: 75%; }
 .marketplace-loading-hero-copy .is-button { width: 145px; height: 44px; margin-top: 10px; border-radius: 10px; }
 
-.marketplace-loading-status {
-  position: fixed;
-  z-index: 20;
-  top: 50%;
-  left: 50%;
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  color: #155625;
-  font-size: 20px;
-  font-weight: 800;
-  transform: translate(-50%, -50%);
-}
-
-.marketplace-loading-ring {
-  width: 48px;
-  height: 48px;
-  display: block;
-  border: 4px solid rgba(47, 146, 69, 0.18);
-  border-top-color: #2f9245;
-  border-radius: 50%;
-  animation: auth-spin 800ms linear infinite;
-}
-
 .marketplace-loading-trust .marketplace-trust-item {
   grid-template-columns: 66px 1fr;
 }
@@ -406,6 +382,5 @@
   .marketplace-loading-bar,
   .marketplace-loading-circle,
   .marketplace-loading-product-image,
-  .marketplace-loading-about-process-row > span,
-  .marketplace-loading-ring { animation: none; }
+  .marketplace-loading-about-process-row > span { animation: none; }
 }

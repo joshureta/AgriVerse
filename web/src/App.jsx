@@ -1,5 +1,6 @@
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import MarketplaceLoading from './components/MarketplaceLoading.jsx'
+import WorkspaceLoading from './components/WorkspaceLoading.jsx'
 import AuthConfirm from './pages/AuthConfirm.jsx'
 import AdminDashboard from './pages/Admin/Dashboard.jsx'
 import EditUser from './pages/Admin/EditUser.jsx'
@@ -34,10 +35,12 @@ import DriverOrders from './pages/FarmWorker/DriverOrders.jsx'
 function App() {
   const path = window.location.pathname
   const marketplaceLoading = <MarketplaceLoading path={path} search={window.location.search} />
+  const adminLoading = <WorkspaceLoading path={path} />
+  const sellerLoading = <WorkspaceLoading path={path} seller />
 
   if (path === '/farm-worker/orders' || path === '/seller/orders') {
     return (
-      <ProtectedRoute allowedRoles={['farm_worker']} allowedWorkerCategories={['seller']}>
+      <ProtectedRoute allowedRoles={['farm_worker']} allowedWorkerCategories={['seller']} loadingFallback={sellerLoading}>
         <SellerOrderManagement />
       </ProtectedRoute>
     )
@@ -45,7 +48,7 @@ function App() {
 
   if (path === '/farm-worker/inventory' || path === '/seller/inventory') {
     return (
-      <ProtectedRoute allowedRoles={['farm_worker']} allowedWorkerCategories={['seller']}>
+      <ProtectedRoute allowedRoles={['farm_worker']} allowedWorkerCategories={['seller']} loadingFallback={sellerLoading}>
         <InventoryManagement workspace="seller" initialView="stock" />
       </ProtectedRoute>
     )
@@ -60,6 +63,7 @@ function App() {
       <ProtectedRoute
         allowedRoles={['farm_worker']}
         allowedWorkerCategories={['seller']}
+        loadingFallback={sellerLoading}
       >
         <SellerDashboard />
       </ProtectedRoute>
@@ -133,7 +137,7 @@ function App() {
 
   if (path === '/admin/tasks') {
     return (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <TaskScheduleManagement />
       </ProtectedRoute>
     )
@@ -141,7 +145,7 @@ function App() {
 
   if (path === '/admin/records') {
     return (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <RecordsManagement />
       </ProtectedRoute>
     )
@@ -149,7 +153,7 @@ function App() {
 
   if (path === '/admin/monitoring/crop-health') {
     return (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <CropHealthMonitoring />
       </ProtectedRoute>
     )
@@ -157,7 +161,7 @@ function App() {
 
   if (path === '/admin/monitoring/environmental') {
     return (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <EnvironmentalMonitoring />
       </ProtectedRoute>
     )
@@ -165,7 +169,7 @@ function App() {
 
   if (path === '/admin/settings') {
     return (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <Settings />
       </ProtectedRoute>
     )
@@ -173,7 +177,7 @@ function App() {
 
   if (path === '/admin/users/edit') {
     return (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <EditUser />
       </ProtectedRoute>
     )
@@ -181,7 +185,7 @@ function App() {
 
   if (path === '/admin/users') {
     return (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <UserManagement />
       </ProtectedRoute>
     )
@@ -189,7 +193,7 @@ function App() {
 
   if (path === '/admin/messages') {
     return (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <AdminMessages />
       </ProtectedRoute>
     )
@@ -197,7 +201,7 @@ function App() {
 
   if (path === '/admin') {
     return (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <AdminDashboard />
       </ProtectedRoute>
     )
@@ -205,7 +209,7 @@ function App() {
 
   if (path === '/admin/inventory') {
     return (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <InventoryManagement />
       </ProtectedRoute>
     )

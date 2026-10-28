@@ -170,7 +170,7 @@ export default function MarketplaceLoading({ path = '/buyer', search = '' }) {
   const active = variant === 'about' ? 'about' : variant === 'home' ? 'home' : ['catalog', 'orders', 'order-detail', 'return-request', 'return-details', 'checkout', 'payment'].includes(variant) ? 'orders' : ''
 
   return (
-    <main className="buyer-page buyer-marketplace-page marketplace-loading" aria-busy="true">
+    <main className="buyer-page buyer-marketplace-page marketplace-loading" aria-busy="true" aria-label="Loading marketplace">
       <header className="buyer-site-header marketplace-loading-header">
         <div className="buyer-header-main">
           <span className="buyer-brand">
@@ -189,11 +189,6 @@ export default function MarketplaceLoading({ path = '/buyer', search = '' }) {
           </div>
         </div>
       </header>
-
-      <div className="marketplace-loading-status" role="status" aria-live="polite">
-        <span className="marketplace-loading-ring" aria-hidden="true" />
-        <span>Loading</span>
-      </div>
 
       {variant === 'home' ? (
         <>
