@@ -1,26 +1,23 @@
 import { router } from 'expo-router';
 import { openBrowserAsync } from 'expo-web-browser';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerHeader } from '@/components/buyer-header';
 import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { PhilippineAddressFields } from '@/components/philippine-address-fields';
 import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import { useAuth } from '@/context/auth-context';
 import {
-  DeliveryAddress,
   DeliveryAddressInput,
   ReconciledCartItem,
-  createBuyerDeliveryAddress,
   createGcashCheckout,
-  loadBuyerDeliveryAddresses,
   loadPineappleProducts,
   placeBuyerOrder,
   readBuyerCart,
   reconcileBuyerCart,
   reconciledToCartItems,
-  saveDefaultBuyerDeliveryAddress,
   writeBuyerCart,
 } from '@/lib/buyer-marketplace';
 import { GREEN, TEXT_MUTED, styles } from '@/styles/buyer-checkout.styles';
@@ -30,21 +27,16 @@ const DELIVERY_FEE = 100;
 const EMPTY_ADDRESS: DeliveryAddressInput = {
   full_name: '',
   mobile_number: '',
-  country: '',
+  country: 'Philippines',
   region: '',
   province: '',
   city_municipality: '',
   barangay: '',
 };
 
-const ADDRESS_FIELDS: { key: keyof DeliveryAddressInput; label: string; placeholder: string; optional?: boolean }[] = [
+const ADDRESS_FIELDS: { key: 'full_name' | 'mobile_number'; label: string; placeholder: string }[] = [
   { key: 'full_name', label: 'Full Name', placeholder: 'Enter recipient name' },
   { key: 'mobile_number', label: 'Phone Number', placeholder: 'Enter mobile number' },
-  { key: 'country', label: 'Country', placeholder: 'Enter country' },
-  { key: 'region', label: 'Region', placeholder: 'Enter region' },
-  { key: 'province', label: 'Province', placeholder: 'Enter province (optional)', optional: true },
-  { key: 'city_municipality', label: 'City / Municipality', placeholder: 'Enter city or municipality' },
-  { key: 'barangay', label: 'Barangay', placeholder: 'Enter barangay' },
 ];
 
 function addressIsComplete(address: DeliveryAddressInput) {
@@ -188,7 +180,7 @@ function StoreIcon({ color = GREEN, size = 16 }: { color?: string; size?: number
 }
 
 const DELIVERY_METHODS = [
-  { key: 'delivery', label: 'Standard Delivery', sub: 'Delivery service straight to your registered address.' },
+  { key: 'delivery', label: 'Standard Delivery', sub: 'Delivery to the address shown above.' },
   { key: 'pickup', label: 'On-site Pickup', sub: 'Collect your order directly from JToledo Trading Farm.' },
 ] as const;
 
@@ -265,10 +257,10 @@ export default function BuyerCheckoutScreen() {
   const [paymentMethod, setPaymentMethod] = useState<(typeof PAYMENT_METHODS)[number]['key']>('cash');
   const [notes, setNotes] = useState('');
 
-  const [address, setAddress] = useState<DeliveryAddress | null>(null);
+  const [orderAddress, setOrderAddress] = useState<DeliveryAddressInput | null>(null);
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [addressForm, setAddressForm] = useState<DeliveryAddressInput>(EMPTY_ADDRESS);
-  const [savingAddress, setSavingAddress] = useState(false);
+  const [addressLocationValid, setAddressLocationValid] = useState(false);
 
   const [placing, setPlacing] = useState(false);
 
@@ -297,22 +289,20 @@ export default function BuyerCheckoutScreen() {
     }
   }, []);
 
-  const loadAddress = useCallback(async () => {
-    try {
-      const { addresses, defaultAddressId } = await loadBuyerDeliveryAddresses();
-      setAddress(addresses.find((item) => item.id === defaultAddressId) || null);
-    } catch {
-      setAddress(null);
-    }
-  }, []);
-
   useEffect(() => {
     loadCart();
   }, [loadCart]);
 
-  useEffect(() => {
-    if (profile) loadAddress();
-  }, [profile, loadAddress]);
+  const profileAddress = useMemo<DeliveryAddressInput>(() => ({
+    full_name: profile?.full_name || '',
+    mobile_number: profile?.mobile_number || '',
+    country: profile?.country || 'Philippines',
+    region: profile?.region || '',
+    province: profile?.province || '',
+    city_municipality: profile?.city_municipality || '',
+    barangay: profile?.barangay || '',
+  }), [profile]);
+  const address = orderAddress || profileAddress;
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -320,54 +310,25 @@ export default function BuyerCheckoutScreen() {
   const total = subtotal + deliveryFee;
 
   const openAddressModal = useCallback(() => {
-    setAddressForm(
-      address
-        ? {
-            full_name: address.full_name,
-            mobile_number: address.mobile_number,
-            country: address.country,
-            region: address.region,
-            province: address.province,
-            city_municipality: address.city_municipality,
-            barangay: address.barangay,
-          }
-        : profile
-          ? {
-              full_name: profile.full_name || '',
-              mobile_number: profile.mobile_number || '',
-              country: profile.country || '',
-              region: profile.region || '',
-              province: profile.province || '',
-              city_municipality: profile.city_municipality || '',
-              barangay: profile.barangay || '',
-            }
-          : EMPTY_ADDRESS,
-    );
+    setAddressForm({ ...address, country: 'Philippines' });
+    setAddressLocationValid(false);
     setError('');
     setAddressModalOpen(true);
-  }, [address, profile]);
+  }, [address]);
 
-  const saveAddress = useCallback(async () => {
-    if (!addressIsComplete(addressForm) || savingAddress) return;
-    setSavingAddress(true);
+  const saveAddress = useCallback(() => {
+    if (!addressIsComplete(addressForm) || !addressLocationValid) return;
     setError('');
-    try {
-      const saved = await createBuyerDeliveryAddress({ ...addressForm, label: 'Delivery address' });
-      await saveDefaultBuyerDeliveryAddress(saved.id);
-      setAddress(saved);
-      setAddressModalOpen(false);
-      showToast({ title: 'Address saved', body: 'Your delivery address is ready for this order.' });
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not save this address.');
-    } finally {
-      setSavingAddress(false);
-    }
-  }, [addressForm, savingAddress, showToast]);
+    setOrderAddress(Object.fromEntries(
+      Object.entries(addressForm).map(([key, value]) => [key, String(value || '').trim()]),
+    ) as DeliveryAddressInput);
+    setAddressModalOpen(false);
+    showToast({ title: 'Address ready', body: 'This address will be used for your order.' });
+  }, [addressForm, addressLocationValid, showToast]);
 
   const placeOrder = useCallback(async () => {
     if (items.length === 0 || placing) return;
-    if (deliveryMethod === 'delivery' && !address) {
-      setError('Add a delivery address before placing your order.');
+    if (deliveryMethod === 'delivery' && !addressIsComplete(address)) {
       openAddressModal();
       return;
     }
@@ -378,18 +339,7 @@ export default function BuyerCheckoutScreen() {
         delivery_method: deliveryMethod,
         payment_method: paymentMethod,
         customer_note: notes,
-        delivery_address:
-          deliveryMethod === 'delivery' && address
-            ? {
-                full_name: address.full_name,
-                mobile_number: address.mobile_number,
-                country: address.country,
-                region: address.region,
-                province: address.province,
-                city_municipality: address.city_municipality,
-                barangay: address.barangay,
-              }
-            : null,
+        delivery_address: deliveryMethod === 'delivery' ? address : null,
         items: items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
       });
       await writeBuyerCart([]);
@@ -415,9 +365,8 @@ export default function BuyerCheckoutScreen() {
     }
   }, [items, placing, deliveryMethod, address, paymentMethod, notes, openAddressModal, showToast]);
 
-  const fullAddress = address
-    ? [address.barangay, address.city_municipality, address.province, address.region, address.country].filter(Boolean).join(', ')
-    : '';
+  const fullAddress = [address.barangay, address.city_municipality, address.province, address.region, address.country]
+    .filter(Boolean).join(', ');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -443,10 +392,10 @@ export default function BuyerCheckoutScreen() {
             {deliveryMethod === 'delivery' ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={address ? 'Edit delivery address' : 'Add delivery address'}
+                accessibilityLabel={addressIsComplete(address) ? 'Edit delivery address' : 'Add delivery address'}
                 onPress={openAddressModal}
                 hitSlop={8}>
-                <Text style={styles.editLink}>{address ? 'Edit ›' : 'Add ›'}</Text>
+                <Text style={styles.editLink}>{addressIsComplete(address) ? 'Edit ›' : 'Add ›'}</Text>
               </Pressable>
             ) : null}
           </View>
@@ -456,10 +405,12 @@ export default function BuyerCheckoutScreen() {
               <Text style={styles.deliveryName}>JToledo Trading Farm</Text>
               <Text style={styles.deliveryAddress}>Tagaytay City, Cavite</Text>
             </View>
-          ) : address ? (
+          ) : (['full_name', 'mobile_number', 'region', 'province', 'city_municipality', 'barangay'] as const)
+            .some((field) => String(address[field] || '').trim()) ? (
             <View>
               <Text style={styles.deliveryName}>{address.full_name}</Text>
               <Text style={styles.deliveryAddress}>{fullAddress}</Text>
+              {!addressIsComplete(address) && <Text style={styles.deliveryEmptyText}>Add the missing details before placing your order.</Text>}
             </View>
           ) : (
             <Pressable
@@ -603,14 +554,13 @@ export default function BuyerCheckoutScreen() {
                 <CloseIcon color="#556658" size={14} />
               </Pressable>
             </View>
-            <Text style={styles.modalSubtitle}>Enter recipient and address details for your order.</Text>
+            <Text style={styles.modalSubtitle}>Choose a Philippine region, province, city or municipality, and barangay.</Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {ADDRESS_FIELDS.map((field) => (
                 <View key={field.key} style={styles.fieldBlock}>
                   <Text style={styles.fieldLabel}>
-                    {field.label}
-                    {field.optional ? '' : ' *'}
+                    {field.label} *
                   </Text>
                   <TextInput
                     style={styles.fieldInput}
@@ -621,10 +571,19 @@ export default function BuyerCheckoutScreen() {
                   />
                 </View>
               ))}
+              {addressModalOpen && <PhilippineAddressFields
+                address={addressForm}
+                onChange={(changes) => setAddressForm((current) => ({ ...current, ...changes }))}
+                onValidityChange={setAddressLocationValid}
+              />}
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>Country *</Text>
+                <TextInput style={styles.fieldInput} value="Philippines" editable={false} />
+              </View>
             </ScrollView>
             {error ? (
               <BuyerInlineNotice
-                title={error === 'Add a delivery address before placing your order.' ? 'Delivery address required' : 'Address could not be saved'}
+                title="Address needs attention"
                 message={error}
                 tone="error"
               />
@@ -639,11 +598,11 @@ export default function BuyerCheckoutScreen() {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Save address"
-                disabled={!addressIsComplete(addressForm) || savingAddress}
+                accessibilityLabel="Use this address"
+                disabled={!addressIsComplete(addressForm) || !addressLocationValid}
                 onPress={saveAddress}
-                style={[styles.modalSaveButton, (!addressIsComplete(addressForm) || savingAddress) && styles.modalSaveButtonDisabled]}>
-                <Text style={styles.modalSaveText}>{savingAddress ? 'Saving…' : 'Save Address'}</Text>
+                style={[styles.modalSaveButton, (!addressIsComplete(addressForm) || !addressLocationValid) && styles.modalSaveButtonDisabled]}>
+                <Text style={styles.modalSaveText}>Use This Address</Text>
               </Pressable>
             </View>
           </View>

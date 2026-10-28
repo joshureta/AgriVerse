@@ -531,6 +531,58 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     color: DARK_GREEN,
   },
+  locationChoice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+  },
+  locationChoiceDisabled: {
+    opacity: 0.55,
+  },
+  locationChoiceText: {
+    flex: 1,
+    color: DARK_GREEN,
+    fontSize: 13,
+    marginRight: 8,
+  },
+  locationPlaceholder: {
+    color: '#9AA79C',
+  },
+  locationOptions: {
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  locationSearch: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: DARK_GREEN,
+    fontSize: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: CARD_BORDER,
+  },
+  locationOptionsScroll: {
+    maxHeight: 190,
+  },
+  locationOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2EC',
+  },
+  locationOptionText: {
+    color: DARK_GREEN,
+    fontSize: 13,
+  },
+  locationHelp: {
+    color: TEXT_MUTED,
+    fontSize: 12,
+    paddingVertical: 8,
+  },
   modalActions: {
     flexDirection: 'row',
     gap: 12,
