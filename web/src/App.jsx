@@ -1,4 +1,5 @@
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import MarketplaceLoading from './components/MarketplaceLoading.jsx'
 import AuthConfirm from './pages/AuthConfirm.jsx'
 import AdminDashboard from './pages/Admin/Dashboard.jsx'
 import EditUser from './pages/Admin/EditUser.jsx'
@@ -32,6 +33,7 @@ import DriverOrders from './pages/FarmWorker/DriverOrders.jsx'
 
 function App() {
   const path = window.location.pathname
+  const marketplaceLoading = <MarketplaceLoading path={path} search={window.location.search} />
 
   if (path === '/farm-worker/orders' || path === '/seller/orders') {
     return (
@@ -66,7 +68,7 @@ function App() {
 
   if (path === '/buyer/profile') {
     return (
-      <ProtectedRoute allowedRoles={['buyer']}>
+      <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}>
         <BuyerProfile />
       </ProtectedRoute>
     )
@@ -82,7 +84,7 @@ function App() {
 
   if (path === '/buyer/messages') {
     return (
-      <ProtectedRoute allowedRoles={['buyer']}>
+      <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}>
         <BuyerMessages />
       </ProtectedRoute>
     )
@@ -90,7 +92,7 @@ function App() {
 
   if (path === '/buyer/notifications') {
     return (
-      <ProtectedRoute allowedRoles={['buyer']}>
+      <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}>
         <BuyerNotifications />
       </ProtectedRoute>
     )
@@ -98,24 +100,24 @@ function App() {
 
   if (path === '/buyer/delivery-progress') {
     return (
-      <ProtectedRoute allowedRoles={['buyer']}>
+      <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}>
         <DeliveryProgress />
       </ProtectedRoute>
     )
   }
 
   if (path === '/buyer/return-request') {
-    return <ProtectedRoute allowedRoles={['buyer']}><ReturnRequest /></ProtectedRoute>
+    return <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}><ReturnRequest /></ProtectedRoute>
   }
 
   if (path === '/buyer/return-details') {
-    return <ProtectedRoute allowedRoles={['buyer']}><ReturnDetails /></ProtectedRoute>
+    return <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}><ReturnDetails /></ProtectedRoute>
   }
 
 
   if (path === '/buyer/checkout') {
     return (
-      <ProtectedRoute allowedRoles={['buyer']}>
+      <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}>
         <BuyerCheckout />
       </ProtectedRoute>
     )
@@ -123,7 +125,7 @@ function App() {
 
   if (path === '/buyer/payment-confirmation') {
     return (
-      <ProtectedRoute allowedRoles={['buyer']}>
+      <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}>
         <PaymentConfirmation />
       </ProtectedRoute>
     )
@@ -216,7 +218,7 @@ function App() {
     path === '/buyer/direct-place-order'
   ) {
     return (
-      <ProtectedRoute allowedRoles={['buyer']}>
+      <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}>
         <BuyerOrders />
       </ProtectedRoute>
     )
@@ -224,7 +226,7 @@ function App() {
 
   if (path === '/buyer/cart' || path === '/buyer/shopping-cart') {
     return (
-      <ProtectedRoute allowedRoles={['buyer']}>
+      <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}>
         <ShoppingCart />
       </ProtectedRoute>
     )
@@ -232,7 +234,7 @@ function App() {
 
   if (path === '/buyer/about') {
     return (
-      <ProtectedRoute allowedRoles={['buyer']}>
+      <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}>
         <AboutUs />
       </ProtectedRoute>
     )
@@ -240,7 +242,7 @@ function App() {
 
   if (path === '/buyer') {
     return (
-      <ProtectedRoute allowedRoles={['buyer']}>
+      <ProtectedRoute allowedRoles={['buyer']} loadingFallback={marketplaceLoading}>
         <BuyerLanding />
       </ProtectedRoute>
     )

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth.js'
 import '../styles/auth.css'
 
-export default function ProtectedRoute({ children, allowedRoles, allowedWorkerCategories }) {
+export default function ProtectedRoute({ children, allowedRoles, allowedWorkerCategories, loadingFallback }) {
   const { loading, profile, profileError, user } = useAuth()
 
   useEffect(() => {
@@ -12,6 +12,8 @@ export default function ProtectedRoute({ children, allowedRoles, allowedWorkerCa
   }, [loading, user])
 
   if (loading || !user) {
+    if (loadingFallback) return loadingFallback
+
     return (
       <main className="auth-status-page">
         <div className="auth-status-card">
