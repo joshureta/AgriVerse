@@ -220,7 +220,7 @@ export type DeliveryAddressInput = {
 
 export type PlaceOrderPayload = {
   delivery_method: 'delivery' | 'pickup';
-  payment_method: 'cash' | 'bank' | 'gcash' | 'qrph';
+  payment_method: 'cash' | 'bank' | 'gcash';
   customer_note?: string;
   items: { product_id: number; quantity: number }[];
   delivery_address?: DeliveryAddressInput | null;
@@ -240,17 +240,6 @@ export async function createGcashCheckout(orderId: number): Promise<string> {
     { method: 'POST' },
   );
   return checkout_url;
-}
-
-export type QrphCheckout = {
-  status: 'pending' | 'paid';
-  test_mode: boolean;
-  image_url: string | null;
-  test_url: string | null;
-};
-
-export async function createQrphCheckout(orderId: number): Promise<QrphCheckout> {
-  return apiRequest<QrphCheckout>(`/api/buyer/payments/${orderId}/qrph-checkout`, { method: 'POST' });
 }
 
 export async function loadBuyerDeliveryAddresses(): Promise<{

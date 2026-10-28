@@ -364,7 +364,7 @@ router.post("/:id/cancel", async (req, res, next) => {
     }
     const note = String(req.body.note || "").trim();
     if (note.length > 500) throw httpError(400, "Note must not exceed 500 characters");
-    if (category === "other" && !note) throw httpError(400, "Tell us what happened");
+    if (category === "other" && !note) throw httpError(400, "Enter a cancellation reason");
 
     const { data: payment, error: paymentError } = await getSupabase().from("buyer_orders")
       .select("payment_method, payment_status").eq("id", id).eq("buyer_id", req.user.id).maybeSingle();
@@ -544,8 +544,7 @@ router.post("/", async (req, res, next) => {
     const idempotencyKey = req.body.idempotency_key == null ? null : String(req.body.idempotency_key);
 
     if (!['delivery', 'pickup'].includes(deliveryMethod)) throw httpError(400, "Select a valid delivery method");
-    if (paymentMethod === 'qrph' && process.env.ENABLE_QRPH_PAYMENTS !== 'true') throw httpError(503, "QR Ph payments are temporarily unavailable. Choose GCash or cash on delivery.");
-    if (!['cash', 'bank', 'gcash', 'qrph'].includes(paymentMethod)) throw httpError(400, "Select a valid payment method");
+    if (!['cash', 'bank', 'gcash'].includes(paymentMethod)) throw httpError(400, "Select a valid payment method");
     if (note.length > 1000) throw httpError(400, "Additional information must not exceed 1000 characters");
     if (items.length < 1 || items.length > 20) throw httpError(400, "The shopping cart is empty or invalid");
     if (idempotencyKey !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
@@ -608,9 +607,6 @@ router.post("/", async (req, res, next) => {
 
     if (error) {
       if (/insufficient stock/i.test(error.message || "")) throw httpError(409, error.message);
-      if (paymentMethod === "qrph" && (/invalid payment method|buyer_orders_payment_method_check/i.test(error.message || ""))) {
-        throw httpError(503, "Run Supabase migration 041_qrph_payments.sql before accepting QR Ph orders");
-      }
       if (idempotencyKey && (error.code === "PGRST202" || /place_buyer_order_idempotent.*schema cache/i.test(error.message || ""))) {
         throw httpError(503, "Run Supabase migration 039_checkout_idempotency.sql before accepting web checkout orders");
       }

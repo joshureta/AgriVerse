@@ -16,7 +16,6 @@ import ShoppingCart from './pages/Buyer/ShoppingCart.jsx'
 import BuyerOrders from './pages/Buyer/BuyerOrders.jsx'
 import BuyerCheckout from './pages/Buyer/BuyerCheckout.jsx'
 import PaymentConfirmation from './pages/Buyer/PaymentConfirmation.jsx'
-import QrphPayment from './pages/Buyer/QrphPayment.jsx'
 import DeliveryProgress from './pages/Buyer/DeliveryProgress.jsx'
 import ReturnRequest from './pages/Buyer/ReturnRequest.jsx'
 import ReturnDetails from './pages/Buyer/ReturnDetails.jsx'
@@ -128,10 +127,6 @@ function App() {
         <PaymentConfirmation />
       </ProtectedRoute>
     )
-  }
-
-  if (path === '/buyer/qrph-payment') {
-    return <ProtectedRoute allowedRoles={['buyer']}><QrphPayment /></ProtectedRoute>
   }
 
   if (path === '/admin/tasks') {

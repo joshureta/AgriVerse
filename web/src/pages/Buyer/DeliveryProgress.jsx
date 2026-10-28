@@ -357,7 +357,7 @@ export default function DeliveryProgress() {
   async function handleCancelOrder(event) {
     event.preventDefault()
     if (!cancelTarget || !cancelReason) return
-    if (cancelReason === 'other' && !cancelNote.trim()) { setCancelError('Tell us what happened.'); return }
+    if (cancelReason === 'other' && !cancelNote.trim()) { setCancelError('Enter a cancellation reason.'); return }
     setCancelling(true)
     setCancelError('')
     try {
@@ -656,13 +656,6 @@ export default function DeliveryProgress() {
           )}
           <div className="order-detail-layout">
           <div className="order-detail-main">
-          {selectedOrder.payment_method === 'qrph' && needsPayment(selectedOrder) && (
-            <section className="delivery-card" aria-label="QR Ph payment">
-              <h2>QR Ph payment pending</h2>
-              <p>Use BDO Pay or another QR Ph app to complete this order.</p>
-              <a className="order-detail-link-button" href={`/buyer/qrph-payment?order=${encodeURIComponent(selectedOrder.id)}`}>Open QR Ph payment</a>
-            </section>
-          )}
           <section
             className={`delivery-card delivery-route ${progressCollapsed ? 'is-collapsed' : ''}`}
             aria-label={progressCollapsed ? 'Order progress' : undefined}
@@ -892,9 +885,9 @@ export default function DeliveryProgress() {
             {cancelError && <div className="delivery-message is-error" role="alert">{cancelError}</div>}
 
             <div className="delivery-confirmation-actions cancel-modal-actions">
-              <button type="button" className="is-secondary" onClick={closeCancelModal} disabled={cancelling}>Keep order</button>
+              <button type="button" className="is-secondary" onClick={closeCancelModal} disabled={cancelling}>Keep Order</button>
               <button type="submit" className="is-danger" disabled={!cancelReason || cancelling}>
-                {cancelling ? 'Cancelling…' : 'Yes, cancel order'}
+                {cancelling ? 'Cancelling…' : 'Confirm Cancellation'}
               </button>
             </div>
           </form>

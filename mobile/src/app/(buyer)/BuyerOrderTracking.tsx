@@ -882,12 +882,6 @@ export default function BuyerOrderTrackingScreen() {
       <ScrollView contentContainerStyle={w.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={w.title}>Order {order.order_number}</Text>
 
-        {order.payment_method === 'qrph' && !isCancelled && !['paid', 'refunded'].includes(order.payment_status) ? (
-          <Pressable style={[w.bigButton, w.bigButtonFilled, { marginBottom: 18 }]} onPress={() => router.push({ pathname: '/BuyerQrphPayment', params: { id: String(order.id) } })}>
-            <Text style={[w.bigButtonText, w.bigButtonFilledText]}>Complete QR Ph payment</Text>
-          </Pressable>
-        ) : null}
-
         {showReceipt ? (
           <CancelledReceipt
             buyingAgain={buyingAgain}

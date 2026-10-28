@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, Eye, EyeOff, X } from 'lucide-react'
+import { Eye, EyeOff, X } from 'lucide-react'
 import deleteIcon from '../../assets/delete-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import Pagination from '../../components/Pagination.jsx'
@@ -102,8 +102,6 @@ export default function UserManagement() {
     { label: '1 special character', met: /[^A-Za-z0-9]/.test(tempPassword) },
   ]
   const passwordScore = passwordChecks.filter((check) => check.met).length
-  const strengthLabels = ['Too Weak', 'Weak', 'Fair', 'Good', 'Strong']
-  const strengthColors = ['#dc2626', '#dc2626', '#f59e0b', '#2563eb', '#166534']
 
   const closeModal = useCallback(() => {
     setModal(null)

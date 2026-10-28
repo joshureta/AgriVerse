@@ -134,21 +134,6 @@ export async function createGcashCheckout(orderId, retry = true) {
   }
 }
 
-export async function createQrphCheckout(orderId, retry = true) {
-  const token = await readAccessToken()
-  const response = await fetch(`${API_URL}/api/buyer/payments/${orderId}/qrph-checkout`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (response.status === 401 && retry) {
-    await readAccessToken(true)
-    return createQrphCheckout(orderId, false)
-  }
-  const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error || `Unable to start QR Ph payment (${response.status})`)
-  return body
-}
-
 async function requestBuyerAddress(path, options = {}, retry = true) {
   const token = await readAccessToken()
   const response = await fetch(`${API_URL}${path}`, {

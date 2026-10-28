@@ -13,6 +13,7 @@ import '../../styles/seller-workspace.css'
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 })
 const statusLabels = { pending: 'New', confirmed: 'Confirmed', preparing: 'Preparing', ready_for_delivery: 'Ready', ready_for_pickup: 'Pickup ready', delivered: 'Delivered', completed: 'Completed', cancelled: 'Cancelled' }
+const EMPTY_LIST = []
 
 async function loadSellerDashboard() {
   const { data, error } = await supabase.auth.getSession()
@@ -35,10 +36,10 @@ export default function SellerDashboard() {
     try { setError(''); setDashboard(await loadSellerDashboard()) } catch (caught) { setError(caught.message) }
   }, [])
   useEffect(() => { fetchDashboard() }, [fetchDashboard])
-  const series = dashboard?.revenue?.series || []
+  const series = dashboard?.revenue?.series || EMPTY_LIST
   const maxRevenue = Math.max(...series.map((point) => Number(point.net) || 0), 1)
   const points = useMemo(() => series.map((point, index) => `${8 + index * (384 / Math.max(series.length - 1, 1))},${96 - ((Number(point.net) || 0) / maxRevenue) * 84}`).join(' '), [maxRevenue, series])
-  const inventory = dashboard?.inventory || []
+  const inventory = dashboard?.inventory || EMPTY_LIST
   const totalStock = dashboard?.stats?.stock_total || 0
   const change = dashboard?.revenue?.change_percent
   const tone = (status) => ['pending', 'confirmed'].includes(status) ? 'new' : ['preparing', 'ready_for_delivery', 'ready_for_pickup'].includes(status) ? 'progress' : 'done'
