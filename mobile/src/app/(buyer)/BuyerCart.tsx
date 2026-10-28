@@ -17,6 +17,7 @@ import {
 import { GREEN, styles } from '@/styles/buyer-cart.styles';
 
 const SHIPPING_FEE = 100;
+const MINIMUM_PINEAPPLE_SUBTOTAL = 1500;
 
 function TrashIcon({ color = '#B4463A', size = 15 }: { color?: string; size?: number }) {
   return (
@@ -230,6 +231,18 @@ export default function BuyerCartScreen() {
   const shippingFee = items.length > 0 ? SHIPPING_FEE : 0;
   const total = subtotal + shippingFee;
 
+  const checkMinimumOrder = () => {
+    if (subtotal < MINIMUM_PINEAPPLE_SUBTOTAL) {
+      const shortfall = (MINIMUM_PINEAPPLE_SUBTOTAL - subtotal).toFixed(2);
+      showToast({
+        title: 'Minimum order not met',
+        body: `Add ₱${shortfall} more in pineapples to reach the ₱1,500.00 minimum before any delivery fee.`,
+      });
+      return;
+    }
+    router.push('/BuyerCheckout' as never);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <BuyerHeader showBack />
@@ -310,7 +323,7 @@ export default function BuyerCartScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Checkout"
                   disabled={items.length === 0}
-                  onPress={() => router.push('/BuyerCheckout' as never)}
+                  onPress={checkMinimumOrder}
                   style={({ pressed }) => [
                     styles.checkoutButton,
                     items.length === 0 && styles.checkoutButtonDisabled,

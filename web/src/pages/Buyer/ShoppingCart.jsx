@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { CircleAlert, Minus, Plus } from 'lucide-react'
 import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
 import { buyerCartQuantity, loadPineappleProducts, readBuyerCart, writeBuyerCart } from '../../services/buyerMarketplace.js'
@@ -7,6 +7,7 @@ import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/shoppingCart.css'
 
 const SHIPPING_FEE = 100
+const MINIMUM_PINEAPPLE_SUBTOTAL = 1500
 
 function reconcileCart(savedItems, products) {
   const productById = new Map(products.map((product) => [String(product.id), product]))
@@ -34,6 +35,13 @@ export default function ShoppingCart() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [minimumToast, setMinimumToast] = useState('')
+
+  useEffect(() => {
+    if (!minimumToast) return undefined
+    const timer = window.setTimeout(() => setMinimumToast(''), 4000)
+    return () => window.clearTimeout(timer)
+  }, [minimumToast])
 
   const refreshCart = useCallback(async () => {
     setLoading(true)
@@ -65,6 +73,7 @@ export default function ShoppingCart() {
   useEffect(() => { refreshCart() }, [refreshCart])
 
   function updateQuantity(id, amount) {
+    setMinimumToast('')
     setItems((current) => {
       const updated = current.map((item) => item.id === id
         ? { ...item, quantity: Math.min(item.stock_quantity, Math.max(0, item.quantity + amount)) }
@@ -75,6 +84,7 @@ export default function ShoppingCart() {
   }
 
   function removeItem(id) {
+    setMinimumToast('')
     setItems((current) => {
       const updated = current.filter((item) => item.id !== id)
       writeBuyerCart(updated)
@@ -86,8 +96,21 @@ export default function ShoppingCart() {
   const shipping = items.length > 0 ? SHIPPING_FEE : 0
   const total = subtotal + shipping
 
+  function checkMinimumOrder(event) {
+    if (subtotal >= MINIMUM_PINEAPPLE_SUBTOTAL) return
+    event.preventDefault()
+    const shortfall = (MINIMUM_PINEAPPLE_SUBTOTAL - subtotal).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    setMinimumToast(`Add PHP ${shortfall} more in pineapples to reach the PHP 1,500.00 minimum before shipping.`)
+  }
+
   return (
     <main className="buyer-page marketplace-page">
+      {minimumToast && (
+        <aside className="shopping-cart-minimum-toast" role="alert">
+          <CircleAlert aria-hidden="true" />
+          <div><strong>Minimum order not met</strong><p>{minimumToast}</p></div>
+        </aside>
+      )}
       <BuyerHeader active="cart" cartCount={buyerCartQuantity(items)} />
       <BuyerJourneyNav current="cart" />
       <section className="shopping-cart-page">
@@ -137,7 +160,7 @@ export default function ShoppingCart() {
               <div className="shopping-cart-actions">
                 <a className="shopping-cart-add-more" href="/buyer/order"><Plus aria-hidden="true" /> Add More</a>
                 {items.length > 0
-                  ? <a className="shopping-cart-checkout" href="/buyer/checkout">Check Out</a>
+                  ? <a className="shopping-cart-checkout" href="/buyer/checkout" onClick={checkMinimumOrder}>Check Out</a>
                   : <span className="shopping-cart-checkout is-disabled" aria-disabled="true">Check Out</span>}
               </div>
             </div>

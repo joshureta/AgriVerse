@@ -966,6 +966,36 @@ button.summary-cart-button:disabled {
   cursor: not-allowed;
 }
 
+.shopping-cart-minimum-toast {
+  position: fixed;
+  z-index: 1300;
+  top: 24px;
+  left: 50%;
+  width: min(560px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-radius: 15px;
+  padding: 18px;
+  color: #4b2525;
+  background: #fff;
+  box-shadow: 0 20px 55px rgba(95, 30, 30, .24);
+  transform: translateX(-50%);
+}
+
+.shopping-cart-minimum-toast > svg {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border-radius: 50%;
+  padding: 11px;
+  color: #fff;
+  background: #c63b3b;
+}
+
+.shopping-cart-minimum-toast strong { color: #a42626; font-size: 17px; }
+.shopping-cart-minimum-toast p { margin: 4px 0 0; color: #755454; font-size: 12px; line-height: 1.45; }
+
 .shopping-cart-empty {
   border: 1px solid #edf0e5;
   border-radius: 18px;
