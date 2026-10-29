@@ -288,31 +288,6 @@ export const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
 
-  bankDetailsCard: {
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: '#F7FAF5',
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    marginTop: -2,
-    marginBottom: 10,
-  },
-  bankDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  bankDetailLabel: {
-    fontSize: 11.5,
-    color: TEXT_MUTED,
-  },
-  bankDetailValue: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: DARK_GREEN,
-  },
-
   // Order summary
   summaryHeaderRow: {
     flexDirection: 'row',
