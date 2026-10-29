@@ -17,7 +17,7 @@ export default function WelcomeScreen() {
 
       {/* Full Background Farm Image */}
       <ImageBackground
-        source={require('../../assets/images/welcome-pineapple-farm.png')}
+        source={require('../../assets/images/auth-banner-web-mobile-v1.png')}
         resizeMode="cover"
         style={styles.background}
       />

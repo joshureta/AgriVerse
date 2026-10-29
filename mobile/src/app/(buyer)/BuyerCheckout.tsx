@@ -1,12 +1,6 @@
 import { router } from 'expo-router';
-<<<<<<< HEAD
-import { openBrowserAsync } from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
-=======
-import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
->>>>>>> 94cc1bb (Feat: Updated Gcash Redirect to Paymongo)
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerHeader } from '@/components/buyer-header';
