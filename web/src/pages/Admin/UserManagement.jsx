@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Eye, EyeOff, X } from 'lucide-react'
+import { AlertTriangle, Eye, EyeOff, Trash2, UserRound, X } from 'lucide-react'
 import deleteIcon from '../../assets/delete-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import Pagination from '../../components/Pagination.jsx'
@@ -89,11 +89,18 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [saving, setSaving] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [tempPassword, setTempPassword] = useState('')
   const [showTempPassword, setShowTempPassword] = useState(false)
   const filterRef = useRef(null)
+  const deleteDialogRef = useRef(null)
+  const deleteCancelRef = useRef(null)
+  const deleteTriggerRef = useRef(null)
+  const addUserRef = useRef(null)
 
   const passwordChecks = [
     { label: '8+ characters', met: tempPassword.length >= 8 },
@@ -152,6 +159,33 @@ export default function UserManagement() {
     }
   }, [filterOpen])
 
+  useEffect(() => {
+    if (!deleteTarget) return undefined
+    deleteCancelRef.current?.focus()
+
+    function handleDialogKeyDown(event) {
+      if (event.key === 'Escape' && !deleting) {
+        event.preventDefault()
+        closeDeleteDialog()
+      }
+      if (event.key !== 'Tab') return
+
+      const buttons = [...deleteDialogRef.current.querySelectorAll('button:not(:disabled)')]
+      const first = buttons[0]
+      const last = buttons[buttons.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleDialogKeyDown)
+    return () => document.removeEventListener('keydown', handleDialogKeyDown)
+  }, [deleteTarget, deleting])
+
   async function handleSubmit(event) {
     event.preventDefault()
     setSaving(true)
@@ -199,18 +233,33 @@ export default function UserManagement() {
     }
   }
 
-  async function handleDelete(user) {
-    const buyerNotice = user.role === 'buyer'
-      ? ' Their saved addresses and personal information will be removed, while anonymized order history will be retained.'
-      : ''
-    if (!window.confirm(`Delete ${user.full_name}? This also removes their sign-in account.${buyerNotice}`)) return
+  function closeDeleteDialog(restoreFocus = true) {
+    setDeleteTarget(null)
+    setDeleteError('')
+    if (restoreFocus) deleteTriggerRef.current?.focus()
+  }
+
+  function requestDelete(user, trigger) {
+    deleteTriggerRef.current = trigger
     setError('')
+    setDeleteError('')
+    setDeleteTarget(user)
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    setDeleteError('')
     try {
-      await apiRequest(`/api/admin/users/${user.id}`, { method: 'DELETE' })
+      await apiRequest(`/api/admin/users/${deleteTarget.id}`, { method: 'DELETE' })
+      closeDeleteDialog(false)
       if (users.length === 1 && page > 1) setPage((value) => value - 1)
       else setRefreshKey((value) => value + 1)
+      addUserRef.current?.focus()
     } catch (requestError) {
-      setError(requestError.message)
+      setDeleteError(requestError.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -278,7 +327,7 @@ export default function UserManagement() {
                   </svg>
                 </span>
               </label>
-              <button className="toolbar-add-user" type="button" onClick={() => { setError(''); setTempPassword(''); setShowTempPassword(false); setModal({ mode: 'add', role: 'buyer' }) }}>
+              <button className="toolbar-add-user" ref={addUserRef} type="button" onClick={() => { setError(''); setTempPassword(''); setShowTempPassword(false); setModal({ mode: 'add', role: 'buyer' }) }}>
                 <span aria-hidden="true">&#43;</span>
                 Add User
               </button>
@@ -301,7 +350,7 @@ export default function UserManagement() {
                       <td>{formatCreatedAt(user.created_at)}</td>
                       <td><div className="user-actions">
                         <button type="button" className="edit-user" onClick={() => window.location.assign(`/admin/users/edit?id=${encodeURIComponent(user.id)}`)} aria-label={`Edit ${user.full_name}`}>✎</button>
-                        <button type="button" className="delete-user" onClick={() => handleDelete(user)} disabled={user.id === currentUser?.id} aria-label={`Delete ${user.full_name}`}><img src={deleteIcon} alt="" /></button>
+                        <button type="button" className="delete-user" onClick={(event) => requestDelete(user, event.currentTarget)} disabled={user.id === currentUser?.id} aria-label={`Delete ${user.full_name}`}><img src={deleteIcon} alt="" /></button>
                       </div></td>
                     </tr>
                   ))}
@@ -411,6 +460,54 @@ export default function UserManagement() {
             </form>
           </div>
         </section>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="user-modal-backdrop">
+          <section
+            className="user-modal user-delete-modal"
+            ref={deleteDialogRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="user-delete-title"
+            aria-describedby="user-delete-description"
+          >
+            <header className="user-modal-head">
+              <div className="user-modal-head-text">
+                <p className="user-modal-tag">User management</p>
+                <h2 id="user-delete-title">Delete user?</h2>
+                <p className="user-modal-subtitle">Please review this action before continuing.</p>
+              </div>
+              <button className="user-modal-close" type="button" onClick={closeDeleteDialog} disabled={deleting} aria-label="Close delete dialog">
+                <X size={20} aria-hidden="true" />
+              </button>
+            </header>
+            <div className="user-modal-body">
+              <div className="user-delete-summary">
+                <span className="user-delete-icon" aria-hidden="true"><UserRound size={22} /></span>
+                <div>
+                  <strong>{deleteTarget.full_name}</strong>
+                  <span>{deleteTarget.email || roleLabel(deleteTarget.role)}</span>
+                </div>
+              </div>
+              <div id="user-delete-description" className="user-delete-description">
+                <strong><AlertTriangle size={16} aria-hidden="true" /> Deletion impact</strong>
+                <p>
+                  This action will delete the user and remove their sign-in account.
+                  {deleteTarget.role === 'buyer' && ' Saved addresses and personal information will also be removed. Anonymized order history will be retained.'}
+                </p>
+              </div>
+              {deleteError && <div className="user-modal-error" role="alert">{deleteError}</div>}
+              <footer>
+                <button ref={deleteCancelRef} type="button" onClick={closeDeleteDialog} disabled={deleting}>Cancel</button>
+                <button className="user-delete-confirm" type="button" onClick={handleDelete} disabled={deleting}>
+                  <Trash2 size={16} aria-hidden="true" />
+                  {deleting ? 'Deleting…' : 'Delete user'}
+                </button>
+              </footer>
+            </div>
+          </section>
         </div>
       )}
     </main>
