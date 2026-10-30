@@ -1,5 +1,24 @@
 # AgriVerse
 
+## Signup email verification codes
+
+The web registration page accepts an emailed verification code after
+`supabase.auth.signUp`. In the main Supabase project, keep **Confirm Email**
+enabled and configure a production SMTP sender. Under **Authentication → Email
+Templates → Confirm signup**, include `{{ .Token }}` in the template. Keep the
+confirmation link as a fallback:
+
+```html
+<h2>Verify your AgriVerse account</h2>
+<p>Enter this code on the registration page: <strong>{{ .Token }}</strong></p>
+<p>Or <a href="{{ .ConfirmationURL }}">confirm your email with this link</a>.</p>
+```
+
+The **Magic Link** template controls passwordless sign-in, not registration.
+The signup code is verified with `verifyOtp({ email, token, type: 'email' })`.
+Set the Supabase Site URL to the deployed website and allow its
+`/auth/confirm` redirect for the link fallback.
+
 ## Daily environmental reports
 
 The Environmental Monitoring page shows daily measurements for each field.

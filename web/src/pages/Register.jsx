@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { MailCheck } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.js'
 import { supabase } from '../lib/supabase.js'
 import {
@@ -11,6 +12,9 @@ import {
 import jtoledoLogo from '../assets/Jtoledologo.png'
 import AuthHero from '../components/AuthHero.jsx'
 import '../styles/register.css'
+
+const VERIFICATION_CODE_LENGTH = 6
+const emptyVerificationDigits = () => Array(VERIFICATION_CODE_LENGTH).fill('')
 
 function Field({
   autoComplete,
@@ -85,10 +89,16 @@ function SelectField({
 export default function Register() {
   const { loading: sessionLoading, user } = useAuth()
   const formRef = useRef(null)
+  const codeInputRefs = useRef([])
   const [currentStep, setCurrentStep] = useState(0)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState(
+    () => window.sessionStorage.getItem('agriverse-pending-signup-email') || '',
+  )
+  const [verificationDigits, setVerificationDigits] = useState(emptyVerificationDigits)
+  const [resendSeconds, setResendSeconds] = useState(0)
   const [passwordValue, setPasswordValue] = useState('')
   const [confirmPasswordValue, setConfirmPasswordValue] = useState('')
   const [addressError, setAddressError] = useState('')
@@ -116,9 +126,16 @@ export default function Register() {
 
   useEffect(() => {
     if (!sessionLoading && user) {
+      window.sessionStorage.removeItem('agriverse-pending-signup-email')
       window.location.replace('/buyer')
     }
   }, [sessionLoading, user])
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return undefined
+    const timer = window.setTimeout(() => setResendSeconds((seconds) => seconds - 1), 1000)
+    return () => window.clearTimeout(timer)
+  }, [resendSeconds])
 
   useEffect(() => {
     let active = true
@@ -380,12 +397,125 @@ export default function Register() {
       setCurrentStep(0)
       setPasswordValue('')
       setConfirmPasswordValue('')
-      setMessage(
-        'Account created. Check your email and click the verification link before logging in.',
-      )
+      window.sessionStorage.setItem('agriverse-pending-signup-email', email)
+      setPendingEmail(email)
+      setVerificationDigits(emptyVerificationDigits())
+      setResendSeconds(60)
+      setMessage('Code sent. Check your inbox or spam folder.')
     }
 
     setSubmitting(false)
+  }
+
+  async function handleVerifyEmail(event) {
+    event.preventDefault()
+    if (submitting || verificationDigits.some((digit) => !digit)) return
+
+    setError('')
+    setMessage('')
+    setSubmitting(true)
+
+    try {
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email: pendingEmail,
+        token: verificationDigits.join(''),
+        type: 'email',
+      })
+
+      if (verifyError || !data?.user) {
+        setError(verifyError?.message || 'The code could not be verified. Please try again.')
+        return
+      }
+
+      window.sessionStorage.removeItem('agriverse-pending-signup-email')
+      window.location.replace('/buyer')
+    } catch {
+      setError('Could not verify the code. Check your connection and try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleResendCode() {
+    if (submitting || resendSeconds > 0) return
+
+    setError('')
+    setMessage('')
+    setSubmitting(true)
+
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: pendingEmail,
+        options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+      })
+
+      if (resendError) {
+        setError(resendError.message)
+        return
+      }
+
+      setVerificationDigits(emptyVerificationDigits())
+      setResendSeconds(60)
+      setMessage('New code sent. Check your inbox.')
+      codeInputRefs.current[0]?.focus()
+    } catch {
+      setError('Could not resend the code. Check your connection and try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function changeRegistrationEmail() {
+    window.sessionStorage.removeItem('agriverse-pending-signup-email')
+    setPendingEmail('')
+    setVerificationDigits(emptyVerificationDigits())
+    setResendSeconds(0)
+    setError('')
+    setMessage('')
+  }
+
+  function handleCodeDigitChange(index, value) {
+    const digits = value.replace(/\D/g, '')
+
+    setVerificationDigits((current) => {
+      const next = [...current]
+      if (!digits) {
+        next[index] = ''
+      } else {
+        for (let offset = 0; offset < digits.length && index + offset < VERIFICATION_CODE_LENGTH; offset += 1) {
+          next[index + offset] = digits[offset]
+        }
+      }
+      return next
+    })
+
+    if (digits) {
+      codeInputRefs.current[Math.min(index + digits.length, VERIFICATION_CODE_LENGTH - 1)]?.focus()
+    }
+  }
+
+  function handleCodePaste(event) {
+    const digits = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, VERIFICATION_CODE_LENGTH)
+    if (!digits) return
+
+    event.preventDefault()
+    setVerificationDigits(Array.from({ length: VERIFICATION_CODE_LENGTH }, (_, index) => digits[index] || ''))
+    codeInputRefs.current[Math.min(digits.length, VERIFICATION_CODE_LENGTH - 1)]?.focus()
+  }
+
+  function handleCodeKeyDown(event, index) {
+    if (event.key === 'Backspace' && !verificationDigits[index] && index > 0) {
+      event.preventDefault()
+      setVerificationDigits((current) => current.map((digit, digitIndex) => digitIndex === index - 1 ? '' : digit))
+      codeInputRefs.current[index - 1]?.focus()
+    } else if (event.key === 'ArrowLeft' && index > 0) {
+      event.preventDefault()
+      codeInputRefs.current[index - 1]?.focus()
+    } else if (event.key === 'ArrowRight' && index < VERIFICATION_CODE_LENGTH - 1) {
+      event.preventDefault()
+      codeInputRefs.current[index + 1]?.focus()
+    }
   }
 
   return (
@@ -397,11 +527,65 @@ export default function Register() {
               <img src={jtoledoLogo} alt="Jtoledo Trading" />
             </div>
 
-            <h1 className="register-heading" id="register-title">Create Account</h1>
+            <h1 className="register-heading" id="register-title">
+              {pendingEmail ? 'Verify your email' : 'Create Account'}
+            </h1>
             <p className="register-subtitle">
-              Complete three quick steps to get started.
+              {pendingEmail
+                ? `Enter the 6-digit code sent to ${pendingEmail}.`
+                : 'Complete three quick steps to get started.'}
             </p>
 
+            {pendingEmail ? (
+              <form className="register-form" onSubmit={handleVerifyEmail}>
+                {error && (
+                  <div className="register-alert register-alert-error" role="alert">
+                    {error}
+                  </div>
+                )}
+                {message && (
+                  <div className="register-alert register-alert-success register-code-notice" role="status">
+                    <MailCheck aria-hidden="true" />
+                    <span>{message}</span>
+                  </div>
+                )}
+                <div className="register-code-field">
+                  <span className="register-code-label" id="register-code-label">Verification code</span>
+                  <div className="register-code-inputs" role="group" aria-labelledby="register-code-label" onPaste={handleCodePaste}>
+                    {verificationDigits.map((digit, index) => (
+                      <input
+                        key={index}
+                        ref={(element) => { codeInputRefs.current[index] = element }}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                        aria-label={`Digit ${index + 1} of ${VERIFICATION_CODE_LENGTH}`}
+                        maxLength={VERIFICATION_CODE_LENGTH}
+                        value={digit}
+                        onChange={(event) => handleCodeDigitChange(index, event.target.value)}
+                        onKeyDown={(event) => handleCodeKeyDown(event, index)}
+                        onFocus={(event) => event.target.select()}
+                        disabled={submitting}
+                        autoFocus={index === 0}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <button className="register-button" type="submit" disabled={submitting || verificationDigits.some((digit) => !digit)}>
+                  {submitting && <span className="register-spinner" aria-hidden="true" />}
+                  <span>{submitting ? 'Verifying…' : 'Verify email'}</span>
+                </button>
+                <div className="register-verify-actions">
+                  <button type="button" onClick={handleResendCode} disabled={submitting || resendSeconds > 0}>
+                    {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : 'Resend email'}
+                  </button>
+                  <button type="button" onClick={changeRegistrationEmail} disabled={submitting}>
+                    Use another email
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
             <ol className="register-steps" aria-label="Account creation progress">
               {registrationSteps.map((step, index) => (
                 <li
@@ -648,6 +832,8 @@ export default function Register() {
                 )}
               </div>
             </form>
+              </>
+            )}
 
             <p className="register-login">
               Already have an account? <a href="/login">Sign in</a>

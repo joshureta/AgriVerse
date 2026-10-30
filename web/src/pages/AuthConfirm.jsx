@@ -7,6 +7,7 @@ export default function AuthConfirm() {
 
   useEffect(() => {
     if (!loading && user) {
+      window.sessionStorage.removeItem('agriverse-pending-signup-email')
       const redirect = setTimeout(() => window.location.replace('/buyer'), 1200)
       return () => clearTimeout(redirect)
     }
