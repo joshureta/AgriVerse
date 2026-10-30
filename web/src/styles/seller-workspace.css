@@ -81,8 +81,7 @@
   line-height: 1.25;
 }
 
-.seller-dashboard .seller-panel header small,
-.seller-inventory-page .seller-stock-live {
+.seller-dashboard .seller-panel header small {
   font-size: var(--seller-type-meta);
   font-weight: 700;
   letter-spacing: .04em;

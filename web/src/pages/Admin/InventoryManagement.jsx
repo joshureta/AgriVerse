@@ -443,7 +443,6 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
               <div className="seller-stock-banner-title">
                 <div><h2>Pineapple Stock</h2><p>Monitor available pineapple sizes and record new stock arrivals.</p></div>
               </div>
-              <span className="seller-stock-live"><i aria-hidden="true" />Live stock tracking</span>
             </header> : <nav className="inventory-view-tabs" aria-label="Inventory views" role="tablist">
               <button className={activeView === 'items' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeView === 'items'} onClick={() => changeView('items')}>
                 <span>Inventory Items</span>

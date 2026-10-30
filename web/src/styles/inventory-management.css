@@ -197,8 +197,6 @@
 .seller-stock-banner-title { min-width: 0; }
 .seller-stock-banner h2 { margin: 0 0 3px; color: #176c35; font-size: 16px; line-height: 1.2; }
 .seller-stock-banner p { margin: 0; color: #6a796e; font-size: 10px; line-height: 1.45; }
-.seller-stock-live { min-height: 29px; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #c9dfc5; border-radius: 999px; padding: 0 11px; color: #196c35; background: rgba(255,255,255,.86); font-size: 9px; font-weight: 850; white-space: nowrap; }
-.seller-stock-live i { width: 7px; height: 7px; border-radius: 50%; background: #65ae43; box-shadow: 0 0 0 4px rgba(101,174,67,.13); }
 .seller-inventory-page .inventory-content { padding-top: 18px; }
 .seller-inventory-page .inventory-heading { margin-bottom: 14px; }
 .seller-inventory-page .inventory-heading h1 { font-size: clamp(27px, 2.2vw, 32px); }
