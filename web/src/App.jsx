@@ -33,7 +33,7 @@ import SellerOrderManagement from './pages/FarmWorker/SellerOrderManagement.jsx'
 import DriverOrders from './pages/FarmWorker/DriverOrders.jsx'
 
 function App() {
-  const path = window.location.pathname
+  const path = window.location.pathname.replace(/\/+$/, '') || '/'
   const marketplaceLoading = <MarketplaceLoading path={path} search={window.location.search} />
   const adminLoading = <WorkspaceLoading path={path} />
   const sellerLoading = <WorkspaceLoading path={path} seller />
