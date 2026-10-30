@@ -9,7 +9,6 @@ import {
   ImageUp,
   RefreshCw,
   Sparkles,
-  Sprout,
   Trash2,
   UploadCloud,
   X,
@@ -798,8 +797,7 @@ export default function CropHealthMonitoring() {
         <div className="task-modal-backdrop">
           <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-task-title" style={{ maxWidth: '640px' }}>
             <div className="task-dialog-header" style={{ minHeight: '68px', padding: '12px 24px', background: 'linear-gradient(90deg,#287a31,#1f6731)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <span><Sprout color="#fff" size={24} /></span>
+              <div>
                 <div>
                   <p>Inspection Record</p>
                   <h2 id="view-task-title" style={{ fontSize: '20px' }}>{selectedActivity.field || 'Crop'} Inspection Details</h2>
@@ -898,24 +896,6 @@ export default function CropHealthMonitoring() {
                   }}
                 >
                   Load into Main Inspector
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedActivity(null)}
-                  style={{
-                    minWidth: '80px',
-                    minHeight: '36px',
-                    padding: '0 16px',
-                    borderRadius: '6px',
-                    backgroundColor: '#f3f4f2',
-                    color: '#344537',
-                    fontWeight: 700,
-                    border: '1px solid #d0d7cf',
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                  }}
-                >
-                  Close
                 </button>
               </footer>
             </div>
