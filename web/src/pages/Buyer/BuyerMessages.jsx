@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CheckCheck, ChevronDown, Clock, Send, Sparkles, Sprout } from 'lucide-react'
+import { CheckCheck, ChevronDown, Clock, Send, Sparkles } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
 import { loadBuyerMessages, sendBuyerMessage, setBuyerTyping } from '../../services/buyerMessages.js'
+import farmProfileIcon from '../../assets/buyer/jtoledo-farm-profile.png'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/messages.css'
 
@@ -174,7 +175,7 @@ export default function BuyerMessages() {
             <div className="buyer-messenger-brand-row">
               <div className="buyer-support-avatar-wrapper">
                 <div className="buyer-support-avatar">
-                  <Sprout className="support-icon" aria-hidden="true" />
+                  <img className="support-icon" src={farmProfileIcon} alt="" />
                 </div>
                 <span
                   className={`buyer-support-status-dot${supportOnline ? ' is-online' : ' is-offline'}`}
@@ -184,7 +185,7 @@ export default function BuyerMessages() {
 
               <div className="buyer-messenger-contact">
                 <div className="buyer-contact-title-row">
-                  <h1 id="chat-title">JToledo Farm</h1>
+                  <h1 id="chat-title">Jtoledo Trading</h1>
                 </div>
                 <p className={`buyer-contact-status ${supportOnline ? 'is-online' : 'is-offline'}`}>
                   <span className="status-indicator" aria-hidden="true" />
@@ -201,13 +202,13 @@ export default function BuyerMessages() {
               className="buyer-chat-history"
               ref={historyRef}
               onScroll={updateJumpToLatest}
-              aria-label="Conversation with JToledo Farm"
+              aria-label="Conversation with Jtoledo Trading"
               aria-live="polite"
             >
               {loading && (
                 <div className="buyer-chat-loading-state">
                   <div className="buyer-loading-spinner" />
-                  <p>Connecting to JToledo Farm…</p>
+                  <p>Connecting to Jtoledo Trading…</p>
                 </div>
               )}
 
@@ -216,7 +217,7 @@ export default function BuyerMessages() {
                   <div className="empty-state-icon">
                     <Sparkles size={28} />
                   </div>
-                  <h3>Welcome to JToledo Farm</h3>
+                  <h3>Welcome to Jtoledo Trading</h3>
                   <p>
                     Have questions about your order, delivery schedule, or pineapple freshness?
                     Our farm support team is here to assist you.
@@ -265,13 +266,13 @@ export default function BuyerMessages() {
                       >
                         {!isBuyer && (
                           <div className="buyer-message-avatar" aria-hidden="true">
-                            <Sprout size={16} />
+                            <img src={farmProfileIcon} alt="" />
                           </div>
                         )}
 
                         <div className="buyer-message-content">
                           {!isBuyer && (
-                            <span className="buyer-message-sender-name">JToledo Farm</span>
+                            <span className="buyer-message-sender-name">Jtoledo Trading</span>
                           )}
                           <div className="buyer-bubble">
                             <p>{message.body}</p>
@@ -299,14 +300,14 @@ export default function BuyerMessages() {
                 })}
 
               {!loading && supportTyping && (
-                <div className="buyer-typing-row" role="status" aria-label="JToledo Farm is typing">
+                <div className="buyer-typing-row" role="status" aria-label="Jtoledo Trading is typing">
                   <div className="buyer-message-avatar" aria-hidden="true">
-                    <Sprout size={16} />
+                    <img src={farmProfileIcon} alt="" />
                   </div>
                   <div className="chat-typing-indicator">
                     <span /><span /><span />
                   </div>
-                  <small>JToledo Farm is typing</small>
+                  <small>Jtoledo Trading is typing</small>
                 </div>
               )}
             </div>
@@ -338,7 +339,7 @@ export default function BuyerMessages() {
             {/* Composer */}
             <form className="buyer-chat-composer" onSubmit={onSubmit}>
               <label className="sr-only" htmlFor="buyer-chat-message">
-                Write a message to JToledo Farm
+                Write a message to Jtoledo Trading
               </label>
               <div className="buyer-input-wrapper">
                 <input
@@ -347,7 +348,7 @@ export default function BuyerMessages() {
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Type a message to JToledo Farm..."
+                  placeholder="Type a message to Jtoledo Trading..."
                   disabled={sending}
                   autoComplete="off"
                 />
