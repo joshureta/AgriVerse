@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth.js'
 import { getHomePathForRole } from '../lib/authRouting.js'
 import { supabase } from '../lib/supabase.js'
 import jtoledoLogo from '../assets/Jtoledologo.png'
+import AuthHero from '../components/AuthHero.jsx'
 import '../styles/login.css'
 
 export default function Login() {
@@ -69,7 +70,7 @@ export default function Login() {
             </div>
 
             <div className="login-heading-group">
-              <p className="login-kicker">Welcome back</p>
+              <p className="login-kicker">Welcome</p>
               <h1 className="login-heading" id="login-title">Sign in to your account</h1>
               <p className="login-subtitle">
                 Enter your account details.
@@ -137,14 +138,7 @@ export default function Login() {
           </div>
         </div>
 
-        <aside className="login-hero" aria-label="Welcome to Jtoledo Trading">
-          <div className="login-hero-content">
-            <h2>Welcome to<br />Jtoledo Trading</h2>
-            <p className="login-hero-copy">
-              Proudly providing fresh, high-quality pineapples from our farm to your table.
-            </p>
-          </div>
-        </aside>
+        <AuthHero />
       </section>
     </main>
   )

@@ -1,0 +1,68 @@
+.auth-hero {
+  position: relative;
+  display: grid;
+  place-items: start;
+  align-content: start;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 58px 90px 64px;
+  color: #185c35;
+  text-align: left;
+  background: url("../assets/auth-banner-haze-v2.png") right center / cover no-repeat;
+}
+
+.auth-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.auth-hero-content {
+  position: relative;
+  top: 120px;
+  width: min(100%, 470px);
+}
+
+.auth-hero h2 {
+  margin: 0;
+  color: #17602f;
+  font-size: clamp(38px, 4.2vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -1.5px;
+  text-shadow: 0 1px 0 rgba(255, 251, 205, 0.72);
+}
+
+.auth-hero-copy {
+  max-width: 360px;
+  margin: 15px 0 0;
+  color: #111;
+  font-size: 14px;
+  line-height: 1.35;
+  text-shadow: 0 1px 0 rgba(255, 251, 205, 0.6);
+}
+
+@media (max-width: 860px) {
+  .auth-hero {
+    min-height: 330px;
+    grid-row: 1;
+    padding: 48px 24px;
+    background-position: center;
+  }
+
+  .auth-hero-content {
+    top: 0;
+  }
+}
+
+@media (min-width: 501px) and (max-width: 860px) {
+  .auth-hero {
+    place-items: center;
+    align-content: center;
+    text-align: center;
+  }
+
+  .auth-hero-copy {
+    margin-inline: auto;
+  }
+}

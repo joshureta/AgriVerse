@@ -27,7 +27,7 @@
   justify-content: center;
   box-sizing: border-box;
   padding: 38px clamp(42px, 6vw, 77px);
-  background: #fff url("../assets/sign-in-up-bg.png") left bottom / contain no-repeat;
+  background: url("../assets/sign-in-up-bg.png") center / cover no-repeat;
   background-position: left bottom;
 }
 
@@ -306,57 +306,16 @@
   border-radius: 3px;
 }
 
-.login-hero {
-  position: relative;
-  display: grid;
-  place-items: start;
-  align-content: start;
-  overflow: hidden;
-  box-sizing: border-box;
-  padding: 58px 90px 64px;
-  color: var(--login-forest);
-  text-align: left;
-  background-image: url("../assets/auth-banner-haze-v2.png");
-  background-position: right center;
-  background-size: cover;
-  background-repeat: no-repeat;
-}
-
-.login-hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.login-hero-content {
-  position: relative;
-  top: 120px;
-  width: min(100%, 470px);
-  padding: 0;
-}
-
-.login-hero h2 {
-  margin: 0;
-  color: #17602f;
-  font-size: clamp(38px, 4.2vw, 52px);
-  line-height: 1.02;
-  letter-spacing: -1.5px;
-  text-shadow: 0 1px 0 rgba(255, 251, 205, 0.72);
-}
-
-.login-hero-copy {
-  max-width: 360px;
-  margin: 15px 0 0;
-  color: #111;
-  font-size: 14px;
-  line-height: 1.35;
-  text-shadow: 0 1px 0 rgba(255, 251, 205, 0.6);
-}
-
 @keyframes login-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (min-width: 861px) and (max-width: 1100px) and (min-height: 800px) {
+  .login-form-panel {
+    align-items: flex-start;
+    padding-top: clamp(160px, 23.3svh, 210px);
   }
 }
 
@@ -382,18 +341,6 @@
     margin-top: 38px;
   }
 
-  .login-hero {
-    min-height: 330px;
-    grid-row: 1;
-    padding: 48px 24px;
-    background-image: url("../assets/auth-banner-haze-v2.png");
-    background-position: right center;
-    background-position: center;
-  }
-
-  .login-hero-content {
-    top: 0;
-  }
 }
 
 @media (max-width: 500px) {

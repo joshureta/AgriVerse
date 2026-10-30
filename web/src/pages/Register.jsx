@@ -9,6 +9,7 @@ import {
   getRegions,
 } from '../services/psgc.js'
 import jtoledoLogo from '../assets/Jtoledologo.png'
+import AuthHero from '../components/AuthHero.jsx'
 import '../styles/register.css'
 
 function Field({
@@ -654,14 +655,7 @@ export default function Register() {
           </div>
         </div>
 
-        <aside className="register-hero" aria-label="Welcome to Jtoledo Trading">
-          <div className="register-hero-content">
-            <h2>Welcome to<br />Jtoledo Trading</h2>
-            <p className="register-hero-copy">
-              Proudly providing fresh, high-quality pineapples from our farm to your table.
-            </p>
-          </div>
-        </aside>
+        <AuthHero />
       </section>
     </main>
   )
