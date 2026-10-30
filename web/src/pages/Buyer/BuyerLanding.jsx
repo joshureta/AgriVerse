@@ -163,7 +163,6 @@ export default function BuyerLanding() {
       <section
         className="marketplace-delivery"
         aria-labelledby="delivery-coverage-title"
-        style={{ backgroundImage: `url(${deliveryCoverageMap})` }}
       >
         <div className="marketplace-delivery-copy">
           <p className="marketplace-delivery-eyebrow">One farm. Fresh pineapples.</p>
@@ -178,6 +177,8 @@ export default function BuyerLanding() {
             ))}
           </ul>
         </div>
+
+        <img className="marketplace-delivery-map" src={deliveryCoverageMap} alt="" aria-hidden="true" />
 
         <aside className="marketplace-delivery-aside" aria-label="Delivery information">
           <article>
