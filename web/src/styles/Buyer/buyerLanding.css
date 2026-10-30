@@ -351,6 +351,8 @@ body:has(.buyer-page) #root {
 
 .buyer-profile-dropdown a:hover,
 .buyer-profile-dropdown button:hover { background: rgba(255, 255, 255, 0.12); }
+.buyer-signout-button { gap: 8px; }
+.buyer-signout-button svg { width: 16px; height: 16px; flex: none; }
 
 .buyer-main-nav {
   display: flex;

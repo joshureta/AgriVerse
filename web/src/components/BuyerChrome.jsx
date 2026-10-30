@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
+  LogOut,
   Mail,
   Menu,
   MessageCircle,
@@ -216,7 +217,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
               <div className="buyer-profile-dropdown">
                 <a href="/buyer/delivery-progress">My Orders</a>
                 <a href="/buyer/profile" aria-current={active === 'profile' ? 'page' : undefined}>My Profile</a>
-                <button type="button" onClick={handleSignOut}>Sign Out</button>
+                <button className="buyer-signout-button" type="button" onClick={handleSignOut}><LogOut aria-hidden="true" />Sign Out</button>
               </div>
             </details>
           </div>
@@ -234,7 +235,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
           <a className={active === 'notifications' ? 'is-active' : ''} href="/buyer/notifications" aria-current={active === 'notifications' ? 'page' : undefined}>Notifications{notificationUnreadCount > 0 ? ` (${notificationUnreadCount})` : ''}</a>
           <a href="/buyer/delivery-progress">My Orders</a>
           <a className={active === 'profile' ? 'is-active' : ''} href="/buyer/profile" aria-current={active === 'profile' ? 'page' : undefined}>My Profile</a>
-          <button type="button" onClick={handleSignOut}>Sign Out</button>
+          <button className="buyer-signout-button" type="button" onClick={handleSignOut}><LogOut aria-hidden="true" />Sign Out</button>
         </nav>
       </details>
     </header>
