@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
-import { openBrowserAsync } from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerHeader } from '@/components/buyer-header';
@@ -348,7 +347,13 @@ export default function BuyerCheckoutScreen() {
       if (paymentMethod === 'gcash') {
         try {
           const checkoutUrl = await createGcashCheckout(order.id);
-          await openBrowserAsync(checkoutUrl);
+          // Hand the PayMongo checkout to the system browser. On iOS,
+          // openBrowserAsync stays pending until its Safari sheet is dismissed,
+          // which can leave this screen permanently locked in "Placing order".
+          setPlacing(false);
+          router.replace({ pathname: '/BuyerOrderTracking', params: { id: String(order.id) } });
+          await Linking.openURL(checkoutUrl);
+          return;
         } catch (paymentError) {
           Alert.alert(
             'Order placed',
