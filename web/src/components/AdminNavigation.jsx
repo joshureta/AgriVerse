@@ -6,7 +6,7 @@ import environmentalMonitoringIcon from '../assets/environmental-monitoring-icon
 import inventoryIcon from '../assets/inventory-icon.png'
 import notificationIcon from '../assets/admin-notification-icon.png'
 import taskScheduleIcon from '../assets/task-schedule-icon.png'
-import agriverseWordmark from '../assets/agriverse-wordmark.png'
+import jtoledoLogo from '../assets/Jtoledologo.png'
 import { useAuth } from '../hooks/useAuth.js'
 import { loadAdminConversations } from '../services/adminMessages.js'
 import { loadAdminNotifications, markAdminNotificationRead, markAllAdminNotificationsRead } from '../services/adminNotifications.js'
@@ -148,8 +148,8 @@ export function AdminSidebar({ active }) {
 
   return (
     <aside className="admin-sidebar">
-      <a className="admin-logo" href="/admin" aria-label="AgriVerse admin home">
-        <img className="admin-logo-image" src={agriverseWordmark} alt="AgriVerse" />
+      <a className="admin-logo" href="/admin" aria-label="Jtoledo Marketplace admin home">
+        <img className="admin-logo-image" src={jtoledoLogo} alt="Jtoledo Trading" />
       </a>
 
       <nav className="admin-nav" aria-label="Admin navigation">
@@ -261,7 +261,7 @@ export function AdminSidebar({ active }) {
 
       <div className="admin-sidebar-footer">
         <span>Administrator workspace</span>
-        <strong>AgriVerse</strong>
+        <strong>Jtoledo Marketplace</strong>
       </div>
     </aside>
   )

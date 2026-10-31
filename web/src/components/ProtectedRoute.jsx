@@ -19,7 +19,7 @@ export default function ProtectedRoute({ children, allowedRoles, allowedWorkerCa
         <div className="auth-status-card">
           <div className="auth-spinner" aria-hidden="true" />
           <h1>Checking your account</h1>
-          <p>Please wait while AgriVerse verifies your session.</p>
+          <p>Please wait while Jtoledo Marketplace verifies your session.</p>
         </div>
       </main>
     )
@@ -31,7 +31,7 @@ export default function ProtectedRoute({ children, allowedRoles, allowedWorkerCa
         <div className="auth-status-card auth-status-error">
           <h1>Profile unavailable</h1>
           <p>
-            We couldn&apos;t load your AgriVerse profile. Please try again later or contact support.
+            We couldn&apos;t load your Jtoledo Marketplace profile. Please try again later or contact support.
           </p>
           <a href="/login">Return to login</a>
         </div>

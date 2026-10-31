@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import dateIcon from '../assets/admin-date-icon.png'
 import notificationIcon from '../assets/admin-notification-icon.png'
-import agriverseWordmark from '../assets/agriverse-wordmark.png'
+import jtoledoLogo from '../assets/Jtoledologo.png'
 import { useAuth } from '../hooks/useAuth.js'
 
 const sellerLinks = [
@@ -22,8 +22,8 @@ function formatDate(date) {
 export function SellerSidebar({ active = 'dashboard' }) {
   return (
     <aside className="admin-sidebar seller-sidebar">
-      <a className="admin-logo" href="/farm-worker/dashboard" aria-label="AgriVerse seller home">
-        <img className="admin-logo-image" src={agriverseWordmark} alt="AgriVerse" />
+      <a className="admin-logo" href="/farm-worker/dashboard" aria-label="Jtoledo Marketplace seller home">
+        <img className="admin-logo-image" src={jtoledoLogo} alt="Jtoledo Trading" />
       </a>
 
       <nav className="admin-nav" aria-label="Seller navigation">
@@ -42,7 +42,7 @@ export function SellerSidebar({ active = 'dashboard' }) {
 
       <div className="admin-sidebar-footer">
         <span>Seller workspace</span>
-        <strong>AgriVerse</strong>
+        <strong>Jtoledo Marketplace</strong>
       </div>
     </aside>
   )

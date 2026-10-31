@@ -42,7 +42,7 @@ export default function AuthConfirm() {
       <div className="auth-status-card auth-status-success">
         <span className="auth-status-icon" aria-hidden="true">✓</span>
         <h1>Email verified</h1>
-        <p>Your Buyer account is ready. Redirecting you to AgriVerse.</p>
+        <p>Your Buyer account is ready. Redirecting you to Jtoledo Marketplace.</p>
         <a href="/buyer">Continue now</a>
       </div>
     </main>

@@ -548,7 +548,7 @@ export default function ReturnRequest() {
                   <div className="return-protection-box">
                     <div className="return-protection-title">
                       <ShieldCheck />
-                      <span>AgriVerse Buyer Protection</span>
+                      <span>Jtoledo Marketplace Buyer Protection</span>
                     </div>
                     <p>
                       Farm operations will inspect photo evidence and resolve your report within <strong>24 to 48 hours</strong>.
