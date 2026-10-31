@@ -1,0 +1,122 @@
+.recovery-page .login-heading-group {
+  margin-bottom: 28px;
+}
+
+.recovery-page .login-subtitle {
+  max-width: 380px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.recovery-form {
+  display: grid;
+  gap: 18px;
+}
+
+.recovery-form .login-field {
+  display: grid;
+  gap: 8px;
+}
+
+.recovery-form .login-field input {
+  min-height: 58px;
+  font-size: 14px;
+}
+
+.recovery-form .login-button {
+  margin-top: 4px;
+}
+
+.recovery-success {
+  color: #17602d;
+  background: #eaf8e8;
+}
+
+.recovery-inline-error {
+  margin: -8px 0 0;
+  color: #9a2525;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.recovery-password-guide {
+  display: grid;
+  gap: 7px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.recovery-strength-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+.recovery-strength-bar span {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(41, 79, 51, 0.15);
+  transition: background 160ms ease;
+}
+
+.recovery-strength-bar span.is-met {
+  background: var(--login-leaf);
+}
+
+.recovery-password-guide p {
+  margin: 0;
+  color: #526157;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.recovery-password-guide ul {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recovery-password-guide li {
+  color: #768179;
+  font-size: 10px;
+}
+
+.recovery-password-guide li::before {
+  content: "○";
+  margin-right: 5px;
+}
+
+.recovery-password-guide li.is-met {
+  color: var(--login-forest);
+  font-weight: 700;
+}
+
+.recovery-password-guide li.is-met::before {
+  content: "✓";
+}
+
+.recovery-secondary {
+  margin: 20px 0 0;
+  color: #1e2820;
+  font-size: 13px;
+  text-align: center;
+}
+
+.recovery-secondary a {
+  color: var(--login-forest);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.recovery-secondary a:hover {
+  text-decoration: underline;
+}
+
+.recovery-secondary a:focus-visible {
+  outline: 3px solid rgba(24, 92, 53, 0.3);
+  outline-offset: 3px;
+}

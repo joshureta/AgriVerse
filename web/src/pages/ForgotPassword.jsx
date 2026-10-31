@@ -1,6 +1,6 @@
 import { useState } from 'react'
+import RecoveryLayout from '../components/RecoveryLayout.jsx'
 import { supabase } from '../lib/supabase.js'
-import '../styles/auth.css'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -14,30 +14,29 @@ export default function ForgotPassword() {
     setError('')
     setMessage('')
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-
-    if (resetError) {
-      setError(resetError.message)
-    } else {
-      setMessage('Check your email for the password reset link.')
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (resetError) throw resetError
+      setMessage('If an account exists for this email, a password reset link is on its way.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to send the reset link. Please try again.')
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   return (
-    <main className="auth-status-page">
-      <form className="auth-form-card" onSubmit={handleSubmit}>
-        <a className="auth-mini-brand" href="/login">AgriVerse</a>
-        <h1>Forgot your password?</h1>
-        <p>Enter your email and Supabase will send you a secure reset link.</p>
+    <RecoveryLayout
+      title="Forgot your password?"
+      description="Enter your account email and we’ll send you a link to create a new password."
+    >
+      <form className="login-form recovery-form" onSubmit={handleSubmit}>
+        {error && <div className="login-alert" role="alert">{error}</div>}
+        {message && <div className="login-alert recovery-success" role="status">{message}</div>}
 
-        {error && <div className="auth-alert auth-alert-error">{error}</div>}
-        {message && <div className="auth-alert auth-alert-success">{message}</div>}
-
-        <label>
+        <label className="login-field">
           <span>Email address</span>
           <input
             type="email"
@@ -45,16 +44,17 @@ export default function ForgotPassword() {
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
             placeholder="you@example.com"
+            disabled={loading}
             required
           />
         </label>
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Sending…' : 'Send reset link'}
+        <button className="login-button" type="submit" disabled={loading}>
+          {loading && <span className="login-spinner" aria-hidden="true" />}
+          <span>{loading ? 'Sending…' : 'Send reset link'}</span>
         </button>
-        <a className="auth-back-link" href="/login">Back to login</a>
       </form>
-    </main>
+      <p className="recovery-secondary"><a href="/login">Back to sign in</a></p>
+    </RecoveryLayout>
   )
 }
-

@@ -5,7 +5,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ImageBackground,
   KeyboardAvoidingView,
@@ -53,14 +52,6 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function handleForgotPassword() {
-    Alert.alert(
-      'Reset Password',
-      'Please contact your Toledo Trading farm administrator or dispatch supervisor to reset your account password.',
-      [{ text: 'OK' }]
-    );
   }
 
   return (
@@ -160,7 +151,7 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
                 </Pressable>
               </View>
 
-              {/* Remember me & Forgot password row */}
+              {/* Remember me */}
               <View style={styles.optionsRow}>
                 <Pressable
                   accessibilityRole="checkbox"
@@ -174,9 +165,6 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
                   <Text style={styles.rememberText}>Remember me</Text>
                 </Pressable>
 
-                <Pressable accessibilityRole="button" hitSlop={6} onPress={handleForgotPassword}>
-                  <Text style={styles.forgotText}>Forgot password?</Text>
-                </Pressable>
               </View>
 
               {/* Primary Signature Gradient CTA Button */}

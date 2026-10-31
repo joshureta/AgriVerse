@@ -176,11 +176,6 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  forgotText: {
-    color: '#185C35',
-    fontSize: 12,
-    fontWeight: '800',
-  },
   error: {
     color: '#8C2020',
     backgroundColor: '#FFF0F0',
