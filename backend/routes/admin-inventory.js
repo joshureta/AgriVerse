@@ -99,6 +99,39 @@ function serializeItem(item) {
   };
 }
 
+async function loadPineappleStock(supabase, categoryId, sizes) {
+  const bySize = new Map(sizes.map((size) => [size.id, {
+    id: size.id,
+    item_name: `${size.size_name} Pineapple`,
+    category_code: "pineapple",
+    variant: size.size_name,
+    stock_quantity: 0,
+    unit_label: "pcs",
+    updated_at: null,
+    details: { size_id: size.id },
+  }]));
+  if (!categoryId) return [...bySize.values()];
+
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from("inventory_items")
+      .select("id, quantity, updated_at, unit:measurement_units!inventory_items_unit_id_fkey(abbreviation), pineapple_inventory!inner(size_id)")
+      .eq("inventory_category_id", categoryId).is("archived_at", null)
+      .order("id").range(from, from + 999);
+    if (error) throw error;
+    for (const item of data || []) {
+      const group = bySize.get(one(item.pineapple_inventory)?.size_id);
+      if (!group) continue;
+      group.stock_quantity += Number(item.quantity) || 0;
+      group.unit_label = one(item.unit)?.abbreviation || group.unit_label;
+      if (item.updated_at && (!group.updated_at || item.updated_at > group.updated_at)) {
+        group.updated_at = item.updated_at;
+      }
+    }
+    if ((data || []).length < 1000) break;
+  }
+  return [...bySize.values()];
+}
+
 async function fetchItem(id) {
   const { data, error } = await getSupabase().from("inventory_items").select(inventorySelect)
     .eq("id", id).single();
@@ -198,7 +231,7 @@ router.get("/alerts", async (req, res, next) => {
     const soon = new Date(`${today}T00:00:00Z`);
     soon.setUTCDate(soon.getUTCDate() + 30);
     const soonDate = soon.toISOString().slice(0, 10);
-    const stockedSizeIds = new Set();
+    const stockBySize = new Map();
 
     for (let from = 0; ; from += 1000) {
       const { data, error } = await supabase.from("inventory_items")
@@ -208,18 +241,17 @@ router.get("/alerts", async (req, res, next) => {
       for (const item of data || []) {
         const isPineapple = one(item.category)?.code === "pineapple";
         if (sellerEndpoint && !isPineapple) continue;
-        const group = isPineapple ? alerts.stock : alerts.items;
         const sizeName = one(one(item.pineapple_inventory)?.size)?.size_name;
         const name = isPineapple && sizeName
           ? (/pineapple/i.test(sizeName) ? sizeName : `${sizeName} Pineapple`)
           : item.item_name;
         const example = { name, quantity: Number(item.quantity), unit: one(item.unit)?.abbreviation || (isPineapple ? "pcs" : "units") };
-        if (example.quantity <= 0) addAlert(group, "out", example);
-        else if (example.quantity <= 10) addAlert(group, "low", example);
         if (isPineapple) {
           const sizeId = one(item.pineapple_inventory)?.size_id;
-          if (sizeId) stockedSizeIds.add(sizeId);
+          if (sizeId) stockBySize.set(sizeId, (stockBySize.get(sizeId) || 0) + example.quantity);
         } else {
+          if (example.quantity <= 0) addAlert(alerts.items, "out", example);
+          else if (example.quantity <= 10) addAlert(alerts.items, "low", example);
           const expiration = one(item.fertilizer_inventory)?.expiration_date
             || one(item.pesticide_inventory)?.expiration_date;
           if (expiration && expiration < today) addAlert(alerts.items, "expired", { name, date: expiration });
@@ -233,10 +265,11 @@ router.get("/alerts", async (req, res, next) => {
       .select("id, size_name").eq("status", true);
     if (sizesError) throw sizesError;
     for (const size of sizes || []) {
-      if (!stockedSizeIds.has(size.id)) {
-        const name = /pineapple/i.test(size.size_name) ? size.size_name : `${size.size_name} Pineapple`;
-        addAlert(alerts.stock, "out", { name, quantity: 0, unit: "pcs" });
-      }
+      const quantity = stockBySize.get(size.id) || 0;
+      const name = /pineapple/i.test(size.size_name) ? size.size_name : `${size.size_name} Pineapple`;
+      const example = { name, quantity, unit: "pcs" };
+      if (quantity <= 0) addAlert(alerts.stock, "out", example);
+      else if (quantity <= 10) addAlert(alerts.stock, "low", example);
     }
     return res.json(alerts);
   } catch (error) { return next(error); }
@@ -311,6 +344,28 @@ router.get("/", async (req, res, next) => {
       .from("inventory_categories").select("id").eq("code", "pineapple").maybeSingle();
     if (pineappleCategoryError) throw pineappleCategoryError;
     const pineappleCategoryId = pineappleCategory?.id || null;
+    if (pineappleOnly && !archived) {
+      const supabase = getSupabase();
+      let activeItemsCountQuery = supabase.from("inventory_items")
+        .select("id", { count: "exact", head: true }).is("archived_at", null);
+      if (pineappleCategoryId) activeItemsCountQuery = activeItemsCountQuery.neq("inventory_category_id", pineappleCategoryId);
+      const [sizesResult, activeCountResult, archivedCountResult] = await Promise.all([
+        supabase.from("pineapple_sizes").select("id, size_name").eq("status", true).order("size_name"),
+        activeItemsCountQuery,
+        supabase.from("inventory_items").select("id", { count: "exact", head: true }).not("archived_at", "is", null),
+      ]);
+      for (const result of [sizesResult, activeCountResult, archivedCountResult]) if (result.error) throw result.error;
+      const grouped = await loadPineappleStock(supabase, pineappleCategoryId, sizesResult.data || []);
+      const matching = search
+        ? grouped.filter((item) => item.variant.toLowerCase().includes(search.toLowerCase()))
+        : grouped;
+      const total = matching.length;
+      return res.json({
+        items: matching.slice(from, from + pageSize),
+        pagination: { page, pageSize, total, totalPages: Math.max(Math.ceil(total / pageSize), 1) },
+        viewCounts: { items: activeCountResult.count || 0, stock: grouped.length, archive: archivedCountResult.count || 0 },
+      });
+    }
     let query = getSupabase().from("inventory_items").select(inventorySelect, { count: "exact" })
       .order(archived ? "archived_at" : "updated_at", { ascending: false }).range(from, from + pageSize - 1);
     query = archived ? query.not("archived_at", "is", null) : query.is("archived_at", null);
@@ -329,10 +384,8 @@ router.get("/", async (req, res, next) => {
     if (pineappleCategoryId) {
       activeItemsCountQuery = activeItemsCountQuery.neq("inventory_category_id", pineappleCategoryId);
     }
-    const pineappleCountQuery = pineappleCategoryId
-      ? getSupabase().from("inventory_items").select("id", { count: "exact", head: true })
-        .eq("inventory_category_id", pineappleCategoryId).is("archived_at", null)
-      : Promise.resolve({ count: 0, error: null });
+    const pineappleCountQuery = getSupabase().from("pineapple_sizes")
+      .select("id", { count: "exact", head: true }).eq("status", true);
     const [{ data, error, count }, activeCountResult, archivedCountResult, pineappleCountResult] = await Promise.all([
       query,
       activeItemsCountQuery,
@@ -343,29 +396,8 @@ router.get("/", async (req, res, next) => {
     if (activeCountResult.error) throw activeCountResult.error;
     if (archivedCountResult.error) throw archivedCountResult.error;
     if (pineappleCountResult.error) throw pineappleCountResult.error;
-    let items = (data || []).map(serializeItem);
-    let total = count || 0;
-
-    if (pineappleOnly && !archived && !search && page === 1) {
-      const { data: sizes, error: sizesError } = await getSupabase()
-        .from("pineapple_sizes").select("id, size_name").eq("status", true).order("size_name");
-      if (sizesError) throw sizesError;
-      const stockedSizeIds = new Set(items.map((item) => item.details?.size_id).filter(Boolean));
-      const missingSizes = (sizes || []).filter((size) => !stockedSizeIds.has(size.id));
-      const placeholders = missingSizes.map((size) => serializeItem({
-        id: null,
-        item_name: `${size.size_name} Pineapple`,
-        quantity: 0,
-        created_at: null,
-        updated_at: null,
-        archived_at: null,
-        category: { id: pineappleCategoryId, category_name: "Pineapple", code: "pineapple", status: true },
-        unit: null,
-        pineapple_inventory: [{ inventory_id: null, size_id: size.id, harvest_date: null, size: { id: size.id, size_name: size.size_name, status: true } }],
-      }));
-      items = [...items, ...placeholders];
-      total += placeholders.length;
-    }
+    const items = (data || []).map(serializeItem);
+    const total = count || 0;
 
     return res.json({
       items,

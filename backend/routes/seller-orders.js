@@ -6,6 +6,13 @@ const { httpError } = require("../lib/http-error");
 
 const router = express.Router();
 const allowedStatuses = new Set(["pending", "confirmed", "preparing", "ready_for_delivery", "out_for_delivery", "ready_for_pickup", "delivered", "completed", "cancelled"]);
+const orderStages = {
+  all: null,
+  awaiting: ["pending"],
+  fulfillment: ["confirmed", "preparing", "ready_for_delivery", "out_for_delivery", "ready_for_pickup"],
+  completed: ["delivered", "completed"],
+  cancelled: ["cancelled"],
+};
 const orderSelect = [
   "id, order_number, buyer_id, delivery_method, payment_method, payment_status, order_status, delivery_assignment_status",
   "subtotal, shipping_fee, total_amount, customer_note",
@@ -46,16 +53,41 @@ function serializeOrder(order) {
 
 router.get("/", async (req, res, next) => {
   try {
-    const status = String(req.query.status || "").trim();
+    const stage = String(req.query.stage || "all").trim();
+    if (!Object.prototype.hasOwnProperty.call(orderStages, stage)) throw httpError(400, "Invalid order stage");
+    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 7, 1), 50);
     const search = String(req.query.search || "").trim().slice(0, 100).replace(/[,()%]/g, " ");
-    if (status && !allowedStatuses.has(status)) throw httpError(400, "Invalid order status");
+    const supabase = getSupabase();
 
-    let query = getSupabase().from("buyer_orders").select(orderSelect).order("created_at", { ascending: false }).limit(200);
-    if (status) query = query.eq("order_status", status);
-    if (search) query = query.or(`order_number.ilike.%${search}%,delivery_full_name.ilike.%${search}%`);
-    const { data, error } = await query;
-    if (error) throw error;
-    return res.json({ orders: (data || []).map(serializeOrder) });
+    function filterStage(query, key) {
+      return orderStages[key] ? query.in("order_status", orderStages[key]) : query;
+    }
+
+    const countKeys = Object.keys(orderStages);
+    const searchFilter = `order_number.ilike.%${search}%,delivery_full_name.ilike.%${search}%,delivery_mobile_number.ilike.%${search}%`;
+    const [countResults, filteredCountResult] = await Promise.all([
+      Promise.all(countKeys.map((key) => filterStage(supabase.from("buyer_orders").select("id", { count: "exact", head: true }), key))),
+      search
+        ? filterStage(supabase.from("buyer_orders").select("id", { count: "exact", head: true }), stage).or(searchFilter)
+        : Promise.resolve(null),
+    ]);
+    for (const result of countResults) if (result.error) throw result.error;
+    if (filteredCountResult?.error) throw filteredCountResult.error;
+    const counts = Object.fromEntries(countKeys.map((key, index) => [key, countResults[index].count || 0]));
+    const total = search ? filteredCountResult.count || 0 : counts[stage];
+    const totalPages = Math.max(Math.ceil(total / pageSize), 1);
+    const currentPage = Math.min(page, totalPages);
+    let pageQuery = filterStage(supabase.from("buyer_orders").select(orderSelect), stage);
+    if (search) pageQuery = pageQuery.or(searchFilter);
+    const pageResult = await pageQuery.order("created_at", { ascending: false }).order("id", { ascending: false })
+      .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
+    if (pageResult.error) throw pageResult.error;
+    return res.json({
+      orders: (pageResult.data || []).map(serializeOrder),
+      counts,
+      pagination: { page: currentPage, pageSize, total, totalPages },
+    });
   } catch (error) {
     return next(error);
   }
@@ -113,50 +145,17 @@ router.patch("/:id/status", async (req, res, next) => {
         completedOrder = latestOrder;
       }
     }
-    await createOrderStatusNotification({
-      buyerId: completedOrder.buyer_id,
-      orderId: completedOrder.id,
-      orderNumber: completedOrder.order_number,
-      status,
-    });
+    try {
+      await createOrderStatusNotification({
+        buyerId: completedOrder.buyer_id,
+        orderId: completedOrder.id,
+        orderNumber: completedOrder.order_number,
+        status,
+      });
+    } catch (notificationError) {
+      console.error("Failed to notify buyer of seller order status change:", notificationError.message);
+    }
     return res.json({ order: serializeOrder(completedOrder) });
-  } catch (error) {
-    return next(error);
-  }
-});
-
-router.get("/disputes", async (req, res, next) => {
-  try {
-    const { data, error } = await getSupabase().from("buyer_orders")
-      .select("id, order_number, delivery_full_name, delivery_dispute_reason, delivery_dispute_category, delivery_dispute_created_at, delivery_dispute_response")
-      .eq("delivery_dispute_status", "open")
-      .eq("delivery_dispute_responsible_role", "seller")
-      .order("delivery_dispute_created_at", { ascending: true });
-    if (error) throw error;
-    return res.json({ orders: data || [] });
-  } catch (error) {
-    return next(error);
-  }
-});
-
-router.post("/:id/dispute-response", async (req, res, next) => {
-  try {
-    const id = readOrderId(req.params.id);
-    const response = String(req.body.response || "").trim();
-    if (!response) throw httpError(400, "Describe what happened on your end");
-    if (response.length > 2000) throw httpError(400, "Response must not exceed 2000 characters");
-
-    const now = new Date().toISOString();
-    const { data, error } = await getSupabase().from("buyer_orders")
-      .update({ delivery_dispute_response: response, delivery_dispute_responder_id: req.user.id, delivery_dispute_response_at: now })
-      .eq("id", id)
-      .eq("delivery_dispute_status", "open")
-      .eq("delivery_dispute_responsible_role", "seller")
-      .select("id, order_number, delivery_dispute_response, delivery_dispute_response_at")
-      .maybeSingle();
-    if (error) throw error;
-    if (!data) throw httpError(409, "This dispute can no longer be responded to");
-    return res.json({ order: data });
   } catch (error) {
     return next(error);
   }

@@ -12,7 +12,10 @@ auth.requireAuth = (req, _res, next) => {
   next();
 };
 auth.requireRole = () => (_req, _res, next) => next();
-notifications.createOrderStatusNotification = async () => {};
+let notificationFails = false;
+notifications.createOrderStatusNotification = async () => {
+  if (notificationFails) throw new Error("Notification service unavailable");
+};
 
 let order;
 let paymentUpdates = 0;
@@ -93,4 +96,29 @@ test("a cash pickup already settled by the database is not updated again", async
   assert.equal(response.status, 200);
   assert.equal((await response.json()).order.payment_status, "paid");
   assert.equal(paymentUpdates, 0);
+});
+
+test("a failed buyer notification does not report a completed seller status change as failed", async () => {
+  order = {
+    id: 40, order_number: "TEST-40", buyer_id: "buyer-1",
+    delivery_method: "delivery", payment_method: "cash", payment_status: "unpaid",
+    order_status: "pending", subtotal: 100, shipping_fee: 100,
+    total_amount: 200, items: [],
+  };
+  notificationFails = true;
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    const response = await fetch(`${baseUrl}/api/seller/orders/40/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "confirmed" }),
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).order.order_status, "confirmed");
+    assert.equal(order.order_status, "confirmed");
+  } finally {
+    console.error = originalError;
+    notificationFails = false;
+  }
 });

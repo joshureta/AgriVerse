@@ -207,6 +207,10 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     return () => window.clearTimeout(delay)
   }, [loadItems, refreshKey, search])
 
+  useEffect(() => {
+    if (page > pagination.totalPages) setPage(pagination.totalPages)
+  }, [page, pagination.totalPages])
+
   useEffect(() => { setStockHistoryPage(1) }, [refreshKey])
 
   useEffect(() => { loadStockHistory() }, [loadStockHistory, refreshKey])
@@ -310,16 +314,15 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setSaving(true)
     setError('')
     try {
-      const endpoint = modal.item.id
-        ? `${inventoryApi}/${modal.item.id}/stock${removing ? '/remove' : ''}`
-        : `${inventoryApi}/pineapple-sizes/${modal.item.details.size_id}/stock`
+      const endpoint = activeView === 'stock'
+        ? `${inventoryApi}/pineapple-sizes/${modal.item.details.size_id}/stock`
+        : `${inventoryApi}/${modal.item.id}/stock${removing ? '/remove' : ''}`
       await apiRequest(endpoint, {
         method: 'POST', body: JSON.stringify({ quantity }),
       })
       setModal(null)
       const name = modal.item.category_code === 'pineapple' ? `${modal.item.variant} pineapple` : modal.item.item_name
-      const newTotal = Number(modal.item.stock_quantity) + (removing ? -quantity : quantity)
-      completeAction(removing ? 'Stock removed:' : 'Stock added:', `${quantity} ${modal.item.unit_label || 'pcs'} ${removing ? 'removed from' : 'added to'} ${name}. New total: ${newTotal} ${modal.item.unit_label || 'pcs'}.`)
+      completeAction(removing ? 'Stock removed:' : 'Stock added:', `${quantity} ${modal.item.unit_label || 'pcs'} ${removing ? 'removed from' : 'added to'} ${name}.`)
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -482,13 +485,13 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
             <div className="inventory-table-wrap">
               {activeView === 'stock' ? <table className="inventory-table pineapple-stock-table">
-                <thead><tr><th>ID</th><th>PINEAPPLE SIZE</th><th>AVAILABLE STOCK</th><th>UNIT</th><th>STOCK STATUS</th><th>LAST UPDATED</th><th>ACTIONS</th></tr></thead>
+                <thead><tr><th>SIZE ID</th><th>PINEAPPLE SIZE</th><th>AVAILABLE STOCK</th><th>UNIT</th><th>STOCK STATUS</th><th>LAST UPDATED</th><th>ACTIONS</th></tr></thead>
                 <tbody>
                   {loading ? <tr><td className="inventory-empty" colSpan="7">Loading pineapple stock…</td></tr>
                     : items.length ? items.map((item) => {
                       const status = item.stock_quantity <= 0 ? 'out' : item.stock_quantity <= 10 ? 'low' : 'in'
                       const label = status === 'out' ? 'Out of Stock' : status === 'low' ? 'Low Stock' : 'In Stock'
-                      return <tr key={item.id ?? `size-${item.details?.size_id}`}><td>{item.id ?? '—'}</td><td><strong>{item.variant}</strong></td><td><strong className="inventory-quantity">{item.stock_quantity}</strong></td><td>{item.unit_label || 'pcs'}</td><td><span className={`stock-status stock-${status}`}>{label}</span></td><td>{formatDate(item.updated_at)}</td><td><div className="inventory-actions"><button className="inventory-add-stock" type="button" onClick={() => openAddStock(item)}><span aria-hidden="true">+</span>Add Stock</button></div></td></tr>
+                      return <tr key={item.details.size_id}><td>{item.details.size_id}</td><td><strong>{item.variant}</strong></td><td><strong className="inventory-quantity">{item.stock_quantity}</strong></td><td>{item.unit_label || 'pcs'}</td><td><span className={`stock-status stock-${status}`}>{label}</span></td><td>{formatDate(item.updated_at)}</td><td><div className="inventory-actions"><button className="inventory-add-stock" type="button" onClick={() => openAddStock(item)}><span aria-hidden="true">+</span>Add Stock</button></div></td></tr>
                     }) : <tr><td className="inventory-empty" colSpan="7">No pineapple stock records found.</td></tr>}
                 </tbody>
               </table> : <table className="inventory-table inventory-records-table">
@@ -517,12 +520,16 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
               <span>{pagination.total} total item{pagination.total === 1 ? '' : 's'}</span>
               <Pagination page={page} totalPages={pagination.totalPages} onChange={setPage} disabled={loading} ariaLabel="Inventory pages" />
             </footer>}
+            {activeView === 'stock' && <footer className="pagination-footer">
+              <span>{pagination.total} pineapple size{pagination.total === 1 ? '' : 's'}</span>
+              <Pagination page={page} totalPages={pagination.totalPages} onChange={setPage} disabled={loading} ariaLabel="Pineapple stock pages" />
+            </footer>}
             {activeView === 'stock' && <section className="stock-history-section">
               <header><div><h2>Stock Movement History</h2><p>Recent pineapple stock additions and deductions</p></div></header>
               {historyError && <InventoryNotice title="Stock history unavailable:" onDismiss={() => setHistoryError('')}>{historyError}</InventoryNotice>}
               <div className="inventory-table-wrap">
                 <table className="stock-history-table">
-                  <thead><tr><th>DATE &amp; TIME</th><th>PINEAPPLE SIZE</th><th>MOVEMENT</th><th>QUANTITY</th><th>BEFORE</th><th>AFTER</th></tr></thead>
+                  <thead><tr><th>DATE &amp; TIME</th><th>PINEAPPLE SIZE</th><th>MOVEMENT</th><th>QUANTITY</th><th>LOT BEFORE</th><th>LOT AFTER</th></tr></thead>
                   <tbody>
                     {historyLoading ? <tr><td colSpan="6">Loading stock history…</td></tr>
                       : stockHistory.length ? stockHistory.map((movement) => <tr key={movement.id}>

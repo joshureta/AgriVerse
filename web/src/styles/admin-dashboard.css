@@ -32,28 +32,23 @@
 }
 
 .admin-logo {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 142px;
-  overflow: hidden;
-  border-radius: 12px;
+  min-height: 86px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.24);
+  padding: 2px 5px 20px;
   color: white;
-  background: white;
   text-decoration: none;
 }
 
 .admin-logo-image {
-  position: absolute;
-  top: -30px;
-  left: 50%;
-  width: 232px;
-  height: 232px;
+  width: min(100%, 178px);
+  height: auto;
+  max-height: 64px;
   display: block;
   object-fit: contain;
-  transform: translateX(-50%);
 }
 
 .admin-nav {
@@ -1637,13 +1632,7 @@
   }
 
   .admin-logo {
-    min-height: 90px;
-  }
-
-  .admin-logo-image {
-    top: -20px;
-    width: 150px;
-    height: 150px;
+    padding: 0 3px;
   }
 
   .admin-nav {

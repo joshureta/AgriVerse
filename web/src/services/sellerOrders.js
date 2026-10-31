@@ -40,28 +40,21 @@ async function sellerRequest(path, options = {}, retry = true) {
   }
 }
 
-export async function loadSellerOrders() {
-  const body = await sellerRequest('')
-  return body.orders || []
+export async function loadSellerOrders({ page = 1, pageSize = 7, stage = 'all', search = '' } = {}) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), stage })
+  if (search.trim()) params.set('search', search.trim())
+  return sellerRequest(`?${params}`)
+}
+
+export async function loadSellerOrder(orderId) {
+  const body = await sellerRequest(`/${orderId}`)
+  return body.order
 }
 
 export async function changeSellerOrderStatus(orderId, status, note = '') {
   const body = await sellerRequest(`/${orderId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status, note }),
-  })
-  return body.order
-}
-
-export async function loadSellerDisputes() {
-  const body = await sellerRequest('/disputes')
-  return body.orders || []
-}
-
-export async function respondToSellerDispute(orderId, response) {
-  const body = await sellerRequest(`/${orderId}/dispute-response`, {
-    method: 'POST',
-    body: JSON.stringify({ response }),
   })
   return body.order
 }

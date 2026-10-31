@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Box,
   Check,
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { SellerSidebar, SellerTopbar } from '../../components/SellerNavigation.jsx'
 import Pagination from '../../components/Pagination.jsx'
-import { changeSellerOrderStatus, loadSellerOrders } from '../../services/sellerOrders.js'
+import { changeSellerOrderStatus, loadSellerOrder, loadSellerOrders } from '../../services/sellerOrders.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/seller-order-management.css'
 import '../../styles/seller-workspace.css'
@@ -77,6 +77,8 @@ function actionIcon(status) {
 
 export default function SellerOrderManagement() {
   const [orders, setOrders] = useState([])
+  const [counts, setCounts] = useState({ all: 0, awaiting: 0, fulfillment: 0, completed: 0, cancelled: 0 })
+  const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 })
   const [activeTab, setActiveTab] = useState('awaiting')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -90,8 +92,12 @@ export default function SellerOrderManagement() {
   const [confirmation, setConfirmation] = useState(null)
   const [confirmationError, setConfirmationError] = useState('')
   const pageSize = 7
+  const requestId = useRef(0)
+
+  useEffect(() => { requestId.current += 1 }, [activeTab, page, search])
 
   const fetchOrders = useCallback(async ({ background = false } = {}) => {
+    const currentRequest = ++requestId.current
     if (background) {
       setRefreshing(true)
     } else {
@@ -99,18 +105,30 @@ export default function SellerOrderManagement() {
     }
     if (!background) setError('')
     try {
-      const data = await loadSellerOrders()
-      setOrders(data)
-      setSelected((current) => current ? data.find((order) => order.id === current.id) || null : null)
+      const data = await loadSellerOrders({ page, pageSize, stage: activeTab, search })
+      if (currentRequest !== requestId.current) return
+      setOrders(data.orders || [])
+      setCounts(data.counts || { all: 0, awaiting: 0, fulfillment: 0, completed: 0, cancelled: 0 })
+      setPagination(data.pagination || { page, total: 0, totalPages: 1 })
+      setSelected((current) => current ? data.orders?.find((order) => order.id === current.id) || current : null)
     } catch (requestError) {
-      if (!background) setError(requestError.message)
+      if (currentRequest === requestId.current && !background) {
+        setOrders([])
+        setPagination({ page, total: 0, totalPages: 1 })
+        setError(requestError.message)
+      }
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      if (currentRequest === requestId.current) {
+        setLoading(false)
+        setRefreshing(false)
+      }
     }
-  }, [])
+  }, [activeTab, page, search])
 
-  useEffect(() => { fetchOrders() }, [fetchOrders])
+  useEffect(() => {
+    const timer = window.setTimeout(() => fetchOrders(), search ? 300 : 0)
+    return () => window.clearTimeout(timer)
+  }, [fetchOrders, search])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -130,32 +148,9 @@ export default function SellerOrderManagement() {
     return () => document.removeEventListener('keydown', closeOnEscape)
   }, [confirmation, selected, updating])
 
-  const counts = useMemo(() => ({
-    total: orders.length,
-    pending: orders.filter((order) => order.order_status === 'pending').length,
-    fulfillment: orders.filter((order) => ['confirmed', 'preparing', 'ready_for_delivery', 'out_for_delivery', 'ready_for_pickup'].includes(order.order_status)).length,
-    delivered: orders.filter((order) => order.order_status === 'delivered').length,
-    cancelled: orders.filter((order) => order.order_status === 'cancelled').length,
-  }), [orders])
-
-  const filtered = useMemo(() => {
-    const tab = tabs.find((entry) => entry.key === activeTab)
-    if (!tab) return []
-    const term = search.trim().toLowerCase()
-
-    return orders
-      .filter((order) => !tab.statuses || tab.statuses.includes(order.order_status))
-      .filter((order) => !term ||
-        order.order_number?.toLowerCase().includes(term) ||
-        order.delivery_full_name?.toLowerCase().includes(term) ||
-        order.delivery_mobile_number?.toLowerCase().includes(term) ||
-        itemsSummary(order).toLowerCase().includes(term))
-      .sort((first, second) => new Date(second.created_at) - new Date(first.created_at))
-  }, [activeTab, orders, search])
-
   const filtersActive = Boolean(search.trim())
-  const pages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const visibleOrders = filtered.slice((page - 1) * pageSize, page * pageSize)
+  const pages = pagination.totalPages
+  const visibleOrders = orders
 
   useEffect(() => { setPage(1) }, [activeTab, search])
   useEffect(() => { if (page > pages) setPage(pages) }, [page, pages])
@@ -204,14 +199,17 @@ export default function SellerOrderManagement() {
     }
   }
 
-  function viewNotifiedOrder() {
+  async function viewNotifiedOrder() {
     if (!notice) return
-    const order = orders.find((item) => item.id === notice.orderId)
-    if (!order) return
-    const tab = tabs.find((entry) => entry.statuses?.includes(order.order_status))
-    if (tab) selectStage(tab.key)
-    setSelected(order)
-    setNotice(null)
+    try {
+      const order = await loadSellerOrder(notice.orderId)
+      const tab = tabs.find((entry) => entry.statuses?.includes(order.order_status))
+      if (tab) selectStage(tab.key)
+      setSelected(order)
+      setNotice(null)
+    } catch (requestError) {
+      setError(requestError.message)
+    }
   }
 
   return (
@@ -225,24 +223,24 @@ export default function SellerOrderManagement() {
             <small className={refreshing ? 'is-refreshing' : ''}>{refreshing ? 'Updating...' : 'Auto-refresh on'}</small>
           </header>
 
-          {(notice || (counts.pending > 0 && !pendingDismissed)) && <section className="seller-order-notices" aria-label="Order notifications">
+          {(notice || (counts.awaiting > 0 && !pendingDismissed)) && <section className="seller-order-notices" aria-label="Order notifications">
             {notice && <div className="seller-order-notice is-success" role="status">
               <span className="seller-order-notice-icon"><CheckCircle2 aria-hidden="true" /></span>
-              <p><strong>Order updated:</strong> {notice.message}{' '}{orders.some((order) => order.id === notice.orderId) && <button type="button" className="seller-order-notice-link" onClick={viewNotifiedOrder}>View order</button>}</p>
+              <p><strong>Order updated:</strong> {notice.message}{' '}<button type="button" className="seller-order-notice-link" onClick={viewNotifiedOrder}>View order</button></p>
               <button type="button" className="seller-order-notice-dismiss" aria-label="Dismiss order update notification" onClick={() => setNotice(null)}><X aria-hidden="true" /></button>
             </div>}
-            {counts.pending > 0 && !pendingDismissed && <div className="seller-order-notice is-warning" role="status">
+            {counts.awaiting > 0 && !pendingDismissed && <div className="seller-order-notice is-warning" role="status">
               <span className="seller-order-notice-icon"><TriangleAlert aria-hidden="true" /></span>
-              <p><button type="button" className="seller-order-notice-link is-title" onClick={() => selectStage('awaiting')}>Orders Awaiting Confirmation:</button>{' '}{counts.pending} order{counts.pending === 1 ? '' : 's'} need{counts.pending === 1 ? 's' : ''} confirmation.</p>
+              <p><button type="button" className="seller-order-notice-link is-title" onClick={() => selectStage('awaiting')}>Orders Awaiting Confirmation:</button>{' '}{counts.awaiting} order{counts.awaiting === 1 ? '' : 's'} need{counts.awaiting === 1 ? 's' : ''} confirmation.</p>
               <button type="button" className="seller-order-notice-dismiss" aria-label="Dismiss pending orders notification" onClick={() => setPendingDismissed(true)}><X aria-hidden="true" /></button>
             </div>}
           </section>}
 
           <section className="seller-order-stats" aria-label="Order statistics">
-            <button className={activeTab === 'all' ? 'is-active' : ''} type="button" onClick={() => selectStage('all')}><span><Box /></span><div><small>Total Orders</small><strong>{counts.total}</strong><em>View all orders <ChevronRight /></em></div></button>
-            <button className={activeTab === 'awaiting' ? 'is-active' : ''} type="button" onClick={() => selectStage('awaiting')}><span><Clock3 /></span><div><small>Pending Confirmation</small><strong>{counts.pending}</strong><em>Needs attention <ChevronRight /></em></div></button>
+            <button className={activeTab === 'all' ? 'is-active' : ''} type="button" onClick={() => selectStage('all')}><span><Box /></span><div><small>Total Orders</small><strong>{counts.all}</strong><em>View all orders <ChevronRight /></em></div></button>
+            <button className={activeTab === 'awaiting' ? 'is-active' : ''} type="button" onClick={() => selectStage('awaiting')}><span><Clock3 /></span><div><small>Pending Confirmation</small><strong>{counts.awaiting}</strong><em>Needs attention <ChevronRight /></em></div></button>
             <button className={activeTab === 'fulfillment' ? 'is-active' : ''} type="button" onClick={() => selectStage('fulfillment')}><span><PackageCheck /></span><div><small>In Fulfillment</small><strong>{counts.fulfillment}</strong><em>View active orders <ChevronRight /></em></div></button>
-            <button className={activeTab === 'completed' ? 'is-active' : ''} type="button" onClick={() => selectStage('completed')}><span><CheckCircle2 /></span><div><small>Delivered</small><strong>{counts.delivered}</strong><em>View completed <ChevronRight /></em></div></button>
+            <button className={activeTab === 'completed' ? 'is-active' : ''} type="button" onClick={() => selectStage('completed')}><span><CheckCircle2 /></span><div><small>Completed</small><strong>{counts.completed}</strong><em>View completed <ChevronRight /></em></div></button>
           </section>
 
           <section className="seller-orders-table-card">
@@ -251,7 +249,7 @@ export default function SellerOrderManagement() {
             </div>
 
             <div className="seller-order-toolbar">
-              <label className="seller-order-search"><Search /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search orders" aria-label="Search orders" /></label>
+              <label className="seller-order-search"><Search /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search order or customer" aria-label="Search order or customer" /></label>
             </div>
 
             <div className="seller-order-table-wrap">
@@ -276,7 +274,7 @@ export default function SellerOrderManagement() {
               </table>
             </div>
             <footer className="pagination-footer">
-              <span>{filtered.length} total order{filtered.length === 1 ? '' : 's'}</span>
+              <span>{pagination.total} total order{pagination.total === 1 ? '' : 's'}</span>
               <Pagination page={page} totalPages={pages} onChange={setPage} disabled={loading} ariaLabel="Seller order pages" />
             </footer>
           </section>

@@ -184,7 +184,7 @@ export default function AdminDashboard() {
         <div className="admin-content">
           <section className="admin-hero">
             <div>
-              <p className="admin-eyebrow">Jtoledo Trading overview</p>
+              <p className="admin-eyebrow">AgriVerse overview</p>
               <h1>Hello {firstName}!</h1>
               <p>Here is what is happening across your farm operations today.</p>
             </div>

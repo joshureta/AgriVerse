@@ -62,25 +62,14 @@ const DISPUTE_CATEGORY_LABELS = {
   wrong_quantity: "the wrong quantity",
 };
 
-// There's no per-order seller column, so "who prepared this" is read off the
-// status-history trail (same approach as the admin disputes list).
-async function findOrderSellerId(orderId) {
-  const { data, error } = await getSupabase().from("buyer_order_status_history")
-    .select("changed_by")
-    .eq("order_id", orderId).in("new_status", ["confirmed", "preparing"]).not("changed_by", "is", null)
-    .order("created_at", { ascending: true }).limit(1).maybeSingle();
-  if (error) throw error;
-  return data?.changed_by || null;
-}
-
-// Tells the admins, and whoever the buyer's report points at (driver or seller), that a dispute needs a look.
+// Admins review all disputes. Drivers also receive reports assigned to them.
 async function createDisputeOpenedNotifications({ orderId, orderNumber, category, responsibleRole, driverId }) {
   if (!orderId) return;
 
   const { data: admins, error: adminError } = await getSupabase().from("profiles").select("id").eq("role", "admin");
   if (adminError) throw adminError;
 
-  const responsibleId = responsibleRole === "driver" ? driverId : responsibleRole === "seller" ? await findOrderSellerId(orderId) : null;
+  const responsibleId = responsibleRole === "driver" ? driverId : null;
   const recipientIds = [...new Set([...(admins || []).map((admin) => admin.id), responsibleId].filter(Boolean))];
   if (recipientIds.length === 0) return;
 

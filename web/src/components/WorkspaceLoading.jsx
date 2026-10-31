@@ -1,4 +1,4 @@
-import jtoledoLogo from '../assets/Jtoledologo.png'
+import agriverseWordmark from '../assets/agriverse-wordmark.png'
 import sellerHero from '../assets/seller-dashboard-pineapple-crates.png'
 import '../styles/admin-dashboard.css'
 import '../styles/workspace-loading.css'
@@ -121,9 +121,9 @@ export default function WorkspaceLoading({ path, seller = false }) {
 
   return <main className={`admin-dashboard workspace-loading${seller ? ' seller-dashboard' : ''}`} aria-busy="true" aria-label={`Loading ${title.toLowerCase()}`}>
     <aside className="admin-sidebar workspace-loading-sidebar" aria-hidden="true">
-      <div className="admin-logo"><img className="admin-logo-image" src={jtoledoLogo} alt="" /></div>
+      <div className="admin-logo"><img className="admin-logo-image" src={agriverseWordmark} alt="" /></div>
       <nav className="admin-nav">{links.map((link) => <span key={link.path} className={`${active === link.path ? 'is-active' : ''}${link.nested ? ' is-nested' : ''}`}><span className="workspace-loading-nav-icon" />{link.label}</span>)}</nav>
-      <div className="admin-sidebar-footer"><span>{seller ? 'Seller workspace' : 'Administrator workspace'}</span><strong>Jtoledo Marketplace</strong></div>
+      <div className="admin-sidebar-footer"><span>{seller ? 'Seller workspace' : 'Administrator workspace'}</span><strong>AgriVerse</strong></div>
     </aside>
     <section className="admin-workspace">
       <header className="admin-topbar workspace-loading-topbar" aria-hidden="true"><Bar width={190} /><div><Circle size={28} /><Circle size={28} /><Circle size={38} /><Bar width={100} /></div></header>
