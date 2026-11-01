@@ -15,6 +15,7 @@ const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP'
 const statusLabels = { pending: 'New', confirmed: 'Confirmed', preparing: 'Preparing', ready_for_delivery: 'Ready', ready_for_pickup: 'Pickup ready', delivered: 'Delivered', completed: 'Completed', cancelled: 'Cancelled' }
 const EMPTY_LIST = []
 
+// Loads the seller's dashboard data.
 async function loadSellerDashboard() {
   const { data, error } = await supabase.auth.getSession()
   if (error) throw error
@@ -26,23 +27,29 @@ async function loadSellerDashboard() {
   return body
 }
 
+// Displays the seller's sales, stock, and order overview.
 export default function SellerDashboard() {
   const { profile } = useAuth()
   const displayName = profile?.full_name || 'Seller'
   const firstName = displayName.split(' ')[0]
   const [dashboard, setDashboard] = useState(null)
   const [error, setError] = useState('')
+  // Refreshes the seller dashboard data.
   const fetchDashboard = useCallback(async () => {
     try { setError(''); setDashboard(await loadSellerDashboard()) } catch (caught) { setError(caught.message) }
   }, [])
+  // Loads dashboard data when the page opens.
   useEffect(() => { fetchDashboard() }, [fetchDashboard])
   const series = dashboard?.revenue?.series || EMPTY_LIST
   const maxRevenue = Math.max(...series.map((point) => Number(point.net) || 0), 1)
+  // Converts revenue values into chart points.
   const points = useMemo(() => series.map((point, index) => `${8 + index * (384 / Math.max(series.length - 1, 1))},${96 - ((Number(point.net) || 0) / maxRevenue) * 84}`).join(' '), [maxRevenue, series])
   const inventory = dashboard?.inventory || EMPTY_LIST
   const totalStock = dashboard?.stats?.stock_total || 0
   const change = dashboard?.revenue?.change_percent
+  // Chooses the display style for an order status.
   const tone = (status) => ['pending', 'confirmed'].includes(status) ? 'new' : ['preparing', 'ready_for_delivery', 'ready_for_pickup'].includes(status) ? 'progress' : 'done'
+  // Builds the chart showing stock by pineapple size.
   const inventoryGradient = useMemo(() => {
     if (!totalStock || !inventory.length) return 'conic-gradient(#dfe8df 0 100%)'
     let cursor = 0
@@ -52,12 +59,14 @@ export default function SellerDashboard() {
 
   return (
     <main className="admin-dashboard seller-dashboard">
+      {/* Seller navigation and page header. */}
       <SellerSidebar active="dashboard" />
 
       <section className="admin-workspace">
         <SellerTopbar />
 
         <div className="admin-content seller-content">
+          {/* Welcome banner for the seller. */}
           <section className="admin-hero seller-hero">
             <div className="seller-hero-copy">
               <p className="admin-eyebrow">Seller workspace</p>
@@ -67,6 +76,7 @@ export default function SellerDashboard() {
             <img src={sellerHero} alt="Green crates filled with harvested pineapples" />
           </section>
 
+          {/* Stock, sales, and pending order totals. */}
           <section className="seller-stats" aria-label="Seller summary">
             <article>
               <div><small>Pineapples In Stock</small><strong>{dashboard ? totalStock.toLocaleString() : '—'} <em>pcs</em></strong><p>Available in inventory</p></div>
@@ -80,6 +90,7 @@ export default function SellerDashboard() {
           </section>
 
           <div className="seller-analytics-grid">
+              {/* Inventory by pineapple size. */}
               <section className="seller-panel seller-inventory-statistics" aria-labelledby="seller-inventory-statistics-title">
                 <header><div><small>Inventory</small><h2 id="seller-inventory-statistics-title">Inventory Statistics</h2></div><span className="seller-panel-menu">•••</span></header>
                 <div className="seller-inventory-statistics-content">
@@ -92,6 +103,7 @@ export default function SellerDashboard() {
                 </div>
               </section>
 
+              {/* Monthly sales trend. */}
               <section className="seller-panel seller-revenue" aria-labelledby="seller-revenue-title">
               <header><div><small>Revenue</small><h2 id="seller-revenue-title">Sales Analytics</h2></div><span><TrendingUp /> {change == null ? '—' : `${change >= 0 ? '+' : ''}${change}%`}</span></header>
               <div className="seller-chart">
@@ -107,6 +119,7 @@ export default function SellerDashboard() {
               </section>
           </div>
 
+          {/* Most recent buyer orders. */}
           <section className="seller-panel seller-orders seller-orders-table" id="orders" aria-labelledby="seller-orders-title">
               <header><div><small>Orders</small><h2 id="seller-orders-title">Recent Orders</h2></div><span className="seller-panel-menu">•••</span></header>
               <div className="seller-order-table-wrap">

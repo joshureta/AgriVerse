@@ -51,30 +51,36 @@ const pickupActions = {
 
 const DRIVER_READY_STATUSES = new Set(['accepted', 'picked_up'])
 
+// Lists the next actions allowed for an order.
 function availableActions(order) {
   const actions = (order.delivery_method === 'pickup' && pickupActions[order.order_status]) || nextActions[order.order_status] || []
   if (order.order_status !== 'ready_for_delivery') return actions
   return actions.filter((action) => action.status !== 'out_for_delivery' || DRIVER_READY_STATUSES.has(order.delivery_assignment_status))
 }
 
+// Formats an amount in Philippine pesos.
 function money(value) {
   return `PHP ${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
 }
 
+// Formats an order date and time.
 function dateTime(value) {
   return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value))
 }
 
+// Summarizes the products in an order.
 function itemsSummary(order) {
   return (order.items || []).map((item) => `${item.product_name} x${item.quantity}`).join(', ')
 }
 
+// Chooses the icon for an order action.
 function actionIcon(status) {
   if (status === 'cancelled') return <XCircle aria-hidden="true" />
   if (status === 'out_for_delivery') return <Truck aria-hidden="true" />
   return <Check aria-hidden="true" />
 }
 
+// Displays seller orders and their fulfillment actions.
 export default function SellerOrderManagement() {
   const [orders, setOrders] = useState([])
   const [counts, setCounts] = useState({ all: 0, awaiting: 0, fulfillment: 0, completed: 0, cancelled: 0 })
@@ -94,8 +100,10 @@ export default function SellerOrderManagement() {
   const pageSize = 7
   const requestId = useRef(0)
 
+  // Invalidates old requests when the order view changes.
   useEffect(() => { requestId.current += 1 }, [activeTab, page, search])
 
+  // Loads orders for the selected stage, page, and search.
   const fetchOrders = useCallback(async ({ background = false } = {}) => {
     const currentRequest = ++requestId.current
     if (background) {
@@ -125,11 +133,13 @@ export default function SellerOrderManagement() {
     }
   }, [activeTab, page, search])
 
+  // Loads orders after the user changes filters or search text.
   useEffect(() => {
     const timer = window.setTimeout(() => fetchOrders(), search ? 300 : 0)
     return () => window.clearTimeout(timer)
   }, [fetchOrders, search])
 
+  // Refreshes visible orders while the page is open.
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') fetchOrders({ background: true })
@@ -137,8 +147,10 @@ export default function SellerOrderManagement() {
     return () => window.clearInterval(timer)
   }, [fetchOrders])
 
+  // Closes the open order dialog when Escape is pressed.
   useEffect(() => {
     if (!selected && !confirmation) return undefined
+    // Handles Escape for order and confirmation dialogs.
     const closeOnEscape = (event) => {
       if (event.key !== 'Escape' || updating) return
       if (confirmation) setConfirmation(null)
@@ -152,24 +164,30 @@ export default function SellerOrderManagement() {
   const pages = pagination.totalPages
   const visibleOrders = orders
 
+  // Returns to the first page when filters change.
   useEffect(() => { setPage(1) }, [activeTab, search])
+  // Keeps the current page within the available pages.
   useEffect(() => { if (page > pages) setPage(pages) }, [page, pages])
 
+  // Switches the order stage and resets pagination.
   function selectStage(stage) {
     setActiveTab(stage)
     setPage(1)
   }
 
+  // Clears the order search filter.
   function clearFilters() {
     setSearch('')
   }
 
+  // Opens confirmation for an order status change.
   function requestOrderAction(order, action) {
     setNotice(null)
     setConfirmation({ order, action, note: '' })
     setConfirmationError('')
   }
 
+  // Applies the confirmed order status change.
   async function confirmOrderAction() {
     if (!confirmation) return
     const { order, action } = confirmation
@@ -199,6 +217,7 @@ export default function SellerOrderManagement() {
     }
   }
 
+  // Opens the order mentioned in a status notice.
   async function viewNotifiedOrder() {
     if (!notice) return
     try {
@@ -214,15 +233,18 @@ export default function SellerOrderManagement() {
 
   return (
     <main className="admin-dashboard seller-orders-page">
+      {/* Seller navigation and page header. */}
       <SellerSidebar active="orders" />
       <section className="admin-workspace">
         <SellerTopbar />
         <div className="seller-orders-content">
+          {/* Page title and refresh status. */}
           <header className="seller-orders-title">
             <div className="seller-orders-title-copy"><h1>Order Management</h1><span>Receive, confirm, fulfill, and complete buyer orders.</span></div>
             <small className={refreshing ? 'is-refreshing' : ''}>{refreshing ? 'Updating...' : 'Auto-refresh on'}</small>
           </header>
 
+          {/* Notices about pending and updated orders. */}
           {(notice || (counts.awaiting > 0 && !pendingDismissed)) && <section className="seller-order-notices" aria-label="Order notifications">
             {notice && <div className="seller-order-notice is-success" role="status">
               <span className="seller-order-notice-icon"><CheckCircle2 aria-hidden="true" /></span>
@@ -236,6 +258,7 @@ export default function SellerOrderManagement() {
             </div>}
           </section>}
 
+          {/* Order counts by fulfillment stage. */}
           <section className="seller-order-stats" aria-label="Order statistics">
             <button className={activeTab === 'all' ? 'is-active' : ''} type="button" onClick={() => selectStage('all')}><span><Box /></span><div><small>Total Orders</small><strong>{counts.all}</strong><em>View all orders <ChevronRight /></em></div></button>
             <button className={activeTab === 'awaiting' ? 'is-active' : ''} type="button" onClick={() => selectStage('awaiting')}><span><Clock3 /></span><div><small>Pending Confirmation</small><strong>{counts.awaiting}</strong><em>Needs attention <ChevronRight /></em></div></button>
@@ -243,6 +266,7 @@ export default function SellerOrderManagement() {
             <button className={activeTab === 'completed' ? 'is-active' : ''} type="button" onClick={() => selectStage('completed')}><span><CheckCircle2 /></span><div><small>Completed</small><strong>{counts.completed}</strong><em>View completed <ChevronRight /></em></div></button>
           </section>
 
+          {/* Order filters, search, and table. */}
           <section className="seller-orders-table-card">
             <div className="seller-order-tabs" role="tablist">
               {tabs.filter((tab) => tab.key !== 'all').map((tab) => <button className={activeTab === tab.key ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === tab.key} onClick={() => selectStage(tab.key)} key={tab.key}>{tab.label}</button>)}
@@ -281,6 +305,7 @@ export default function SellerOrderManagement() {
         </div>
       </section>
 
+      {/* Details for the selected order. */}
       {selected && <div className="seller-order-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null) }}>
         <section className="seller-order-modal" role="dialog" aria-modal="true" aria-labelledby="seller-order-dialog-title">
           <header>
@@ -322,6 +347,7 @@ export default function SellerOrderManagement() {
         </section>
       </div>}
 
+      {/* Confirmation for changing an order's status. */}
       {confirmation && <div className="seller-confirmation-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !updating) setConfirmation(null) }}>
         <section className={`seller-confirmation-dialog ${confirmation.action.danger ? 'is-danger' : ''}`} role="alertdialog" aria-modal="true" aria-labelledby="seller-confirmation-title" aria-describedby="seller-confirmation-description">
           <span className="seller-confirmation-icon">{confirmation.action.danger ? <CircleAlert aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}</span>
