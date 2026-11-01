@@ -73,6 +73,7 @@ const businessPartners = [
   { label: 'Export Partners', icon: exportPartnerIcon },
 ]
 
+// Displays the marketplace home page and featured reviews.
 export default function BuyerLanding() {
   const [featuredReviews, setFeaturedReviews] = useState([])
   const [activeReviewIndex, setActiveReviewIndex] = useState(0)
@@ -80,6 +81,7 @@ export default function BuyerLanding() {
   const [reviewError, setReviewError] = useState(false)
   const [reviewRetry, setReviewRetry] = useState(0)
 
+  // Loads featured customer reviews for the home page.
   useEffect(() => {
     let cancelled = false
     setReviewLoading(true)
@@ -105,6 +107,7 @@ export default function BuyerLanding() {
 
   return (
     <main className="buyer-page buyer-marketplace-page">
+      {/* Marketplace navigation and welcome banner. */}
       <BuyerHeader active="home" />
 
       <section
@@ -125,6 +128,7 @@ export default function BuyerLanding() {
         </div>
       </section>
 
+      {/* Reasons to buy from the farm. */}
       <section className="marketplace-trust-panel" aria-label="Why choose JToledo Trading">
         {trustHighlights.map((highlight, index) => (
           <article className="marketplace-trust-item" key={highlight.title}>
@@ -141,6 +145,7 @@ export default function BuyerLanding() {
         ))}
       </section>
 
+      {/* Available pineapple sizes and shopping link. */}
       <section className="marketplace-products" aria-labelledby="pineapple-sizes-title">
         <header className="marketplace-section-heading">
           <h2 id="pineapple-sizes-title">Our Pineapples</h2>
@@ -180,6 +185,7 @@ export default function BuyerLanding() {
 
         <img className="marketplace-delivery-map" src={deliveryCoverageMap} alt="" aria-hidden="true" />
 
+        {/* Delivery areas and service information. */}
         <aside className="marketplace-delivery-aside" aria-label="Delivery information">
           <article>
             <h3>Reliable Delivery<br />Every Time</h3>
@@ -198,6 +204,7 @@ export default function BuyerLanding() {
         </aside>
       </section>
 
+      {/* Business partners and customer reviews. */}
       <section
         className="marketplace-social-proof"
         aria-labelledby="business-trust-title"

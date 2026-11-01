@@ -9,6 +9,7 @@ import '../../styles/Buyer/notifications.css'
 const PAGE_SIZE = 100
 const dateFormatter = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
 
+// Chooses an icon for a notification.
 function notificationIcon(notification) {
   const title = String(notification.title || '').toLowerCase()
   if (title.includes('deliver') || title.includes('pickup')) return <Truck aria-hidden="true" />
@@ -16,11 +17,13 @@ function notificationIcon(notification) {
   return <PackageCheck aria-hidden="true" />
 }
 
+// Formats the time a notification arrived.
 function notificationTime(value) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '' : dateFormatter.format(date)
 }
 
+// Loads every page of buyer notifications.
 async function loadAllNotifications() {
   const all = []
   const seen = new Set()
@@ -45,6 +48,7 @@ async function loadAllNotifications() {
   return all
 }
 
+// Displays and manages buyer notifications.
 export default function BuyerNotifications() {
   const [notifications, setNotifications] = useState([])
   const [readIds, setReadIds] = useState(readBuyerNotificationIds)
@@ -53,9 +57,11 @@ export default function BuyerNotifications() {
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
 
+  // Loads notifications when the page opens or refreshes.
   useEffect(() => {
     let active = true
 
+    // Refreshes the buyer's notifications.
     async function refresh() {
       setLoading(true)
       setError('')
@@ -73,7 +79,9 @@ export default function BuyerNotifications() {
     return () => { active = false }
   }, [refreshKey])
 
+  // Syncs read status across tabs and page components.
   useEffect(() => {
+    // Reads the latest locally saved notification state.
     const syncReadIds = () => setReadIds(readBuyerNotificationIds())
     window.addEventListener(BUYER_NOTIFICATION_READ_EVENT, syncReadIds)
     window.addEventListener('storage', syncReadIds)
@@ -88,22 +96,26 @@ export default function BuyerNotifications() {
     ? notifications.filter((notification) => !isBuyerNotificationRead(notification, readIds))
     : notifications
 
+  // Marks one notification as read.
   function markRead(id) {
     setReadIds(saveBuyerNotificationIds([...readBuyerNotificationIds(), id]))
   }
 
+  // Marks all loaded notifications as read.
   function markAllRead() {
     setReadIds(saveBuyerNotificationIds([...readBuyerNotificationIds(), ...notifications.map((notification) => notification.id)]))
   }
 
   return (
     <main className="buyer-page buyer-notifications-page">
+      {/* Marketplace navigation and notification list. */}
       <BuyerHeader active="notifications" />
       <section className="buyer-notifications-content" aria-labelledby="notifications-heading">
         <div className="buyer-notifications-heading">
           <h1 id="notifications-heading">Notifications</h1>
         </div>
 
+        {/* Read status filters and actions. */}
         <div className="buyer-notifications-toolbar">
           <div className="buyer-notifications-filters" role="group" aria-label="Filter notifications">
             <button type="button" className={filter === 'all' ? 'is-selected' : ''} aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>All <span>{notifications.length}</span></button>

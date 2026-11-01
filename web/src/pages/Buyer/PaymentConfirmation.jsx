@@ -9,10 +9,12 @@ const POLL_INTERVAL_MS = 3000
 const MAX_POLL_ATTEMPTS = 8
 const CONFETTI_PIECES = Array.from({ length: 28 }, (_, index) => index)
 
+// Reads the order being checked from the page URL.
 function readOrderIdFromUrl() {
   return new URL(window.location.href).searchParams.get('order')
 }
 
+// Displays the result of an online payment.
 export default function PaymentConfirmation() {
   const [order, setOrder] = useState(null)
   const [status, setStatus] = useState('loading')
@@ -23,6 +25,7 @@ export default function PaymentConfirmation() {
   const [checkVersion, setCheckVersion] = useState(0)
   const attemptsRef = useRef(0)
 
+  // Checks the order until payment succeeds, fails, or times out.
   useEffect(() => {
     const orderId = readOrderIdFromUrl()
     if (!orderId) {
@@ -35,6 +38,7 @@ export default function PaymentConfirmation() {
     let timer = null
     attemptsRef.current = 0
 
+    // Requests the latest payment status for the order.
     async function poll() {
       try {
         const fetchedOrder = await loadBuyerOrder(orderId)
@@ -64,6 +68,7 @@ export default function PaymentConfirmation() {
     }
   }, [checkVersion])
 
+  // Starts another GCash checkout for an unpaid order.
   async function retryGcashPayment() {
     if (!order || retrying) return
     setRetrying(true)
@@ -88,6 +93,7 @@ export default function PaymentConfirmation() {
     }
   }
 
+  // Restarts payment status checking.
   function checkAgain() {
     setGaveUpPolling(false)
     setRetryError('')
@@ -97,6 +103,7 @@ export default function PaymentConfirmation() {
 
   return (
     <main className="buyer-page payment-confirmation-page">
+      {/* Marketplace navigation and payment status. */}
       <BuyerHeader active="orders" />
 
       {status === 'paid' && order && (
@@ -107,6 +114,7 @@ export default function PaymentConfirmation() {
       )}
 
       <div className="payment-confirmation-shell">
+        {/* Loading, pending, paid, and error states. */}
         <section className={`payment-confirmation-card is-${status}`}>
           {status === 'loading' && (
             <>

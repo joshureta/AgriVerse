@@ -9,6 +9,7 @@ import '../../styles/Buyer/shoppingCart.css'
 const SHIPPING_FEE = 100
 const MINIMUM_PINEAPPLE_SUBTOTAL = 1500
 
+// Updates saved cart items to match current stock and prices.
 function reconcileCart(savedItems, products) {
   const productById = new Map(products.map((product) => [String(product.id), product]))
   return savedItems.flatMap((savedItem) => {
@@ -30,6 +31,7 @@ function reconcileCart(savedItems, products) {
   })
 }
 
+// Displays the buyer's cart and order totals.
 export default function ShoppingCart() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -37,12 +39,14 @@ export default function ShoppingCart() {
   const [notice, setNotice] = useState('')
   const [minimumToast, setMinimumToast] = useState('')
 
+  // Clears the minimum order notice after a short delay.
   useEffect(() => {
     if (!minimumToast) return undefined
     const timer = window.setTimeout(() => setMinimumToast(''), 4000)
     return () => window.clearTimeout(timer)
   }, [minimumToast])
 
+  // Reloads cart items against current inventory.
   const refreshCart = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -70,8 +74,10 @@ export default function ShoppingCart() {
     }
   }, [])
 
+  // Checks cart contents when the page opens.
   useEffect(() => { refreshCart() }, [refreshCart])
 
+  // Changes an item's quantity within available stock.
   function updateQuantity(id, amount) {
     setMinimumToast('')
     setItems((current) => {
@@ -83,6 +89,7 @@ export default function ShoppingCart() {
     })
   }
 
+  // Removes an item from the cart.
   function removeItem(id) {
     setMinimumToast('')
     setItems((current) => {
@@ -92,10 +99,12 @@ export default function ShoppingCart() {
     })
   }
 
+  // Calculates the cart subtotal.
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.quantity * item.price, 0), [items])
   const shipping = items.length > 0 ? SHIPPING_FEE : 0
   const total = subtotal + shipping
 
+  // Stops checkout until the minimum order amount is met.
   function checkMinimumOrder(event) {
     if (subtotal >= MINIMUM_PINEAPPLE_SUBTOTAL) return
     event.preventDefault()
@@ -105,6 +114,7 @@ export default function ShoppingCart() {
 
   return (
     <main className="buyer-page marketplace-page">
+      {/* Minimum order notice and marketplace navigation. */}
       {minimumToast && (
         <aside className="shopping-cart-minimum-toast" role="alert">
           <CircleAlert aria-hidden="true" />
@@ -113,6 +123,7 @@ export default function ShoppingCart() {
       )}
       <BuyerHeader active="cart" cartCount={buyerCartQuantity(items)} />
       <BuyerJourneyNav current="cart" />
+      {/* Cart items and order totals. */}
       <section className="shopping-cart-page">
         <header className="shopping-cart-title">
           <h1>Order Fresh Pineapple</h1>
@@ -151,6 +162,7 @@ export default function ShoppingCart() {
               </div>
             ) : <p className="shopping-cart-empty">Your shopping cart is empty. Add pineapples from the Order page.</p>}
 
+          {/* Subtotal, shipping, and checkout action. */}
           <section className="shopping-cart-summary" aria-label="Cart totals">
             <div><span>Subtotal</span><strong>PHP {subtotal.toLocaleString()}.00</strong></div>
             <div><span>Shipping Fee</span><strong>PHP {shipping.toLocaleString()}.00</strong></div>

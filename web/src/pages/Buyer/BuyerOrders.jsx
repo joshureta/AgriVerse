@@ -18,6 +18,7 @@ import { loadBuyerReviews, loadPineappleProducts, readBuyerCart, writeBuyerCart 
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/shoppingCart.css'
 
+// Displays pineapple products and customer reviews.
 export default function BuyerOrders() {
   const [products, setProducts] = useState([])
   const [quantities, setQuantities] = useState({})
@@ -34,15 +35,18 @@ export default function BuyerOrders() {
   const [reviewFilter, setReviewFilter] = useState('all')
   const [showAllReviews, setShowAllReviews] = useState(false)
   const [helpfulReviews, setHelpfulReviews] = useState([])
+  // Filters and sorts reviews for the selected view.
   const filteredReviews = useMemo(() => {
     const matching = reviewFilter === 'all'
       ? [...customerReviews]
       : customerReviews.filter((review) => review.rating === Number(reviewFilter))
 
+    // Reads a review date for sorting.
     const reviewTime = (review) => {
       const parsedDate = Date.parse(review.date)
       return Number.isNaN(parsedDate) ? 0 : parsedDate
     }
+    // Includes the buyer's helpful vote in a review count.
     const helpfulCount = (review) => review.helpful + (helpfulReviews.includes(review.id) ? 1 : 0)
 
     return matching.sort((a, b) => {
@@ -53,6 +57,7 @@ export default function BuyerOrders() {
       return reviewTime(b) - reviewTime(a) || b.id - a.id
     })
   }, [customerReviews, helpfulReviews, reviewFilter, reviewSort])
+  // Groups reviews into pages of three.
   const reviewPages = useMemo(
     () => Array.from(
       { length: Math.ceil(filteredReviews.length / 3) },
@@ -60,15 +65,18 @@ export default function BuyerOrders() {
     ),
     [filteredReviews],
   )
+  // Calculates the average product rating.
   const reviewAverage = useMemo(
     () => customerReviews.length ? customerReviews.reduce((total, review) => total + review.rating, 0) / customerReviews.length : 0,
     [customerReviews],
   )
+  // Counts reviews at each star rating.
   const ratingCounts = useMemo(
     () => Object.fromEntries([5, 4, 3, 2, 1].map((rating) => [rating, customerReviews.filter((review) => review.rating === rating).length])),
     [customerReviews],
   )
 
+  // Loads products and updates selected quantities against stock.
   const fetchProducts = useCallback(async ({ background = false } = {}) => {
     if (!background) {
       setLoading(true)
@@ -98,8 +106,10 @@ export default function BuyerOrders() {
     }
   }, [])
 
+  // Loads products when the order page opens.
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
+  // Loads customer reviews for the products.
   useEffect(() => {
     let cancelled = false
     setReviewsLoading(true)
@@ -119,6 +129,7 @@ export default function BuyerOrders() {
     return () => { cancelled = true }
   }, [reviewsRetry])
 
+  // Refreshes product availability while the page is visible.
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') fetchProducts({ background: true })
@@ -126,12 +137,14 @@ export default function BuyerOrders() {
     return () => window.clearInterval(timer)
   }, [fetchProducts])
 
+  // Clears the cart notice after a short delay.
   useEffect(() => {
     if (!cartNotice) return undefined
     const timer = window.setTimeout(() => setCartNotice(''), 5000)
     return () => window.clearTimeout(timer)
   }, [cartNotice])
 
+  // Changes the selected quantity within available stock.
   function updateQuantity(product, amount) {
     setCartNotice('')
     setQuantities((current) => ({
@@ -140,6 +153,7 @@ export default function BuyerOrders() {
     }))
   }
 
+  // Sets a product quantity from typed input.
   function setQuantity(product, value) {
     const quantity = Number.parseInt(value, 10)
     setCartNotice('')
@@ -149,6 +163,7 @@ export default function BuyerOrders() {
     }))
   }
 
+  // Finds products selected for the cart.
   const selectedProducts = useMemo(
     () => products.filter((product) => (quantities[product.id] || 0) > 0),
     [products, quantities],
@@ -159,6 +174,7 @@ export default function BuyerOrders() {
     0,
   )
 
+  // Saves the selected products to the buyer's cart.
   function addToCart() {
     const cartItems = selectedProducts.map((product) => ({
       id: product.id,
@@ -173,30 +189,36 @@ export default function BuyerOrders() {
     setCartNotice(`${selectedQuantity} ${selectedQuantity === 1 ? 'item is' : 'items are'} ready in your cart.`)
   }
 
+  // Shows the previous page of reviews.
   function showPreviousReview() {
     setReviewIndex((current) => (current - 1 + reviewPages.length) % reviewPages.length)
   }
 
+  // Shows the next page of reviews.
   function showNextReview() {
     setReviewIndex((current) => (current + 1) % reviewPages.length)
   }
 
+  // Filters reviews by star rating.
   function changeReviewFilter(value) {
     setReviewFilter(value)
     setReviewIndex(0)
   }
 
+  // Changes the review sort order.
   function changeReviewSort(value) {
     setReviewSort(value)
     setReviewIndex(0)
   }
 
+  // Toggles a helpful vote on a review.
   function toggleHelpful(reviewId) {
     setHelpfulReviews((current) => current.includes(reviewId)
       ? current.filter((id) => id !== reviewId)
       : [...current, reviewId])
   }
 
+  // Displays one customer review.
   function renderReviewCard(review) {
     const markedHelpful = helpfulReviews.includes(review.id)
     return (
@@ -217,6 +239,7 @@ export default function BuyerOrders() {
 
   return (
     <main className="buyer-page marketplace-page">
+      {/* Marketplace navigation and product ordering. */}
       <BuyerHeader active="orders" cartCount={selectedQuantity} />
       <BuyerJourneyNav current="order" />
       <section className="marketplace-order-layout is-summary-free">
@@ -226,6 +249,7 @@ export default function BuyerOrders() {
             <p className="marketplace-subtitle">Fresh from our farm, ready for your table.</p>
           </header>
 
+          {/* Pineapple sizes, quantities, and cart actions. */}
           <section className="pineapple-selection" aria-labelledby="pineapple-size-title">
             <div className="pineapple-selection-heading">
               <h2 id="pineapple-size-title">Choose Your Pineapple Size</h2>
@@ -271,6 +295,7 @@ export default function BuyerOrders() {
             </div>
           </section>
 
+          {/* Customer ratings and reviews. */}
           <section className="marketplace-reviews" aria-labelledby="marketplace-reviews-title">
             <div className="marketplace-reviews-heading">
               <div>

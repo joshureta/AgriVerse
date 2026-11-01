@@ -6,11 +6,13 @@ import farmProfileIcon from '../../assets/buyer/jtoledo-farm-profile.png'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/messages.css'
 
+// Formats the time shown beside a message.
 function formatTime(value) {
   if (!value) return ''
   return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(value))
 }
 
+// Labels the day a group of messages was sent.
 function formatDateSeparator(value) {
   if (!value) return ''
   const date = new Date(value)
@@ -33,6 +35,7 @@ const QUICK_SUGGESTIONS = [
   '💳 What payment options do you support?',
 ]
 
+// Displays the buyer's conversation with support.
 export default function BuyerMessages() {
   const [messages, setMessages] = useState([])
   const [draft, setDraft] = useState('')
@@ -48,6 +51,7 @@ export default function BuyerMessages() {
   const isNearLatestRef = useRef(true)
   const lastMessageIdRef = useRef(null)
 
+  // Tracks whether newer messages are below the current view.
   function updateJumpToLatest() {
     const history = historyRef.current
     if (!history) return
@@ -57,6 +61,7 @@ export default function BuyerMessages() {
     if (isNearLatest) setHasUnreadLatestReply(false)
   }
 
+  // Scrolls to the newest message.
   function scrollToLatest(behavior = 'smooth') {
     const history = historyRef.current
     if (!history) return
@@ -66,6 +71,7 @@ export default function BuyerMessages() {
     setHasUnreadLatestReply(false)
   }
 
+  // Loads messages and support availability.
   const fetchMessages = useCallback(async (isBackground = false) => {
     try {
       const { messages: loaded, presence } = await loadBuyerMessages()
@@ -82,6 +88,7 @@ export default function BuyerMessages() {
     }
   }, [])
 
+  // Loads messages and polls for new replies.
   useEffect(() => {
     fetchMessages()
 
@@ -93,6 +100,7 @@ export default function BuyerMessages() {
     return () => clearInterval(interval)
   }, [fetchMessages])
 
+  // Keeps new messages visible or shows an unread reply notice.
   useEffect(() => {
     const latestMessage = messages.at(-1)
     const latestMessageId = latestMessage?.id ?? null
@@ -114,6 +122,7 @@ export default function BuyerMessages() {
     lastMessageIdRef.current = latestMessageId
   }, [messages])
 
+  // Sends the buyer's message to support.
   async function handleSend(textToSend) {
     const body = (textToSend || draft).trim()
     if (!body || sending) return
@@ -132,11 +141,13 @@ export default function BuyerMessages() {
     }
   }
 
+  // Sends a message when the form is submitted.
   function onSubmit(event) {
     event.preventDefault()
     handleSend()
   }
 
+  // Sends on Enter while allowing Shift+Enter for a new line.
   function handleKeyDown(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
@@ -146,6 +157,7 @@ export default function BuyerMessages() {
 
   const buyerIsTyping = Boolean(draft.trim()) && !sending
 
+  // Updates support while the buyer is typing.
   useEffect(() => {
     if (!buyerIsTyping) return undefined
 
@@ -166,9 +178,11 @@ export default function BuyerMessages() {
 
   return (
     <main className="buyer-page buyer-messages-page">
+      {/* Marketplace navigation and support conversation. */}
       <BuyerHeader active="messages" />
 
       <div className="buyer-messages-container">
+        {/* Message history and reply form. */}
         <section className="buyer-messages-shell" aria-labelledby="chat-title">
           {/* Header */}
           <header className="buyer-messenger-header">

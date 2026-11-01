@@ -60,9 +60,11 @@ const growingSteps = [
   },
 ]
 
+// Displays the farm's story and growing process.
 export default function AboutUs() {
   return (
     <main className="buyer-page">
+      {/* Marketplace navigation and farm story banner. */}
       <BuyerHeader active="about" />
       <section
         className="buyer-about-banner"
@@ -73,6 +75,7 @@ export default function AboutUs() {
       </section>
 
       <article className="buyer-about-content">
+        {/* Background and history of the farm. */}
         <section className="buyer-about-story" aria-labelledby="story-heading">
           <div className="buyer-about-story-heading">
             <span>JToledo Trading</span>
@@ -88,6 +91,7 @@ export default function AboutUs() {
           </div>
         </section>
 
+        {/* Steps in growing and preparing pineapples. */}
         <section className="buyer-about-process" aria-labelledby="growing-title">
           <div className="buyer-about-process-intro">
             <h2 id="growing-title">How We Grow Our Pineapples</h2>

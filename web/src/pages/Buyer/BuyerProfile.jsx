@@ -22,6 +22,7 @@ const emptyForm = {
   country: 'Philippines',
 }
 
+// Creates initials for the buyer profile avatar.
 function getInitials(name, email) {
   if (name && name.trim()) {
     const parts = name.trim().split(/\s+/)
@@ -32,11 +33,13 @@ function getInitials(name, email) {
   return 'MB'
 }
 
+// Formats the buyer's account start date.
 function memberSince(value) {
   if (!value) return 'Recently joined'
   return `Member since ${new Intl.DateTimeFormat('en-PH', { month: 'long', year: 'numeric' }).format(new Date(value))}`
 }
 
+// Displays one editable profile field.
 function ProfileField({ label, name, value, onChange, type = 'text', required = false, autoComplete, placeholder }) {
   return (
     <label className="profile-form-field">
@@ -54,6 +57,7 @@ function ProfileField({ label, name, value, onChange, type = 'text', required = 
   )
 }
 
+// Displays and edits the buyer's profile.
 export default function BuyerProfile() {
   const { profile, refreshProfile, user } = useAuth()
   const [editing, setEditing] = useState(false)
@@ -62,6 +66,7 @@ export default function BuyerProfile() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
+  // Fills the form with the current profile values.
   useEffect(() => {
     setForm({
       fullName: profile?.full_name || '',
@@ -75,6 +80,7 @@ export default function BuyerProfile() {
     })
   }, [profile, user])
 
+  // Builds the buyer's display address.
   const address = useMemo(() => [
     profile?.barangay,
     profile?.city_municipality,
@@ -83,17 +89,20 @@ export default function BuyerProfile() {
     profile?.country,
   ].filter(Boolean).join(', '), [profile])
 
+  // Gets initials for the profile avatar.
   const initials = useMemo(
     () => getInitials(profile?.full_name, user?.email),
     [profile?.full_name, user?.email],
   )
 
+  // Opens the profile edit form.
   function startEditing() {
     setError('')
     setMessage('')
     setEditing(true)
   }
 
+  // Discards unsaved profile changes.
   function cancelEditing() {
     setForm({
       fullName: profile?.full_name || '',
@@ -109,11 +118,13 @@ export default function BuyerProfile() {
     setEditing(false)
   }
 
+  // Updates a value in the profile form.
   function updateField(event) {
     const { name, value } = event.target
     setForm((current) => ({ ...current, [name]: value }))
   }
 
+  // Saves the buyer's account and address details.
   async function saveProfile(event) {
     event.preventDefault()
     const fullName = form.fullName.trim()
@@ -173,6 +184,7 @@ export default function BuyerProfile() {
 
   return (
     <main className="buyer-page buyer-profile-page">
+      {/* Marketplace navigation and buyer profile. */}
       <BuyerHeader active="profile" />
 
       <section className="profile-content" aria-labelledby="profile-title">
@@ -309,6 +321,7 @@ export default function BuyerProfile() {
               </div>
             </form>
           ) : (
+            {/* Saved account and address details. */}
             <section className="profile-details-section" aria-labelledby="profile-details-title">
               <header className="profile-details-heading">
                 <span>Account details</span>
