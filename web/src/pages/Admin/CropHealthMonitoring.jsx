@@ -26,6 +26,7 @@ const STORAGE_REPORTS_KEY = 'agriverse_crop_health_reports_v8'
 
 const inspectionApi = new CropInspectionApi(API_URL)
 
+// Displays crop inspections and field health reports.
 export default function CropHealthMonitoring() {
   const uploadInput = useRef(null)
   const [activeField, setActiveField] = useState('Field A')
@@ -53,6 +54,7 @@ export default function CropHealthMonitoring() {
 
   // Load actual inspections from Supabase DB and sync latest field states
   useEffect(() => {
+    // Loads saved inspections and updates each field's latest report.
     async function loadInspectionsFromDB() {
       setLoadingDB(true)
       try {
@@ -100,6 +102,7 @@ export default function CropHealthMonitoring() {
   // Close the inspection detail modal on Escape.
   useEffect(() => {
     if (!selectedActivity) return undefined
+    // Closes the inspection dialog when Escape is pressed.
     function closeOnEscape(event) {
       if (event.key === 'Escape') setSelectedActivity(null)
     }
@@ -109,21 +112,25 @@ export default function CropHealthMonitoring() {
 
   const currentFieldReport = reports[activeField] || CropInspection.createDefaultReport()
 
+  // Selects inspection history for the active field.
   const fieldActivities = useMemo(
     () => activities.filter((activity) => activity.field === activeField),
     [activities, activeField],
   )
   const totalPages = Math.max(1, Math.ceil(fieldActivities.length / pageSize))
 
+  // Keeps the history page within the available pages.
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages))
   }, [totalPages])
 
+  // Shows inspection history for the current page.
   const paginatedActivities = useMemo(() => {
     const start = (currentPage - 1) * pageSize
     return fieldActivities.slice(start, start + pageSize)
   }, [fieldActivities, currentPage])
 
+  // Reads an uploaded crop photo for the selected field.
   function handleUpload(event) {
     const file = event.target.files?.[0]
     // Allow the same file to be selected again after it is removed.
@@ -156,6 +163,7 @@ export default function CropHealthMonitoring() {
     reader.readAsDataURL(file)
   }
 
+  // Removes the selected field's draft photo.
   function handleRemovePhoto() {
     setReports((current) => ({
       ...current,
@@ -167,6 +175,7 @@ export default function CropHealthMonitoring() {
     setSuccessMessage(`Photo removed for ${activeField}.`)
   }
 
+  // Converts a crop image into data for analysis.
   async function convertAssetToBase64(url) {
     if (typeof url === 'string' && url.startsWith('data:image/')) {
       const match = url.match(/^data:([^;]+);base64,/)
@@ -186,6 +195,7 @@ export default function CropHealthMonitoring() {
     }
   }
 
+  // Analyzes the crop photo and saves the diagnosis.
   async function handleAnalyze() {
     if (!currentFieldReport.image) {
       setError(`Please upload a crop photo for ${activeField} first.`)
@@ -235,12 +245,14 @@ export default function CropHealthMonitoring() {
     }
   }
 
+  // Opens confirmation for deleting an inspection.
   async function handleDeleteActivity(id, e) {
     e.stopPropagation()
     const activity = activities.find((item) => item.id === id)
     if (activity) setActivityToDelete(activity)
   }
 
+  // Deletes the selected inspection record.
   async function confirmDeleteActivity() {
     if (!activityToDelete) return
 
@@ -262,6 +274,7 @@ export default function CropHealthMonitoring() {
 
   return (
     <main className="admin-dashboard crop-health-page">
+      {/* Admin navigation and page header. */}
       <AdminSidebar active="crop-monitoring" />
       <section className="admin-workspace">
         <AdminTopbar />
@@ -269,6 +282,7 @@ export default function CropHealthMonitoring() {
         <div className="admin-content crop-health-content" style={{ width: 'min(1180px, calc(100% - 44px))', margin: '0 auto', padding: '22px 0 46px' }}>
           
           {/* Header Title */}
+          {/* Page title and field overview. */}
           <header className="task-page-heading" style={{ marginBottom: '22px' }}>
             <div>
               <h1 style={{ margin: 0, color: '#196c35', fontSize: 'clamp(26px, 2.5vw, 34px)', fontWeight: 800, letterSpacing: '-0.025em' }}>
@@ -304,6 +318,7 @@ export default function CropHealthMonitoring() {
           {/* ========================================================================= */}
           {/* COMBINED UNIFIED CARD: TOP FIELD TABS + PHOTO PREVIEW + ASSESSMENT & PLAN */}
           {/* ========================================================================= */}
+          {/* Field selection and crop photo analysis. */}
           <section className="tasks-panel" style={{ marginBottom: '28px', border: '1px solid #dce5d8', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 12px 28px rgba(42,76,38,.05)', background: '#fff' }}>
             
             {/* 1. Field Selection Top Tabs */}
@@ -570,6 +585,7 @@ export default function CropHealthMonitoring() {
           {/* ========================================================================= */}
           {/* RECENT INSPECTION ACTIVITIES TABLE (MATCHING EXACT 4-COLUMN SCREENSHOT)   */}
           {/* ========================================================================= */}
+          {/* Saved inspection history for the selected field. */}
           <section className="tasks-panel" style={{ border: '1px solid #dce5d8', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 12px 28px rgba(42,76,38,.05)', background: '#fff' }}>
             
             <div className="tasks-table-wrap">
@@ -737,6 +753,7 @@ export default function CropHealthMonitoring() {
         </div>
       </section>
 
+      {/* Confirmation dialog for deleting an inspection. */}
       {activityToDelete && (
         <div className="task-modal-backdrop">
           <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="delete-inspection-title" style={{ maxWidth: '440px' }}>
@@ -793,6 +810,7 @@ export default function CropHealthMonitoring() {
       )}
 
       {/* View Detail Modal */}
+      {/* Details dialog for a saved inspection. */}
       {selectedActivity && (
         <div className="task-modal-backdrop">
           <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-task-title" style={{ maxWidth: '640px' }}>

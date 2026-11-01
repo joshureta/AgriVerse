@@ -60,6 +60,7 @@ const WEATHER_ICONS = {
   stormy: weatherStormyIcon,
 }
 
+// Loads the current weather and forecast.
 async function loadWeather() {
   const { data, error } = await supabase.auth.getSession()
   if (error) throw error
@@ -74,6 +75,7 @@ async function loadWeather() {
   return body
 }
 
+// Loads or generates a daily report for a field.
 async function requestEnvironmentalReport(field, date, generate = false) {
   const { data, error } = await supabase.auth.getSession()
   if (error) throw error
@@ -99,6 +101,7 @@ async function requestEnvironmentalReport(field, date, generate = false) {
   return body
 }
 
+// Formats a climate sensor reading for display.
 function formatSensorReading(reading) {
   const measuredAt = new Date(reading.created_at)
   return {
@@ -116,6 +119,7 @@ function formatSensorReading(reading) {
   }
 }
 
+// Formats a soil moisture reading for display.
 function formatSoilReading(reading) {
   const measuredAt = new Date(reading.created_at)
   return {
@@ -131,6 +135,7 @@ function formatSoilReading(reading) {
   }
 }
 
+// Pairs nearby climate and soil readings for the history table.
 function combineSensorReadings(climateReadings, soilReadings) {
   const unusedSoilIds = new Set(soilReadings.map((reading) => reading.id))
   const soilBuckets = new Map()
@@ -179,22 +184,26 @@ function combineSensorReadings(climateReadings, soilReadings) {
     .sort((left, right) => (right.measuredAt || 0) - (left.measuredAt || 0))
 }
 
+// Loads climate sensor readings for the selected day.
 async function loadSensorReadings(bounds) {
   const data = await loadDailySensorRows(sensorSupabase, 'sensor_readings', '*', bounds)
   return data.map(formatSensorReading)
 }
 
+// Loads soil readings for the selected day.
 async function loadSoilReadings(bounds) {
   const data = await loadDailySensorRows(sensorSupabase, 'soil_readings', '*', bounds)
   return data.map(formatSoilReading)
 }
 
+// Merges new readings into the current history.
 function mergeReadings(current, fresh) {
   const byId = new Map(current.map((reading) => [reading.id, reading]))
   fresh.forEach((reading) => byId.set(reading.id, reading))
   return [...byId.values()].sort((left, right) => right.measuredAt - left.measuredAt)
 }
 
+// Displays live field conditions and daily reports.
 export default function EnvironmentalMonitoring() {
   const [activeField, setActiveField] = useState('Field A')
   const [reportDate, setReportDate] = useState(() => manilaDayBounds().day)
@@ -217,11 +226,14 @@ export default function EnvironmentalMonitoring() {
   const todayInManila = manilaDayBounds(statusNow).day
   const reportData = dailyReport?.report
   const savedSummary = dailyReport?.saved
+  // Selects climate readings for the active field.
   const fieldReadings = useMemo(() => readingsForField(readings, activeField), [readings, activeField])
+  // Selects soil readings for the active field.
   const fieldSoilReadings = useMemo(() => readingsForField(soilReadings, activeField), [soilReadings, activeField])
   const currentTemperature = latestCurrentReading(fieldReadings, 'temperature_c', statusNow)
   const currentHumidity = latestCurrentReading(fieldReadings, 'humidity_percent', statusNow)
   const currentSoil = latestMoistureReading(fieldReadings, fieldSoilReadings, statusNow)
+  // Combines climate and soil data for the history table.
   const combinedReadings = useMemo(
     () => combineSensorReadings(fieldReadings, fieldSoilReadings),
     [fieldReadings, fieldSoilReadings],
@@ -256,6 +268,7 @@ export default function EnvironmentalMonitoring() {
         ? 'Moist'
         : 'Wet'
 
+  // Builds alerts from the latest sensor and weather conditions.
   const activeAlerts = useMemo(() => {
     const list = []
 
@@ -345,11 +358,13 @@ export default function EnvironmentalMonitoring() {
     return list
   }, [sensorError, soilError, sensorLoading, currentTemperature, currentHumidity, currentSoil, reportingSensors, weather, activeField, fieldAssigned])
 
+  // Hides alerts that the admin dismissed.
   const visibleAlerts = useMemo(
     () => activeAlerts.filter((alert) => !dismissedAlerts.includes(alert.id)),
     [activeAlerts, dismissedAlerts],
   )
 
+  // Clears dismissed sensor alerts after readings recover.
   useEffect(() => {
     const recovered = new Set([
       currentTemperature && 'soil-temperature-offline',
@@ -363,6 +378,7 @@ export default function EnvironmentalMonitoring() {
     }
   }, [currentTemperature, currentHumidity, currentSoil])
 
+  // Loads the weather snapshot when the page opens.
   useEffect(() => {
     let active = true
     loadWeather().then((snapshot) => {
@@ -373,11 +389,13 @@ export default function EnvironmentalMonitoring() {
     return () => { active = false }
   }, [])
 
+  // Loads and refreshes the report for the selected field and date.
   useEffect(() => {
     let active = true
     setDailyReport(null)
     setReportError('')
     setReportLoading(true)
+    // Requests the latest saved daily report.
     const refreshReport = () => {
       requestEnvironmentalReport(activeField, reportDate).then((result) => {
         if (active) {
@@ -402,6 +420,7 @@ export default function EnvironmentalMonitoring() {
     }
   }, [activeField, reportDate])
 
+  // Generates a new daily report for the selected field.
   const generateReport = async () => {
     setReportGenerating(true)
     setReportError('')
@@ -417,6 +436,7 @@ export default function EnvironmentalMonitoring() {
     }
   }
 
+  // Subscribes to sensor readings and refreshes device status.
   useEffect(() => {
     if (!sensorSupabase) {
       console.warn('Sensor monitoring requires VITE_SENSOR_SUPABASE_URL and VITE_SENSOR_SUPABASE_PUBLISHABLE_KEY in web/.env.local.')
@@ -428,6 +448,7 @@ export default function EnvironmentalMonitoring() {
     let active = true
     let currentDay = manilaDayBounds()
 
+    // Loads which farm field each sensor device belongs to.
     const refreshDeviceFields = async () => {
       try {
         const { data, error } = await sensorSupabase.from('sensor_device_fields').select('device_id, field_name')
@@ -443,6 +464,7 @@ export default function EnvironmentalMonitoring() {
       }
     }
 
+    // Loads the current day's sensor history.
     const refreshReadings = async () => {
       const bounds = manilaDayBounds()
       if (bounds.day !== currentDay.day) {
@@ -481,6 +503,7 @@ export default function EnvironmentalMonitoring() {
       setSensorLoading(false)
     }
 
+    // Checks for recent sensor updates between subscriptions.
     const refreshRecentReadings = async () => {
       const bounds = manilaDayBounds()
       if (bounds.day !== currentDay.day) {
@@ -570,10 +593,12 @@ export default function EnvironmentalMonitoring() {
     }
   }, [])
 
+  // Keeps the history page within the available pages.
   useEffect(() => {
     if (page > pageCount) setPage(pageCount)
   }, [page, pageCount])
 
+  // Chooses the night weather artwork after sunset.
   const isNight = useMemo(() => {
     const hour = new Date().getHours()
     return hour < 6 || hour >= 18
@@ -584,11 +609,13 @@ export default function EnvironmentalMonitoring() {
 
   return (
     <main className="admin-dashboard environmental-monitor-page">
+      {/* Admin navigation and page header. */}
       <AdminSidebar active="environmental-monitoring" />
       <section className="admin-workspace">
         <AdminTopbar />
 
         <div className="admin-content environment-monitor-content">
+          {/* Page title and field conditions. */}
           <header className="environment-page-title">
             <div>
               <h1>Real-Time Environmental Monitoring</h1>
@@ -596,11 +623,13 @@ export default function EnvironmentalMonitoring() {
             </div>
           </header>
 
+          {/* Live sensor device status. */}
           <section className={`environment-network-status${sensorLoading ? ' is-checking' : !deviceIsLive ? ' is-offline' : reportingSensors < 3 ? ' is-partial' : ''}`} aria-label="Device status">
             <div><i aria-hidden="true" /><span><strong>{sensorStatusTitle}</strong><small>{sensorLoading ? 'Checking for recent readings…' : deviceIsLive ? `${connectedDevices} ${connectedDevices === 1 ? 'device' : 'devices'} connected` : fieldMappingError ? 'Field assignments could not be loaded' : !fieldAssigned ? `No device assigned to ${activeField}` : 'No recent sensor readings'}</small></span></div>
             <span><SensorStatusIcon aria-hidden="true" /> {sensorStatusBadge}</span>
           </section>
 
+          {/* Alerts for current environmental conditions. */}
           {visibleAlerts.length > 0 && (
             <div className="environment-alerts-list" aria-label="Live environmental alerts">
               {visibleAlerts.map((alert) => {
@@ -645,6 +674,7 @@ export default function EnvironmentalMonitoring() {
                 <em>{weather?.label || 'No live weather'}</em>
               </div>
             </div>
+            {/* Five day weather forecast. */}
             <section className="environment-weather-forecast" aria-label="Five day forecast">
               <header><span><CalendarDays aria-hidden="true" />5-Day Forecast</span><small>{weather ? 'Live weather' : 'Unavailable'}</small></header>
               <div>
@@ -661,6 +691,7 @@ export default function EnvironmentalMonitoring() {
             </section>
           </section>
 
+          {/* Field readings and sensor history. */}
           <section className="environment-sensor-panel">
             <nav className="environment-field-tabs" aria-label="Select farm field">
               {fields.map((field) => (
@@ -721,6 +752,7 @@ export default function EnvironmentalMonitoring() {
             )}
           </section>
 
+          {/* Daily environmental report. */}
           <section className="environment-report-card" aria-label="Daily environmental report">
             <header className="environment-report-header">
               <div>

@@ -11,6 +11,7 @@ const roles = [
   { value: 'farm_worker', label: 'Farm Worker' },
   { value: 'admin', label: 'Admin' },
 ]
+// Gets an access token for admin requests.
 async function getToken(refresh = false) {
   const result = refresh
     ? await supabase.auth.refreshSession()
@@ -22,6 +23,7 @@ async function getToken(refresh = false) {
   return token
 }
 
+// Sends an authenticated request to the admin API.
 async function apiRequest(path, options = {}, retry = true) {
   const token = await getToken()
   const response = await fetch(`${API_URL}${path}`, {
@@ -43,10 +45,12 @@ async function apiRequest(path, options = {}, retry = true) {
   return body
 }
 
+// Shows a fallback for missing profile values.
 function displayValue(value) {
   return value || 'Not provided'
 }
 
+// Formats a profile date for display.
 function formatDate(value) {
   if (!value) return 'Not available'
   return new Intl.DateTimeFormat('en-US', {
@@ -54,6 +58,7 @@ function formatDate(value) {
   }).format(new Date(value))
 }
 
+// Displays a profile field that cannot be edited here.
 function ReadOnlyField({ label, value }) {
   return (
     <label className="edit-user-field">
@@ -63,6 +68,7 @@ function ReadOnlyField({ label, value }) {
   )
 }
 
+// Displays an editable profile field.
 function EditableField({ label, name, type = 'text', value, onChange, required = false }) {
   return (
     <label className="edit-user-field is-editable">
@@ -78,6 +84,7 @@ function EditableField({ label, name, type = 'text', value, onChange, required =
   )
 }
 
+// Displays the form for editing a user account.
 export default function EditUser() {
   const userId = new URLSearchParams(window.location.search).get('id')
   const [userProfile, setUserProfile] = useState(null)
@@ -93,9 +100,11 @@ export default function EditUser() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // Loads the selected user's profile when the page opens.
   useEffect(() => {
     let active = true
 
+    // Fetches the profile and fills the edit form.
     async function loadUser() {
       if (!userId) {
         setError('No user was selected for editing.')
@@ -125,6 +134,7 @@ export default function EditUser() {
     return () => { active = false }
   }, [userId])
 
+  // Updates a field in the user form.
   function handleFieldChange(event) {
     const { name, value } = event.target
     setForm((current) => ({
@@ -134,6 +144,7 @@ export default function EditUser() {
     }))
   }
 
+  // Saves the edited user profile.
   async function handleSubmit(event) {
     event.preventDefault()
     setSaving(true)
@@ -163,10 +174,12 @@ export default function EditUser() {
 
   return (
     <main className="admin-dashboard edit-user-page">
+      {/* Admin navigation and page header. */}
       <AdminSidebar active="users" />
       <section className="admin-workspace">
         <AdminTopbar />
 
+        {/* Back link and user edit form. */}
         <div className="edit-user-content">
           <a className="edit-user-back" href="/admin/users">
             <span aria-hidden="true">‹</span> Back to users
@@ -188,6 +201,7 @@ export default function EditUser() {
                 {error && <div className="edit-user-message is-error" role="alert">{error}</div>}
                 {success && <div className="edit-user-message is-success" role="status">{success}</div>}
 
+                {/* Editable account details. */}
                 <fieldset>
                   <legend>Account information</legend>
                   <div className="edit-user-grid">
@@ -221,6 +235,7 @@ export default function EditUser() {
                   </div>
                 </fieldset>
 
+                {/* Read-only location details. */}
                 <fieldset>
                   <legend>Location information</legend>
                   <div className="edit-user-grid">

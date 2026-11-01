@@ -5,11 +5,13 @@ import { loadAdminConversation, loadAdminConversations, sendAdminMessage, setAdm
 import '../../styles/admin-dashboard.css'
 import '../../styles/admin-messages.css'
 
+// Formats the time shown beside a message.
 function formatTime(value) {
   if (!value) return ''
   return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(value))
 }
 
+// Formats the latest message time in the conversation list.
 function formatListTime(value) {
   if (!value) return ''
   const date = new Date(value)
@@ -20,6 +22,7 @@ function formatListTime(value) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)
 }
 
+// Displays buyer conversations for the admin.
 export default function AdminMessages() {
   const [conversations, setConversations] = useState([])
   const [conversationsLoading, setConversationsLoading] = useState(true)
@@ -36,12 +39,14 @@ export default function AdminMessages() {
   const historyRef = useRef(null)
   const shouldScrollToLatestRef = useRef(true)
 
+  // Shows the jump button when the message view is scrolled up.
   function updateJumpToLatest() {
     const history = historyRef.current
     if (!history) return
     setShowJumpToLatest(history.scrollHeight - history.scrollTop - history.clientHeight > 48)
   }
 
+  // Scrolls the open conversation to its newest message.
   function scrollToLatest(behavior = 'smooth') {
     const history = historyRef.current
     if (!history) return
@@ -49,6 +54,7 @@ export default function AdminMessages() {
     setShowJumpToLatest(false)
   }
 
+  // Loads the buyer conversation list.
   const fetchConversations = useCallback(async (isBackground = false) => {
     try {
       const data = await loadAdminConversations()
@@ -62,6 +68,7 @@ export default function AdminMessages() {
     }
   }, [])
 
+  // Loads messages and presence for the selected conversation.
   const fetchCurrentThread = useCallback(async (id, isBackground = false) => {
     if (!id) return
     if (!isBackground) setThreadLoading(true)
@@ -77,6 +84,7 @@ export default function AdminMessages() {
     }
   }, [])
 
+  // Selects a conversation after the list loads.
   useEffect(() => {
     fetchConversations().then((data) => {
       if (data.length > 0) setSelectedId((curr) => curr || data[0].id)
@@ -95,6 +103,7 @@ export default function AdminMessages() {
     return () => clearInterval(interval)
   }, [fetchConversations, fetchCurrentThread, selectedId])
 
+  // Loads the newly selected conversation.
   useEffect(() => {
     if (selectedId) {
       shouldScrollToLatestRef.current = true
@@ -103,6 +112,7 @@ export default function AdminMessages() {
     }
   }, [selectedId, fetchCurrentThread])
 
+  // Keeps the latest message in view when messages change.
   useEffect(() => {
     if (shouldScrollToLatestRef.current) {
       scrollToLatest('auto')
@@ -112,6 +122,7 @@ export default function AdminMessages() {
     }
   }, [messages])
 
+  // Sends the drafted message to the selected buyer.
   async function handleSend() {
     const body = draft.trim()
     if (!body || sending || !selectedId) return
@@ -130,11 +141,13 @@ export default function AdminMessages() {
     }
   }
 
+  // Sends the message when the form is submitted.
   function onSubmit(event) {
     event.preventDefault()
     handleSend()
   }
 
+  // Sends on Enter while allowing Shift+Enter for a new line.
   function handleKeyDown(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
@@ -144,6 +157,7 @@ export default function AdminMessages() {
 
   const adminIsTyping = Boolean(draft.trim()) && !sending && Boolean(selectedId)
 
+  // Updates the buyer while the admin is typing.
   useEffect(() => {
     if (!adminIsTyping || !selectedId) return undefined
 
@@ -158,6 +172,7 @@ export default function AdminMessages() {
     }
   }, [adminIsTyping, selectedId])
 
+  // Filters conversations by buyer name or message text.
   const filteredConversations = useMemo(() => {
     if (!searchQuery.trim()) return conversations
     const q = searchQuery.toLowerCase()
@@ -176,6 +191,7 @@ export default function AdminMessages() {
 
   return (
     <main className="admin-dashboard admin-messages-page">
+      {/* Admin navigation and page header. */}
       <AdminSidebar active="messages" />
       <section className="admin-workspace">
         <AdminTopbar />
@@ -183,6 +199,7 @@ export default function AdminMessages() {
         <div className="admin-messages-content">
           {error && <div className="admin-messages-error">{error}</div>}
 
+          {/* Conversation list and active message thread. */}
           <div className="admin-messages-shell">
             {/* Sidebar list */}
             <aside className="admin-messages-list" aria-label="Buyer Conversations">

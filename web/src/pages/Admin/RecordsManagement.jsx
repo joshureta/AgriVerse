@@ -12,6 +12,7 @@ const PAGE_SIZE = 10
 const EXPORT_PAGE_SIZE = 200
 const SEARCH_DELAY_MS = 300
 
+// Gets an access token for admin requests.
 async function readAccessToken(refresh = false) {
   const result = refresh ? await supabase.auth.refreshSession() : await supabase.auth.getSession()
   if (result.error) throw new Error(result.error.message)
@@ -20,6 +21,7 @@ async function readAccessToken(refresh = false) {
   return token
 }
 
+// Sends an authenticated request to the admin API.
 async function apiRequest(path, options = {}, retry = true) {
   const token = await readAccessToken()
   const controller = new AbortController()
@@ -45,10 +47,12 @@ async function apiRequest(path, options = {}, retry = true) {
   }
 }
 
+// Identifies the records requested for the current view.
 function requestKeyOf(categoryId, search, page, activity) {
   return `${categoryId}|${search}|${page}|${activity}`
 }
 
+// Builds the API path for a page of records.
 function recordsPath({ categoryId, search, page, pageSize, activity }) {
   const params = new URLSearchParams({ category_id: String(categoryId), search, page: String(page), pageSize: String(pageSize) })
   if (activity) params.set('activity_type', activity)
@@ -69,6 +73,7 @@ async function loadAllRecordTasks(categoryId, search, activity) {
   return tasks
 }
 
+// Formats a record date and time.
 function formatDate(value) {
   if (!value) return '—'
   const date = new Date(value)
@@ -76,6 +81,7 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date)
 }
 
+// Formats a delivery's scheduled time window.
 function formatDeliveryWindow(start, end) {
   if (!start || !end) return 'Schedule pending'
   const formatter = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -83,15 +89,18 @@ function formatDeliveryWindow(start, end) {
   return `${formatter.format(new Date(start))} – ${timeFormatter.format(new Date(end))}`
 }
 
+// Shows an insight or a fallback when it is empty.
 function insightText(value, empty = '—') {
   return String(value ?? '').trim() || empty
 }
 
+// Escapes one value for a CSV file.
 function csvCell(value) {
   const text = String(value ?? '')
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
 }
 
+// Downloads the supplied rows as a CSV file.
 function downloadCsv(filename, rows) {
   const csv = rows.map((row) => row.map(csvCell).join(',')).join('\r\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -105,6 +114,7 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url)
 }
 
+// Displays a link to a record's proof photo.
 function ProofPhoto({ url, alt }) {
   if (!url) return <p>No photo proof was attached.</p>
   return (
@@ -114,6 +124,7 @@ function ProofPhoto({ url, alt }) {
   )
 }
 
+// Displays the heading and close button for a record dialog.
 function TaskModalHeader({ title, onClose, tag = 'Farm records' }) {
   return (
     <header className="task-dialog-header">
@@ -132,6 +143,7 @@ function TaskModalHeader({ title, onClose, tag = 'Farm records' }) {
 
 // Real harvest counts, reported by the worker and approved by admin (worker-tasks.js / admin-tasks.js).
 function harvestCounts(task) {
+  // Shows a dash when a harvest count is missing.
   const orDash = (value) => (value === null || value === undefined ? '—' : value)
   return {
     small: orDash(task.harvest_small_count),
@@ -143,12 +155,15 @@ function harvestCounts(task) {
 
 // What the worker entered: inspection answers on completion, supplies taken when the task started.
 function detailText(task, key) { return task.details?.[key] || '—' }
+// Gets the supply item used for a task.
 function suppliesName(task) { return task.inventory_item?.item_name || '—' }
+// Formats the amount of supplies used.
 function suppliesAmount(task) {
   if (!task.inventory_quantity) return '—'
   return `${task.inventory_quantity} ${task.inventory_item?.unit?.abbreviation || ''}`.trim()
 }
 
+// Chooses the record layout for a task category.
 function categoryKind(categoryName, activityType) {
   const key = String(categoryName || '').trim().toLowerCase()
   if (key === 'planting') return 'planting'
@@ -161,6 +176,7 @@ function categoryKind(categoryName, activityType) {
   return 'generic'
 }
 
+// Builds a CSV row from a completed task.
 function recordRow(task, kind) {
   const worker = task.assigned_worker?.full_name || 'Unassigned worker'
   const date = formatDate(task.completed_at)
@@ -186,6 +202,7 @@ const RECORD_COLUMNS = {
   generic: ['FIELD', 'FARM WORKER', 'DATE STARTED', 'DATE COMPLETED', 'INSIGHTS', 'ACTIONS'],
 }
 
+// Displays completed task and delivery records.
 export default function RecordsManagement() {
   const [categories, setCategories] = useState([])
   const [activeCategory, setActiveCategory] = useState('')
@@ -203,6 +220,7 @@ export default function RecordsManagement() {
   const [modal, setModal] = useState(null)
 
   const isDeliveryTab = activeCategory === 'delivery'
+  // Finds the label for the selected record category.
   const activeCategoryName = useMemo(
     () => categories.find((category) => String(category.id) === String(activeCategory))?.category_name || '',
     [categories, activeCategory],
@@ -213,6 +231,7 @@ export default function RecordsManagement() {
   // The loaded page is only valid for the category, search, and page it was requested with.
   const requestKey = requestKeyOf(activeCategory, debouncedSearch, page, activityFilter)
 
+  // Loads the task categories used by the records tabs.
   useEffect(() => {
     let cancelled = false
     apiRequest('/api/admin/tasks/options')
@@ -227,6 +246,7 @@ export default function RecordsManagement() {
     return () => { cancelled = true }
   }, [])
 
+  // Loads assigned delivery records.
   useEffect(() => {
     let cancelled = false
     apiRequest('/api/admin/deliveries/assigned-orders')
@@ -236,11 +256,13 @@ export default function RecordsManagement() {
     return () => { cancelled = true }
   }, [])
 
+  // Delays searching until the user pauses typing.
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DELAY_MS)
     return () => window.clearTimeout(timer)
   }, [search])
 
+  // Loads the matching page of completed task records.
   useEffect(() => {
     if (isDeliveryTab || activeCategory === '') return undefined
     let cancelled = false
@@ -261,18 +283,21 @@ export default function RecordsManagement() {
     return () => { cancelled = true }
   }, [activeCategory, debouncedSearch, page, activityFilter, isDeliveryTab])
 
+  // Switches the record category and resets the page.
   function selectCategory(id) {
     setActiveCategory(id)
     setPage(1)
     setExportError('')
   }
 
+  // Switches the activity type and resets the page.
   function selectActivity(value) {
     setActivityTab(value)
     setPage(1)
     setExportError('')
   }
 
+  // Updates the search text and returns to the first page.
   function changeSearch(value) {
     setSearch(value)
     setPage(1)
@@ -282,6 +307,7 @@ export default function RecordsManagement() {
   const loading = isDeliveryTab ? deliveryLoading : taskLoading
   const error = isDeliveryTab ? deliveryError : (optionsState.error || (taskLoading ? '' : result.error) || exportError)
 
+  // Filters and sorts delivery records for the current view.
   const filteredDeliveries = useMemo(() => {
     if (!isDeliveryTab) return []
     const term = search.trim().toLowerCase()
@@ -299,6 +325,7 @@ export default function RecordsManagement() {
   const firstVisibleRecord = recordCount ? (page - 1) * PAGE_SIZE + 1 : 0
   const lastVisibleRecord = Math.min(page * PAGE_SIZE, recordCount)
 
+  // Exports the current record selection to CSV.
   async function generateReport() {
     if (isDeliveryTab) {
       downloadCsv('delivery-records.csv', [
@@ -329,10 +356,12 @@ export default function RecordsManagement() {
 
   return (
     <main className="admin-dashboard task-schedule-page records-page">
+      {/* Admin navigation and page header. */}
       <AdminSidebar active="records" />
       <section className="admin-workspace">
         <AdminTopbar />
         <div className="task-schedule-content records-content">
+          {/* Page title and export action. */}
           <header className="task-page-heading records-page-heading">
             <div>
               <h1>Farm records</h1>
@@ -343,6 +372,7 @@ export default function RecordsManagement() {
             </button>
           </header>
 
+          {/* Category tabs, search, and record table. */}
           <section className="tasks-panel records-panel">
             <div className="records-category-section">
               <nav className="task-management-tabs records-tabs" aria-label="Record category">
@@ -422,6 +452,7 @@ export default function RecordsManagement() {
         </div>
       </section>
 
+      {/* Completed task details dialog. */}
       {modal?.mode === 'view-task' && <div className="task-modal-backdrop">
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-record-title">
           <TaskModalHeader title="View Record" onClose={() => setModal(null)} />
@@ -465,6 +496,7 @@ export default function RecordsManagement() {
         </section>
       </div>}
 
+      {/* Delivery record details dialog. */}
       {modal?.mode === 'view-delivery' && <div className="task-modal-backdrop">
         <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-delivery-record-title">
           <TaskModalHeader title="View Delivery Record" tag="Delivery records" onClose={() => setModal(null)} />
