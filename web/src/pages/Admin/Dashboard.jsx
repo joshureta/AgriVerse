@@ -15,7 +15,7 @@ const completedAtFormat = new Intl.DateTimeFormat('en-US', {
   minute: '2-digit',
 })
 
-// "8 min ago" for the last day, then the exact date and time the work was finished.
+// Formats an activity time for display.
 function completedWhen(iso, now) {
   const minutes = Math.floor(Math.max(0, now - new Date(iso).getTime()) / 60000)
   if (minutes < 1) return 'Just now'
@@ -31,6 +31,7 @@ const peso = new Intl.NumberFormat('en-PH', {
   maximumFractionDigits: 0,
 })
 
+// Displays one activity and its status.
 function ActivityRow({ activity, now, ongoing = false }) {
   return (
     <article>
@@ -49,6 +50,7 @@ function ActivityRow({ activity, now, ongoing = false }) {
 
 const revenuePeriodLabels = { week: 'Week', month: 'Month', year: 'Year' }
 
+// Displays the admin dashboard and loads its reports.
 export default function AdminDashboard() {
   const { profile } = useAuth()
   const [revenueData, setRevenueData] = useState(null)
@@ -69,6 +71,7 @@ export default function AdminDashboard() {
   const displayName = profile?.full_name || 'Josh Ureta'
   const firstName = displayName.split(' ')[0]
   const revenue = revenueData?.revenue
+  // Finds the largest revenue value to scale the chart.
   const maxRevenue = useMemo(
     () => Math.max(
       1,
@@ -76,8 +79,10 @@ export default function AdminDashboard() {
     ),
     [revenue],
   )
+  // Converts revenue values into chart coordinates.
   const revenueChart = useMemo(() => {
     const points = revenue?.series || []
+    // Builds the chart points for one revenue series.
     const makeSeries = (field) => {
       const dots = points.map((point, index) => ({
         x: points.length === 1 ? 300 : 18 + (index / (points.length - 1)) * 564,
@@ -94,6 +99,7 @@ export default function AdminDashboard() {
     }
   }, [maxRevenue, revenue])
 
+  // Loads revenue data for the selected time period.
   const fetchRevenue = useCallback(async () => {
     setRevenueLoading(true)
     try {
@@ -106,10 +112,12 @@ export default function AdminDashboard() {
     }
   }, [revenuePeriod])
 
+  // Reloads revenue when the selected period changes.
   useEffect(() => {
     fetchRevenue()
   }, [fetchRevenue])
 
+  // Loads completed and ongoing activities.
   const fetchActivities = useCallback(async () => {
     try {
       const { completed, ongoing } = await loadAdminActivities(ACTIVITY_MAX_COUNT)
@@ -124,12 +132,14 @@ export default function AdminDashboard() {
     }
   }, [])
 
+  // Refreshes activities on a timer.
   useEffect(() => {
     fetchActivities()
     const timer = window.setInterval(fetchActivities, ACTIVITY_REFRESH_MS)
     return () => window.clearInterval(timer)
   }, [fetchActivities])
 
+  // Loads the task and worker productivity report.
   const fetchProductivity = useCallback(async () => {
     try {
       setProductivity(await loadAdminProductivity())
@@ -141,12 +151,14 @@ export default function AdminDashboard() {
     }
   }, [])
 
+  // Refreshes productivity on a timer.
   useEffect(() => {
     fetchProductivity()
     const timer = window.setInterval(fetchProductivity, ACTIVITY_REFRESH_MS)
     return () => window.clearInterval(timer)
   }, [fetchProductivity])
 
+  // Loads the dashboard summary figures.
   const fetchSummary = useCallback(async () => {
     try {
       setSummary(await loadAdminSummary())
@@ -156,6 +168,7 @@ export default function AdminDashboard() {
     }
   }, [])
 
+  // Refreshes the summary on a timer.
   useEffect(() => {
     fetchSummary()
     const timer = window.setInterval(fetchSummary, ACTIVITY_REFRESH_MS)
@@ -176,12 +189,14 @@ export default function AdminDashboard() {
 
   return (
     <main className="admin-dashboard admin-overview-dashboard">
+      {/* Admin navigation and page header. */}
       <AdminSidebar active="dashboard" />
 
       <section className="admin-workspace">
         <AdminTopbar />
 
         <div className="admin-content">
+          {/* Welcome banner for the admin. */}
           <section className="admin-hero">
             <div>
               <p className="admin-eyebrow">AgriVerse overview</p>
@@ -200,6 +215,7 @@ export default function AdminDashboard() {
 
           <div className="admin-dashboard-grid">
             <section className="admin-main-column">
+              {/* Key farm and sales figures. */}
               <section className="admin-stat-grid" aria-label="Farm summary">
                 <article className="admin-stat-card is-featured">
                   <div>
@@ -224,6 +240,7 @@ export default function AdminDashboard() {
                 </div>
               </section>
 
+              {/* Revenue chart and period filters. */}
               <article className="admin-panel revenue-panel">
                 <div className="panel-heading">
                   <div>
@@ -303,6 +320,7 @@ export default function AdminDashboard() {
                 )}
               </article>
 
+              {/* Team productivity summary. */}
               <article className="admin-panel productivity-panel">
                 <div className="panel-heading">
                   <div>
@@ -344,6 +362,7 @@ export default function AdminDashboard() {
             </section>
 
             <div className="admin-side-column">
+              {/* Recent completed and ongoing activities. */}
               <aside className="admin-panel activity-panel">
                 <div className="panel-heading">
                   <div>
@@ -376,15 +395,17 @@ export default function AdminDashboard() {
                   )}
                 </div>
               </aside>
+              {/* Current field conditions. */}
               <FieldConditions />
             </div>
           </div>
         </div>
+        {/* Detailed productivity report dialog. */}
         <dialog className="productivity-report-dialog" ref={reportDialogRef} aria-labelledby="productivity-report-title">
           <div className="productivity-report-heading">
             <div>
               <h2 id="productivity-report-title">Productivity report</h2>
-              <p>{productivity?.date || 'Today'} · Asia/Manila</p>
+              <p>{productivity?.date || 'Today'} · Philippines</p>
             </div>
             <button type="button" onClick={() => reportDialogRef.current?.close()} aria-label="Close report">×</button>
           </div>
