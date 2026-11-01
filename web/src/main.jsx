@@ -6,6 +6,9 @@ import './index.css'
 import App from './App.jsx'
 import AppErrorBoundary from './components/AppErrorBoundary.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { getRouteTitle } from './routeTitles.js'
+
+document.title = getRouteTitle(window.location.pathname)
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
