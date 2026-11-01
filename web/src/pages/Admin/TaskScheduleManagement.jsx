@@ -37,6 +37,7 @@ const driverDeliveryStatuses = [
   { code: 'delivery:delivered', status_name: 'Delivered' },
 ]
 
+// Gets an access token for admin requests.
 async function readAccessToken(refresh = false) {
   const result = refresh ? await supabase.auth.refreshSession() : await supabase.auth.getSession()
   if (result.error) throw new Error(result.error.message)
@@ -45,6 +46,7 @@ async function readAccessToken(refresh = false) {
   return token
 }
 
+// Sends an authenticated request to the admin API.
 async function apiRequest(path, options = {}, retry = true) {
   const token = await readAccessToken()
   const controller = new AbortController()
@@ -70,6 +72,7 @@ async function apiRequest(path, options = {}, retry = true) {
   }
 }
 
+// Formats a scheduled date and time.
 function formatSchedule(value) {
   if (!value) return '—'
   const date = new Date(value)
@@ -79,12 +82,14 @@ function formatSchedule(value) {
   }).format(date)
 }
 
+// Determines whether a refund or dispute still needs review.
 function refundReviewState(order) {
   if (['failed', 'review_required'].includes(order.refund_status)) return 'open'
   if (order.review_type === 'cancellation') return order.refund_status === 'requested' ? 'open' : 'resolved'
   return order.delivery_dispute_status
 }
 
+// Gives a refund its readable status label.
 function refundStatusLabel(order) {
   if (qrphRefundLink(order)) return 'Awaiting buyer claim'
   const labels = {
@@ -94,6 +99,7 @@ function refundStatusLabel(order) {
   return labels[order.refund_status] || (order.delivery_dispute_status === 'resolved' ? 'Resolved' : 'Open')
 }
 
+// Formats a date with its full weekday and month.
 function formatLongDate(value) {
   if (!value) return '—'
   const date = new Date(value)
@@ -101,6 +107,7 @@ function formatLongDate(value) {
   return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(date)
 }
 
+// Splits a date into local date and time values.
 function localDateParts(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return { start_date: '', start_time: '' }
@@ -109,6 +116,7 @@ function localDateParts(value) {
   return { start_date: local.slice(0, 10), start_time: local.slice(11, 16) }
 }
 
+// Formats a delivery's scheduled time window.
 function formatDeliveryWindow(start, end) {
   if (!start || !end) return 'Schedule pending'
   const formatter = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -116,14 +124,17 @@ function formatDeliveryWindow(start, end) {
   return `${formatter.format(new Date(start))} – ${timeFormatter.format(new Date(end))}`
 }
 
+// Builds a short delivery location label.
 function deliveryLocation(order) {
   return [order.delivery_full_name, order.delivery_barangay, order.delivery_city_municipality].filter(Boolean).join(' · ')
 }
 
+// Builds a short delivery address.
 function deliveryAddressSummary(order) {
   return [order.delivery_barangay, order.delivery_city_municipality, order.delivery_province].filter(Boolean).join(' · ') || 'Delivery address'
 }
 
+// Formats the length of a delivery window.
 function formatDeliveryDuration(startTime, endTime) {
   if (!startTime || !endTime) return null
   const [sh, sm] = String(startTime).split(':').map(Number)
@@ -139,6 +150,7 @@ function formatDeliveryDuration(startTime, endTime) {
   return parts.join(' ') || '0 mins'
 }
 
+// Converts a time to a 12-hour display value.
 function formatTime12(timeStr) {
   if (!timeStr) return ''
   const [h, m] = String(timeStr).split(':').map(Number)
@@ -148,6 +160,7 @@ function formatTime12(timeStr) {
   return `${hour12}:${String(m).padStart(2, '0')} ${period}`
 }
 
+// Formats a task duration for display.
 function formatTaskDuration(minutes) {
   const mins = Number(minutes)
   if (!Number.isFinite(mins) || mins <= 0) return '—'
@@ -158,6 +171,7 @@ function formatTaskDuration(minutes) {
   return `${mins} Minutes`
 }
 
+// Validates a work window and returns its duration.
 function minutesInWindow(startTime, endTime) {
   const [startHour, startMinute] = String(startTime || '').split(':').map(Number)
   const [endHour, endMinute] = String(endTime || '').split(':').map(Number)
@@ -169,8 +183,10 @@ function minutesInWindow(startTime, endTime) {
   return end - start
 }
 
+// Checks whether a crop worker's hours fit an allowed shift.
 function isCropWorkerSchedule(workerCategory, startTime, endTime) {
   if (workerCategory !== 'crop_management_worker') return true
+  // Converts a clock time into minutes after midnight.
   const toMinutes = (time) => {
     const [hour, minute] = String(time || '').split(':').map(Number)
     return hour * 60 + minute
@@ -180,6 +196,7 @@ function isCropWorkerSchedule(workerCategory, startTime, endTime) {
   return (start >= 480 && end <= 710) || (start >= 780 && end <= 960)
 }
 
+// Extracts the requested outcome and details from a dispute reason.
 function parseDisputeReason(reason) {
   if (!reason) return { resolutionLabel: 'Refund Only', itemBreakdownText: '', userDescription: '' }
   let resolutionLabel = 'Refund Only'
@@ -201,6 +218,7 @@ function parseDisputeReason(reason) {
   return { resolutionLabel, itemBreakdownText, userDescription }
 }
 
+// Creates the value and label for a time option.
 function formatCropTime(minutes) {
   const hour = Math.floor(minutes / 60)
   const minute = minutes % 60
@@ -209,6 +227,7 @@ function formatCropTime(minutes) {
   return { value: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`, label: `${displayHour}:${String(minute).padStart(2, '0')} ${suffix}` }
 }
 
+// Lists valid crop task start or end times.
 function cropTimeOptions(kind, startTime) {
   const startMinutes = Number(String(startTime || '').slice(0, 2)) * 60 + Number(String(startTime || '').slice(3, 5))
   const ranges = kind === 'start'
@@ -221,6 +240,7 @@ function cropTimeOptions(kind, startTime) {
   return options
 }
 
+// Displays a time picker for crop tasks.
 function CropTaskTimeSelect({ kind, startTime, value, onChange }) {
   const options = cropTimeOptions(kind, startTime)
   const selectedValue = options.some((option) => option.value === value) ? value : options[0]?.value || ''
@@ -258,6 +278,7 @@ function CropTaskTimeSelect({ kind, startTime, value, onChange }) {
   )
 }
 
+// Lists valid delivery start or end times.
 function deliveryTimeOptions(kind, startTime) {
   const startMinutes = Number(String(startTime || '').slice(0, 2)) * 60 + Number(String(startTime || '').slice(3, 5))
   const first = kind === 'start' ? 420 : startMinutes + 5
@@ -267,6 +288,7 @@ function deliveryTimeOptions(kind, startTime) {
   return options
 }
 
+// Displays a time picker for deliveries.
 function DeliveryTimeSelect({ kind, startTime, value, onChange }) {
   const options = deliveryTimeOptions(kind, startTime)
   const selectedValue = options.some((option) => option.value === value) ? value : options[0]?.value || ''
@@ -282,10 +304,12 @@ function DeliveryTimeSelect({ kind, startTime, value, onChange }) {
   )
 }
 
+// Displays one task summary figure.
 function SummaryCard({ label, value, icon, className = '' }) {
   return <article className={`task-summary-card ${className}`}><div><span>{label}</span><strong>{value}</strong></div><i aria-hidden="true">{icon}</i></article>
 }
 
+// Displays task assignments, reviews, and schedule settings.
 export default function TaskScheduleManagement({ settingsOnly = false }) {
   const [activeTab, setActiveTab] = useState(() => {
     if (settingsOnly) return 'fields'
@@ -331,18 +355,22 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const [dismissedReviewAlerts, setDismissedReviewAlerts] = useState({ tasks: false, disputes: false })
   const [refreshKey, setRefreshKey] = useState(0)
   const filterRef = useRef(null)
+  // Maps task status codes to their labels.
   const statusLabels = useMemo(
     () => Object.fromEntries((options.statuses || []).map((status) => [status.code, status.status_name])),
     [options.statuses],
   )
+  // Finds the worker selected in the task form.
   const selectedWorker = useMemo(
     () => options.workers.find((worker) => worker.id === form.assigned_worker_id),
     [form.assigned_worker_id, options.workers],
   )
+  // Lists worker categories available for assignment.
   const availableWorkerCategories = useMemo(
     () => [...new Set(options.workers.map((worker) => worker.worker_category).filter((category) => category && category !== 'seller'))],
     [options.workers],
   )
+  // Filters workers by the selected category.
   const visibleWorkers = useMemo(
     () => options.workers.filter((worker) => !form.worker_category || worker.worker_category === form.worker_category),
     [form.worker_category, options.workers],
@@ -351,6 +379,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const isPestAndDisease = options.categories.find((category) => String(category.id) === String(form.category_id))?.category_name === 'Pest & Disease'
   const isDriverStatusFilter = filter.startsWith('delivery:')
 
+  // Loads tasks and summary counts for the current view.
   const loadTasks = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -370,6 +399,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [filter, page, search])
 
+  // Loads the options used by task forms and filters.
   useEffect(() => {
     apiRequest('/api/admin/tasks/options')
       .then((data) => setOptions(Object.fromEntries(
@@ -378,8 +408,10 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
       .catch((requestError) => setError(requestError.message))
   }, [])
 
+  // Closes the status filter when clicking away or pressing Escape.
   useEffect(() => {
     if (!filterOpen) return undefined
+    // Handles clicks and key presses outside the filter.
     function closeFilter(event) {
       if (event.key === 'Escape' || !filterRef.current?.contains(event.target)) setFilterOpen(false)
     }
@@ -388,6 +420,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     return () => { document.removeEventListener('mousedown', closeFilter); document.removeEventListener('keydown', closeFilter) }
   }, [filterOpen])
 
+  // Loads delivery orders assigned to drivers.
   const loadAssignedDeliveryOrders = useCallback(async () => {
     try {
       const data = await apiRequest('/api/admin/deliveries/assigned-orders')
@@ -397,8 +430,10 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [])
 
+  // Refreshes assigned delivery orders after changes.
   useEffect(() => { loadAssignedDeliveryOrders() }, [loadAssignedDeliveryOrders, refreshKey])
 
+  // Loads delivery disputes and cancellation refunds.
   const loadDisputeOrders = useCallback(async () => {
     try {
       const data = await apiRequest('/api/admin/deliveries/disputes')
@@ -409,6 +444,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [])
 
+  // Refreshes dispute and refund cases after changes.
   useEffect(() => {
     loadDisputeOrders()
   }, [loadDisputeOrders, refreshKey])
@@ -422,6 +458,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const resolvedReviewCount = reviewOrders.length - openReviewCount
   const visibleDisputes = disputeFilter === 'all' ? reviewOrders : reviewOrders.filter((order) => refundReviewState(order) === disputeFilter)
 
+  // Loads the number of harvest tasks awaiting approval.
   const loadHarvestApprovalCount = useCallback(async () => {
     try {
       const data = await apiRequest('/api/admin/tasks/harvest-approvals/count')
@@ -431,9 +468,12 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [])
 
+  // Refreshes the harvest approval count after changes.
   useEffect(() => { loadHarvestApprovalCount() }, [loadHarvestApprovalCount, refreshKey])
 
+  // Closes the dispute photo preview when Escape is pressed.
   useEffect(() => {
+    // Handles the Escape key for the photo preview.
     function handleKeyDown(event) {
       if (event.key === 'Escape' && disputeActivePhoto) {
         setDisputeActivePhoto(null)
@@ -443,6 +483,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [disputeActivePhoto])
 
+  // Opens the review form for a harvest task.
   function openReviewHarvest(task) {
     setError('')
     setHarvestApprovalForm({
@@ -456,6 +497,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     setModal({ mode: 'review-harvest', task })
   }
 
+  // Approves a task and saves its harvest counts when needed.
   async function approveTask() {
     setSaving(true)
     setError('')
@@ -475,6 +517,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Rejects a task and records the reason.
   async function rejectTask() {
     setSaving(true)
     setError('')
@@ -492,6 +535,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Saves the decision for a delivery dispute.
   async function resolveDispute(resolution) {
     setSaving(true)
     setError('')
@@ -520,6 +564,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Saves a decision on a cancellation refund.
   async function resolveCancellationRefund(decision) {
     setSaving(true)
     setError('')
@@ -538,6 +583,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Retries a refund that needs another attempt.
   async function retryRefund(order) {
     setSaving(true)
     setError('')
@@ -552,6 +598,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Checks the latest status of a refund.
   async function checkRefund(order) {
     setSaving(true)
     setError('')
@@ -565,6 +612,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Loads active task categories and fields.
   const loadSettings = useCallback(async () => {
     try {
       const [categories, fields] = await Promise.all([
@@ -577,6 +625,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [])
 
+  // Loads archived task categories and fields.
   const loadArchivedSettings = useCallback(async () => {
     try {
       const [categories, fields] = await Promise.all([
@@ -592,6 +641,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [])
 
+  // Loads vehicles in the delivery fleet.
   const loadVehicles = useCallback(async () => {
     try {
       const data = await apiRequest('/api/admin/deliveries/vehicles')
@@ -601,18 +651,21 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [])
 
+  // Loads the data needed by the selected settings tab.
   useEffect(() => {
     if (activeTab === 'archive') loadArchivedSettings()
     else if (activeTab === 'fleet') loadVehicles()
     else if (activeTab !== 'tasks' && activeTab !== 'disputes' && activeTab !== 'refunds') loadSettings()
   }, [activeTab, loadArchivedSettings, loadSettings, loadVehicles])
 
+  // Opens the form to add or edit a vehicle.
   function openVehicleModal(vehicle = null) {
     setError('')
     setVehicleForm(vehicle ? { vehicle_name: vehicle.vehicle_name, plate_number: vehicle.plate_number, status: vehicle.status } : emptyVehicleForm)
     setModal({ mode: 'vehicle', vehicle })
   }
 
+  // Saves a new or edited fleet vehicle.
   async function saveVehicle(event) {
     event.preventDefault()
     setSaving(true)
@@ -631,11 +684,13 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Reloads tasks after searches, filters, or updates.
   useEffect(() => {
     const delay = window.setTimeout(loadTasks, search ? 300 : 0)
     return () => window.clearTimeout(delay)
   }, [loadTasks, refreshKey, search])
 
+  // Opens a blank task assignment form.
   function openNewTask() {
     setError('')
     const initialWorker = options.workers.find((worker) => worker.worker_category !== 'driver') || options.workers[0]
@@ -656,6 +711,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     setModal({ mode: 'add' })
   }
 
+  // Opens the form with an existing task's details.
   function openEditTask(task) {
     setError('')
     setForm({
@@ -674,6 +730,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     setModal({ mode: 'edit', task })
   }
 
+  // Opens the delivery assignment form for an order.
   function openEditDelivery(order) {
     const start = localDateParts(order.delivery_scheduled_at)
     const end = localDateParts(order.delivery_window_end_at)
@@ -687,6 +744,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     setModal({ mode: 'edit-delivery', order })
   }
 
+  // Saves changes to a delivery assignment.
   async function saveDeliveryAssignment(event) {
     event.preventDefault()
     setSaving(true)
@@ -705,6 +763,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Saves a new or edited task assignment.
   async function saveTask(event) {
     event.preventDefault()
     setSaving(true)
@@ -750,12 +809,14 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Opens the form to add or edit a category or field.
   function openSettingModal(type, value = null) {
     setError('')
     setSettingsForm({ name: value?.[type === 'categories' ? 'category_name' : 'field_name'] || '', description: value?.description || '' })
     setModal({ mode: 'setting', type, value })
   }
 
+  // Saves a category or field setting.
   async function saveSetting(event) {
     event.preventDefault()
     const resource = modal.type === 'categories' ? 'task-categories' : 'fields'
@@ -779,6 +840,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Archives a category or field setting.
   async function archiveSetting(type, value) {
     const resource = type === 'categories' ? 'task-categories' : 'fields'
     if (!window.confirm(`Archive ${value[type === 'categories' ? 'category_name' : 'field_name']}? Existing tasks will remain unchanged.`)) return
@@ -791,12 +853,14 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Opens the form to add or edit a category or field.
   function openSettingModal(type, value = null) {
     setError('')
     setSettingsForm({ name: value?.[type === 'categories' ? 'category_name' : 'field_name'] || '', description: value?.description || '' })
     setModal({ mode: 'setting', type, value })
   }
 
+  // Saves a category or field setting.
   async function saveSetting(event) {
     event.preventDefault()
     const resource = modal.type === 'categories' ? 'task-categories' : 'fields'
@@ -820,6 +884,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Archives a category or field setting.
   async function archiveSetting(type, value) {
     const resource = type === 'categories' ? 'task-categories' : 'fields'
     if (!window.confirm(`Archive ${value[type === 'categories' ? 'category_name' : 'field_name']}? Existing tasks will remain unchanged.`)) return
@@ -832,6 +897,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Restores an archived category or field.
   async function restoreSetting(type, value) {
     const resource = type === 'categories' ? 'task-categories' : 'fields'
     setError('')
@@ -851,6 +917,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const settingsSource = activeTab === 'archive' ? archivedSettings : settingsValues
   const visibleSettings = ['tasks', 'disputes', 'refunds'].includes(activeTab) ? [] : settingsSource[settingsConfig.resource].filter((value) => !settingsSearch || `${value[settingsConfig.nameKey]} ${value.description || ''}`.toLowerCase().includes(settingsSearch))
   const visibleVehicles = vehicles.filter((vehicle) => !settingsSearch || `${vehicle.vehicle_name} ${vehicle.plate_number}`.toLowerCase().includes(settingsSearch))
+  // Filters and sorts delivery orders for the current view.
   const visibleDeliveryOrders = useMemo(() => {
     const query = search.trim().toLowerCase()
     const requestedStatus = filter.startsWith('delivery:') ? filter.slice('delivery:'.length) : ''
@@ -858,6 +925,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   }, [deliveryOrders, filter, search])
 
   const deliveryTotalPages = Math.max(1, Math.ceil(visibleDeliveryOrders.length / PAGE_SIZE))
+  // Shows only the delivery orders on the current page.
   const paginatedDeliveryOrders = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE
     return visibleDeliveryOrders.slice(start, start + PAGE_SIZE)
@@ -869,10 +937,12 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
 
   return (
     <main className="admin-dashboard task-schedule-page">
+      {/* Admin navigation and page header. */}
       <AdminSidebar active={settingsOnly ? 'settings' : 'tasks'} />
       <section className="admin-workspace">
         <AdminTopbar />
         <div className="task-schedule-content">
+          {/* Page title and description. */}
           <header className="task-page-heading">
             <div>
               <h1>{settingsOnly ? 'Settings' : 'Task Assignment & Scheduling'}</h1>
@@ -882,6 +952,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             </div>
           </header>
 
+          {/* Alerts for tasks and cases needing review. */}
           {!settingsOnly && ((harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks) || (openDisputeCount + openRefundCount > 0 && !dismissedReviewAlerts.disputes)) && (
             <section className="task-review-alerts" aria-label="Items needing review">
               {harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks && (
@@ -907,6 +978,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             </section>
           )}
 
+          {/* Task counts and available workers. */}
           {!settingsOnly && <section className="task-summary-grid" aria-label="Task summary">
             <SummaryCard label="Total Task" value={summary.total} icon={<img src={totalTaskIcon} alt="" />} />
             <SummaryCard label="In Progress" value={summary.inProgress} icon={<img src={progressTaskIcon} alt="" />} />
@@ -914,6 +986,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             <SummaryCard label={<>Available<br />Workers</>} value={summary.availableWorkers} icon={<img src={workersTaskIcon} alt="" />} />
           </section>}
 
+          {/* Tabs for assignments, reviews, and settings. */}
           <section className="tasks-panel">
             <nav className="task-management-tabs" aria-label="Task management sections">
               {!settingsOnly && <button className={activeTab === 'tasks' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('tasks'); setSearch(''); setPage(1) }}>All Tasks</button>}
@@ -924,6 +997,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               {!settingsOnly && <button className={activeTab === 'refunds' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('refunds'); setSearch(''); setPage(1) }}>Refund Reviews</button>}
               {settingsOnly && <button className={activeTab === 'archive' ? 'is-active' : ''} type="button" onClick={() => { setActiveTab('archive'); setSearch(''); setPage(1) }}>Archived Items</button>}
             </nav>
+            {/* Dispute and refund review list. */}
             {['disputes', 'refunds'].includes(activeTab) ? <>
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
             {activeTab === 'refunds' && refundSetupRequired && <div className="tasks-error" role="status">Refund reviews are temporarily unavailable. Delivery disputes remain available in the Disputes tab.</div>}
@@ -984,6 +1058,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               <span>{openReviewCount} need action · {resolvedReviewCount} reviewed or processing</span>
             </footer>
             </> : activeTab === 'tasks' ? <>
+            {/* Crop task and driver delivery views. */}
             <nav className="task-work-type-tabs" aria-label="Work type view">
               <button className={workView === 'crop' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('crop'); setFilter((current) => current.startsWith('delivery:') ? '' : current); setPage(1) }}>Crop Management</button>
               <button className={workView === 'deliveries' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('deliveries'); setFilter((current) => current && !current.startsWith('delivery:') ? '' : current); setPage(1) }}>Driver Deliveries</button>
@@ -1011,6 +1086,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               <button className="assign-task-toolbar-button" type="button" onClick={openNewTask} disabled={!options.workers.length}><span>＋</span>Assign New Task</button>
             </div>
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
+            {/* Current work assignments. */}
             <div className="tasks-table-wrap">
               <table className="tasks-table work-list-table">
                 <thead>{workView === 'deliveries'
@@ -1035,6 +1111,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               <Pagination page={page} totalPages={workView === 'deliveries' ? deliveryTotalPages : pagination.totalPages || 1} onChange={setPage} disabled={loading} ariaLabel="Work assignment pages" />
             </footer>
             </> : activeTab === 'fleet' ? <>
+              {/* Fleet vehicle list and controls. */}
               <div className="task-settings-toolbar">
                 <label className="task-search"><span className="sr-only">Search fleet vehicles</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search fleet vehicles" /><span aria-hidden="true" /></label>
                 <button type="button" onClick={() => openVehicleModal()}><span>＋</span>Add Vehicle</button>
@@ -1050,6 +1127,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                 <span>{visibleVehicles.length} vehicle{visibleVehicles.length === 1 ? '' : 's'}</span>
               </footer>
             </> : <>
+              {/* Fields, categories, and archived settings. */}
               <div className="task-settings-toolbar">
                 <label className="task-search"><span className="sr-only">{settingsConfig.searchLabel}</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder={settingsConfig.searchLabel} /><span aria-hidden="true" /></label>
                 {activeTab === 'archive' ? <label className="task-archive-filter"><span>Show</span><select value={archiveType} onChange={(event) => { setArchiveType(event.target.value); setSearch(''); setPage(1) }}><option value="fields">Archived Fields &amp; Locations</option><option value="categories">Archived Task Categories</option></select></label> : <button type="button" onClick={() => openSettingModal(settingsConfig.resource)}><span>＋</span>Add {settingsConfig.itemLabel}</button>}
@@ -1072,6 +1150,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         </div>
       </section>
 
+      {/* Task details dialog. */}
       {modal?.mode === 'view' && (() => {
         const task = modal.task
         const worker = task.assigned_worker
@@ -1179,6 +1258,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         )
       })()}
 
+      {/* Delivery details dialog. */}
       {modal?.mode === 'view-delivery' && (() => {
         const order = modal.order
         const isDelivered = order.delivery_assignment_status === 'delivered' || order.order_status === 'delivered' || order.order_status === 'completed'
@@ -1303,6 +1383,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         )
       })()}
 
+      {/* Cancellation refund review dialog. */}
       {modal?.mode === 'review-cancellation' && (() => {
         const order = modal.order
         const pending = order.refund_status === 'requested'
@@ -1349,6 +1430,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         )
       })()}
 
+      {/* Delivery dispute review dialog. */}
       {modal?.mode === 'review-dispute' && (() => {
         const order = modal.order
         const parsedReport = parseDisputeReason(order.delivery_dispute_reason)
@@ -1588,6 +1670,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         )
       })()}
 
+      {/* Full-size dispute photo preview. */}
       {disputeActivePhoto && (
         <div
           className="dispute-lightbox-overlay"
@@ -1616,6 +1699,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         </div>
       )}
 
+      {/* Harvest task approval dialog. */}
       {modal?.mode === 'review-harvest' && (() => {
         const task = modal.task
         const isHarvestReview = task.category === 'Harvesting'
@@ -1794,6 +1878,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         )
       })()}
 
+      {/* Delivery assignment form. */}
       {modal?.mode === 'edit-delivery' && (() => {
         const order = modal.order
         const drivers = options.workers.filter((worker) => worker.worker_category === 'driver')
@@ -1910,6 +1995,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         )
       })()}
 
+      {/* Task assignment form. */}
       {(modal?.mode === 'add' || modal?.mode === 'edit') && (() => {
         const editingTask = modal.mode === 'edit'
         const isCropWorker = form.worker_category === 'crop_management_worker'
@@ -2128,6 +2214,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         )
       })()}
 
+      {/* Field or category settings form. */}
       {modal?.mode === 'setting' && (
         <WorkOrderDialog
           size="narrow"
@@ -2156,6 +2243,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         </WorkOrderDialog>
       )}
 
+      {/* Fleet vehicle form. */}
       {modal?.mode === 'vehicle' && (
         <WorkOrderDialog
           size="narrow"
