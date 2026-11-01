@@ -59,7 +59,7 @@ async function reconcileOnlinePaymentStatus(order) {
     const attributes = intent?.data?.attributes;
     const nextStatus = attributes?.status === "succeeded"
       ? "paid"
-      : attributes?.status === "awaiting_payment_method" && (attributes?.last_payment_error || order.payment_method === "qrph")
+      : ["awaiting_payment_method", "cancelled"].includes(attributes?.status)
         ? "failed"
         : null;
     if (!nextStatus) return order;

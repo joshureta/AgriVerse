@@ -18,14 +18,30 @@ router.post("/:orderId/gcash-checkout", async (req, res, next) => {
     const orderId = readOrderId(req.params.orderId);
     const { data: order, error } = await getSupabase()
       .from("buyer_orders")
-      .select("id, order_number, buyer_id, payment_method, payment_status, total_amount, delivery_full_name, delivery_mobile_number")
+      .select("id, order_number, buyer_id, order_status, payment_method, payment_status, total_amount, delivery_full_name, delivery_mobile_number, paymongo_payment_intent_id")
       .eq("id", orderId)
       .eq("buyer_id", req.user.id)
       .single();
     if (error?.code === "PGRST116") throw httpError(404, "Order not found");
     if (error) throw error;
     if (order.payment_method !== "gcash") throw httpError(400, "This order is not set up for GCash payment");
+    if (order.order_status === "cancelled") throw httpError(409, "This order was cancelled and can no longer be paid");
     if (!["pending", "failed"].includes(order.payment_status)) throw httpError(409, "This order is not awaiting payment");
+
+    if (order.paymongo_payment_intent_id) {
+      const existingIntent = await paymongoGet(`/payment_intents/${encodeURIComponent(order.paymongo_payment_intent_id)}`);
+      const intentStatus = existingIntent?.data?.attributes?.status;
+      if (intentStatus === "awaiting_next_action") {
+        const existingUrl = existingIntent.data.attributes.next_action?.redirect?.url;
+        if (!existingUrl) throw httpError(409, "The GCash payment is still active. Check its status before retrying");
+        return res.json({ checkout_url: existingUrl });
+      }
+      if (intentStatus === "succeeded") throw httpError(409, "This payment has already succeeded. Check the order status");
+      if (intentStatus === "processing") throw httpError(409, "This payment is still being verified. Check its status before retrying");
+      if (!["awaiting_payment_method", "cancelled"].includes(intentStatus)) {
+        throw httpError(409, "The GCash payment status is uncertain. Check it before retrying");
+      }
+    }
 
     const amount = Math.round(Number(order.total_amount) * 100);
     const webAppUrl = (process.env.WEB_APP_URL || "http://localhost:5173").replace(/\/$/, "");
@@ -74,7 +90,7 @@ router.post("/:orderId/gcash-checkout", async (req, res, next) => {
 
     const { error: updateError } = await getSupabase()
       .from("buyer_orders")
-      .update({ paymongo_payment_intent_id: paymentIntentId, paymongo_payment_method_id: paymentMethodId })
+      .update({ payment_status: "pending", paymongo_payment_intent_id: paymentIntentId, paymongo_payment_method_id: paymentMethodId })
       .eq("id", order.id);
     if (updateError) throw updateError;
 

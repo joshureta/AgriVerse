@@ -20,6 +20,7 @@ export default function PaymentConfirmation() {
   const [gaveUpPolling, setGaveUpPolling] = useState(false)
   const [retrying, setRetrying] = useState(false)
   const [retryError, setRetryError] = useState('')
+  const [checkVersion, setCheckVersion] = useState(0)
   const attemptsRef = useRef(0)
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function PaymentConfirmation() {
 
     let active = true
     let timer = null
+    attemptsRef.current = 0
 
     async function poll() {
       try {
@@ -60,34 +62,37 @@ export default function PaymentConfirmation() {
       active = false
       if (timer) window.clearTimeout(timer)
     }
-  }, [])
+  }, [checkVersion])
 
   async function retryGcashPayment() {
     if (!order || retrying) return
     setRetrying(true)
     setRetryError('')
     try {
+      const currentOrder = await loadBuyerOrder(order.id)
+      setOrder(currentOrder)
+      if (currentOrder.payment_status === 'paid') {
+        setStatus('paid')
+        return
+      }
+      if (currentOrder.order_status === 'cancelled') {
+        setRetryError('This order was cancelled and can no longer be paid.')
+        return
+      }
       const checkoutUrl = await createGcashCheckout(order.id)
       window.location.href = checkoutUrl
     } catch (requestError) {
       setRetryError(requestError.message)
+    } finally {
       setRetrying(false)
     }
   }
 
   function checkAgain() {
-    attemptsRef.current = 0
     setGaveUpPolling(false)
+    setRetryError('')
     setStatus('pending')
-    loadBuyerOrder(readOrderIdFromUrl())
-      .then((fetchedOrder) => {
-        setOrder(fetchedOrder)
-        setStatus(fetchedOrder.payment_status === 'paid' ? 'paid' : fetchedOrder.payment_status === 'failed' ? 'failed' : 'pending')
-      })
-      .catch((requestError) => {
-        setStatus('error')
-        setLoadError(requestError.message)
-      })
+    setCheckVersion((current) => current + 1)
   }
 
   return (
@@ -112,15 +117,19 @@ export default function PaymentConfirmation() {
 
           {status === 'pending' && (
             <>
-              <span className="payment-confirmation-icon is-pending"><Loader2 aria-hidden="true" className="is-spinning" /></span>
-              <h1>Confirming your payment…</h1>
-              <p>We&apos;re verifying your GCash payment for order <b>{order?.order_number}</b>. This can take a few seconds — please don&apos;t close this page.</p>
-              {gaveUpPolling && (
-                <div className="payment-confirmation-stall">
-                  <p>This is taking longer than expected. You can keep waiting or check again.</p>
-                  <button type="button" onClick={checkAgain}>Check Again</button>
+              <span className="payment-confirmation-icon is-pending">{gaveUpPolling ? <PackageSearch aria-hidden="true" /> : <Loader2 aria-hidden="true" className="is-spinning" />}</span>
+              <h1>{gaveUpPolling ? 'Payment not confirmed yet' : 'Confirming your payment…'}</h1>
+              <p>{gaveUpPolling
+                ? <>Order <b>{order?.order_number}</b> is saved, but we haven&apos;t confirmed the GCash payment. If you completed payment, check again before continuing in GCash.</>
+                : <>We&apos;re verifying your GCash payment for order <b>{order?.order_number}</b>. This can take a few seconds.</>}</p>
+              {gaveUpPolling && <>
+                {retryError && <p className="payment-confirmation-error" role="alert">{retryError}</p>}
+                <div className="payment-confirmation-actions">
+                  <button type="button" className="is-primary" onClick={checkAgain}>Check Again</button>
+                  <button type="button" className="is-secondary" onClick={retryGcashPayment} disabled={retrying}>{retrying ? 'Checking…' : 'Continue with GCash'}</button>
+                  <a className="is-secondary" href={`/buyer/delivery-progress?track=${encodeURIComponent(order?.id ?? '')}`}>View Order</a>
                 </div>
-              )}
+              </>}
             </>
           )}
 
@@ -159,7 +168,7 @@ export default function PaymentConfirmation() {
             <>
               <span className="payment-confirmation-icon is-failed"><XCircle aria-hidden="true" /></span>
               <h1>Payment Failed</h1>
-              <p>Your GCash payment for order <b>{order?.order_number}</b> did not go through. No charges were made.</p>
+              <p>Your GCash payment for order <b>{order?.order_number}</b> did not go through. The order is saved, and you can try paying again.</p>
               {retryError && <p className="payment-confirmation-error">{retryError}</p>}
               <div className="payment-confirmation-actions">
                 <button type="button" className="is-primary" onClick={retryGcashPayment} disabled={retrying}>

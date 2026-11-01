@@ -13,11 +13,14 @@ import cashIcon from '../../assets/buyer/checkout/cash.png'
 import deliveryIcon from '../../assets/buyer/checkout/delivery.png'
 import pickupIcon from '../../assets/buyer/checkout/pickup.png'
 import {
+  createBuyerDeliveryAddress,
   createGcashCheckout,
+  loadBuyerDeliveryAddresses,
   loadPineappleProducts,
   buyerCartQuantity,
   placeBuyerOrder,
   readBuyerCart,
+  saveDefaultBuyerDeliveryAddress,
   writeBuyerCart,
 } from '../../services/buyerMarketplace.js'
 import {
@@ -514,10 +517,18 @@ function CheckoutLocationFields({ address, disabled, onChange, onValidityChange 
 const emptyAddress = {
   full_name: '', mobile_number: '', country: '', region: '', province: '', city_municipality: '', barangay: '',
 }
+const MINIMUM_PINEAPPLE_SUBTOTAL = 1500
 
 function addressIsComplete(address) {
   return ['full_name', 'mobile_number', 'country', 'region', 'city_municipality', 'barangay']
     .every((field) => String(address[field] || '').trim())
+}
+
+function sameDeliveryAddress(first, second) {
+  return Object.keys(emptyAddress).every((field) =>
+    String(first?.[field] || '').trim().toLocaleLowerCase()
+      === String(second?.[field] || '').trim().toLocaleLowerCase(),
+  )
 }
 
 export default function BuyerCheckout() {
@@ -535,8 +546,10 @@ export default function BuyerCheckout() {
   const [orderToastVisible, setOrderToastVisible] = useState(false)
   const [addressModalOpen, setAddressModalOpen] = useState(false)
   const [orderAddress, setOrderAddress] = useState(null)
+  const [savedAddresses, setSavedAddresses] = useState([])
   const [alternateAddress, setAlternateAddress] = useState(emptyAddress)
   const [addressLocationValid, setAddressLocationValid] = useState(false)
+  const [savingAddress, setSavingAddress] = useState(false)
   const [retryingPayment, setRetryingPayment] = useState(false)
 
   async function retryOnlinePayment() {
@@ -553,12 +566,6 @@ export default function BuyerCheckout() {
   }
 
   useEffect(() => {
-    if (!error || orderConnectionUncertain) return undefined
-    const dismissTimer = window.setTimeout(() => setError(''), 4000)
-    return () => window.clearTimeout(dismissTimer)
-  }, [error, orderConnectionUncertain])
-
-  useEffect(() => {
     if (!error && orderConnectionUncertain) setOrderConnectionUncertain(false)
   }, [error, orderConnectionUncertain])
 
@@ -569,6 +576,23 @@ export default function BuyerCheckout() {
     }, 2000)
     return () => window.clearTimeout(redirectTimer)
   }, [placedOrder])
+
+  useEffect(() => {
+    let active = true
+    loadBuyerDeliveryAddresses().then(({ addresses, defaultAddressId }) => {
+      if (!active) return
+      setSavedAddresses((current) => [
+        ...addresses,
+        ...current.filter((entry) => !addresses.some((address) => address.id === entry.id)),
+      ])
+      const preferred = addresses.find((address) => address.id === defaultAddressId)
+        || addresses.at(-1)
+      if (preferred) setOrderAddress((current) => current || preferred)
+    }).catch((requestError) => {
+      if (active) setError(requestError.message)
+    })
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -631,6 +655,7 @@ export default function BuyerCheckout() {
   else if (deliveryMethod === 'delivery' && !addressIsComplete(deliveryAddress)) orderButtonLabel = 'Add delivery address'
 
   function closeAddressModal() {
+    if (savingAddress) return
     setAddressModalOpen(false)
     setError('')
   }
@@ -642,16 +667,45 @@ export default function BuyerCheckout() {
     setError('')
   }
 
-  function saveAddressForOrder() {
-    if (!addressIsComplete(alternateAddress) || !addressLocationValid) return
-    setOrderAddress(Object.fromEntries(
+  async function saveAddressForOrder() {
+    if (!addressIsComplete(alternateAddress) || !addressLocationValid || savingAddress) return
+    const address = Object.fromEntries(
       Object.keys(emptyAddress).map((field) => [field, String(alternateAddress[field] || '').trim()]),
-    ))
-    closeAddressModal()
+    )
+    setSavingAddress(true)
+    setError('')
+    try {
+      let saved = savedAddresses.find((entry) => sameDeliveryAddress(entry, address))
+      if (!saved) {
+        try {
+          saved = await createBuyerDeliveryAddress(address)
+        } catch (requestError) {
+          if (!/already saved/i.test(requestError.message)) throw requestError
+          const refreshed = await loadBuyerDeliveryAddresses()
+          setSavedAddresses(refreshed.addresses)
+          saved = refreshed.addresses.find((entry) => sameDeliveryAddress(entry, address))
+          if (!saved) throw requestError
+        }
+      }
+      await saveDefaultBuyerDeliveryAddress(saved.id)
+      setSavedAddresses((current) => current.some((entry) => entry.id === saved.id)
+        ? current : [...current, saved])
+      setOrderAddress(saved)
+      setAddressModalOpen(false)
+      setNotice('Delivery address saved for future checkouts.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSavingAddress(false)
+    }
   }
 
   async function completeOrder(addressForOrder = null) {
     if (items.length === 0 || placedOrder || placing) return
+    if (subtotal < MINIMUM_PINEAPPLE_SUBTOTAL) {
+      setError('Add more pineapples to reach the PHP 1,500 minimum before shipping.')
+      return
+    }
     setPlacing(true)
     setOrderConnectionUncertain(false)
     setError('')
@@ -691,6 +745,25 @@ export default function BuyerCheckout() {
     } catch (requestError) {
       setOrderConnectionUncertain(requestError.code === 'CHECKOUT_CONNECTION_UNCERTAIN')
       setError(requestError.message)
+      if (/insufficient stock|product.*unavailable/i.test(requestError.message)) {
+        try {
+          const products = await loadPineappleProducts()
+          const productById = new Map(products.map((product) => [String(product.id), product]))
+          const updatedItems = items.flatMap((item) => {
+            const product = productById.get(String(item.id))
+            const quantity = Math.min(item.quantity, Number(product?.stock_quantity) || 0)
+            return quantity > 0 ? [{ ...product, quantity }] : []
+          })
+          if (updatedItems.length !== items.length
+            || updatedItems.some((item, index) => item.quantity !== items[index].quantity)) {
+            setItems(updatedItems)
+            writeBuyerCart(updatedItems)
+            setError('Stock changed while you were checking out. Review your updated order and place it again.')
+          }
+        } catch {
+          // Keep the original order error if inventory cannot be refreshed.
+        }
+      }
     } finally {
       setPlacing(false)
     }
@@ -699,6 +772,10 @@ export default function BuyerCheckout() {
   async function submitOrder(event) {
     event.preventDefault()
     if (items.length === 0 || placedOrder) return
+    if (subtotal < MINIMUM_PINEAPPLE_SUBTOTAL) {
+      setError('Add more pineapples to reach the PHP 1,500 minimum before shipping.')
+      return
+    }
     if (deliveryMethod === 'delivery' && !addressIsComplete(deliveryAddress)) {
       openAddressEditor()
       return
@@ -726,6 +803,7 @@ export default function BuyerCheckout() {
               <p>{error}</p>
               {orderConnectionUncertain && <a href="/buyer/delivery-progress">View orders</a>}
             </div>
+            <button type="button" className="checkout-error-dismiss" onClick={() => setError('')} aria-label="Dismiss error"><X aria-hidden="true" /></button>
           </aside>
         )}
         <section className="checkout-card checkout-address" aria-labelledby="delivery-address-title">
@@ -745,7 +823,7 @@ export default function BuyerCheckout() {
 
         {addressModalOpen && <div className="checkout-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeAddressModal() }}>
           <section className="checkout-address-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-address-modal-title">
-            <header><div><span>Delivery information</span><h2 id="checkout-address-modal-title">Delivery Address</h2><p>Enter the address to use for this order.</p></div><button type="button" onClick={closeAddressModal} aria-label="Close address form"><X /></button></header>
+            <header><div><span>Delivery information</span><h2 id="checkout-address-modal-title">Delivery Address</h2><p>Enter the address to use for this order and future checkouts.</p></div><button type="button" onClick={closeAddressModal} disabled={savingAddress} aria-label="Close address form"><X /></button></header>
             <div className="checkout-address-fields checkout-new-address-fields">
               {[
                 ['full_name', 'Full Name', 'Enter recipient name'],
@@ -759,7 +837,7 @@ export default function BuyerCheckout() {
               />
               <label><span>Country<em>*</em></span><input name="country" value="Philippines" disabled /></label>
             </div>
-            <footer><button type="button" className="is-cancel" onClick={closeAddressModal}>Cancel</button><button type="button" className="is-save" disabled={!addressIsComplete(alternateAddress) || !addressLocationValid} onClick={saveAddressForOrder}>Use This Address</button></footer>
+            <footer><button type="button" className="is-cancel" onClick={closeAddressModal} disabled={savingAddress}>Cancel</button><button type="button" className="is-save" disabled={savingAddress || !addressIsComplete(alternateAddress) || !addressLocationValid} onClick={saveAddressForOrder}>{savingAddress ? 'Saving…' : 'Save and Use Address'}</button></footer>
           </section>
         </div>}
         <section className="checkout-card checkout-summary" aria-labelledby="checkout-summary-title">

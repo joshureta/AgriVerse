@@ -537,6 +537,7 @@ export default function DeliveryProgress() {
                     {(order.order_status === 'delivered' || order.order_status === 'completed') && !order.delivery_dispute_status && <button type="button" onClick={(event) => { event.stopPropagation(); window.location.href = `/buyer/return-request?order=${order.id}` }}>{order.order_status === 'delivered' ? 'Report an Issue' : 'Return/Refund'}</button>}
                     {order.order_status === 'delivered' && !order.delivery_dispute_status && <button type="button" className="is-primary" disabled={confirmingOrderId === order.id} onClick={(event) => { event.stopPropagation(); handleListConfirmReceipt(order) }}>{confirmingOrderId === order.id ? 'Confirming…' : 'Order Received'}</button>}
                     {order.order_status === 'completed' && !order.buyer_rating && <button type="button" className="is-primary" onClick={(event) => { event.stopPropagation(); openRateModal(order) }}>Rate</button>}
+                    {order.payment_method === 'gcash' && needsPayment(order) && <button type="button" className="is-primary" onClick={(event) => { event.stopPropagation(); window.location.href = `/buyer/payment-confirmation?order=${encodeURIComponent(order.id)}` }}>Pay with GCash</button>}
                     {canCancelOrder(order) && <button type="button" className="is-danger" onClick={(event) => { event.stopPropagation(); openCancelModal(order) }}>Cancel order</button>}
                     {!['delivered', 'completed'].includes(order.order_status) && <span className="history-view-order">View details <ChevronRight aria-hidden="true" /></span>}
                     </>)}
@@ -797,6 +798,16 @@ export default function DeliveryProgress() {
                       onSelect={(stars) => { setRateCardHover(0); openRateModal(selectedOrder, stars) }}
                     />
                   )}
+                </div>
+              </section>
+            )}
+
+            {selectedOrder.payment_method === 'gcash' && needsPayment(selectedOrder) && (
+              <section className="delivery-card delivery-confirmation" aria-labelledby="delivery-payment-title">
+                <h2 id="delivery-payment-title">GCash payment {selectedOrder.payment_status === 'failed' ? 'unsuccessful' : 'not confirmed'}</h2>
+                <p>Your order is saved. Check the payment status or continue paying with GCash.</p>
+                <div className="delivery-confirmation-actions">
+                  <button type="button" className="is-primary" onClick={() => { window.location.href = `/buyer/payment-confirmation?order=${encodeURIComponent(selectedOrder.id)}` }}>Check or Retry Payment</button>
                 </div>
               </section>
             )}
