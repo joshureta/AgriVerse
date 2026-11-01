@@ -522,7 +522,6 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
             </footer>}
             {activeView === 'stock' && <footer className="pagination-footer">
               <span>{pagination.total} pineapple size{pagination.total === 1 ? '' : 's'}</span>
-              <Pagination page={page} totalPages={pagination.totalPages} onChange={setPage} disabled={loading} ariaLabel="Pineapple stock pages" />
             </footer>}
             {activeView === 'stock' && <section className="stock-history-section">
               <header><div><h2>Stock Movement History</h2><p>Recent pineapple stock additions and deductions</p></div></header>
