@@ -84,12 +84,14 @@ const PAYMENT_METHOD_LABELS = {
   qrph: 'QR Ph',
 }
 
+// Checks whether an order can still be cancelled.
 function canCancelOrder(order) {
   return ['pending', 'confirmed'].includes(order.order_status)
 }
 
 const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Excellent' }
 
+// Displays a read-only or selectable star rating.
 function StarRating({ value, size = 16, interactive = false, onHover, onSelect }) {
   return (
     <div className="star-rating" onMouseLeave={interactive ? () => onHover(0) : undefined}>
@@ -123,16 +125,19 @@ const ORDER_FILTERS = [
   { id: 'returns', label: 'Returns & Refunds' },
 ]
 
+// Checks whether an order has a return or refund case.
 function isReturnOrRefund(order) {
   // A cancelled order stays under Cancelled, including while its refund is pending.
   if (order.order_status === 'cancelled') return false
   return order.payment_status === 'refunded' || Boolean(order.delivery_dispute_status)
 }
 
+// Checks whether an online order still needs payment.
 function needsPayment(order) {
   return ['gcash', 'qrph'].includes(order.payment_method) && order.order_status !== 'cancelled' && ['unpaid', 'pending', 'failed'].includes(order.payment_status)
 }
 
+// Checks whether an order belongs in the selected status tab.
 function matchesOrderFilter(order, filter) {
   if (filter === 'all') return true
   if (filter === 'returns') return isReturnOrRefund(order)
@@ -152,6 +157,7 @@ function matchesOrderFilter(order, filter) {
   return true
 }
 
+// Formats an order date for display.
 function formatDate(value, includeTime = false) {
   if (!value) return 'Pending'
   return new Intl.DateTimeFormat('en-PH', {
@@ -162,21 +168,25 @@ function formatDate(value, includeTime = false) {
   }).format(new Date(value))
 }
 
+// Formats a shorter date label.
 function formatShortDate(value) {
   if (!value) return ''
   return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(new Date(value))
 }
 
+// Displays an icon beside an order detail.
 function IconBadge({ icon: Icon }) {
   return <span className="delivery-icon-badge"><Icon aria-hidden="true" /></span>
 }
 
 // A delivered/completed order that has a return: the fulfilment steps are all done, so the
 // route card shrinks to one line and the return card leads the page.
+// Checks whether completed progress steps can be collapsed.
 function canCollapseProgress(order) {
   return isReturnOrRefund(order) && ['delivered', 'completed'].includes(order.order_status)
 }
 
+// Summarizes the current delivery progress.
 function progressSummary(order) {
   const isPickup = order.delivery_method === 'pickup'
   const when = isPickup ? (order.picked_up_at || order.completed_at) : (order.delivered_at || order.completed_at)
@@ -191,6 +201,7 @@ function progressSummary(order) {
   }
 }
 
+// Builds the order's delivery progress steps.
 function createMilestones(order) {
   const rank = statusRank[order.order_status] ?? 0
   const isPickup = order.delivery_method === 'pickup'
@@ -212,12 +223,14 @@ function createMilestones(order) {
     : { ...milestone, complete: index < rank, current: index === rank }))
 }
 
+// Summarizes an order's products for search.
 function orderItemsText(order) {
   return order.items.map((item) => `${item.quantity} ${item.product_name}`).join(', ')
 }
 
 // Split the address so the place a buyer recognises leads and the rest sits underneath.
 // Country is dropped, since every order is delivered in the same one.
+// Builds the delivery address shown for an order.
 function getDeliveryAddress(order) {
   const primary = [order.delivery_barangay, order.delivery_city_municipality].filter(Boolean).join(', ')
   const secondary = [order.delivery_province, order.delivery_region].filter(Boolean).join(', ')
@@ -226,7 +239,9 @@ function getDeliveryAddress(order) {
     : { primary: secondary, secondary: '' }
 }
 
+// Displays buyer order history and delivery tracking.
 export default function DeliveryProgress() {
+  // Reads an order to track directly from the page URL.
   const trackedOrderId = useMemo(() => {
     const value = Number(new URLSearchParams(window.location.search).get('track'))
     return Number.isSafeInteger(value) && value > 0 ? value : null
@@ -257,6 +272,7 @@ export default function DeliveryProgress() {
   const [rateError, setRateError] = useState('')
   const [rateSubmitted, setRateSubmitted] = useState(false)
 
+  // Loads the buyer's orders or the directly tracked order.
   const fetchOrders = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -278,6 +294,7 @@ export default function DeliveryProgress() {
     }
   }, [trackedOrderId])
 
+  // Loads orders when the page opens.
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
   // Fetching the single order (rather than reusing the list) is what lets the backend
@@ -294,16 +311,19 @@ export default function DeliveryProgress() {
     return () => { cancelled = true }
   }, [selectedOrderId, trackedOrderId])
 
+  // Finds the order open in the detail view.
   const selectedOrder = useMemo(
     () => orders.find((order) => order.id === selectedOrderId) || null,
     [orders, selectedOrderId],
   )
 
+  // Filters orders by the selected status.
   const filteredOrders = useMemo(
     () => orders.filter((order) => matchesOrderFilter(order, activeFilter)),
     [activeFilter, orders],
   )
 
+  // Searches within the filtered order list.
   const visibleOrders = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return filteredOrders
@@ -315,12 +335,14 @@ export default function DeliveryProgress() {
     ].some((value) => String(value || '').toLowerCase().includes(query)))
   }, [filteredOrders, searchQuery])
 
+  // Resets detail notices when another order is selected.
   useEffect(() => {
     setReceiptError('')
     setShowFullProgress(false)
     setShowPreCancelDetails(false)
   }, [selectedOrderId])
 
+  // Confirms receipt of the selected delivery.
   async function handleConfirmReceipt() {
     if (!selectedOrder) return
     setConfirming(true)
@@ -335,6 +357,7 @@ export default function DeliveryProgress() {
     }
   }
 
+  // Confirms receipt from the order list.
   async function handleListConfirmReceipt(order) {
     setConfirmingOrderId(order.id); setReceiptError('')
     try { const updated = await confirmBuyerOrderReceipt(order.id); setOrders((current) => current.map((item) => item.id === updated.id ? updated : item)) }
@@ -342,6 +365,7 @@ export default function DeliveryProgress() {
     finally { setConfirmingOrderId(null) }
   }
 
+  // Opens the cancellation form for an order.
   function openCancelModal(order) {
     setCancelTarget(order)
     setCancelReason('')
@@ -349,11 +373,13 @@ export default function DeliveryProgress() {
     setCancelError('')
   }
 
+  // Closes and resets the cancellation form.
   function closeCancelModal() {
     if (cancelling) return
     setCancelTarget(null)
   }
 
+  // Sends an order cancellation request.
   async function handleCancelOrder(event) {
     event.preventDefault()
     if (!cancelTarget || !cancelReason) return
@@ -372,6 +398,7 @@ export default function DeliveryProgress() {
   }
 
   // The cart page re-checks every saved item against live stock, so only ids and quantities are needed here.
+  // Adds an order's products to the cart again.
   function handleBuyAgain(order) {
     const merged = new Map(readBuyerCart().map((item) => [String(item.id), { ...item }]))
     order.items.forEach((item) => {
@@ -385,6 +412,7 @@ export default function DeliveryProgress() {
   }
 
   // initialValue lets a click on a star in the order card open the window with that star already chosen.
+  // Opens the rating form for a completed order.
   function openRateModal(order, initialValue = order.buyer_rating || 0) {
     setRateTarget(order)
     setRateValue(initialValue)
@@ -394,11 +422,13 @@ export default function DeliveryProgress() {
     setRateSubmitted(false)
   }
 
+  // Closes and resets the rating form.
   function closeRateModal() {
     if (rateSubmitting) return
     setRateTarget(null)
   }
 
+  // Saves a buyer rating for the order.
   async function handleSubmitRating(event) {
     event.preventDefault()
     if (!rateTarget || !rateValue) return
@@ -423,6 +453,7 @@ export default function DeliveryProgress() {
 
   return (
     <main className="buyer-page delivery-page">
+      {/* Marketplace navigation and order tracking. */}
       <BuyerHeader active="orders" cartCount={buyerCartQuantity(readBuyerCart())} />
 
       <div className="delivery-content">
@@ -456,6 +487,7 @@ export default function DeliveryProgress() {
 
         {!selectedOrder && (
           <>
+            {/* Filters for the buyer's order history. */}
             <nav className="buyer-order-tabs" aria-label="Filter orders by status">
               {ORDER_FILTERS.map((filter) => (
                 <button
@@ -491,6 +523,7 @@ export default function DeliveryProgress() {
           </section>
         )}
 
+        {/* Orders matching the selected filters. */}
         {!loading && !error && filteredOrders.length > 0 && !selectedOrder && (
           <section className="delivery-card order-history is-history-view" aria-labelledby="order-history-title">
             <header className="history-heading">
@@ -705,6 +738,7 @@ export default function DeliveryProgress() {
             </>}
           </section>
 
+            {/* Products in the selected order. */}
             <section className="delivery-card order-items" aria-labelledby="order-items-title">
               <h2 id="order-items-title">Order Items</h2>
               <div className="order-item-list">
@@ -721,6 +755,7 @@ export default function DeliveryProgress() {
 
           </div>
 
+          {/* Status, payment, and delivery actions. */}
           <aside className="order-detail-side">
             {selectedOrder.order_status === 'ready_for_pickup' && (
               <section className="delivery-card pickup-ticket" aria-labelledby="pickup-ticket-title">
@@ -855,6 +890,7 @@ export default function DeliveryProgress() {
         </>}
       </div>
 
+      {/* Form for cancelling an eligible order. */}
       {cancelTarget && (
         <div className="cancel-modal-overlay" onClick={closeCancelModal}>
           <form className="cancel-modal" onClick={(event) => event.stopPropagation()} onSubmit={handleCancelOrder}>
@@ -905,6 +941,7 @@ export default function DeliveryProgress() {
         </div>
       )}
 
+      {/* Form for rating a completed order. */}
       {rateTarget && (
         <div className="rate-modal-overlay" onClick={closeRateModal}>
           {rateSubmitted ? (
@@ -952,6 +989,7 @@ export default function DeliveryProgress() {
         </div>
       )}
 
+      {/* Full-size proof of delivery photo. */}
       {viewingDeliveryProof && selectedOrder?.delivery_proof_image_url && (
         <div className="return-lightbox-overlay" onClick={() => setViewingDeliveryProof(false)}>
           <div className="return-lightbox-content" onClick={(e) => e.stopPropagation()}>

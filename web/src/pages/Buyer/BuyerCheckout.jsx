@@ -34,6 +34,7 @@ import {
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/checkout.css'
 
+// Displays one selectable checkout option.
 function ChoiceCard({ checked, children, className = '', onSelect }) {
   return (
     <button
@@ -49,11 +50,13 @@ function ChoiceCard({ checked, children, className = '', onSelect }) {
   )
 }
 
+// Displays an icon for a checkout option.
 function CheckoutIcon({ name }) {
   const icons = { cash: cashIcon, delivery: deliveryIcon, pickup: pickupIcon }
   return <img className="checkout-generated-icon" src={icons[name]} alt="" aria-hidden="true" />
 }
 
+// Finds a location option by name.
 function matchingLocation(items, name) {
   const normalizedName = String(name || '').trim().toLocaleLowerCase()
   return items.find(
@@ -64,17 +67,20 @@ function matchingLocation(items, name) {
 const CITY_OF_MANILA_CODE = '1380600000'
 const CITY_OF_MANILA_PREFIX = CITY_OF_MANILA_CODE.slice(0, 5)
 
+// Checks whether a location is a Manila district.
 function isManilaDistrict(item) {
   return String(item?.code || '').startsWith(CITY_OF_MANILA_PREFIX)
     && item.code !== CITY_OF_MANILA_CODE
 }
 
+// Lists the district choices for Manila.
 function getManilaDistricts(items) {
   return items
     .filter(isManilaDistrict)
     .sort((first, second) => first.name.localeCompare(second.name))
 }
 
+// Prepares city and municipality choices for display.
 function normalizeCitiesMunicipalities(items) {
   const hasManilaLocation = items.some(
     (item) => item.code === CITY_OF_MANILA_CODE || isManilaDistrict(item),
@@ -92,6 +98,7 @@ function normalizeCitiesMunicipalities(items) {
   return normalizedItems.sort((first, second) => first.name.localeCompare(second.name))
 }
 
+// Displays the delivery location fields in checkout.
 function CheckoutLocationFields({ address, disabled, onChange, onValidityChange }) {
   const mountedRef = useRef(true)
   const requestVersionRef = useRef(0)
@@ -119,6 +126,7 @@ function CheckoutLocationFields({ address, disabled, onChange, onValidityChange 
   const manilaSelected = cityMunicipalityCode === CITY_OF_MANILA_CODE
   const selectedDistrict = districts.find((item) => item.code === districtCode)
 
+  // Reports whether the selected delivery location is complete.
   useEffect(() => {
     const locationIsValid = manualLocationEntry ? Boolean(
       address.region.trim()
@@ -147,12 +155,14 @@ function CheckoutLocationFields({ address, disabled, onChange, onValidityChange 
     regionCode,
   ])
 
+  // Loads location choices for the saved delivery address.
   useEffect(() => {
     mountedRef.current = true
     const initialAddress = initialAddressRef.current
     const requestVersion = requestVersionRef.current + 1
     requestVersionRef.current = requestVersion
 
+    // Matches saved address values to location choices.
     async function loadInitialLocation() {
       setLoadingRegions(true)
       setLocationError('')
@@ -253,6 +263,7 @@ function CheckoutLocationFields({ address, disabled, onChange, onValidityChange 
     }
   }, [])
 
+  // Loads provinces after a region is selected.
   async function selectRegion(event) {
     const nextCode = event.target.value
     const selectedRegion = regions.find((item) => item.code === nextCode)
@@ -301,6 +312,7 @@ function CheckoutLocationFields({ address, disabled, onChange, onValidityChange 
     }
   }
 
+  // Loads cities after a province is selected.
   async function selectProvince(event) {
     const nextCode = event.target.value
     const selectedProvince = provinces.find((item) => item.code === nextCode)
@@ -338,6 +350,7 @@ function CheckoutLocationFields({ address, disabled, onChange, onValidityChange 
     }
   }
 
+  // Loads barangays or districts for a city.
   async function selectCityMunicipality(event) {
     const nextCode = event.target.value
     const selectedCity = citiesMunicipalities.find((item) => item.code === nextCode)
@@ -374,6 +387,7 @@ function CheckoutLocationFields({ address, disabled, onChange, onValidityChange 
     }
   }
 
+  // Loads barangays for a Manila district.
   async function selectDistrict(event) {
     const nextCode = event.target.value
     const district = districts.find((item) => item.code === nextCode)
@@ -406,6 +420,7 @@ function CheckoutLocationFields({ address, disabled, onChange, onValidityChange 
     }
   }
 
+  // Saves the selected delivery barangay.
   function selectBarangay(event) {
     const nextCode = event.target.value
     const selectedBarangay = barangays.find((item) => item.code === nextCode)
@@ -519,11 +534,13 @@ const emptyAddress = {
 }
 const MINIMUM_PINEAPPLE_SUBTOTAL = 1500
 
+// Checks whether an address has all required fields.
 function addressIsComplete(address) {
   return ['full_name', 'mobile_number', 'country', 'region', 'city_municipality', 'barangay']
     .every((field) => String(address[field] || '').trim())
 }
 
+// Checks whether two delivery addresses match.
 function sameDeliveryAddress(first, second) {
   return Object.keys(emptyAddress).every((field) =>
     String(first?.[field] || '').trim().toLocaleLowerCase()
@@ -531,6 +548,7 @@ function sameDeliveryAddress(first, second) {
   )
 }
 
+// Displays delivery, payment, and order review steps.
 export default function BuyerCheckout() {
   const { profile } = useAuth()
   const [items, setItems] = useState([])
@@ -552,6 +570,7 @@ export default function BuyerCheckout() {
   const [savingAddress, setSavingAddress] = useState(false)
   const [retryingPayment, setRetryingPayment] = useState(false)
 
+  // Starts another online payment attempt for the order.
   async function retryOnlinePayment() {
     if (!placedOrder || retryingPayment) return
     setRetryingPayment(true)
@@ -565,10 +584,12 @@ export default function BuyerCheckout() {
     }
   }
 
+  // Clears the uncertain connection state after an error resolves.
   useEffect(() => {
     if (!error && orderConnectionUncertain) setOrderConnectionUncertain(false)
   }, [error, orderConnectionUncertain])
 
+  // Opens tracking after a non-GCash order is placed.
   useEffect(() => {
     if (!placedOrder || placedOrder.payment_method === 'gcash') return undefined
     const redirectTimer = window.setTimeout(() => {
@@ -577,6 +598,7 @@ export default function BuyerCheckout() {
     return () => window.clearTimeout(redirectTimer)
   }, [placedOrder])
 
+  // Loads the buyer's saved delivery addresses.
   useEffect(() => {
     let active = true
     loadBuyerDeliveryAddresses().then(({ addresses, defaultAddressId }) => {
@@ -594,8 +616,10 @@ export default function BuyerCheckout() {
     return () => { active = false }
   }, [])
 
+  // Checks cart items against current stock before checkout.
   useEffect(() => {
     let active = true
+    // Loads and verifies the items to be ordered.
     async function prepareCheckout() {
       const savedItems = readBuyerCart()
       if (savedItems.length === 0) {
@@ -628,6 +652,7 @@ export default function BuyerCheckout() {
     return () => { active = false }
   }, [])
 
+  // Builds the buyer's saved profile address.
   const savedAddress = useMemo(() => ({
     full_name: profile?.full_name || '',
     mobile_number: profile?.mobile_number || '',
@@ -640,6 +665,7 @@ export default function BuyerCheckout() {
 
   const deliveryAddress = orderAddress || savedAddress
 
+  // Chooses the address used for this order.
   const address = useMemo(() => {
     const locality = [deliveryAddress.barangay, deliveryAddress.city_municipality].filter(Boolean).join(', ')
     const region = [deliveryAddress.province, deliveryAddress.region, deliveryAddress.country].filter(Boolean).join(', ')
@@ -654,12 +680,14 @@ export default function BuyerCheckout() {
   else if (placedOrder) orderButtonLabel = 'Order placed'
   else if (deliveryMethod === 'delivery' && !addressIsComplete(deliveryAddress)) orderButtonLabel = 'Add delivery address'
 
+  // Closes the delivery address editor.
   function closeAddressModal() {
     if (savingAddress) return
     setAddressModalOpen(false)
     setError('')
   }
 
+  // Opens the delivery address editor.
   function openAddressEditor() {
     setAlternateAddress({ ...emptyAddress, ...deliveryAddress, country: 'Philippines' })
     setAddressLocationValid(false)
@@ -667,6 +695,7 @@ export default function BuyerCheckout() {
     setError('')
   }
 
+  // Saves the delivery address chosen for this order.
   async function saveAddressForOrder() {
     if (!addressIsComplete(alternateAddress) || !addressLocationValid || savingAddress) return
     const address = Object.fromEntries(
@@ -700,6 +729,7 @@ export default function BuyerCheckout() {
     }
   }
 
+  // Places the order with the selected delivery and payment details.
   async function completeOrder(addressForOrder = null) {
     if (items.length === 0 || placedOrder || placing) return
     if (subtotal < MINIMUM_PINEAPPLE_SUBTOTAL) {
@@ -769,6 +799,7 @@ export default function BuyerCheckout() {
     }
   }
 
+  // Validates checkout and starts order placement.
   async function submitOrder(event) {
     event.preventDefault()
     if (items.length === 0 || placedOrder) return
@@ -785,6 +816,7 @@ export default function BuyerCheckout() {
 
   return (
     <main className="buyer-page checkout-page">
+      {/* Marketplace navigation and checkout progress. */}
       <BuyerHeader active="orders" cartCount={placedOrder ? 0 : buyerCartQuantity(items)} />
       <BuyerJourneyNav current="checkout" />
 
@@ -806,6 +838,7 @@ export default function BuyerCheckout() {
             <button type="button" className="checkout-error-dismiss" onClick={() => setError('')} aria-label="Dismiss error"><X aria-hidden="true" /></button>
           </aside>
         )}
+        {/* Delivery address selection and editing. */}
         <section className="checkout-card checkout-address" aria-labelledby="delivery-address-title">
           <div className="checkout-address-head">
             <h2 id="delivery-address-title">Delivery Information</h2>
@@ -822,6 +855,7 @@ export default function BuyerCheckout() {
         </section>
 
         {addressModalOpen && <div className="checkout-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeAddressModal() }}>
+          {/* Form for a different delivery address. */}
           <section className="checkout-address-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-address-modal-title">
             <header><div><span>Delivery information</span><h2 id="checkout-address-modal-title">Delivery Address</h2><p>Enter the address to use for this order and future checkouts.</p></div><button type="button" onClick={closeAddressModal} disabled={savingAddress} aria-label="Close address form"><X /></button></header>
             <div className="checkout-address-fields checkout-new-address-fields">
@@ -840,6 +874,7 @@ export default function BuyerCheckout() {
             <footer><button type="button" className="is-cancel" onClick={closeAddressModal} disabled={savingAddress}>Cancel</button><button type="button" className="is-save" disabled={savingAddress || !addressIsComplete(alternateAddress) || !addressLocationValid} onClick={saveAddressForOrder}>{savingAddress ? 'Saving…' : 'Save and Use Address'}</button></footer>
           </section>
         </div>}
+        {/* Items and order cost summary. */}
         <section className="checkout-card checkout-summary" aria-labelledby="checkout-summary-title">
           <h2 id="checkout-summary-title">Order Summary</h2>
           {loading ? <p className="checkout-empty">Checking cart and inventory…</p>
@@ -864,6 +899,7 @@ export default function BuyerCheckout() {
         </section>
 
         <form className="checkout-card checkout-options" onSubmit={submitOrder}>
+          {/* Delivery or pickup choice. */}
           <section className="checkout-column" aria-labelledby="delivery-method-title">
             <h2 id="delivery-method-title">Delivery Method</h2>
             <div className="checkout-choice-list" role="radiogroup" aria-labelledby="delivery-method-title">
@@ -881,6 +917,7 @@ export default function BuyerCheckout() {
             <textarea id="checkout-notes" value={notes} maxLength="1000" onChange={(event) => setNotes(event.target.value)} placeholder="Delivery instructions or order notes (optional)" />
           </section>
 
+          {/* Payment method choice. */}
           <section className="checkout-column" aria-labelledby="payment-method-title">
             <h2 id="payment-method-title">Payment Method</h2>
             <div className="checkout-choice-list" role="radiogroup" aria-labelledby="payment-method-title">

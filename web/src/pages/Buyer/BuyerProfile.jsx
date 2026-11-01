@@ -222,6 +222,7 @@ export default function BuyerProfile() {
             </div>
           )}
 
+          {/* Profile edit form or saved account details. */}
           {editing ? (
             <form className="profile-edit-section" onSubmit={saveProfile}>
               <div className="profile-section-heading">
@@ -321,7 +322,6 @@ export default function BuyerProfile() {
               </div>
             </form>
           ) : (
-            {/* Saved account and address details. */}
             <section className="profile-details-section" aria-labelledby="profile-details-title">
               <header className="profile-details-heading">
                 <span>Account details</span>

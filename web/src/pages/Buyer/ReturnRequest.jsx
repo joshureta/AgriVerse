@@ -31,6 +31,7 @@ const issues = [
   { value: 'wrong_quantity', label: 'Wrong quantity', help: 'You received fewer items', icon: Scale },
 ]
 
+// Formats the order date and time.
 function formatDateTime(value) {
   if (!value) return 'Pending'
   return new Date(value).toLocaleDateString('en-US', {
@@ -42,7 +43,9 @@ function formatDateTime(value) {
   })
 }
 
+// Displays the form for reporting a delivery problem.
 export default function ReturnRequest() {
+  // Reads the order number from the page URL.
   const orderId = useMemo(() => Number(new URLSearchParams(window.location.search).get('order')), [])
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -57,6 +60,7 @@ export default function ReturnRequest() {
   const [submitting, setSubmitting] = useState(false)
   const [validationErrors, setValidationErrors] = useState({})
 
+  // Loads the order and selects its items for the report.
   const load = useCallback(async () => {
     try {
       const loaded = await loadBuyerOrder(orderId)
@@ -76,6 +80,7 @@ export default function ReturnRequest() {
     }
   }, [orderId])
 
+  // Loads the specified order when the page opens.
   useEffect(() => {
     if (Number.isSafeInteger(orderId) && orderId > 0) {
       load()
@@ -85,6 +90,7 @@ export default function ReturnRequest() {
     }
   }, [load, orderId])
 
+  // Creates previews for the selected evidence photos.
   useEffect(() => {
     const urls = photos.map((file) => URL.createObjectURL(file))
     setPhotoPreviews(urls)
@@ -93,6 +99,7 @@ export default function ReturnRequest() {
     }
   }, [photos])
 
+  // Selects or clears an affected order item.
   function toggleItemSelection(item) {
     setValidationErrors((current) => ({ ...current, items: '' }))
     setSelectedItems((prev) => {
@@ -106,6 +113,7 @@ export default function ReturnRequest() {
     })
   }
 
+  // Changes the affected quantity for an item.
   function adjustItemQuantity(item, delta) {
     setSelectedItems((prev) => {
       const current = prev[item.id] || 1
@@ -114,6 +122,7 @@ export default function ReturnRequest() {
     })
   }
 
+  // Selects or clears all items in the order.
   function toggleSelectAll() {
     if (!order?.items) return
     const allSelected = order.items.every((it) => selectedItems[it.id] > 0)
@@ -128,6 +137,7 @@ export default function ReturnRequest() {
     }
   }
 
+  // Adds uploaded photos as evidence.
   function handlePhotoSelect(event) {
     const selected = Array.from(event.target.files || [])
     if (!selected.length) return
@@ -136,18 +146,22 @@ export default function ReturnRequest() {
     event.target.value = ''
   }
 
+  // Removes a selected evidence photo.
   function removePhoto(indexToRemove) {
     setPhotos((current) => current.filter((_, index) => index !== indexToRemove))
   }
 
+  // Counts the items included in the report.
   const selectedCount = useMemo(() => {
     return Object.values(selectedItems).filter((q) => q > 0).length
   }, [selectedItems])
 
+  // Totals the affected product quantity.
   const totalAffectedQuantity = useMemo(() => {
     return Object.values(selectedItems).reduce((sum, q) => sum + (Number(q) || 0), 0)
   }, [selectedItems])
 
+  // Estimates the refund for selected items.
   const estimatedRefund = useMemo(() => {
     if (!order?.items) return 0
     let total = 0
@@ -161,6 +175,7 @@ export default function ReturnRequest() {
     return Math.min(total, Number(order.total_amount))
   }, [order, selectedItems])
 
+  // Checks that the report has its required details.
   function validateReport() {
     const nextErrors = {}
     if (!category) nextErrors.category = 'Choose what happened to your delivery.'
@@ -170,6 +185,7 @@ export default function ReturnRequest() {
     return nextErrors
   }
 
+  // Sends the delivery problem report with its photos.
   async function submit(event) {
     if (event) event.preventDefault()
     if (submitting) return
@@ -229,6 +245,7 @@ export default function ReturnRequest() {
 
   return (
     <main className="buyer-page delivery-page">
+      {/* Marketplace navigation and return request. */}
       <BuyerHeader active="orders" cartCount={0} />
 
       <div className="delivery-content">
@@ -247,6 +264,7 @@ export default function ReturnRequest() {
         {loading && <div className="delivery-message">Loading your delivered order…</div>}
         {error && <div className="delivery-message is-error">{error}</div>}
 
+        {/* Problem details form for the selected order. */}
         {order && (
           <>
             <header className="delivery-title">
@@ -489,6 +507,7 @@ export default function ReturnRequest() {
                 </section>
               </form>
 
+              {/* Order summary and claim guidance. */}
               <aside className="order-detail-side">
                 <section className="delivery-card order-details" aria-labelledby="request-order-details-title">
                   <h2 id="request-order-details-title">Order Details</h2>

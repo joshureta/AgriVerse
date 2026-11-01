@@ -30,6 +30,7 @@ const categoryLabels = {
   wrong_quantity: 'Incorrect quantity delivered',
 }
 
+// Formats the order date and time.
 function formatDateTime(value) {
   if (!value) return 'Pending'
   return new Date(value).toLocaleDateString('en-US', {
@@ -41,13 +42,16 @@ function formatDateTime(value) {
   })
 }
 
+// Displays the status and evidence for a return claim.
 export default function ReturnDetails() {
+  // Reads the order number from the page URL.
   const orderId = useMemo(() => Number(new URLSearchParams(window.location.search).get('order')), [])
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activePhoto, setActivePhoto] = useState(null)
 
+  // Loads the order and its return details.
   const load = useCallback(async () => {
     try {
       const loaded = await loadBuyerOrder(orderId)
@@ -59,6 +63,7 @@ export default function ReturnDetails() {
     }
   }, [orderId])
 
+  // Loads the specified order when the page opens.
   useEffect(() => {
     if (Number.isSafeInteger(orderId) && orderId > 0) {
       load()
@@ -135,11 +140,13 @@ export default function ReturnDetails() {
     }))
   }, [order, itemBreakdownText])
 
+  // Calculates the refund amount shown for the claim.
   const totalRefundAmount = useMemo(() => {
     if (order?.refund_amount != null) return Number(order.refund_amount)
     return affectedItemsList.reduce((sum, it) => sum + (it.subtotal || 0), 0)
   }, [order, affectedItemsList])
 
+  // Lists the photos attached to the claim.
   const photos = useMemo(() => {
     if (Array.isArray(order?.delivery_dispute_photo_urls)) {
       return order.delivery_dispute_photo_urls
@@ -151,6 +158,7 @@ export default function ReturnDetails() {
 
   return (
     <main className="buyer-page delivery-page">
+      {/* Marketplace navigation and return details. */}
       <BuyerHeader active="orders" />
 
       <div className="delivery-content">
@@ -169,6 +177,7 @@ export default function ReturnDetails() {
         {loading && <div className="delivery-message">Loading your dispute details…</div>}
         {error && <div className="delivery-message is-error">{error}</div>}
 
+        {/* Claim progress, affected items, and evidence. */}
         {order && (
           <>
             <header className="delivery-title">
@@ -312,6 +321,7 @@ export default function ReturnDetails() {
       </div>
 
       {/* Lightbox Modal for Photo Evidence */}
+      {/* Full-size claim photo preview. */}
       {activePhoto && (
         <div className="return-lightbox-overlay" onClick={() => setActivePhoto(null)}>
           <div className="return-lightbox-content" onClick={(e) => e.stopPropagation()}>
