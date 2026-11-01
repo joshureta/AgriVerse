@@ -18,6 +18,7 @@ const roleOptions = [
   { value: 'farm_worker', label: 'Farm Worker' },
 ]
 
+// Formats the date a user account was created.
 function formatCreatedAt(value) {
   if (!value) return '—'
   return new Intl.DateTimeFormat('en-US', {
@@ -25,6 +26,7 @@ function formatCreatedAt(value) {
   }).format(new Date(value))
 }
 
+// Converts a role value into a readable label.
 function roleLabel(role) {
   return {
     admin: 'Admin',
@@ -33,6 +35,7 @@ function roleLabel(role) {
   }[role] || role
 }
 
+// Gets the current access token or refreshes the session.
 async function readAccessToken(refresh = false) {
   const result = refresh
     ? await supabase.auth.refreshSession()
@@ -44,6 +47,7 @@ async function readAccessToken(refresh = false) {
   return token
 }
 
+// Sends an authenticated request to the admin API.
 async function apiRequest(path, options = {}, retry = true) {
   const token = await readAccessToken()
   const controller = new AbortController()
@@ -78,6 +82,7 @@ async function apiRequest(path, options = {}, retry = true) {
   }
 }
 
+// Displays and manages the user accounts page.
 export default function UserManagement() {
   const { user: currentUser } = useAuth()
   const [users, setUsers] = useState([])
@@ -110,12 +115,14 @@ export default function UserManagement() {
   ]
   const passwordScore = passwordChecks.filter((check) => check.met).length
 
+  // Closes the user form and resets its password fields.
   const closeModal = useCallback(() => {
     setModal(null)
     setTempPassword('')
     setShowTempPassword(false)
   }, [])
 
+  // Loads users for the current page and filters.
   const loadUsers = useCallback(async () => {
     if (!currentUser?.id) return
     setLoading(true)
@@ -137,14 +144,17 @@ export default function UserManagement() {
     }
   }, [currentUser?.id, page, roleFilter, search])
 
+  // Reloads users after search, filter, page, or data changes.
   useEffect(() => {
     const delay = window.setTimeout(loadUsers, search ? 300 : 0)
     return () => window.clearTimeout(delay)
   }, [loadUsers, refreshKey, search])
 
+  // Closes the role filter when the user clicks away or presses Escape.
   useEffect(() => {
     if (!filterOpen) return undefined
 
+    // Handles clicks and key presses outside the role filter.
     function closeFilter(event) {
       if (event.key === 'Escape' || !filterRef.current?.contains(event.target)) {
         setFilterOpen(false)
@@ -159,10 +169,12 @@ export default function UserManagement() {
     }
   }, [filterOpen])
 
+  // Keeps keyboard focus inside the delete confirmation dialog.
   useEffect(() => {
     if (!deleteTarget) return undefined
     deleteCancelRef.current?.focus()
 
+    // Handles Escape and Tab keys in the delete dialog.
     function handleDialogKeyDown(event) {
       if (event.key === 'Escape' && !deleting) {
         event.preventDefault()
@@ -186,6 +198,7 @@ export default function UserManagement() {
     return () => document.removeEventListener('keydown', handleDialogKeyDown)
   }, [deleteTarget, deleting])
 
+  // Creates or updates a user from the form values.
   async function handleSubmit(event) {
     event.preventDefault()
     setSaving(true)
@@ -233,12 +246,14 @@ export default function UserManagement() {
     }
   }
 
+  // Closes the delete dialog and restores focus when needed.
   function closeDeleteDialog(restoreFocus = true) {
     setDeleteTarget(null)
     setDeleteError('')
     if (restoreFocus) deleteTriggerRef.current?.focus()
   }
 
+  // Opens the delete confirmation for a selected user.
   function requestDelete(user, trigger) {
     deleteTriggerRef.current = trigger
     setError('')
@@ -246,6 +261,7 @@ export default function UserManagement() {
     setDeleteTarget(user)
   }
 
+  // Deletes the selected user and refreshes the list.
   async function handleDelete() {
     if (!deleteTarget || deleting) return
     setDeleting(true)
@@ -267,12 +283,14 @@ export default function UserManagement() {
 
   return (
     <main className="admin-dashboard user-management-page">
+      {/* Admin navigation and page header. */}
       <AdminSidebar active="users" />
 
       <section className="admin-workspace">
         <AdminTopbar />
 
         <div className="user-management-content">
+          {/* Page title and description. */}
           <header className="user-page-heading">
             <div>
               <h1>User Management</h1>
@@ -282,7 +300,9 @@ export default function UserManagement() {
             </div>
           </header>
 
+          {/* User filters, search, and account list. */}
           <section className="users-panel">
+            {/* Controls for filtering and adding users. */}
             <div className="users-toolbar">
               <div className="role-filter" ref={filterRef}>
                 <button
@@ -334,6 +354,7 @@ export default function UserManagement() {
             </div>
 
             {error && !modal && <div className="users-error" role="alert">{error}</div>}
+            {/* User table with edit and delete actions. */}
             <div className="users-table-wrap">
               <table className="users-table">
                 <thead><tr><th>FULL NAME</th><th>EMAIL</th><th>ROLE</th><th>CREATED AT</th><th>ACTIONS</th></tr></thead>
@@ -357,6 +378,7 @@ export default function UserManagement() {
                 </tbody>
               </table>
             </div>
+            {/* User count and page controls. */}
             <footer className="pagination-footer">
               <span>{pagination.total} total user{pagination.total === 1 ? '' : 's'}</span>
               <Pagination page={page} totalPages={pagination.totalPages} onChange={setPage} disabled={loading} ariaLabel="User pages" />
@@ -365,6 +387,7 @@ export default function UserManagement() {
         </div>
       </section>
 
+      {/* Form for adding or updating a user. */}
       {modal && (
         <div className="user-modal-backdrop" role="presentation">
           <section className="user-modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
@@ -463,6 +486,7 @@ export default function UserManagement() {
         </div>
       )}
 
+      {/* Confirmation dialog for deleting a user. */}
       {deleteTarget && (
         <div className="user-modal-backdrop">
           <section
