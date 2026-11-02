@@ -10,11 +10,12 @@ import '../../styles/inventory-management.css'
 import '../../styles/seller-workspace.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
-const PAGE_SIZE = 5
+const PAGE_SIZE = 10
+const equipmentConditions = ['Good', 'Fair', 'Needs repair', 'Unusable']
 const emptyItemForm = {
   inventory_category_id: '', unit_id: '', item_name: '', stock_quantity: '', stock_to_add: '',
-  size_id: '', harvest_date: '', formulation: '', expiration_date: '', pesticide_type: '',
-  equipment_type_id: '', condition: '', availability: '', last_maintenance: '',
+  size_id: '', harvest_date: '', formulation: '', pesticide_type: '',
+  equipment_type_id: '', condition: '', last_maintenance: '',
 }
 
 // Gets an access token for inventory requests.
@@ -76,13 +77,13 @@ function categoryDetails(item) {
     return [item.variant, details.harvest_date ? `Harvested ${formatDate(details.harvest_date)}` : null].filter(Boolean).join(' · ')
   }
   if (item.category_code === 'fertilizer') {
-    return [details.formulation || item.variant, details.expiration_date ? `Expires ${formatDate(details.expiration_date)}` : null].filter(Boolean).join(' · ')
+    return details.formulation || item.variant
   }
   if (item.category_code === 'pesticide') {
-    return [details.pesticide_type || item.variant, details.expiration_date ? `Expires ${formatDate(details.expiration_date)}` : null].filter(Boolean).join(' · ')
+    return details.pesticide_type || item.variant
   }
   if (item.category_code === 'equipment') {
-    return [item.variant, details.condition, details.availability].filter(Boolean).join(' · ')
+    return [item.variant, details.condition].filter(Boolean).join(' · ')
   }
   return item.variant === '—' ? 'General inventory item' : item.variant
 }
@@ -134,7 +135,6 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
   const [itemForm, setItemForm] = useState(emptyItemForm)
-  const [categoryForm, setCategoryForm] = useState({ category_name: '', description: '' })
   const [refreshKey, setRefreshKey] = useState(0)
   const inventoryApi = workspace === 'seller' ? '/api/seller/inventory' : '/api/admin/inventory'
   const Sidebar = workspace === 'seller' ? SellerSidebar : AdminSidebar
@@ -143,13 +143,12 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   const selectedCategory = options.categories.find(
     (category) => String(category.id) === String(itemForm.inventory_category_id),
   )
+  const confirmingArchiveChange = modal?.mode === 'confirm-archive' || modal?.mode === 'confirm-restore'
   const inventoryWarnings = [
     { key: 'items-out', view: 'items', count: alerts?.items?.out, title: 'Items Out of Stock:', message: () => alertItemNames(alerts?.items?.examples?.out, alerts?.items?.out, true), tone: 'error' },
     { key: 'stock-out', view: 'stock', count: alerts?.stock?.out, title: 'Pineapple Stock Out:', message: () => alertItemNames(alerts?.stock?.examples?.out, alerts?.stock?.out, true), tone: 'error' },
     { key: 'items-low', view: 'items', count: alerts?.items?.low, title: 'Low Inventory Stock:', message: () => alertItemNames(alerts?.items?.examples?.low, alerts?.items?.low, true), tone: 'warning' },
     { key: 'stock-low', view: 'stock', count: alerts?.stock?.low, title: 'Low Pineapple Stock:', message: () => alertItemNames(alerts?.stock?.examples?.low, alerts?.stock?.low, true), tone: 'warning' },
-    { key: 'expired', view: 'items', count: alerts?.items?.expired, title: 'Expired Supplies:', message: () => alertItemNames(alerts?.items?.examples?.expired, alerts?.items?.expired), tone: 'error' },
-    { key: 'expiring', view: 'items', count: alerts?.items?.expiring, title: 'Expiring Soon:', message: () => alertItemNames(alerts?.items?.examples?.expiring, alerts?.items?.expiring), tone: 'warning' },
   ].filter((warning) => warning.count > 0 && (workspace === 'admin' || warning.view === 'stock') && !dismissedAlerts[warning.key])
 
   // Loads items for the current view, filters, and page.
@@ -180,7 +179,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     .then((data) => { setOptions(data); setOptionsError('') })
     .catch((requestError) => setOptionsError(requestError.message)), [inventoryApi])
 
-  // Loads low stock and expiration alerts.
+  // Loads inventory stock alerts.
   const loadAlerts = useCallback(async () => {
     setAlerts(null)
     try {
@@ -247,14 +246,15 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setError('')
     setNotice(null)
     const firstItemCategory = options.categories.find((category) => category.code !== 'pineapple')
-    setItemForm({
+    const initialForm = {
       ...emptyItemForm,
       inventory_category_id: firstItemCategory?.id || '',
       unit_id: options.units[0]?.id || '',
       size_id: options.pineappleSizes[0]?.id || '',
       equipment_type_id: options.equipmentTypes[0]?.id || '',
-    })
-    setModal({ mode: 'add-item' })
+    }
+    setItemForm(initialForm)
+    setModal({ mode: 'add-item', initialForm })
   }
 
   // Switches between inventory, stock, and archive views.
@@ -280,7 +280,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   function openEditItem(item) {
     setError('')
     setNotice(null)
-    setItemForm({
+    const initialForm = {
       ...emptyItemForm,
       inventory_category_id: item.inventory_category_id,
       unit_id: item.unit_id,
@@ -290,14 +290,23 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
       size_id: item.details?.size_id || '',
       harvest_date: item.details?.harvest_date || '',
       formulation: item.details?.formulation || '',
-      expiration_date: item.details?.expiration_date || '',
       pesticide_type: item.details?.pesticide_type || '',
       equipment_type_id: item.details?.equipment_type_id || '',
       condition: item.details?.condition || '',
-      availability: item.details?.availability || '',
       last_maintenance: item.details?.last_maintenance || '',
-    })
-    setModal({ mode: 'edit-item', item })
+    }
+    setItemForm(initialForm)
+    setModal({ mode: 'edit-item', item, initialForm })
+  }
+
+  // Asks before closing an item form with unsaved changes.
+  function closeItemForm() {
+    if (saving) return
+    const hasChanges = Object.keys(emptyItemForm).some(
+      (key) => String(itemForm[key] ?? '') !== String(modal.initialForm[key] ?? ''),
+    )
+    if (hasChanges) setModal((currentModal) => ({ mode: 'confirm-discard', previous: currentModal }))
+    else { setModal(null); setError('') }
   }
 
   // Opens the form to add pineapple stock.
@@ -356,14 +365,6 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     }
   }
 
-  // Opens a blank inventory category form.
-  function openAddCategory() {
-    setError('')
-    setNotice(null)
-    setCategoryForm({ category_name: '', description: '' })
-    setModal({ mode: 'add-category' })
-  }
-
   // Saves a new or edited inventory item.
   async function saveItem(event) {
     event.preventDefault()
@@ -398,52 +399,34 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     }
   }
 
-  // Saves a new inventory category.
-  async function addCategory(event) {
-    event.preventDefault()
+  // Opens a confirmation for archiving or restoring an inventory item.
+  function requestArchiveChange(item, restoring) {
+    setError('')
+    setNotice(null)
+    setModal({ mode: restoring ? 'confirm-restore' : 'confirm-archive', item })
+  }
+
+  // Applies the confirmed archive or restore action.
+  async function submitArchiveChange() {
+    const restoring = modal.mode === 'confirm-restore'
+    const item = modal.item
+    const destination = item.category_code === 'pineapple' ? 'Pineapple Stock' : 'Inventory Items'
     setSaving(true)
     setError('')
     try {
-      await apiRequest(`${inventoryApi}/categories`, {
-        method: 'POST',
-        body: JSON.stringify(categoryForm),
-      })
+      await apiRequest(`${inventoryApi}/${item.id}/${restoring ? 'restore' : 'archive'}`, { method: 'POST' })
       setModal(null)
-      await loadOptions()
-      completeAction('Category added:', `${categoryForm.category_name.trim()} is ready for inventory items.`)
+      const moveToPreviousPage = items.length === 1 && page > 1
+      if (moveToPreviousPage) setPage((value) => value - 1)
+      completeAction(
+        restoring ? 'Item restored:' : 'Item archived:',
+        restoring ? `${item.item_name} is back in ${destination}.` : `${item.item_name} was moved to Archived Items.`,
+        !moveToPreviousPage,
+      )
     } catch (requestError) {
       setError(requestError.message)
     } finally {
       setSaving(false)
-    }
-  }
-
-  // Archives an inventory item.
-  async function archiveItem(item) {
-    if (!window.confirm(`Archive ${item.item_name} (${item.variant})?`)) return
-    setError('')
-    setNotice(null)
-    try {
-      await apiRequest(`${inventoryApi}/${item.id}/archive`, { method: 'POST' })
-      const moveToPreviousPage = items.length === 1 && page > 1
-      if (moveToPreviousPage) setPage((value) => value - 1)
-      completeAction('Item archived:', `${item.item_name} was moved to Archived Items.`, !moveToPreviousPage)
-    } catch (requestError) {
-      setError(requestError.message)
-    }
-  }
-
-  // Restores an archived inventory item.
-  async function restoreItem(item) {
-    setError('')
-    setNotice(null)
-    try {
-      await apiRequest(`${inventoryApi}/${item.id}/restore`, { method: 'POST' })
-      const moveToPreviousPage = items.length === 1 && page > 1
-      if (moveToPreviousPage) setPage((value) => value - 1)
-      completeAction('Item restored:', `${item.item_name} is back in Inventory Items.`, !moveToPreviousPage)
-    } catch (requestError) {
-      setError(requestError.message)
     }
   }
 
@@ -512,7 +495,6 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                 </svg>
               </label>}
               {activeView === 'items' && <div className="inventory-toolbar-actions">
-                <button className="add-category-button" type="button" onClick={openAddCategory}><span>＋</span>Add Category</button>
                 <button className="add-item-button" type="button" onClick={openAddItem}><span>＋</span>Add Item</button>
               </div>}
             </div>}
@@ -541,9 +523,9 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                             <button className="inventory-edit" type="button" onClick={() => openEditItem(item)} aria-label={`Edit ${item.item_name}`}>✎</button>
                             <button className="inventory-add-stock-icon" type="button" onClick={() => openAddStock(item)} aria-label={`Add stock to ${item.item_name}`}><PackagePlus size={14} aria-hidden="true" /></button>
                             <button className="inventory-remove-stock" type="button" onClick={() => openRemoveStock(item)} aria-label={`Remove stock from ${item.item_name}`} disabled={item.stock_quantity <= 0}><PackageMinus size={14} aria-hidden="true" /></button>
-                            <button className="inventory-archive" type="button" onClick={() => archiveItem(item)} aria-label={`Archive ${item.item_name}`}><img src={archiveIcon} alt="" /></button>
+                            <button className="inventory-archive" type="button" onClick={() => requestArchiveChange(item, false)} aria-label={`Archive ${item.item_name}`}><img src={archiveIcon} alt="" /></button>
                           </>
-                            : <button className="inventory-restore" type="button" onClick={() => restoreItem(item)} aria-label={`Restore ${item.item_name}`}>Restore</button>}
+                            : <button className="inventory-restore" type="button" onClick={() => requestArchiveChange(item, true)} aria-label={`Restore ${item.item_name}`}>Restore</button>}
                         </div></td>
                       </tr>
                     )) : <tr><td className="inventory-empty" colSpan="8">{activeView === 'archive' ? 'No archived items found.' : 'No inventory items found.'}</td></tr>}
@@ -586,31 +568,13 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
         </div>
       </section>
 
-      {/* Form for a new inventory category. */}
-      {modal?.mode === 'add-category' && <div className="inventory-modal-backdrop">
-        <section className="inventory-modal inventory-form-modal category-modal" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
-          <header className="inventory-form-header">
-            <div><p>Inventory setup</p><h2 id="category-modal-title">Add Category</h2></div>
-            <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
-          </header>
-          <div className="inventory-form-body">
-            {error && <InventoryNotice title="Category could not be saved:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
-            <form onSubmit={addCategory}>
-            <label><span>Category name</span><input value={categoryForm.category_name} onChange={(event) => setCategoryForm({ ...categoryForm, category_name: event.target.value })} maxLength="80" placeholder="Example: Seeds" required /></label>
-            <label><span>Description (optional)</span><input value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} maxLength="300" placeholder="What items belong in this category?" /></label>
-            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add Category'}</button></footer>
-            </form>
-          </div>
-        </section>
-      </div>}
-
       {/* Form for adding or editing an inventory item. */}
       {(modal?.mode === 'add-item' || modal?.mode === 'edit-item') && <div className="inventory-modal-backdrop">
         <section className="inventory-modal inventory-form-modal" role="dialog" aria-modal="true" aria-labelledby="inventory-modal-title">
           <header className="inventory-form-header">
             <div><p>{modal.mode === 'add-item' ? 'New inventory record' : 'Update inventory record'}</p>
               <h2 id="inventory-modal-title">{modal.mode === 'add-item' ? 'Add Item' : `Edit ${modal.item.item_name}`}</h2></div>
-            <button className="inventory-modal-close" type="button" onClick={() => setModal(null)} aria-label="Close"><X size={18} aria-hidden="true" /></button>
+            <button className="inventory-modal-close" type="button" onClick={closeItemForm} disabled={saving} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           </header>
           <div className="inventory-form-body">
             {error && <InventoryNotice title="Item could not be saved:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
@@ -627,21 +591,54 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
             </>}
             {selectedCategory?.code === 'fertilizer' && <>
               <label><span>Formulation</span><input value={itemForm.formulation} onChange={(event) => setItemForm({ ...itemForm, formulation: event.target.value })} required maxLength="120" /></label>
-              <label><span>Expiration date</span><input type="date" value={itemForm.expiration_date} onChange={(event) => setItemForm({ ...itemForm, expiration_date: event.target.value })} /></label>
             </>}
             {selectedCategory?.code === 'pesticide' && <>
               <label><span>Pesticide type</span><input value={itemForm.pesticide_type} onChange={(event) => setItemForm({ ...itemForm, pesticide_type: event.target.value })} required maxLength="120" /></label>
-              <label><span>Expiration date</span><input type="date" value={itemForm.expiration_date} onChange={(event) => setItemForm({ ...itemForm, expiration_date: event.target.value })} /></label>
             </>}
             {selectedCategory?.code === 'equipment' && <>
               <label><span>Equipment type</span><select value={itemForm.equipment_type_id} onChange={(event) => setItemForm({ ...itemForm, equipment_type_id: event.target.value })} required><option value="" disabled>Select equipment type</option>{options.equipmentTypes.map((equipmentType) => <option value={equipmentType.id} key={equipmentType.id}>{equipmentType.type_name}</option>)}</select></label>
-              <label><span>Condition</span><input value={itemForm.condition} onChange={(event) => setItemForm({ ...itemForm, condition: event.target.value })} required maxLength="80" /></label>
-              <label><span>Availability</span><input value={itemForm.availability} onChange={(event) => setItemForm({ ...itemForm, availability: event.target.value })} required maxLength="80" /></label>
+              <label><span>Condition</span><select value={itemForm.condition} onChange={(event) => setItemForm({ ...itemForm, condition: event.target.value })} required>
+                <option value="" disabled>Select condition</option>
+                {itemForm.condition && !equipmentConditions.includes(itemForm.condition) && <option value={itemForm.condition}>{itemForm.condition} (existing value)</option>}
+                {equipmentConditions.map((condition) => <option value={condition} key={condition}>{condition}</option>)}
+              </select></label>
               <label><span>Last maintenance</span><input type="date" value={itemForm.last_maintenance} onChange={(event) => setItemForm({ ...itemForm, last_maintenance: event.target.value })} /></label>
             </>}
-            <footer><button type="button" onClick={() => setModal(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Item'}</button></footer>
+            <footer><button type="button" onClick={closeItemForm} disabled={saving}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Item'}</button></footer>
             </form>
           </div>
+        </section>
+      </div>}
+
+      {/* Keeps unsaved item details from being discarded by accident. */}
+      {modal?.mode === 'confirm-discard' && <div className="inventory-modal-backdrop">
+        <section className="inventory-modal inventory-action-modal" role="alertdialog" aria-modal="true" aria-labelledby="discard-item-title" aria-describedby="discard-item-description">
+          <button className="inventory-modal-close" type="button" onClick={() => setModal(modal.previous)} aria-label="Keep editing"><X size={18} aria-hidden="true" /></button>
+          <span className="inventory-action-icon is-warning" aria-hidden="true"><TriangleAlert size={24} /></span>
+          <h2 id="discard-item-title">Discard unsaved changes?</h2>
+          <p id="discard-item-description">Your changes to {modal.previous.mode === 'edit-item' ? <strong>{modal.previous.item.item_name}</strong> : 'this new item'} have not been saved.</p>
+          <footer>
+            <button type="button" autoFocus onClick={() => setModal(modal.previous)}>Keep editing</button>
+            <button type="button" className="inventory-action-submit is-warning" onClick={() => { setModal(null); setError('') }}>Discard changes</button>
+          </footer>
+        </section>
+      </div>}
+
+      {/* Confirms where an inventory item will move before archiving or restoring it. */}
+      {confirmingArchiveChange && <div className="inventory-modal-backdrop">
+        <section className="inventory-modal inventory-action-modal" role="alertdialog" aria-modal="true" aria-labelledby="inventory-action-title" aria-describedby="inventory-action-description">
+          <button className="inventory-modal-close" type="button" onClick={() => { setModal(null); setError('') }} disabled={saving} aria-label="Cancel"><X size={18} aria-hidden="true" /></button>
+          <span className={`inventory-action-icon${modal.mode === 'confirm-archive' ? ' is-warning' : ''}`} aria-hidden="true">{modal.mode === 'confirm-archive' ? <TriangleAlert size={24} /> : <CheckCircle2 size={24} />}</span>
+          <h2 id="inventory-action-title">{modal.mode === 'confirm-archive' ? 'Archive' : 'Restore'} {modal.item.item_name}?</h2>
+          <p id="inventory-action-description">{modal.mode === 'confirm-archive'
+            ? <>This item will move to <strong>Archived Items</strong> and no longer appear in active inventory. Its stock record will be kept.</>
+            : <>This item will return to <strong>{modal.item.category_code === 'pineapple' ? 'Pineapple Stock' : 'Inventory Items'}</strong> with its saved stock.</>}</p>
+          <div className="inventory-action-summary"><span>Current stock</span><strong>{modal.item.stock_quantity} {modal.item.unit_label || 'units'}</strong></div>
+          {error && <InventoryNotice title={`${modal.mode === 'confirm-archive' ? 'Archive' : 'Restore'} failed:`} onDismiss={() => setError('')}>{error}</InventoryNotice>}
+          <footer>
+            <button type="button" autoFocus onClick={() => { setModal(null); setError('') }} disabled={saving}>Cancel</button>
+            <button type="button" className={`inventory-action-submit${modal.mode === 'confirm-archive' ? ' is-warning' : ''}`} onClick={submitArchiveChange} disabled={saving}>{saving ? 'Saving…' : modal.mode === 'confirm-archive' ? 'Archive item' : 'Restore item'}</button>
+          </footer>
         </section>
       </div>}
 

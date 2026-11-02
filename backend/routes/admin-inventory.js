@@ -9,9 +9,9 @@ const inventorySelect = [
   "category:inventory_categories!inventory_items_inventory_category_id_fkey(id, category_name, code, status)",
   "unit:measurement_units!inventory_items_unit_id_fkey(id, unit_name, abbreviation, status)",
   "pineapple_inventory(inventory_id, size_id, harvest_date, size:pineapple_sizes!pineapple_inventory_size_id_fkey(id, size_name, status))",
-  "fertilizer_inventory(inventory_id, formulation, expiration_date)",
-  "pesticide_inventory(inventory_id, pesticide_type, expiration_date)",
-  "equipment_inventory(inventory_id, equipment_type_id, condition, availability, last_maintenance, equipment_type:equipment_types!equipment_inventory_equipment_type_id_fkey(id, type_name, status))",
+  "fertilizer_inventory(inventory_id, formulation)",
+  "pesticide_inventory(inventory_id, pesticide_type)",
+  "equipment_inventory(inventory_id, equipment_type_id, condition, last_maintenance, equipment_type:equipment_types!equipment_inventory_equipment_type_id_fkey(id, type_name, status))",
 ].join(",");
 
 function requireInventoryAccess(req, res, next) {
@@ -164,15 +164,14 @@ async function inventoryPayload(body, { requireQuantity = true } = {}) {
     const size = await ensureActive("pineapple_sizes", body.size_id, "Pineapple size");
     detail = { table: "pineapple_inventory", values: { size_id: size.id, harvest_date: readDate(body.harvest_date, "Harvest date") } };
   } else if (category.code === "fertilizer") {
-    detail = { table: "fertilizer_inventory", values: { formulation: readText(body.formulation, "Formulation", 120), expiration_date: readDate(body.expiration_date, "Expiration date") } };
+    detail = { table: "fertilizer_inventory", values: { formulation: readText(body.formulation, "Formulation", 120) } };
   } else if (category.code === "pesticide") {
-    detail = { table: "pesticide_inventory", values: { pesticide_type: readText(body.pesticide_type, "Pesticide type", 120), expiration_date: readDate(body.expiration_date, "Expiration date") } };
+    detail = { table: "pesticide_inventory", values: { pesticide_type: readText(body.pesticide_type, "Pesticide type", 120) } };
   } else if (category.code === "equipment") {
     const equipmentType = await ensureActive("equipment_types", body.equipment_type_id, "Equipment type");
     detail = { table: "equipment_inventory", values: {
       equipment_type_id: equipmentType.id,
       condition: readText(body.condition, "Condition", 80),
-      availability: readText(body.availability, "Availability", 80),
       last_maintenance: readDate(body.last_maintenance, "Last maintenance"),
     } };
   }
@@ -194,6 +193,7 @@ async function replaceDetails(inventoryId, detail) {
 function throwDatabaseError(error) {
   if (error?.code === "23505") throw httpError(409, "An active inventory item with the same name and category already exists");
   if (error?.code === "23503") throw httpError(400, "A selected inventory option is invalid");
+  if (error?.code === "P0002") throw httpError(404, "Inventory item was not found or is archived");
   if (error?.code === "PGRST116") throw httpError(404, "Inventory item was not found");
   throw error;
 }
@@ -220,22 +220,18 @@ router.get("/alerts", async (req, res, next) => {
     const supabase = getSupabase();
     const sellerEndpoint = req.baseUrl.startsWith("/api/seller/");
     const alerts = {
-      items: { out: 0, low: 0, expired: 0, expiring: 0, examples: { out: [], low: [], expired: [], expiring: [] } },
+      items: { out: 0, low: 0, examples: { out: [], low: [] } },
       stock: { out: 0, low: 0, examples: { out: [], low: [] } },
     };
     const addAlert = (group, type, example) => {
       group[type] += 1;
       if (group.examples[type].length < 3) group.examples[type].push(example);
     };
-    const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const soon = new Date(`${today}T00:00:00Z`);
-    soon.setUTCDate(soon.getUTCDate() + 30);
-    const soonDate = soon.toISOString().slice(0, 10);
     const stockBySize = new Map();
 
     for (let from = 0; ; from += 1000) {
       const { data, error } = await supabase.from("inventory_items")
-        .select("id, item_name, quantity, category:inventory_categories!inventory_items_inventory_category_id_fkey(code), unit:measurement_units!inventory_items_unit_id_fkey(abbreviation), pineapple_inventory(size_id, size:pineapple_sizes!pineapple_inventory_size_id_fkey(size_name)), fertilizer_inventory(expiration_date), pesticide_inventory(expiration_date)")
+        .select("id, item_name, quantity, category:inventory_categories!inventory_items_inventory_category_id_fkey(code), unit:measurement_units!inventory_items_unit_id_fkey(abbreviation), pineapple_inventory(size_id, size:pineapple_sizes!pineapple_inventory_size_id_fkey(size_name))")
         .is("archived_at", null).order("id").range(from, from + 999);
       if (error) throw error;
       for (const item of data || []) {
@@ -252,10 +248,6 @@ router.get("/alerts", async (req, res, next) => {
         } else {
           if (example.quantity <= 0) addAlert(alerts.items, "out", example);
           else if (example.quantity <= 10) addAlert(alerts.items, "low", example);
-          const expiration = one(item.fertilizer_inventory)?.expiration_date
-            || one(item.pesticide_inventory)?.expiration_date;
-          if (expiration && expiration < today) addAlert(alerts.items, "expired", { name, date: expiration });
-          else if (expiration && expiration <= soonDate) addAlert(alerts.items, "expiring", { name, date: expiration });
         }
       }
       if ((data || []).length < 1000) break;
@@ -333,7 +325,7 @@ router.get("/", async (req, res, next) => {
   try {
     const sellerEndpoint = req.baseUrl.startsWith("/api/seller/");
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
-    const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 5, 1), 50);
+    const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 10, 1), 50);
     const search = String(req.query.search || "").trim().replace(/[,%()]/g, "");
     const categoryId = !sellerEndpoint && req.query.categoryId ? readId(req.query.categoryId, "Inventory category") : null;
     const archived = !sellerEndpoint && String(req.query.archived || "false").toLowerCase() === "true";
@@ -431,10 +423,14 @@ router.patch("/:id", async (req, res, next) => {
   try {
     const id = readId(req.params.id);
     const payload = await inventoryPayload(req.body, { requireQuantity: false });
-    const { error } = await getSupabase().from("inventory_items").update(payload.common)
-      .eq("id", id).is("archived_at", null);
+    const { error } = await getSupabase().rpc("update_inventory_item", {
+      p_item_id: id,
+      p_inventory_category_id: payload.common.inventory_category_id,
+      p_unit_id: payload.common.unit_id,
+      p_item_name: payload.common.item_name,
+      p_detail: payload.detail?.values || {},
+    });
     if (error) throwDatabaseError(error);
-    await replaceDetails(id, payload.detail);
     return res.json({ item: await fetchItem(id) });
   } catch (error) { return next(error); }
 });
