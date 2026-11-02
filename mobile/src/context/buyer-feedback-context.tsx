@@ -6,7 +6,7 @@ import { NotificationToast } from '@/components/notification-toast';
 import { useAuth } from '@/context/auth-context';
 import { loadNotifications } from '@/lib/notifications';
 
-type Toast = { id: number; title: string; body: string; actionLabel?: string; onPress?: () => void };
+type Toast = { id: number; title: string; body: string; tone?: 'info' | 'success'; actionLabel?: string; onPress?: () => void };
 type ToastInput = Omit<Toast, 'id'>;
 type ToastState = { ownerId: string | null; current: Toast | null; queue: Toast[] };
 type FeedbackContextValue = {
@@ -26,19 +26,20 @@ export function BuyerFeedbackProvider({ children }: { children: React.ReactNode 
   const nextToastId = useRef(0);
   const isBuyer = profile?.role === 'buyer';
   const buyerId = isBuyer ? profile.id : null;
+  const toastOwnerId = profile?.id || null;
   const unreadNotifications = badge.ownerId === buyerId ? badge.count : 0;
-  const current = toasts.ownerId === buyerId ? toasts.current : null;
+  const current = toasts.ownerId === toastOwnerId ? toasts.current : null;
 
   const showToast = useCallback((toast: ToastInput) => {
-    if (!buyerId) return;
+    if (!toastOwnerId) return;
     const item = { ...toast, id: ++nextToastId.current };
     setToasts((state) => {
-      if (state.ownerId !== buyerId) return { ownerId: buyerId, current: item, queue: [] };
+      if (state.ownerId !== toastOwnerId) return { ownerId: toastOwnerId, current: item, queue: [] };
       return state.current
         ? { ...state, queue: [...state.queue, item] }
         : { ...state, current: item };
     });
-  }, [buyerId]);
+  }, [toastOwnerId]);
   const syncUnreadNotifications = useCallback((count: number) => {
     if (buyerId) setBadge({ ownerId: buyerId, count });
   }, [buyerId]);
@@ -86,7 +87,7 @@ export function BuyerFeedbackProvider({ children }: { children: React.ReactNode 
   return (
     <BuyerFeedbackContext.Provider value={value}>
       {children}
-      {buyerId ? (
+      {toastOwnerId ? (
         <NotificationToast
           insetsTop={insets.top}
           item={current}

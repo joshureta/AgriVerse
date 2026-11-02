@@ -602,7 +602,6 @@ export default function BuyerCheckout() {
         ...current.filter((entry) => !addresses.some((address) => address.id === entry.id)),
       ])
       const preferred = addresses.find((address) => address.id === defaultAddressId)
-        || addresses.at(-1)
       if (preferred) setOrderAddress((current) => current || preferred)
     }).catch((requestError) => {
       if (active) setError(requestError.message)

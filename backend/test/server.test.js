@@ -63,6 +63,16 @@ test("protected routes require an access token", async () => {
   assert.equal(body.error, "Authentication required");
 });
 
+test("profile editing requires an access token", async () => {
+  const response = await fetch(`${baseUrl}/api/profile`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ full_name: "Someone" }),
+  });
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, "Authentication required");
+});
+
 test("local Vite checkout origins pass CORS preflight in development", async () => {
   for (const origin of ["http://127.0.0.1:5173", "http://localhost:5174"]) {
     const response = await fetch(`${baseUrl}/api/buyer/orders`, {

@@ -1,0 +1,21 @@
+.own-profile-page { min-height: 100vh; background: #fbfaf2; }
+.own-profile-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px max(24px, calc((100vw - 1020px) / 2)); background: #fff; border-bottom: 1px solid #dce5d8; }
+.own-profile-header > a { color: #196c35; font-size: 21px; font-weight: 800; text-decoration: none; }
+.own-profile-header nav { display: flex; align-items: center; gap: 16px; }
+.own-profile-header nav a, .own-profile-header nav button { color: #245c38; font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; background: none; border: 0; cursor: pointer; }
+.own-profile-content { width: min(calc(100% - 40px), 1020px); margin: 0 auto; padding: 36px 0 90px; }
+.own-profile-card { display: grid; grid-template-columns: 250px minmax(0, 1fr); border: 1px solid #dce5d8; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 10px 30px rgba(36, 62, 33, .07); }
+.own-profile-card aside { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 32px 24px; background: #f7f8f3; border-right: 1px solid #e0e7dd; text-align: center; }
+.own-profile-card aside h2 { margin: 0; font-size: 20px; }
+.own-profile-card aside p { margin: 0; color: #657768; font-size: 12px; overflow-wrap: anywhere; }
+.own-profile-card aside span { color: #21703a; font-size: 12px; font-weight: 700; }
+.own-profile-card form { padding: 36px; }
+.own-profile-title { margin-bottom: 26px; }
+.own-profile-title h2 { margin: 0 0 5px; color: #196c35; font-size: 20px; }
+.own-profile-title p { margin: 0; color: #657768; font-size: 13px; }
+.own-profile-card .profile-feedback-alert { margin: 0 0 18px; }
+.own-profile-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5ebe3; }
+.own-profile-actions button { min-height: 42px; border: 1px solid #b8cfba; border-radius: 8px; padding: 0 20px; color: #196c35; background: #f7faf5; font: inherit; font-weight: 700; cursor: pointer; }
+.own-profile-actions button[type=submit] { color: #fff; background: #21703a; border-color: #21703a; }
+.own-profile-actions button:disabled { opacity: .6; cursor: wait; }
+@media (max-width: 700px) { .own-profile-card { grid-template-columns: 1fr; } .own-profile-card aside { border-right: 0; border-bottom: 1px solid #e0e7dd; } .own-profile-card form { padding: 24px; } .own-profile-card .profile-form-grid { grid-template-columns: 1fr; } }

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -14,8 +14,10 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { BuyerBottomNavigation } from '@/components/buyer-bottom-navigation';
 import { BuyerHeader } from '@/components/buyer-header';
 import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { PhilippineAddressFields } from '@/components/philippine-address-fields';
 import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import { useAuth } from '@/context/auth-context';
+import type { DeliveryAddressInput } from '@/lib/buyer-marketplace';
 import { GREEN } from '@/styles/buyer-home.styles';
 import { styles } from '@/styles/buyer-account.styles';
 
@@ -170,43 +172,47 @@ function LogoutIcon({ color = '#B4463A', size = 16 }: { color?: string; size?: n
   );
 }
 
+function profileAddress(profile: ReturnType<typeof useAuth>['profile']): DeliveryAddressInput {
+  return {
+    full_name: profile?.full_name || '', mobile_number: profile?.mobile_number || '',
+    country: 'Philippines', region: profile?.region || '', province: profile?.province || '',
+    city_municipality: profile?.city_municipality || '', barangay: profile?.barangay || '',
+  };
+}
+
 export default function BuyerAccountScreen() {
-  const { profile, session, signOut, updateBuyerProfile } = useAuth();
+  const { profile, session, signOut, updateProfile } = useAuth();
   const { showToast } = useBuyerFeedback();
   const [signingOut, setSigningOut] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState('');
-  const [sessionNotice, setSessionNotice] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [addressValid, setAddressValid] = useState(false);
 
-  const initialName = profile?.full_name || 'Juan Dela Cruz';
-  const initialEmail = session?.user?.email || 'juan.delacruz@email.com';
-  const initialPhone = profile?.mobile_number || '+63 912 345 6789';
-  const initialBusiness = "Juan's Fresh Market";
-  const initialAddress =
-    [profile?.barangay, profile?.city_municipality, profile?.province, profile?.country || 'Philippines']
-      .filter(Boolean)
-      .join(', ') || '123 Market Street, Manila City, Metro Manila';
+  const name = profile?.full_name || 'Buyer';
+  const email = session?.user?.email || 'Not provided';
+  const phone = profile?.mobile_number || 'Not provided';
+  const business = profile?.business_name || 'Not provided';
+  const address = [profile?.barangay, profile?.city_municipality, profile?.province, profile?.region, profile?.country]
+    .filter(Boolean).join(', ') || 'Not provided';
 
-  const [name, setName] = useState(initialName);
-  const [phone, setPhone] = useState(initialPhone);
-  const [business, setBusiness] = useState(initialBusiness);
-  const [address, setAddress] = useState(initialAddress);
+  const [draftName, setDraftName] = useState('');
+  const [draftPhone, setDraftPhone] = useState('');
+  const [draftBusiness, setDraftBusiness] = useState('');
+  const [draftAddress, setDraftAddress] = useState<DeliveryAddressInput>(() => profileAddress(profile));
+  const changeAddress = useCallback((changes: Partial<DeliveryAddressInput>) => {
+    setDraftAddress((current) => ({ ...current, ...changes }));
+  }, []);
 
-  // Edit draft inputs
-  const [draftName, setDraftName] = useState(initialName);
-  const [draftPhone, setDraftPhone] = useState(initialPhone);
-  const [draftBusiness, setDraftBusiness] = useState(initialBusiness);
-  const [draftAddress, setDraftAddress] = useState(initialAddress);
-
-  const initials = useMemo(() => getInitials(name, initialEmail), [name, initialEmail]);
+  const initials = useMemo(() => getInitials(name, email), [name, email]);
 
   function handleStartEditing() {
     setProfileError('');
     setDraftName(name);
-    setDraftPhone(phone);
-    setDraftBusiness(business);
-    setDraftAddress(address);
+    setDraftPhone(profile?.mobile_number || '');
+    setDraftBusiness(profile?.business_name || '');
+    setDraftAddress(profileAddress(profile));
+    setAddressValid(false);
     setIsEditing(true);
   }
 
@@ -215,22 +221,19 @@ export default function BuyerAccountScreen() {
   }
 
   async function handleSaveProfile() {
-    if (!draftName.trim()) {
-      setProfileError('Full name cannot be empty.');
+    if (draftName.trim().length < 2 || !addressValid) {
+      setProfileError(draftName.trim().length < 2 ? 'Enter a full name with at least 2 characters.' : 'Select a complete delivery address.');
       return;
     }
     setSavingProfile(true);
     setProfileError('');
     try {
-      const saved = await updateBuyerProfile({ full_name: draftName.trim(), mobile_number: draftPhone.trim() });
-      setName(saved.full_name);
-      setPhone(saved.mobile_number || 'Not provided');
-      const localOnlyChanged = draftBusiness.trim() !== business || draftAddress.trim() !== address;
-      setBusiness(draftBusiness.trim());
-      setAddress(draftAddress.trim());
-      if (localOnlyChanged) setSessionNotice('Store and address edits are shown for this session only.');
+      await updateProfile({
+        ...draftAddress,
+        full_name: draftName.trim(), mobile_number: draftPhone.trim(), business_name: draftBusiness.trim(),
+      });
       setIsEditing(false);
-      showToast({ title: 'Contact details saved', body: 'Your name and phone number were saved.' });
+      showToast({ title: 'Profile saved', body: 'Your contact, business, and delivery address are up to date.', tone: 'success' });
     } catch (caught) {
       setProfileError(caught instanceof Error ? caught.message : 'Could not save your contact details.');
     } finally {
@@ -262,7 +265,6 @@ export default function BuyerAccountScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.titleText}>My Account</Text>
           {profileError && !isEditing ? <BuyerInlineNotice title="Action needed" message={profileError} tone="error" /> : null}
-          {sessionNotice ? <BuyerInlineNotice title="Session-only changes" message={sessionNotice} tone="warning" /> : null}
 
           {/* HERO PROFILE CARD (WITH PENCIL EDIT ICON) */}
           <View style={styles.profileHeroCard}>
@@ -290,14 +292,13 @@ export default function BuyerAccountScreen() {
                   {name}
                 </Text>
                 <Text numberOfLines={1} style={styles.heroEmail}>
-                  {initialEmail}
+                  {email}
                 </Text>
                 <View style={styles.heroBadgeRow}>
                   <View style={styles.verifiedChip}>
                     <CheckShieldIcon size={9} />
                     <Text style={styles.verifiedChipText}>Verified Buyer</Text>
                   </View>
-                  <Text style={styles.memberSinceText}>May 2026</Text>
                 </View>
               </View>
             </View>
@@ -346,15 +347,7 @@ export default function BuyerAccountScreen() {
               />
 
               <Text style={styles.fieldLabel}>Default Shipping Address</Text>
-              <TextInput
-                multiline
-                numberOfLines={2}
-                onChangeText={setDraftAddress}
-                placeholder="Delivery address"
-                placeholderTextColor="#9AA99E"
-                style={[styles.fieldInput, styles.fieldInputMultiline]}
-                value={draftAddress}
-              />
+              <PhilippineAddressFields address={draftAddress} onChange={changeAddress} onValidityChange={setAddressValid} />
 
               <View style={styles.formButtonsRow}>
                 <Pressable

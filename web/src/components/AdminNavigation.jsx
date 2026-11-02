@@ -345,6 +345,7 @@ export function AdminTopbar() {
             <ChevronDown className="admin-account-chevron" aria-hidden="true" />
           </summary>
           <div className="admin-account-dropdown">
+            <a className="admin-account-settings" href="/profile">My Profile</a>
             <a
               className="admin-account-settings"
               href="/admin/settings"

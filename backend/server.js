@@ -6,6 +6,7 @@ require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 
 const { supabaseConfig } = require("./supabase");
 const { requireAuth } = require("./middleware/auth");
+const profileRouter = require("./routes/profile");
 const adminUsersRouter = require("./routes/admin-users");
 const adminInventoryRouter = require("./routes/admin-inventory");
 const adminTasksRouter = require("./routes/admin-tasks");
@@ -99,6 +100,7 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 });
 
 app.use("/api/mobile/auth", mobileAuthRouter);
+app.use("/api/profile", profileRouter);
 
 app.use("/api/admin/users", adminUsersRouter);
 app.use("/api/admin/inventory", adminInventoryRouter);

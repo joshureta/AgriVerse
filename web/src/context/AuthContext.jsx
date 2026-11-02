@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'id, full_name, mobile_number, country, region, province, city_municipality, barangay, role, worker_category',
+        'id, full_name, mobile_number, business_name, country, region, province, city_municipality, barangay, role, worker_category',
       )
       .eq('id', userId)
       .single()

@@ -22,6 +22,7 @@ import DeliveryProgress from './pages/Buyer/DeliveryProgress.jsx'
 import ReturnRequest from './pages/Buyer/ReturnRequest.jsx'
 import ReturnDetails from './pages/Buyer/ReturnDetails.jsx'
 import BuyerProfile from './pages/Buyer/BuyerProfile.jsx'
+import OwnProfile from './pages/OwnProfile.jsx'
 import BuyerMessages from './pages/Buyer/BuyerMessages.jsx'
 import BuyerNotifications from './pages/Buyer/BuyerNotifications.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
@@ -37,6 +38,10 @@ function App() {
   const marketplaceLoading = <MarketplaceLoading path={path} search={window.location.search} />
   const adminLoading = <WorkspaceLoading path={path} />
   const sellerLoading = <WorkspaceLoading path={path} seller />
+
+  if (path === '/profile') {
+    return <ProtectedRoute allowedRoles={['admin', 'farm_worker']}><OwnProfile /></ProtectedRoute>
+  }
 
   if (path === '/farm-worker/orders' || path === '/seller/orders') {
     return (

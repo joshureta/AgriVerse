@@ -8,6 +8,7 @@ export type WorkerProfile = {
   id: string;
   full_name: string;
   mobile_number: string | null;
+  business_name: string | null;
   country: string | null;
   region: string | null;
   province: string | null;
@@ -27,6 +28,17 @@ type LocationInput = {
   barangay: string;
 };
 
+export type ProfileChanges = {
+  full_name: string;
+  mobile_number: string;
+  business_name?: string;
+  country: string;
+  region: string;
+  province: string;
+  city_municipality: string;
+  barangay: string;
+};
+
 type AuthContextValue = {
   loading: boolean;
   session: Session | null;
@@ -34,6 +46,7 @@ type AuthContextValue = {
   changeInitialPassword: (password: string) => Promise<WorkerProfile>;
   confirmName: (fullName: string) => Promise<WorkerProfile>;
   updateBuyerProfile: (details: { full_name: string; mobile_number: string }) => Promise<WorkerProfile>;
+  updateProfile: (details: ProfileChanges) => Promise<WorkerProfile>;
   completeLocation: (location: LocationInput) => Promise<WorkerProfile>;
   signIn: (email: string, password: string) => Promise<WorkerProfile>;
   signOut: () => Promise<void>;
@@ -141,6 +154,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result.profile;
   }, []);
 
+  const updateProfile = useCallback(async (details: ProfileChanges) => {
+    const result = await apiRequest<{ profile: WorkerProfile }>('/api/profile', {
+      method: 'PATCH', body: JSON.stringify(details),
+    });
+    setProfile(result.profile);
+    return result.profile;
+  }, []);
+
   const completeLocation = useCallback(async (location: LocationInput) => {
     const result = await apiRequest<{ profile: WorkerProfile }>(
       '/api/mobile/auth/location',
@@ -162,6 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       completeLocation,
       confirmName,
       updateBuyerProfile,
+      updateProfile,
       loading,
       session,
       profile,
@@ -173,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       completeLocation,
       confirmName,
       updateBuyerProfile,
+      updateProfile,
       loading,
       profile,
       session,

@@ -1,11 +1,15 @@
 import { Redirect, router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
+import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
+import { PhilippineAddressFields } from '@/components/philippine-address-fields';
+import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import { useAuth } from '@/context/auth-context';
+import type { DeliveryAddressInput } from '@/lib/buyer-marketplace';
 import { styles } from '@/styles/buyer-account.styles';
 
 const GREEN = '#176D34';
@@ -34,38 +38,62 @@ function TruckIcon() { return <Svg width={18} height={18} viewBox="0 0 24 24" fi
 function LeafIcon() { return <Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Path d="M20 4C11 4 5 8 5 15c0 2.5 1.8 4 4.2 4C16 19 20 11 20 4ZM4 20c3-4 7-6 12-8" stroke={GREEN} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></Svg>; }
 function LogoutIcon() { return <Svg width={17} height={17} viewBox="0 0 24 24" fill="none"><Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9" stroke="#B4463A" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" /></Svg>; }
 
+function profileAddress(profile: ReturnType<typeof useAuth>['profile']): DeliveryAddressInput {
+  return {
+    full_name: profile?.full_name || '', mobile_number: profile?.mobile_number || '',
+    country: 'Philippines', region: profile?.region || '', province: profile?.province || '',
+    city_municipality: profile?.city_municipality || '', barangay: profile?.barangay || '',
+  };
+}
+
 export default function WorkerProfileScreen() {
-  const { loading, profile, session, signOut } = useAuth();
+  const { loading, profile, session, signOut, updateProfile } = useAuth();
+  const { showToast } = useBuyerFeedback();
   const [signingOut, setSigningOut] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [addressValid, setAddressValid] = useState(false);
   const [editing, setEditing] = useState(false);
-  const initialName = profile?.full_name || 'AgriVerse Driver';
-  const initialPhone = profile?.mobile_number || 'Not provided';
-  const initialAddress = [profile?.barangay, profile?.city_municipality, profile?.province, profile?.region, profile?.country].filter(Boolean).join(', ') || 'Not provided';
-  const [name, setName] = useState(initialName);
-  const [phone, setPhone] = useState(initialPhone);
-  const [address, setAddress] = useState(initialAddress);
-  const [draftName, setDraftName] = useState(initialName);
-  const [draftPhone, setDraftPhone] = useState(initialPhone);
-  const [draftAddress, setDraftAddress] = useState(initialAddress);
+  const name = profile?.full_name || 'Farm Worker';
+  const phone = profile?.mobile_number || 'Not provided';
+  const address = [profile?.barangay, profile?.city_municipality, profile?.province, profile?.region, profile?.country].filter(Boolean).join(', ') || 'Not provided';
+  const [draftName, setDraftName] = useState('');
+  const [draftPhone, setDraftPhone] = useState('');
+  const [draftAddress, setDraftAddress] = useState<DeliveryAddressInput>(() => profileAddress(profile));
+  const changeAddress = useCallback((changes: Partial<DeliveryAddressInput>) => {
+    setDraftAddress((current) => ({ ...current, ...changes }));
+  }, []);
   const email = session?.user.email || 'Not provided';
+  const workerRole = profile?.worker_category === 'driver' ? 'Delivery Driver' : profile?.worker_category === 'seller' ? 'Seller' : 'Crop Management Worker';
   const avatarInitials = useMemo(() => initials(name, email), [name, email]);
 
   if (loading) return <SafeAreaView style={styles.safeArea}><View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F7F1' }}><ActivityIndicator color={GREEN} size="large" /></View></SafeAreaView>;
   if (!profile) return <Redirect href={{ pathname: '/authentication', params: { mode: 'login' } }} />;
 
   function startEditing() {
+    setProfileError('');
     setDraftName(name);
-    setDraftPhone(phone);
-    setDraftAddress(address);
+    setDraftPhone(profile?.mobile_number || '');
+    setDraftAddress(profileAddress(profile));
+    setAddressValid(false);
     setEditing(true);
   }
-  function saveProfile() {
-    if (!draftName.trim()) return Alert.alert('Validation Error', 'Full name cannot be empty.');
-    setName(draftName.trim());
-    setPhone(draftPhone.trim());
-    setAddress(draftAddress.trim());
-    setEditing(false);
-    Alert.alert('Profile Updated', 'Your profile details have been saved.');
+  async function saveProfile() {
+    if (draftName.trim().length < 2 || !addressValid) {
+      setProfileError(draftName.trim().length < 2 ? 'Enter a full name with at least 2 characters.' : 'Select a complete base address.');
+      return;
+    }
+    setSaving(true);
+    setProfileError('');
+    try {
+      await updateProfile({ ...draftAddress, full_name: draftName.trim(), mobile_number: draftPhone.trim() });
+      setEditing(false);
+      showToast({ title: 'Profile saved', body: 'Your contact details and base address are up to date.', tone: 'success' });
+    } catch (caught) {
+      setProfileError(caught instanceof Error ? caught.message : 'Could not save your profile.');
+    } finally {
+      setSaving(false);
+    }
   }
   async function handleSignOut() {
     if (signingOut) return;
@@ -74,7 +102,7 @@ export default function WorkerProfileScreen() {
       await signOut();
       router.replace({ pathname: '/authentication', params: { mode: 'login' } });
     } catch (caught) {
-      Alert.alert('Unable to sign out', caught instanceof Error ? caught.message : 'Please try again.');
+      setProfileError(caught instanceof Error ? caught.message : 'Unable to sign out. Please try again.');
       setSigningOut(false);
     }
   }
@@ -89,6 +117,7 @@ export default function WorkerProfileScreen() {
       <View style={[styles.mainBodyContainer, { borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' }]}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.titleText}>My Profile</Text>
+          {profileError && !editing ? <BuyerInlineNotice title="Action needed" message={profileError} tone="error" /> : null}
           <View style={styles.profileHeroCard}>
             <Pressable accessibilityLabel={editing ? 'Cancel editing' : 'Edit profile'} onPress={editing ? () => setEditing(false) : startEditing} style={styles.pencilButton}>
               {editing ? <CloseIcon /> : <PencilIcon />}
@@ -101,27 +130,28 @@ export default function WorkerProfileScreen() {
               <View style={styles.heroDetails}>
                 <Text numberOfLines={1} style={styles.heroName}>{name}</Text>
                 <Text numberOfLines={1} style={styles.heroEmail}>{email}</Text>
-                <View style={styles.heroBadgeRow}><View style={styles.verifiedChip}><ShieldIcon size={9} /><Text style={styles.verifiedChipText}>{profile.worker_category === 'driver' ? 'Verified Driver' : 'Verified Crop Worker'}</Text></View></View>
+                <View style={styles.heroBadgeRow}><View style={styles.verifiedChip}><ShieldIcon size={9} /><Text style={styles.verifiedChipText}>{profile.worker_category === 'driver' ? 'Verified Driver' : profile.worker_category === 'seller' ? 'Verified Seller' : 'Verified Crop Worker'}</Text></View></View>
               </View>
             </View>
           </View>
 
           {editing ? <View style={styles.editFormCard}>
+            {profileError ? <BuyerInlineNotice title="Profile not saved" message={profileError} tone="error" /> : null}
             <View style={styles.editFormHeader}><View style={styles.editFormTitleRow}><View style={styles.editFormDot} /><Text style={styles.editFormTitle}>Edit Profile Details</Text></View><Pressable hitSlop={8} onPress={() => setEditing(false)}><CloseIcon /></Pressable></View>
             <Text style={styles.fieldLabel}>Full Name</Text>
             <TextInput onChangeText={setDraftName} placeholder="Your full name" placeholderTextColor="#9AA99E" style={styles.fieldInput} value={draftName} />
             <Text style={styles.fieldLabel}>Phone Number</Text>
             <TextInput keyboardType="phone-pad" onChangeText={setDraftPhone} placeholder="+63 9XX XXX XXXX" placeholderTextColor="#9AA99E" style={styles.fieldInput} value={draftPhone} />
             <Text style={styles.fieldLabel}>Base Address</Text>
-            <TextInput multiline numberOfLines={2} onChangeText={setDraftAddress} placeholder="Your base address" placeholderTextColor="#9AA99E" style={[styles.fieldInput, styles.fieldInputMultiline]} value={draftAddress} />
-            <View style={styles.formButtonsRow}><Pressable onPress={() => setEditing(false)} style={styles.cancelFormButton}><Text style={styles.cancelFormButtonText}>Cancel</Text></Pressable><Pressable onPress={saveProfile} style={styles.saveFormButton}><Text style={styles.saveFormButtonText}>Save Changes</Text></Pressable></View>
+            <PhilippineAddressFields address={draftAddress} onChange={changeAddress} onValidityChange={setAddressValid} />
+            <View style={styles.formButtonsRow}><Pressable onPress={() => setEditing(false)} style={styles.cancelFormButton}><Text style={styles.cancelFormButtonText}>Cancel</Text></Pressable><Pressable disabled={saving} onPress={saveProfile} style={styles.saveFormButton}><Text style={styles.saveFormButtonText}>{saving ? 'Saving…' : 'Save Changes'}</Text></Pressable></View>
           </View> : null}
 
           <View style={styles.detailsCard}>
             <Text style={styles.detailsSectionTitle}>Account Information</Text>
             <View style={styles.detailRow}><View style={styles.detailIconBox}><MailIcon /></View><View style={styles.detailTextBlock}><Text style={styles.detailLabel}>Email Address</Text><Text style={styles.detailValue}>{email}</Text></View></View>
             <View style={styles.detailRow}><View style={styles.detailIconBox}><PhoneIcon /></View><View style={styles.detailTextBlock}><Text style={styles.detailLabel}>Mobile Phone</Text><Text style={styles.detailValue}>{phone}</Text></View></View>
-            <View style={styles.detailRow}><View style={styles.detailIconBox}>{profile.worker_category === 'driver' ? <TruckIcon /> : <LeafIcon />}</View><View style={styles.detailTextBlock}><Text style={styles.detailLabel}>Role</Text><Text style={styles.detailValue}>{profile.worker_category === 'driver' ? 'Delivery Driver' : 'Crop Management Worker'}</Text></View></View>
+            <View style={styles.detailRow}><View style={styles.detailIconBox}>{profile.worker_category === 'driver' ? <TruckIcon /> : <LeafIcon />}</View><View style={styles.detailTextBlock}><Text style={styles.detailLabel}>Role</Text><Text style={styles.detailValue}>{workerRole}</Text></View></View>
             <View style={[styles.detailRow, { alignItems: 'flex-start' }]}><View style={[styles.detailIconBox, { marginTop: 2 }]}><MapIcon /></View><View style={styles.detailTextBlock}><Text style={styles.detailLabel}>Base Address</Text><Text style={[styles.detailValue, { lineHeight: 18 }]}>{address}</Text></View></View>
           </View>
 

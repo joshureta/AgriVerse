@@ -8,7 +8,7 @@ export function getHomePathForRole(role, workerCategory) {
   }
 
   if (role === 'farm_worker') {
-    return '/worker/tasks'
+    return workerCategory === 'driver' ? '/driver/orders' : '/profile'
   }
 
   return '/buyer'

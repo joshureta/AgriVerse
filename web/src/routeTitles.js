@@ -5,6 +5,7 @@ export const routeTitles = {
   '/forgot-password': 'Forgot Password',
   '/reset-password': 'Reset Password',
   '/auth/confirm': 'Email Verification',
+  '/profile': 'My Profile',
 
   '/admin': 'Dashboard',
   '/admin/users': 'User Management',

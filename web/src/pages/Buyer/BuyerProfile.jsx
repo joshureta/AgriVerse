@@ -6,8 +6,10 @@ import {
   X,
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import ProfileAddressFields from '../../components/ProfileAddressFields.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
 import { supabase } from '../../lib/supabase.js'
+import { saveOwnProfile } from '../../services/profile.js'
 import '../../styles/Buyer/buyerLanding.css'
 import '../../styles/Buyer/buyerProfile.css'
 
@@ -15,6 +17,7 @@ const emptyForm = {
   fullName: '',
   email: '',
   mobileNumber: '',
+  businessName: '',
   barangay: '',
   cityMunicipality: '',
   province: '',
@@ -65,6 +68,26 @@ export default function BuyerProfile() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [toast, setToast] = useState('')
+
+  useEffect(() => {
+    if (!toast) return undefined
+    const timer = window.setTimeout(() => setToast(''), 4000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  useEffect(() => {
+    if (!user?.id) return
+    const key = `agriverse-pending-email-${user.id}`
+    const pending = window.localStorage.getItem(key)
+    if (!pending) return
+    if (pending === user.email?.toLowerCase()) {
+      window.localStorage.removeItem(key)
+      setMessage('Your new email address is confirmed.')
+    } else {
+      setMessage('Email change requested. Confirm it from your email inbox before using the new address.')
+    }
+  }, [user?.id, user?.email])
 
   // Fills the form with the current profile values.
   useEffect(() => {
@@ -72,6 +95,7 @@ export default function BuyerProfile() {
       fullName: profile?.full_name || '',
       email: user?.email || '',
       mobileNumber: profile?.mobile_number || '',
+      businessName: profile?.business_name || '',
       barangay: profile?.barangay || '',
       cityMunicipality: profile?.city_municipality || '',
       province: profile?.province || '',
@@ -98,7 +122,6 @@ export default function BuyerProfile() {
   // Opens the profile edit form.
   function startEditing() {
     setError('')
-    setMessage('')
     setEditing(true)
   }
 
@@ -108,6 +131,7 @@ export default function BuyerProfile() {
       fullName: profile?.full_name || '',
       email: user?.email || '',
       mobileNumber: profile?.mobile_number || '',
+      businessName: profile?.business_name || '',
       barangay: profile?.barangay || '',
       cityMunicipality: profile?.city_municipality || '',
       province: profile?.province || '',
@@ -136,54 +160,47 @@ export default function BuyerProfile() {
       return
     }
 
-    if (!email) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError('Enter a valid email address.')
+      return
+    }
+
+    if (!form.region.trim() || !form.cityMunicipality.trim() || !form.barangay.trim()) {
+      setError('Select a complete delivery address.')
       return
     }
 
     setSaving(true)
     setError('')
-    setMessage('')
 
-    const emailChanged = email !== user?.email?.toLowerCase()
-    if (emailChanged) {
-      const { error: emailError } = await supabase.auth.updateUser({ email })
-      if (emailError) {
-        setError(emailError.message)
-        setSaving(false)
-        return
-      }
-    }
-
-    const { error: profileUpdateError } = await supabase
-      .from('profiles')
-      .update({
-        full_name: fullName,
-        mobile_number: mobileNumber || null,
-        barangay: form.barangay.trim() || null,
-        city_municipality: form.cityMunicipality.trim() || null,
-        province: form.province.trim() || null,
-        region: form.region.trim() || null,
-        country: form.country.trim() || 'Philippines',
+    try {
+      await saveOwnProfile({
+        full_name: fullName, mobile_number: mobileNumber, business_name: form.businessName.trim(),
+        barangay: form.barangay.trim(), city_municipality: form.cityMunicipality.trim(),
+        province: form.province.trim(), region: form.region.trim(), country: 'Philippines',
       })
-      .eq('id', user.id)
-
-    if (profileUpdateError) {
-      setError(profileUpdateError.message)
+      await refreshProfile()
+      setEditing(false)
+      setToast('Profile saved successfully.')
+      if (email !== user?.email?.toLowerCase()) {
+        const { error: emailError } = await supabase.auth.updateUser({ email })
+        if (emailError) {
+          setError(`Profile saved, but your email change could not be requested: ${emailError.message}`)
+        } else {
+          window.localStorage.setItem(`agriverse-pending-email-${user.id}`, email)
+          setMessage('Email change requested. Confirm it from your email inbox before using the new address.')
+        }
+      }
+    } catch (caught) {
+      setError(caught.message || 'Could not save your profile.')
+    } finally {
       setSaving(false)
-      return
     }
-
-    await refreshProfile()
-    setSaving(false)
-    setEditing(false)
-    setMessage(emailChanged
-      ? 'Profile saved. Check both email inboxes to confirm your new address.'
-      : 'Profile updated successfully.')
   }
 
   return (
     <main className="buyer-page buyer-profile-page">
+      {toast && <div className="profile-save-toast" role="status"><Check size={17} aria-hidden="true" /><span>{toast}</span></div>}
       {/* Marketplace navigation and buyer profile. */}
       <BuyerHeader active="profile" />
 
@@ -216,11 +233,12 @@ export default function BuyerProfile() {
           </div>
 
           {message && (
-            <div className="profile-feedback-alert is-success" role="status">
+            <div className="profile-feedback-alert is-info" role="status">
               <Check size={16} aria-hidden="true" />
               <span>{message}</span>
             </div>
           )}
+          {error && !editing && <div className="profile-feedback-alert is-error" role="alert"><X size={16} aria-hidden="true" /><span>{error}</span></div>}
 
           {/* Profile edit form or saved account details. */}
           {editing ? (
@@ -271,43 +289,21 @@ export default function BuyerProfile() {
                   value={form.mobileNumber}
                 />
                 <ProfileField
-                  autoComplete="address-level3"
-                  label="Barangay"
-                  name="barangay"
+                  label="Business / Store Name"
+                  name="businessName"
                   onChange={updateField}
-                  placeholder="e.g. Barangay San Jose"
-                  value={form.barangay}
+                  placeholder="Your business name (optional)"
+                  value={form.businessName}
                 />
-                <ProfileField
-                  autoComplete="address-level2"
-                  label="City / Municipality"
-                  name="cityMunicipality"
-                  onChange={updateField}
-                  placeholder="e.g. Calamba"
-                  value={form.cityMunicipality}
-                />
-                <ProfileField
-                  autoComplete="address-level1"
-                  label="Province"
-                  name="province"
-                  onChange={updateField}
-                  placeholder="e.g. Laguna"
-                  value={form.province}
-                />
-                <ProfileField
-                  label="Region"
-                  name="region"
-                  onChange={updateField}
-                  placeholder="e.g. Region IV-A (CALABARZON)"
-                  value={form.region}
-                />
-                <ProfileField
-                  autoComplete="country-name"
-                  label="Country"
-                  name="country"
-                  onChange={updateField}
-                  placeholder="Philippines"
-                  value={form.country}
+                <ProfileAddressFields
+                  value={{ region: form.region, province: form.province, city_municipality: form.cityMunicipality, barangay: form.barangay }}
+                  onChange={(changes) => setForm((current) => ({ ...current,
+                    ...(changes.region !== undefined ? { region: changes.region } : {}),
+                    ...(changes.province !== undefined ? { province: changes.province } : {}),
+                    ...(changes.city_municipality !== undefined ? { cityMunicipality: changes.city_municipality } : {}),
+                    ...(changes.barangay !== undefined ? { barangay: changes.barangay } : {}),
+                  }))}
+                  disabled={saving}
                 />
               </div>
 
@@ -350,6 +346,13 @@ export default function BuyerProfile() {
                 <div className="profile-tile-content">
                   <span className="profile-tile-label">Contact Number</span>
                   <strong className="profile-tile-value">{profile?.mobile_number || 'Not provided'}</strong>
+                </div>
+              </div>
+
+              <div className="profile-info-tile">
+                <div className="profile-tile-content">
+                  <span className="profile-tile-label">Business / Store</span>
+                  <strong className="profile-tile-value">{profile?.business_name || 'Not provided'}</strong>
                 </div>
               </div>
 
