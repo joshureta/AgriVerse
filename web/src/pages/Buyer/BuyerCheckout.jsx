@@ -2,16 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   CircleAlert,
   Check,
-  WalletCards,
+  Truck,
+  Store,
+  Banknote,
+  Smartphone,
   X,
 } from 'lucide-react'
 import { BuyerFooter, BuyerHeader, BuyerJourneyNav } from '../../components/BuyerChrome.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
 import { clearCheckoutRequestKey, getCheckoutRequestKey } from '../../services/checkoutAttempt.js'
 import pineappleImage from '../../assets/buyer/pineapple-product-clean.png'
-import cashIcon from '../../assets/buyer/checkout/cash.png'
-import deliveryIcon from '../../assets/buyer/checkout/delivery.png'
-import pickupIcon from '../../assets/buyer/checkout/pickup.png'
 import {
   createBuyerDeliveryAddress,
   createGcashCheckout,
@@ -48,12 +48,6 @@ function ChoiceCard({ checked, children, className = '', onSelect }) {
       <span className="checkout-radio" aria-hidden="true" />
     </button>
   )
-}
-
-// Displays an icon for a checkout option.
-function CheckoutIcon({ name }) {
-  const icons = { cash: cashIcon, delivery: deliveryIcon, pickup: pickupIcon }
-  return <img className="checkout-generated-icon" src={icons[name]} alt="" aria-hidden="true" />
 }
 
 // Finds a location option by name.
@@ -904,11 +898,11 @@ export default function BuyerCheckout() {
             <h2 id="delivery-method-title">Delivery Method</h2>
             <div className="checkout-choice-list" role="radiogroup" aria-labelledby="delivery-method-title">
               <ChoiceCard checked={deliveryMethod === 'delivery'} onSelect={() => setDeliveryMethod('delivery')}>
-                <CheckoutIcon name="delivery" />
+                <Truck aria-hidden="true" />
                 <span><strong>Standard Delivery</strong><small>Delivery to the address shown above.</small></span>
               </ChoiceCard>
               <ChoiceCard checked={deliveryMethod === 'pickup'} onSelect={() => setDeliveryMethod('pickup')}>
-                <CheckoutIcon name="pickup" />
+                <Store aria-hidden="true" />
                 <span><strong>On-site Pickup</strong><small>Collect your order directly from JToledo Trading.</small></span>
               </ChoiceCard>
             </div>
@@ -922,11 +916,14 @@ export default function BuyerCheckout() {
             <h2 id="payment-method-title">Payment Method</h2>
             <div className="checkout-choice-list" role="radiogroup" aria-labelledby="payment-method-title">
               <ChoiceCard checked={paymentMethod === 'cash'} onSelect={() => setPaymentMethod('cash')}>
-                <CheckoutIcon name="cash" />
-                <span><strong>Cash on Delivery</strong><small>Pay with cash when your pineapples arrive.</small></span>
+                <Banknote aria-hidden="true" />
+                <span>
+                  <strong>{deliveryMethod === 'pickup' ? 'Cash on Pickup' : 'Cash on Delivery'}</strong>
+                  <small>{deliveryMethod === 'pickup' ? 'Pay with cash when you collect your pineapples.' : 'Pay with cash when your pineapples arrive.'}</small>
+                </span>
               </ChoiceCard>
               <ChoiceCard checked={paymentMethod === 'gcash'} onSelect={() => setPaymentMethod('gcash')}>
-                <WalletCards aria-hidden="true" />
+                <Smartphone aria-hidden="true" />
                 <span><strong>GCash</strong><small>Pay securely using your GCash mobile wallet.</small></span>
               </ChoiceCard>
             </div>

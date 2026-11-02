@@ -255,7 +255,7 @@
   width: 34px;
   height: 34px;
   color: #216d34;
-  fill: rgba(50, 131, 65, 0.12);
+  justify-self: center;
 }
 
 .checkout-choice > span:not(.checkout-radio) {
@@ -381,13 +381,6 @@
 .checkout-submit:focus-visible {
   outline: 3px solid rgba(50, 133, 68, 0.2);
   background: linear-gradient(180deg, #55af49, #26762d);
-}
-
-.checkout-generated-icon {
-  width: 42px;
-  height: 42px;
-  display: block;
-  object-fit: contain;
 }
 
 .checkout-modal-backdrop {
