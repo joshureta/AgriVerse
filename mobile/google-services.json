@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "172837845642",
+    "project_id": "agriverse-natso0729-11647f",
+    "storage_bucket": "agriverse-natso0729-11647f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:172837845642:android:265367da3a2560bd418b73",
+        "android_client_info": {
+          "package_name": "com.natso0729.agriverse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCViKTTdMJqqTA4XaqbLDWB2IMmUFoeeYE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

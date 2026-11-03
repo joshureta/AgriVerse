@@ -16,6 +16,7 @@ Thumbs.db
 
 backend/env
 backend/env.download
+backend/*firebase*service-account*.json
 
 # ESP32 local Wi-Fi and Supabase configuration
 firmware/**/secrets.h

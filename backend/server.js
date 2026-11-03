@@ -26,6 +26,8 @@ const buyerMessagesRouter = require("./routes/buyer-messages");
 const adminMessagesRouter = require("./routes/admin-messages");
 const weatherRouter = require("./routes/weather");
 const notificationsRouter = require("./routes/notifications");
+const { router: pushDevicesRouter } = require("./routes/push-devices");
+const { firebaseIsConfigured } = require("./lib/push-notifications");
 const adminDashboardRouter = require("./routes/admin-dashboard");
 const sellerDashboardRouter = require("./routes/seller-dashboard");
 const environmentalReportsRouter = require("./routes/environmental-reports");
@@ -85,6 +87,7 @@ app.get("/api/health", (req, res) => {
     supabase: healthy
       ? { configured: true }
       : { configured: false, error: supabaseConfig.error },
+    firebase: { configured: firebaseIsConfigured() },
   });
 });
 
@@ -122,6 +125,7 @@ app.use("/api/driver/orders", driverOrdersRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/weather", weatherRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/push/devices", pushDevicesRouter);
 app.use("/api/admin/environmental-reports", environmentalReportsRouter);
 
 const PORT = process.env.PORT || 5000;

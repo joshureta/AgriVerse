@@ -4,6 +4,7 @@ const { getSupabase } = require("../supabase");
 const { assertCropTaskSchedule } = require("../lib/crop-work-hours");
 const { ACTIVITY_TYPES, readActivityType } = require("../lib/task-details");
 const { httpError } = require("../lib/http-error");
+const { notifyTaskAssignment, notifyTaskUpdate } = require("../lib/task-notifications");
 
 const router = express.Router();
 const taskSelect = [
@@ -323,7 +324,13 @@ router.post("/", async (req, res, next) => {
     const { error: scheduleError } = await getSupabase().from("schedules")
       .insert({ ...payload.schedule, task_id: task.id });
     if (scheduleError) throwDatabaseError(scheduleError);
-    return res.status(201).json({ task: await fetchTask(task.id) });
+    const createdTask = await fetchTask(task.id);
+    try {
+      await notifyTaskAssignment(createdTask);
+    } catch (notificationError) {
+      console.error("Failed to notify the assigned worker:", notificationError.message);
+    }
+    return res.status(201).json({ task: createdTask });
   } catch (error) {
     if (createdTaskId) await getSupabase().from("tasks").delete().eq("id", createdTaskId);
     return next(error);
@@ -335,7 +342,7 @@ router.patch("/:id", async (req, res, next) => {
     const id = readTaskId(req.params.id);
     const payload = await readTaskBody(req.body);
     const { data: current, error: currentError } = await getSupabase().from("tasks")
-      .select("category_id, activity_type, inventory_item_id, task_status:task_statuses!tasks_status_id_fkey(code)")
+      .select("assigned_worker_id, category_id, activity_type, inventory_item_id, task_status:task_statuses!tasks_status_id_fkey(code)")
       .eq("id", id).maybeSingle();
     if (currentError) throwDatabaseError(currentError);
     if (!current) throw httpError(404, "Task was not found");
@@ -350,7 +357,17 @@ router.patch("/:id", async (req, res, next) => {
     const { error: scheduleError } = await getSupabase().from("schedules")
       .upsert({ ...payload.schedule, task_id: id }, { onConflict: "task_id" });
     if (scheduleError) throwDatabaseError(scheduleError);
-    return res.json({ task: await fetchTask(id) });
+    const updatedTask = await fetchTask(id);
+    try {
+      if (current.assigned_worker_id !== updatedTask.assigned_worker_id) {
+        await notifyTaskAssignment(updatedTask, current.assigned_worker_id);
+      } else {
+        await notifyTaskUpdate(updatedTask);
+      }
+    } catch (notificationError) {
+      console.error("Failed to notify the assigned worker:", notificationError.message);
+    }
+    return res.json({ task: updatedTask });
   } catch (error) {
     return next(error);
   }

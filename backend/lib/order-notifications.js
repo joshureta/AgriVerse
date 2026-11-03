@@ -1,4 +1,5 @@
 const { getSupabase } = require("../supabase");
+const { insertNotifications } = require("./push-notifications");
 
 const STATUS_COPY = {
   confirmed: ["Order confirmed", "The seller confirmed your order."],
@@ -15,7 +16,7 @@ async function createOrderStatusNotification({ buyerId, orderId, orderNumber, st
   const copy = STATUS_COPY[status];
   if (!buyerId || !orderId || !copy) return;
 
-  const { error } = await getSupabase().from("notifications").insert({
+  await insertNotifications({
     recipient_id: buyerId,
     type: "order_status_updated",
     title: copy[0],
@@ -23,13 +24,12 @@ async function createOrderStatusNotification({ buyerId, orderId, orderNumber, st
     entity_type: "order",
     entity_id: orderId,
   });
-  if (error) throw error;
 }
 
 async function createDeliveryAssignedNotification({ driverId, orderId, orderNumber }) {
   if (!driverId || !orderId) return;
 
-  const { error } = await getSupabase().from("notifications").insert({
+  await insertNotifications({
     recipient_id: driverId,
     type: "delivery_assigned",
     title: "New delivery assigned",
@@ -37,13 +37,12 @@ async function createDeliveryAssignedNotification({ driverId, orderId, orderNumb
     entity_type: "order",
     entity_id: orderId,
   });
-  if (error) throw error;
 }
 
 async function createDeliveryScheduleUpdatedNotification({ driverId, orderId, orderNumber }) {
   if (!driverId || !orderId) return;
 
-  const { error } = await getSupabase().from("notifications").insert({
+  await insertNotifications({
     recipient_id: driverId,
     type: "delivery_assigned",
     title: "Delivery schedule updated",
@@ -51,7 +50,6 @@ async function createDeliveryScheduleUpdatedNotification({ driverId, orderId, or
     entity_type: "order",
     entity_id: orderId,
   });
-  if (error) throw error;
 }
 
 const DISPUTE_CATEGORY_LABELS = {
@@ -75,7 +73,7 @@ async function createDisputeOpenedNotifications({ orderId, orderNumber, category
 
   const orderLabel = orderNumber || `#${orderId}`;
   const issue = DISPUTE_CATEGORY_LABELS[category] || "a problem";
-  const { error } = await getSupabase().from("notifications").insert(recipientIds.map((recipientId) => ({
+  await insertNotifications(recipientIds.map((recipientId) => ({
     recipient_id: recipientId,
     type: "dispute_opened",
     title: "Delivery issue reported",
@@ -83,7 +81,6 @@ async function createDisputeOpenedNotifications({ orderId, orderNumber, category
     entity_type: "order",
     entity_id: orderId,
   })));
-  if (error) throw error;
 }
 
 // Tells the buyer what the admin decided. Uses the order_status_updated type so it shows in the buyer's feed.
@@ -93,7 +90,7 @@ async function createDisputeResolvedNotification({ buyerId, orderId, orderNumber
   const orderLabel = orderNumber || `#${orderId}`;
   const refunded = resolution === "refunded";
   const amount = Number(refundAmount);
-  const { error } = await getSupabase().from("notifications").insert({
+  await insertNotifications({
     recipient_id: buyerId,
     type: "order_status_updated",
     title: refunded ? "Refund approved" : "Return request not approved",
@@ -103,7 +100,6 @@ async function createDisputeResolvedNotification({ buyerId, orderId, orderNumber
     entity_type: "order",
     entity_id: orderId,
   });
-  if (error) throw error;
 }
 
 async function createRefundRequestedNotifications({ buyerId, orderId, orderNumber }) {
@@ -114,12 +110,11 @@ async function createRefundRequestedNotifications({ buyerId, orderId, orderNumbe
     { recipient_id: buyerId, type: "order_status_updated", title: "Refund awaiting review", body: `Your refund request for order ${orderLabel} is awaiting admin review.`, entity_type: "order", entity_id: orderId },
     ...(admins || []).map((admin) => ({ recipient_id: admin.id, type: "dispute_opened", title: "Cancellation refund to review", body: `Order ${orderLabel} was cancelled after payment. Review its refund request.`, entity_type: "order", entity_id: orderId })),
   ];
-  const { error } = await getSupabase().from("notifications").insert(rows);
-  if (error) throw error;
+  await insertNotifications(rows);
 }
 
 async function createRefundCompletedNotification({ buyerId, orderId, orderNumber, refundAmount }) {
-  const { error } = await getSupabase().from("notifications").insert({
+  await insertNotifications({
     recipient_id: buyerId,
     type: "order_status_updated",
     title: "Refund processed",
@@ -127,11 +122,10 @@ async function createRefundCompletedNotification({ buyerId, orderId, orderNumber
     entity_type: "order",
     entity_id: orderId,
   });
-  if (error) throw error;
 }
 
 async function createRefundClaimNotification({ buyerId, orderId, orderNumber }) {
-  const { error } = await getSupabase().from("notifications").insert({
+  await insertNotifications({
     recipient_id: buyerId,
     type: "order_status_updated",
     title: "QR Ph refund ready to claim",
@@ -139,11 +133,10 @@ async function createRefundClaimNotification({ buyerId, orderId, orderNumber }) 
     entity_type: "order",
     entity_id: orderId,
   });
-  if (error) throw error;
 }
 
 async function createRefundRejectedNotification({ buyerId, orderId, orderNumber }) {
-  const { error } = await getSupabase().from("notifications").insert({
+  await insertNotifications({
     recipient_id: buyerId,
     type: "order_status_updated",
     title: "Refund request reviewed",
@@ -151,7 +144,6 @@ async function createRefundRejectedNotification({ buyerId, orderId, orderNumber 
     entity_type: "order",
     entity_id: orderId,
   });
-  if (error) throw error;
 }
 
 module.exports = {

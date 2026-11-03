@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import { BuyerFeedbackProvider } from '@/context/buyer-feedback-context';
+import { PushNotificationManager } from '@/components/push-notification-manager';
 import { dashboardRoute, requiredOnboardingRoute } from '@/lib/mobile-routing';
 
 const onboardingPaths = new Set([
@@ -57,6 +58,7 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <BuyerFeedbackProvider>
+      <PushNotificationManager />
       <OnboardingGuard>
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
