@@ -4,7 +4,11 @@ const {
   assertCropWorkerCanWork,
   assertCropTaskSchedule,
   isCropWorkTime,
+  isTaskStartLocked,
+  taskStartTimeRestrictionsEnabled,
 } = require("../lib/crop-work-hours");
+
+const restrictionsEnabled = { WORKER_TASK_TIME_RESTRICTIONS_ENABLED: "true" };
 
 function atPhilippineTime(hour, minute) {
   return new Date(Date.UTC(2026, 8, 1, hour - 8, minute));
@@ -21,14 +25,38 @@ test("crop work hours block lunch and after-hours work", () => {
   for (const [hour, minute] of [[7, 59], [11, 50], [12, 30], [12, 59], [16, 0]]) {
     assert.equal(isCropWorkTime(atPhilippineTime(hour, minute)), false);
     assert.throws(
-      () => assertCropWorkerCanWork({ worker_category: "crop_management_worker" }, atPhilippineTime(hour, minute)),
+      () => assertCropWorkerCanWork(
+        { worker_category: "crop_management_worker" },
+        atPhilippineTime(hour, minute),
+        restrictionsEnabled,
+      ),
       { code: "CROP_WORK_HOURS_CLOSED" },
     );
   }
 });
 
 test("non-crop workers are not restricted by crop work hours", () => {
-  assert.doesNotThrow(() => assertCropWorkerCanWork({ worker_category: "seller" }, atPhilippineTime(12, 30)));
+  assert.doesNotThrow(() => assertCropWorkerCanWork(
+    { worker_category: "seller" },
+    atPhilippineTime(12, 30),
+    restrictionsEnabled,
+  ));
+});
+
+test("worker task time restrictions are disabled by default and can be restored with one flag", () => {
+  const noon = atPhilippineTime(12, 30);
+  const futureStart = atPhilippineTime(13, 0).toISOString();
+
+  assert.equal(taskStartTimeRestrictionsEnabled({}), false);
+  assert.doesNotThrow(() => assertCropWorkerCanWork({ worker_category: "crop_management_worker" }, noon, {}));
+  assert.equal(isTaskStartLocked(futureStart, noon, {}), false);
+
+  assert.equal(taskStartTimeRestrictionsEnabled(restrictionsEnabled), true);
+  assert.throws(
+    () => assertCropWorkerCanWork({ worker_category: "crop_management_worker" }, noon, restrictionsEnabled),
+    { code: "CROP_WORK_HOURS_CLOSED" },
+  );
+  assert.equal(isTaskStartLocked(futureStart, noon, restrictionsEnabled), true);
 });
 
 test("crop task schedules must stay within a single work window", () => {
