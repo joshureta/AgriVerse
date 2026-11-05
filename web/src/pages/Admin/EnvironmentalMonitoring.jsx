@@ -786,13 +786,15 @@ export default function EnvironmentalMonitoring() {
                       <h3>{label}</h3>
                       <strong>{metric.count ? `${metric.average}${unit}` : '—'}</strong>
                       <span>{metric.count ? `Range ${metric.min}–${metric.max}${unit}` : 'No readings'}</span>
-                      <small>{metric.count} valid readings · {metric.coveragePercent}% coverage</small>
+                      <small>{metric.count} valid readings</small>
                     </article>
                   ))}
                 </div>
                 <div className="environment-report-summary">
                   <div className="environment-report-summary-heading">
-                    <h3>Environmental Summary</h3>
+                    <h3>{savedSummary?.metrics?.firstAt
+                      ? `Environmental Summary: ${activeField} (${new Date(savedSummary.metrics.firstAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })} to ${new Date(savedSummary.metrics.isToday ? savedSummary.generated_at : savedSummary.metrics.lastAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })})`
+                      : 'Environmental Summary'}</h3>
                     {reportData.hasReadings && (
                       <button type="button" onClick={generateReport} disabled={reportGenerating}>
                         {reportGenerating ? (
@@ -816,18 +818,15 @@ export default function EnvironmentalMonitoring() {
                   </div>
                   {savedSummary?.summary ? (
                     <>
-                      {savedSummary.metrics?.status === 'insufficient' && <p>Partial summary based on the readings collected when this was generated.</p>}
                       <p>{savedSummary.summary}</p>
-                      {savedSummary.suggested_check && <p><strong>Suggested check:</strong> {savedSummary.suggested_check}</p>}
+                      {savedSummary.suggested_check && <><h4>Suggestion</h4><p>{savedSummary.suggested_check}</p></>}
                       <small>Generated {new Date(savedSummary.generated_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })}</small>
                       {savedSummary.ephemeral && <p>This summary is temporary and may be lost when you leave this page.</p>}
                     </>
                   ) : !reportData.hasReadings ? (
                     <p>No sensor readings are available for {activeField} on this date.</p>
-                  ) : reportData.status === 'insufficient' ? (
-                    <p>A summary may be generated from the sensor readings available for this date.</p>
                   ) : (
-                    <p>Generate a summary of the readings collected for this day.</p>
+                    <p>Generate a summary from the recorded sensor readings.</p>
                   )}
                   {!dailyReport.storageReady && reportData.hasReadings && !savedSummary?.ephemeral && (
                     <small>Daily summaries can&apos;t be saved right now.</small>
