@@ -73,6 +73,16 @@ test("profile editing requires an access token", async () => {
   assert.equal((await response.json()).error, "Authentication required");
 });
 
+test("push device registration requires an access token", async () => {
+  const response = await fetch(`${baseUrl}/api/push/devices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: "fcm-token-that-is-long-enough", platform: "android", provider: "fcm" }),
+  });
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, "Authentication required");
+});
+
 test("local Vite checkout origins pass CORS preflight in development", async () => {
   for (const origin of ["http://127.0.0.1:5173", "http://localhost:5174"]) {
     const response = await fetch(`${baseUrl}/api/buyer/orders`, {

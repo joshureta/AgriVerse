@@ -6,7 +6,7 @@ const {
   requireRole,
 } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
-const { assertCropWorkerCanWork } = require("../lib/crop-work-hours");
+const { assertCropWorkerCanWork, isTaskStartLocked } = require("../lib/crop-work-hours");
 const { collectsInspectionDetails, readInspectionDetails, requiredInventoryKind } = require("../lib/task-details");
 const { httpError } = require("../lib/http-error");
 const { uploadImage } = require("../lib/storage");
@@ -80,9 +80,9 @@ function serializeTask(task) {
   };
 }
 
-// A pending task booked for a future date/time stays locked from the worker until then.
+// When the temporary restriction flag is enabled, future tasks stay locked until their start time.
 function isTaskLocked(task) {
-  return task.status === "pending" && new Date(task.schedule_start).getTime() > Date.now();
+  return task.status === "pending" && isTaskStartLocked(task.schedule_start);
 }
 
 function readHarvestCount(value, label) {
@@ -269,7 +269,7 @@ router.patch("/:id/status", async (req, res, next) => {
     if (currentStatus === "pending") {
       const schedule = Array.isArray(currentTask.schedules) ? currentTask.schedules[0] : currentTask.schedules;
       const scheduleStart = schedule ? `${schedule.schedule_date}T${String(schedule.start_time).slice(0, 8)}+08:00` : null;
-      if (scheduleStart && new Date(scheduleStart).getTime() > Date.now()) {
+      if (isTaskStartLocked(scheduleStart)) {
         throw httpError(403, "This task is booked for a later date and isn't available yet");
       }
     }

@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { apiRequest } from '@/lib/api';
+import { unregisterStoredPushDevice } from '@/lib/push-device-api';
 import { supabase } from '@/lib/supabase';
 
 export type WorkerProfile = {
@@ -172,6 +173,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    try {
+      await unregisterStoredPushDevice();
+    } catch {
+      // Signing out must still succeed if the device is temporarily offline.
+    }
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);

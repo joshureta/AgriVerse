@@ -4,6 +4,10 @@ const LUNCH_START = 11 * 60 + 50;
 const AFTERNOON_START = 13 * 60;
 const WORKDAY_END = 16 * 60;
 
+function taskStartTimeRestrictionsEnabled(env = process.env) {
+  return String(env.WORKER_TASK_TIME_RESTRICTIONS_ENABLED || "").trim().toLowerCase() === "true";
+}
+
 function philippinesMinutesSinceMidnight(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: PHILIPPINES_TIME_ZONE,
@@ -48,8 +52,16 @@ function assertCropTaskSchedule(workerCategory, startTime, endTime) {
   }
 }
 
-function assertCropWorkerCanWork(profile, now = new Date()) {
-  if (profile?.worker_category === "crop_management_worker" && !isCropWorkTime(now)) {
+function isTaskStartLocked(scheduleStart, now = new Date(), env = process.env) {
+  if (!taskStartTimeRestrictionsEnabled(env) || !scheduleStart) return false;
+  const start = new Date(scheduleStart);
+  return !Number.isNaN(start.getTime()) && start.getTime() > now.getTime();
+}
+
+function assertCropWorkerCanWork(profile, now = new Date(), env = process.env) {
+  if (taskStartTimeRestrictionsEnabled(env)
+    && profile?.worker_category === "crop_management_worker"
+    && !isCropWorkTime(now)) {
     const error = new Error(cropWorkHoursMessage());
     error.status = 403;
     error.code = "CROP_WORK_HOURS_CLOSED";
@@ -63,5 +75,7 @@ module.exports = {
   cropWorkHoursMessage,
   cropScheduleHoursMessage,
   isCropWorkTime,
+  isTaskStartLocked,
   philippinesMinutesSinceMidnight,
+  taskStartTimeRestrictionsEnabled,
 };

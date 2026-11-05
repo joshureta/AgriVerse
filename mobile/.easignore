@@ -1,0 +1,37 @@
+# Dependencies and generated Expo output
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Generated native projects (EAS runs Expo prebuild)
+android/
+ios/
+.kotlin/
+
+# Local builds and diagnostics
+*.apk
+*.aab
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.tsbuildinfo
+
+# Local environment and editor files
+.env
+.env.*
+!.env.example
+.vscode/
+.claude/
+.DS_Store
+Thumbs.db
+
+# Native signing credentials must never be uploaded from the workspace
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem

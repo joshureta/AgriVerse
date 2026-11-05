@@ -19,6 +19,15 @@ The signup code is verified with `verifyOtp({ email, token, type: 'email' })`.
 Set the Supabase Site URL to the deployed website and allow its
 `/auth/confirm` redirect for the link fallback.
 
+## Worker task start-time restrictions
+
+Worker daily-hours and scheduled-start restrictions are temporarily disabled.
+To restore both backend checks, set
+`WORKER_TASK_TIME_RESTRICTIONS_ENABLED=true` in the backend environment. To
+restore the matching mobile button restriction, set
+`EXPO_PUBLIC_WORKER_TASK_TIME_RESTRICTIONS_ENABLED=true` in the mobile build
+environment and rebuild or reload the app.
+
 ## Daily environmental reports
 
 The Environmental Monitoring page shows daily measurements for each field.
