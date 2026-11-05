@@ -40,7 +40,7 @@ function App() {
   const sellerLoading = <WorkspaceLoading path={path} seller />
 
   if (path === '/profile') {
-    return <ProtectedRoute allowedRoles={['admin', 'farm_worker']}><OwnProfile /></ProtectedRoute>
+    return <ProtectedRoute allowedRoles={['farm_worker']} allowedWorkerCategories={['driver', 'crop_management_worker']}><OwnProfile /></ProtectedRoute>
   }
 
   if (path === '/farm-worker/orders' || path === '/seller/orders') {
