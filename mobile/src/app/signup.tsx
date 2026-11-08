@@ -1,4 +1,5 @@
 import { styles } from '@/styles/signup.styles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -20,8 +21,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ConvexDomeCap } from '@/components/convex-dome-cap';
 import { useAuth } from '@/context/auth-context';
-import { publicApiRequest } from '@/lib/api';
 import { postAuthenticationRoute } from '@/lib/mobile-routing';
+import { supabase } from '@/lib/supabase';
 import {
   getCityMunicipalityBarangays,
   getProvinceCitiesMunicipalities,
@@ -31,15 +32,12 @@ import {
   PsgcItem,
 } from '@/lib/psgc';
 
-type WorkerCategory = 'driver' | 'crop_management_worker' | 'seller';
 type Choice = { code: string; name: string };
 
-const steps = ['Personal', 'Security', 'Location'];
-const workerCategories: Choice[] = [
-  { code: 'crop_management_worker', name: 'Crop Management Worker' },
-  { code: 'driver', name: 'Driver' },
-  { code: 'seller', name: 'Seller' },
-];
+const steps = ['Personal info', 'Security', 'Location'];
+const pendingEmailKey = 'agriverse-pending-signup-email';
+const verificationCodeLength = 6;
+const emptyVerificationDigits = () => Array<string>(verificationCodeLength).fill('');
 
 function FormField({
   label,
@@ -140,12 +138,11 @@ export default function SignUpScreen({
   onSignIn?: () => void;
   onStepChange?: (step: number) => void;
 }) {
-  const { signIn } = useAuth();
+  const { refreshProfile } = useAuth();
   const [step, setStepState] = useState(0);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
-  const [workerCategory, setWorkerCategory] = useState<WorkerCategory>('crop_management_worker');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -161,17 +158,21 @@ export default function SignUpScreen({
   const [barangay, setBarangay] = useState<PsgcItem | null>(null);
   const [provinceNotApplicable, setProvinceNotApplicable] = useState(false);
 
-  const [termsAccepted, setTermsAccepted] = useState(true);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadingAddress, setLoadingAddress] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [verificationDigits, setVerificationDigits] = useState(emptyVerificationDigits);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [choice, setChoice] = useState<{
     title: string;
     items: Choice[];
     select: (item: Choice) => void;
   } | null>(null);
 
-  const scrollViewRef = useRef<ScrollView>(null);
+  const codeInputRefs = useRef<(React.ComponentRef<typeof TextInput> | null)[]>([]);
 
   const setStep = (newStep: number | ((curr: number) => number)) => {
     setStepState((curr) => {
@@ -186,6 +187,25 @@ export default function SignUpScreen({
       .then(setRegions)
       .catch((caught) => setError(caught instanceof Error ? caught.message : 'Failed to load regions.'));
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(pendingEmailKey)
+      .then((storedEmail) => {
+        if (active && storedEmail) {
+          setPendingEmail(storedEmail);
+          onStepChange?.(3);
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [onStepChange]);
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timer = setTimeout(() => setResendSeconds((seconds) => seconds - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendSeconds]);
 
   async function selectRegion(selectedRegion: Choice) {
     setRegion(selectedRegion as PsgcItem);
@@ -264,7 +284,8 @@ export default function SignUpScreen({
     setError('');
     if (step === 0) {
       if (!fullName.trim()) return setError('Enter your full name.'), false;
-      if (!email.trim()) return setError('Enter your email address.'), false;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+        return setError('Enter a valid email address.'), false;
       if (!mobileNumber.trim()) return setError('Enter your mobile number.'), false;
     }
     if (step === 1) {
@@ -288,37 +309,122 @@ export default function SignUpScreen({
 
     setSubmitting(true);
     setError('');
+    setMessage('');
     try {
-      const registrationPayload = {
-        email: email.trim(),
+      const registrationEmail = email.trim();
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: registrationEmail,
         password,
-        full_name: fullName.trim(),
-        mobile_number: mobileNumber.trim(),
-        worker_category: workerCategory,
-        region: region?.name || '',
-        province: provinceNotApplicable ? 'Not Applicable' : province?.name || '',
-        city_municipality: city?.name || '',
-        barangay: barangay?.name || '',
-      };
-
-      await publicApiRequest<{
-        sessionToken: string;
-        user: { id: string; email: string; role: 'worker' | 'driver' | 'buyer' | 'admin' };
-      }>('/api/mobile/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(registrationPayload),
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            mobile_number: mobileNumber.trim(),
+            country: 'Philippines',
+            region: region!.name,
+            province: provinceNotApplicable ? null : province!.name,
+            city_municipality: city!.name,
+            barangay: barangay!.name,
+          },
+        },
       });
+      if (signUpError) throw signUpError;
 
-      const profile = await signIn(email.trim(), password);
-      if (router.canDismiss()) {
-        router.dismissAll();
+      if (data.session) {
+        const profile = await refreshProfile();
+        if (router.canDismiss()) router.dismissAll();
+        router.replace(postAuthenticationRoute(profile));
+      } else {
+        await AsyncStorage.setItem(pendingEmailKey, registrationEmail).catch(() => undefined);
+        setPendingEmail(registrationEmail);
+        setVerificationDigits(emptyVerificationDigits());
+        setResendSeconds(60);
+        setMessage('Code sent. Check your inbox or spam folder.');
+        onStepChange?.(3);
       }
-      router.replace(postAuthenticationRoute(profile));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to create your account.');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function verifyEmail() {
+    if (submitting || verificationDigits.some((digit) => !digit)) return;
+    setSubmitting(true);
+    setError('');
+    setMessage('');
+    let verified = false;
+    try {
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email: pendingEmail,
+        token: verificationDigits.join(''),
+        type: 'email',
+      });
+      if (verifyError || !data?.user) {
+        throw new Error(verifyError?.message || 'The code could not be verified. Please try again.');
+      }
+      verified = true;
+      await AsyncStorage.removeItem(pendingEmailKey).catch(() => undefined);
+      const profile = await refreshProfile();
+      setPendingEmail('');
+      if (router.canDismiss()) router.dismissAll();
+      router.replace(postAuthenticationRoute(profile));
+    } catch (caught) {
+      if (verified) {
+        setPendingEmail('');
+        setStep(0);
+        setMessage('Email verified. Sign in to continue.');
+      } else {
+        setError(caught instanceof Error ? caught.message : 'Could not verify the code. Check your connection and try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function resendCode() {
+    if (submitting || resendSeconds > 0) return;
+    setSubmitting(true);
+    setError('');
+    setMessage('');
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: pendingEmail,
+      });
+      if (resendError) throw resendError;
+      setVerificationDigits(emptyVerificationDigits());
+      setResendSeconds(60);
+      setMessage('New code sent. Check your inbox.');
+      codeInputRefs.current[0]?.focus();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not resend the code. Check your connection and try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function changeRegistrationEmail() {
+    await AsyncStorage.removeItem(pendingEmailKey).catch(() => undefined);
+    setPendingEmail('');
+    setVerificationDigits(emptyVerificationDigits());
+    setResendSeconds(0);
+    setError('');
+    setMessage('');
+    setStep(0);
+  }
+
+  function changeCodeDigit(index: number, value: string) {
+    const digits = value.replace(/\D/g, '');
+    setVerificationDigits((current) => {
+      const nextDigits = [...current];
+      if (!digits) nextDigits[index] = '';
+      for (let offset = 0; offset < digits.length && index + offset < verificationCodeLength; offset++) {
+        nextDigits[index + offset] = digits[offset];
+      }
+      return nextDigits;
+    });
+    if (digits) codeInputRefs.current[Math.min(index + digits.length, verificationCodeLength - 1)]?.focus();
   }
 
   function next() {
@@ -360,10 +466,12 @@ export default function SignUpScreen({
             {/* FIXED HEADER: Remains intact and does not scroll */}
             <View style={[styles.fixedHeader, embedded && styles.embeddedFixedHeader]}>
               <Text style={styles.kicker}>CREATE ACCOUNT</Text>
-              <Text style={styles.title}>Sign up to get started</Text>
-              <Text style={styles.subtitle}>Create your account details</Text>
+              <Text style={styles.title}>{pendingEmail ? 'Verify your email' : 'Create Account'}</Text>
+              <Text style={styles.subtitle}>
+                {pendingEmail ? `Enter the 6-digit code sent to ${pendingEmail}.` : 'Complete three quick steps to get started.'}
+              </Text>
               {/* 3-STEP PROGRESS STEPPER */}
-              <View accessibilityLabel={`Step ${step + 1} of 3: ${steps[step]}`} style={styles.stepper}>
+              {!pendingEmail ? <View accessibilityLabel={`Step ${step + 1} of 3: ${steps[step]}`} style={styles.stepper}>
                 {steps.map((label, index) => {
                   const isCompleted = index < step;
                   const isActive = index === step;
@@ -397,25 +505,72 @@ export default function SignUpScreen({
                     </View>
                   );
                 })}
-              </View>
+              </View> : null}
 
-              <Text style={styles.sectionTitle}>
-                {step === 0 ? 'Personal Details' : step === 1 ? 'Security Credentials' : 'Farm Region & Location'}
-              </Text>
+              {!pendingEmail ? <Text style={styles.sectionTitle}>
+                {step === 0 ? 'Personal information' : step === 1 ? 'Security' : 'Location'}
+              </Text> : null}
             </View>
 
             {/* SCROLLABLE AREA: Starts below the section title divider line */}
             <ScrollView
-              ref={scrollViewRef}
               style={styles.scrollArea}
               contentContainerStyle={[styles.scrollContent, embedded && styles.embeddedScrollContent]}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}>
               {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+              {message ? <Text accessibilityRole="alert" style={styles.success}>{message}</Text> : null}
+
+              {pendingEmail ? (
+                <View>
+                  <Text style={styles.label}>Verification code</Text>
+                  <View style={styles.codeInputs}>
+                    {verificationDigits.map((digit, index) => (
+                      <TextInput
+                        key={index}
+                        ref={(input) => { codeInputRefs.current[index] = input; }}
+                        accessibilityLabel={`Digit ${index + 1} of ${verificationCodeLength}`}
+                        autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                        autoFocus={index === 0}
+                        editable={!submitting}
+                        keyboardType="number-pad"
+                        maxLength={verificationCodeLength}
+                        onChangeText={(value) => changeCodeDigit(index, value)}
+                        onKeyPress={({ nativeEvent }) => {
+                          if (nativeEvent.key === 'Backspace' && !verificationDigits[index] && index > 0) {
+                            codeInputRefs.current[index - 1]?.focus();
+                          }
+                        }}
+                        selectTextOnFocus
+                        style={styles.codeInput}
+                        value={digit}
+                      />
+                    ))}
+                  </View>
+                  <Pressable
+                    disabled={submitting || verificationDigits.some((digit) => !digit)}
+                    onPress={verifyEmail}
+                    style={[styles.continueButtonWrapper, styles.verifyButton, (submitting || verificationDigits.some((digit) => !digit)) && styles.buttonDisabled]}>
+                    <LinearGradient colors={['#3D9B43', '#185C35']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientButton}>
+                      {submitting ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.continueButtonText}>Verify email</Text>}
+                    </LinearGradient>
+                  </Pressable>
+                  <View style={styles.verifyActions}>
+                    <Pressable disabled={submitting || resendSeconds > 0} onPress={resendCode}>
+                      <Text style={[styles.verifyActionText, (submitting || resendSeconds > 0) && styles.verifyActionDisabled]}>
+                        {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : 'Resend email'}
+                      </Text>
+                    </Pressable>
+                    <Pressable disabled={submitting} onPress={changeRegistrationEmail}>
+                      <Text style={[styles.verifyActionText, submitting && styles.verifyActionDisabled]}>Use another email</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
 
               {/* STEP 1: PERSONAL INFORMATION */}
-              {step === 0 ? (
+              {!pendingEmail && step === 0 ? (
                 <View>
                   <FormField
                     autoCapitalize="words"
@@ -443,26 +598,11 @@ export default function SignUpScreen({
                     placeholder="+63 900 000 0000"
                     value={mobileNumber}
                   />
-                  <ChoiceField
-                    label="Farm worker category"
-                    onPress={() =>
-                      setChoice({
-                        title: 'Select worker category',
-                        items: workerCategories,
-                        select: (item) => {
-                          setWorkerCategory(item.code as WorkerCategory);
-                          setChoice(null);
-                        },
-                      })
-                    }
-                    placeholder="Select worker category"
-                    value={workerCategories.find((item) => item.code === workerCategory)?.name}
-                  />
                 </View>
               ) : null}
 
               {/* STEP 2: SECURITY CREDENTIALS */}
-              {step === 1 ? (
+              {!pendingEmail && step === 1 ? (
                 <View>
                   <View style={styles.field}>
                     <Text style={styles.label}>Create password</Text>
@@ -527,8 +667,8 @@ export default function SignUpScreen({
                 </View>
               ) : null}
 
-              {/* STEP 3: FARM REGION & LOCATION */}
-              {step === 2 ? (
+              {/* STEP 3: LOCATION */}
+              {!pendingEmail && step === 2 ? (
                 <View>
                   <ChoiceField disabled label="Country" onPress={() => undefined} placeholder="Philippines" value="Philippines" />
                   <ChoiceField
@@ -588,7 +728,7 @@ export default function SignUpScreen({
               ) : null}
 
               {/* Action Buttons */}
-              <View style={styles.actions}>
+              {!pendingEmail ? <View style={styles.actions}>
                 {step > 0 ? (
                   <Pressable
                     disabled={submitting}
@@ -618,12 +758,12 @@ export default function SignUpScreen({
                       <ActivityIndicator color="#ffffff" />
                     ) : (
                       <Text style={styles.continueButtonText}>
-                        {step < 2 ? 'Continue' : 'Create Account'}
+                        {step < 2 ? 'Continue' : 'Sign up'}
                       </Text>
                     )}
                   </LinearGradient>
                 </Pressable>
-              </View>
+              </View> : null}
 
               <View style={styles.signInRow}>
                 <Text style={styles.signInPrompt}>Already have an account? </Text>

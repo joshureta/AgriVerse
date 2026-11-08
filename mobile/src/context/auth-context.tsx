@@ -50,6 +50,7 @@ type AuthContextValue = {
   updateProfile: (details: ProfileChanges) => Promise<WorkerProfile>;
   completeLocation: (location: LocationInput) => Promise<WorkerProfile>;
   signIn: (email: string, password: string) => Promise<WorkerProfile>;
+  refreshProfile: () => Promise<WorkerProfile>;
   signOut: () => Promise<void>;
 };
 
@@ -107,6 +108,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
       throw error;
     }
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) throw new Error(error?.message || 'Unable to finish signing in.');
+
+    const nextProfile = await getWorkerProfile();
+    setSession(data.session);
+    setProfile(nextProfile);
+    return nextProfile;
   }, []);
 
   const changeInitialPassword = useCallback(async (password: string) => {
@@ -193,6 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       session,
       profile,
+      refreshProfile,
       signIn,
       signOut,
     }),
@@ -204,6 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updateProfile,
       loading,
       profile,
+      refreshProfile,
       session,
       signIn,
       signOut,

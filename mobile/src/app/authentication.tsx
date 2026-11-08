@@ -35,9 +35,12 @@ export default function AuthenticationScreen() {
   const signupPersonalHeight = Math.max(590, Math.min(height * 0.74, 650));
   const signupSecurityHeight = Math.max(560, Math.min(height * 0.70, 620));
   const signupLocationHeight = Math.max(610, Math.min(height - 18, height * 0.80));
+  const signupVerificationHeight = Math.max(500, Math.min(height * 0.62, 560));
 
   const signupPanelHeight =
-    signUpStep === 1
+    signUpStep === 3
+      ? signupVerificationHeight
+      : signUpStep === 1
       ? signupSecurityHeight
       : signUpStep === 2
       ? signupLocationHeight
@@ -166,7 +169,7 @@ export default function AuthenticationScreen() {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Create a farm worker account"
+                accessibilityLabel="Create a buyer account"
                 onPress={() => openAuth('signup')}
                 style={({ pressed }) => [
                   styles.gradientButtonWrapper,
