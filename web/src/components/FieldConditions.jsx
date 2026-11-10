@@ -3,7 +3,19 @@ import { AlertTriangle, CheckCircle2, Droplets, Sprout, Thermometer, Waves } fro
 import { sensorSupabase } from '../lib/sensorSupabase.js'
 import { latestCurrentReading, latestMoistureReading } from '../lib/sensorStatus.js'
 
-const REFRESH_MS = 30000
+const REFRESH_MS = 10000
+
+function mergeLatestReadings(current, incoming) {
+  const byId = new Map(current.map((reading) => [reading.id, reading]))
+  incoming.forEach((reading) => byId.set(reading.id, reading))
+  return [...byId.values()]
+    .sort((left, right) => right.measuredAt - left.measuredAt)
+    .slice(0, 20)
+}
+
+function withMeasuredAt(reading) {
+  return { ...reading, measuredAt: Date.parse(reading.created_at) }
+}
 
 function relativeReadingTime(value, now) {
   if (!value) return 'No recent readings'
@@ -43,8 +55,12 @@ export default function FieldConditions() {
       if (!active) return
 
       const [climate, soil] = results.map((result) => result.status === 'fulfilled' ? result.value : { error: result.reason })
-      setClimateReadings(climate.error ? [] : (climate.data || []).map((reading) => ({ ...reading, measuredAt: Date.parse(reading.created_at) })))
-      setSoilReadings(soil.error ? [] : (soil.data || []).map((reading) => ({ ...reading, measuredAt: Date.parse(reading.created_at) })))
+      if (!climate.error) {
+        setClimateReadings((current) => mergeLatestReadings(current, (climate.data || []).map(withMeasuredAt)))
+      }
+      if (!soil.error) {
+        setSoilReadings((current) => mergeLatestReadings(current, (soil.data || []).map(withMeasuredAt)))
+      }
       setError(climate.error || soil.error ? 'Some sensor readings could not be loaded.' : '')
       setNow(Date.now())
       setLoading(false)
@@ -52,7 +68,30 @@ export default function FieldConditions() {
 
     refresh()
     const interval = window.setInterval(refresh, REFRESH_MS)
-    return () => { active = false; window.clearInterval(interval) }
+    const climateChannel = sensorSupabase
+      .channel('field-conditions-climate')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sensor_readings' }, ({ new: reading }) => {
+        if (!active) return
+        setClimateReadings((current) => mergeLatestReadings(current, [withMeasuredAt(reading)]))
+        setNow(Date.now())
+        setLoading(false)
+      })
+      .subscribe()
+    const soilChannel = sensorSupabase
+      .channel('field-conditions-soil')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'soil_readings' }, ({ new: reading }) => {
+        if (!active) return
+        setSoilReadings((current) => mergeLatestReadings(current, [withMeasuredAt(reading)]))
+        setNow(Date.now())
+        setLoading(false)
+      })
+      .subscribe()
+    return () => {
+      active = false
+      window.clearInterval(interval)
+      sensorSupabase.removeChannel(climateChannel)
+      sensorSupabase.removeChannel(soilChannel)
+    }
   }, [])
 
   const temperature = latestCurrentReading(climateReadings, 'temperature_c', now)

@@ -18,8 +18,7 @@ constexpr uint8_t SOIL_SAMPLE_COUNT = 20;
 constexpr int SOIL_DRY_VALUE = 2800;
 constexpr int SOIL_WET_VALUE = 1150;
 
-constexpr unsigned long READ_INTERVAL_MS = 2000;
-constexpr unsigned long SEND_INTERVAL_MS = 30000;
+constexpr unsigned long READ_INTERVAL_MS = 10000;
 constexpr unsigned long WIFI_TIMEOUT_MS = 15000;
 constexpr unsigned long TIME_TIMEOUT_MS = 15000;
 
@@ -27,7 +26,6 @@ DHT dht(DHT_PIN, DHT22);
 OneWire oneWire(DS18B20_PIN);
 DallasTemperature soilTemperatureSensor(&oneWire);
 unsigned long lastReadMs = 0;
-unsigned long lastSendMs = 0;
 bool wifiStarted = false;
 
 int readAverageSoilValue() {
@@ -118,23 +116,35 @@ int postJson(const char *tableName, const String &payload) {
   return status;
 }
 
+String currentUtcTimestamp() {
+  const time_t now = time(nullptr);
+  struct tm utcTime;
+  gmtime_r(&now, &utcTime);
+  char timestamp[21];
+  strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", &utcTime);
+  return String(timestamp);
+}
+
 void sendClimateReading(float soilTemperature, bool soilTemperatureValid,
-                        float humidity, bool humidityValid) {
+                        float humidity, bool humidityValid,
+                        const String &measuredAt) {
   const String payload = String("{\"device_id\":\"") + DEVICE_ID +
                          "\",\"temperature_c\":" +
                          (soilTemperatureValid ? String(soilTemperature, 1) : "null") +
                          ",\"humidity_percent\":" +
-                         (humidityValid ? String(humidity, 1) : "null") + "}";
+                         (humidityValid ? String(humidity, 1) : "null") +
+                         ",\"created_at\":\"" + measuredAt + "\"}";
   const int status = postJson("sensor_readings", payload);
   if (status == 201 || status == 204) {
     Serial.printf("Climate readings saved (HTTP %d).\n", status);
   }
 }
 
-void sendSoilReading(int rawValue, float moisture) {
+void sendSoilReading(int rawValue, float moisture, const String &measuredAt) {
   const String payload = String("{\"device_id\":\"") + DEVICE_ID +
                          "\",\"moisture_raw\":" + String(rawValue) +
-                         ",\"moisture_percent\":" + String(moisture, 1) + "}";
+                         ",\"moisture_percent\":" + String(moisture, 1) +
+                         ",\"created_at\":\"" + measuredAt + "\"}";
   const int status = postJson("soil_readings", payload);
   if (status == 201 || status == 204) {
     Serial.printf("Soil saved: %d raw, %.1f%% (HTTP %d)\n",
@@ -178,17 +188,17 @@ void loop() {
   Serial.printf("Soil raw: %d | Moisture: %.1f%%\n----------------------\n",
                 soilRaw, soilMoisture);
 
-  if (lastSendMs != 0 && millis() - lastSendMs < SEND_INTERVAL_MS) return;
-  lastSendMs = millis();
-
   if (!connectWifi() || !syncClock()) return;
 
+  // Both rows use the same time so the website pairs one sensor cycle correctly.
+  const String measuredAt = currentUtcTimestamp();
   if (soilTemperatureValid || humidityValid) {
-    sendClimateReading(soilTemperature, soilTemperatureValid, humidity, humidityValid);
+    sendClimateReading(soilTemperature, soilTemperatureValid, humidity,
+                       humidityValid, measuredAt);
   }
   // Rail values usually indicate a short or open probe, not useful moisture data.
   if (soilRaw > 10 && soilRaw < 4085) {
-    sendSoilReading(soilRaw, soilMoisture);
+    sendSoilReading(soilRaw, soilMoisture, measuredAt);
   } else {
     Serial.println("Soil moisture reading invalid; check probe wiring.");
   }

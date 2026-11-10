@@ -39,7 +39,7 @@ import '../../styles/monitoring.css'
 
 const fields = ['Field A', 'Field B', 'Field C', 'Field D']
 const READINGS_PER_PAGE = 10
-const SENSOR_PAIR_WINDOW_MS = 15000
+const SENSOR_PAIR_WINDOW_MS = 5000
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const WEATHER_IMAGES = {
   sunny: weatherSunnyImage,
@@ -101,6 +101,14 @@ async function requestEnvironmentalReport(field, date, generate = false) {
   return body
 }
 
+function formatSensorTime(measuredAt) {
+  return Number.isNaN(measuredAt.getTime())
+    ? 'Unknown'
+    : measuredAt.toLocaleTimeString('en-PH', {
+      timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', second: '2-digit',
+    })
+}
+
 // Formats a climate sensor reading for display.
 function formatSensorReading(reading) {
   const measuredAt = new Date(reading.created_at)
@@ -108,9 +116,7 @@ function formatSensorReading(reading) {
     ...reading,
     id: `climate-${reading.id}`,
     measuredAt: measuredAt.getTime(),
-    time: Number.isNaN(measuredAt.getTime())
-      ? 'Unknown'
-      : measuredAt.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }),
+    time: formatSensorTime(measuredAt),
     temperature: reading.temperature_c == null ? '—' : `${Number(reading.temperature_c).toFixed(1)}°C`,
     humidity: reading.humidity_percent == null ? '—' : `${Number(reading.humidity_percent).toFixed(1)}%`,
     moisture: reading.soil_moisture == null
@@ -126,9 +132,7 @@ function formatSoilReading(reading) {
     ...reading,
     id: `soil-${reading.id}`,
     measuredAt: measuredAt.getTime(),
-    time: Number.isNaN(measuredAt.getTime())
-      ? 'Unknown'
-      : measuredAt.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }),
+    time: formatSensorTime(measuredAt),
     temperature: '—',
     humidity: '—',
     moisture: `${Number(reading.moisture_percent).toFixed(1)}%`,
@@ -169,7 +173,7 @@ function combineSensorReadings(climateReadings, soilReadings) {
       ...climate,
       id: `${climate.id}-${nearestSoil.id}`,
       measuredAt,
-      time: new Date(measuredAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }),
+      time: formatSensorTime(new Date(measuredAt)),
       moisture: nearestSoil.moisture,
       moisture_percent: nearestSoil.moisture_percent,
       moisture_raw: nearestSoil.moisture_raw,
@@ -538,7 +542,7 @@ export default function EnvironmentalMonitoring() {
     const statusTimer = window.setInterval(() => {
       setStatusNow(Date.now())
       refreshRecentReadings()
-    }, 30000)
+    }, 10000)
     const historyTimer = window.setInterval(() => {
       refreshReadings()
       refreshDeviceFields()
@@ -560,6 +564,7 @@ export default function EnvironmentalMonitoring() {
           setSensorLoading(false)
           setStatusNow(Date.now())
           setPage(1)
+          refreshRecentReadings()
         },
       )
       .subscribe()
@@ -580,6 +585,7 @@ export default function EnvironmentalMonitoring() {
           setSensorLoading(false)
           setStatusNow(Date.now())
           setPage(1)
+          refreshRecentReadings()
         },
       )
       .subscribe()
