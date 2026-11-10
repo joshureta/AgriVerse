@@ -81,14 +81,21 @@
 .inventory-actions .inventory-remove-stock:disabled { background: #d8b9b4; cursor: not-allowed; }
 .inventory-actions .inventory-add-stock { width: auto; min-width: 96px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; background: linear-gradient(180deg,#2f8a44,#176b31); box-shadow: 0 4px 10px rgba(23,107,49,.16); font-size: 10px; font-weight: 800; }
 .inventory-actions .inventory-add-stock span { width: 17px; height: 17px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.75); border-radius: 50%; font-size: 13px; line-height: 1; }
-.pineapple-stock-table { min-width: 900px; }
-.pineapple-stock-table th:nth-child(1), .pineapple-stock-table td:nth-child(1) { width: 8%; }
-.pineapple-stock-table th:nth-child(2), .pineapple-stock-table td:nth-child(2) { width: 18%; }
-.pineapple-stock-table th:nth-child(3), .pineapple-stock-table td:nth-child(3) { width: 17%; }
-.pineapple-stock-table th:nth-child(4), .pineapple-stock-table td:nth-child(4) { width: 10%; }
-.pineapple-stock-table th:nth-child(5), .pineapple-stock-table td:nth-child(5) { width: 17%; }
-.pineapple-stock-table th:nth-child(6), .pineapple-stock-table td:nth-child(6) { width: 17%; }
-.pineapple-stock-table th:nth-child(7), .pineapple-stock-table td:nth-child(7) { width: 13%; }
+.pineapple-stock-table { min-width: 1100px; }
+.pineapple-stock-table th:nth-child(1), .pineapple-stock-table td:nth-child(1) { width: 6%; }
+.pineapple-stock-table th:nth-child(2), .pineapple-stock-table td:nth-child(2) { width: 16%; }
+.pineapple-stock-table th:nth-child(3), .pineapple-stock-table td:nth-child(3) { width: 14%; }
+.pineapple-stock-table th:nth-child(4), .pineapple-stock-table td:nth-child(4) { width: 7%; }
+.pineapple-stock-table th:nth-child(5), .pineapple-stock-table td:nth-child(5) { width: 13%; }
+.pineapple-stock-table th:nth-child(6), .pineapple-stock-table td:nth-child(6) { width: 14%; }
+.pineapple-stock-table th:nth-child(7), .pineapple-stock-table td:nth-child(7) { width: 15%; }
+.pineapple-stock-table th:nth-child(8), .pineapple-stock-table td:nth-child(8) { width: 15%; }
+.pineapple-stock-table .inventory-actions { align-items: center; }
+.pineapple-stock-table .inventory-actions .inventory-edit { width: 30px; flex: none; }
+.inventory-price { color: #176c35; font-size: 13px; white-space: nowrap; }
+.inventory-price-modal { width: min(540px, 100%); }
+.inventory-price-modal form { grid-template-columns: 1fr 1fr; }
+.inventory-price-help { grid-column: 1 / -1; margin: 0; color: #5b685e; font-size: 11px; line-height: 1.45; }
 .stock-status { display: inline-flex; min-height: 26px; align-items: center; border-radius: 999px; padding: 0 10px; font-size: 9px; font-weight: 900; text-transform: uppercase; }
 .stock-in { color: #176c35; background: #e5f4e4; }
 .stock-low { color: #986700; background: #fff1c9; }

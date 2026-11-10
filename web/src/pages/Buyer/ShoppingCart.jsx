@@ -62,10 +62,11 @@ export default function ShoppingCart() {
       const products = await loadPineappleProducts()
       const currentItems = reconcileCart(savedItems, products)
       const changed = currentItems.length !== savedItems.length
-        || currentItems.some((item, index) => item.quantity !== Number(savedItems[index]?.quantity))
+        || currentItems.some((item, index) => item.quantity !== Number(savedItems[index]?.quantity)
+          || item.price !== Number(savedItems[index]?.price))
       setItems(currentItems)
       writeBuyerCart(currentItems)
-      if (changed) setNotice('Your cart was updated to match the latest available inventory.')
+      if (changed) setNotice('Your cart was updated to match the latest stock and prices.')
     } catch (requestError) {
       setItems(savedItems)
       setError(requestError.message)

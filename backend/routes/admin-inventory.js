@@ -31,8 +31,9 @@ function limitSellerInventory(req, res, next) {
   const readsAlerts = req.method === "GET" && req.path === "/alerts";
   const addsStock = req.method === "POST" && /^\/\d+\/stock$/.test(req.path);
   const addsPineappleSizeStock = req.method === "POST" && /^\/pineapple-sizes\/\d+\/stock$/.test(req.path);
-  if (!readsPineappleStock && !readsStockHistory && !readsAlerts && !addsStock && !addsPineappleSizeStock) {
-    return res.status(403).json({ error: "Sellers can only manage pineapple stock" });
+  const updatesPineapplePrice = req.method === "PATCH" && /^\/pineapple-sizes\/\d+\/price$/.test(req.path);
+  if (!readsPineappleStock && !readsStockHistory && !readsAlerts && !addsStock && !addsPineappleSizeStock && !updatesPineapplePrice) {
+    return res.status(403).json({ error: "Sellers can only manage pineapple stock and prices" });
   }
 
   return next();
@@ -56,6 +57,14 @@ function readQuantity(value, { allowZero = true } = {}) {
       : "Stock quantity must be a whole number greater than zero");
   }
   return quantity;
+}
+
+function readSellingPrice(value, label = "Selling price", allowZero = false) {
+  const text = String(value ?? "").trim();
+  if (!/^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/.test(text) || Number(text) < (allowZero ? 0 : 0.01)) {
+    throw httpError(400, `${label} must be ${allowZero ? 'zero or greater' : 'greater than zero'}, with no more than two decimal places`);
+  }
+  return Number(text);
 }
 
 function readId(value, label = "Inventory item ID") {
@@ -103,6 +112,7 @@ async function loadPineappleStock(supabase, categoryId, sizes) {
   const bySize = new Map(sizes.map((size) => [size.id, {
     id: size.id,
     item_name: `${size.size_name} Pineapple`,
+    selling_price: Number(size.selling_price),
     category_code: "pineapple",
     variant: size.size_name,
     stock_quantity: 0,
@@ -342,7 +352,7 @@ router.get("/", async (req, res, next) => {
         .select("id", { count: "exact", head: true }).is("archived_at", null);
       if (pineappleCategoryId) activeItemsCountQuery = activeItemsCountQuery.neq("inventory_category_id", pineappleCategoryId);
       const [sizesResult, activeCountResult, archivedCountResult] = await Promise.all([
-        supabase.from("pineapple_sizes").select("id, size_name").eq("status", true).order("size_name"),
+        supabase.from("pineapple_sizes").select("id, size_name, selling_price").eq("status", true).order("size_name"),
         activeItemsCountQuery,
         supabase.from("inventory_items").select("id", { count: "exact", head: true }).not("archived_at", "is", null),
       ]);
@@ -432,6 +442,25 @@ router.patch("/:id", async (req, res, next) => {
     });
     if (error) throwDatabaseError(error);
     return res.json({ item: await fetchItem(id) });
+  } catch (error) { return next(error); }
+});
+
+router.patch("/pineapple-sizes/:sizeId/price", async (req, res, next) => {
+  try {
+    const sizeId = readId(req.params.sizeId, "Pineapple size");
+    const sellingPrice = readSellingPrice(req.body?.selling_price);
+    const expectedPrice = readSellingPrice(req.body?.expected_price, "Current price", true);
+    const { data, error } = await getSupabase().rpc("update_pineapple_selling_price", {
+      p_size_id: sizeId,
+      p_new_price: sellingPrice,
+      p_expected_price: expectedPrice,
+      p_changed_by: req.user.id,
+    });
+    if (error?.code === "P0001") throw httpError(409, "This price changed while you were editing. Refresh the table and try again.");
+    if (error?.code === "P0002") throw httpError(404, "Pineapple size was not found or is inactive");
+    if (error) throw error;
+    const size = Array.isArray(data) ? data[0] : data;
+    return res.json({ size: { id: size.id, size_name: size.size_name, selling_price: Number(size.selling_price) } });
   } catch (error) { return next(error); }
 });
 

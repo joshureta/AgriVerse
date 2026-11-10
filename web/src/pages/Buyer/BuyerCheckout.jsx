@@ -546,6 +546,7 @@ function sameDeliveryAddress(first, second) {
 export default function BuyerCheckout() {
   const { profile } = useAuth()
   const [items, setItems] = useState([])
+  const [checkingPrices, setCheckingPrices] = useState(false)
   const [deliveryMethod, setDeliveryMethod] = useState('delivery')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [notes, setNotes] = useState('')
@@ -632,8 +633,9 @@ export default function BuyerCheckout() {
         setItems(verifiedItems)
         writeBuyerCart(verifiedItems)
         if (verifiedItems.length !== savedItems.length
-          || verifiedItems.some((item, index) => item.quantity !== Number(savedItems[index]?.quantity))) {
-          setNotice('Your order was updated to match the latest available stock.')
+          || verifiedItems.some((item, index) => item.quantity !== Number(savedItems[index]?.quantity)
+            || item.price !== Number(savedItems[index]?.price))) {
+          setNotice('Your order was updated to match the latest stock and prices.')
         }
       } catch (requestError) {
         if (active) setError(requestError.message)
@@ -795,7 +797,7 @@ export default function BuyerCheckout() {
   // Validates checkout and starts order placement.
   async function submitOrder(event) {
     event.preventDefault()
-    if (items.length === 0 || placedOrder) return
+    if (items.length === 0 || placedOrder || checkingPrices) return
     if (subtotal < MINIMUM_PINEAPPLE_SUBTOTAL) {
       setError('Add more pineapples to reach the PHP 1,500 minimum before shipping.')
       return
@@ -804,7 +806,30 @@ export default function BuyerCheckout() {
       openAddressEditor()
       return
     }
-    await completeOrder(deliveryMethod === 'delivery' ? deliveryAddress : null)
+    setCheckingPrices(true)
+    setError('')
+    try {
+      const products = await loadPineappleProducts()
+      const productById = new Map(products.map((product) => [String(product.id), product]))
+      const updatedItems = items.flatMap((item) => {
+        const product = productById.get(String(item.id))
+        if (!product || product.stock_quantity <= 0) return []
+        const quantity = Math.min(item.quantity, product.stock_quantity)
+        return [{ ...product, quantity }]
+      })
+      if (updatedItems.length !== items.length
+        || updatedItems.some((item, index) => item.quantity !== items[index].quantity || item.price !== items[index].price)) {
+        setItems(updatedItems)
+        writeBuyerCart(updatedItems)
+        setError('Stock or prices changed. Review your updated order before placing it.')
+        return
+      }
+      await completeOrder(deliveryMethod === 'delivery' ? deliveryAddress : null)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setCheckingPrices(false)
+    }
   }
 
   return (
@@ -928,7 +953,7 @@ export default function BuyerCheckout() {
             </div>
           </section>
 
-          <button className="checkout-submit" type="submit" disabled={loading || placing || items.length === 0 || Boolean(placedOrder)}>
+          <button className="checkout-submit" type="submit" disabled={loading || placing || checkingPrices || items.length === 0 || Boolean(placedOrder)}>
             {orderButtonLabel}
           </button>
           {placedOrder && orderToastVisible && (

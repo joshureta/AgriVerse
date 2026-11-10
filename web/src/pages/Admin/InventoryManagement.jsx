@@ -70,6 +70,10 @@ function formatDate(value) {
   }).format(new Date(value))
 }
 
+function formatPrice(value) {
+  return `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 // Gets the category details shown for an item.
 function categoryDetails(item) {
   const details = item.details || {}
@@ -135,6 +139,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
   const [itemForm, setItemForm] = useState(emptyItemForm)
+  const [priceDraft, setPriceDraft] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const inventoryApi = workspace === 'seller' ? '/api/seller/inventory' : '/api/admin/inventory'
   const Sidebar = workspace === 'seller' ? SellerSidebar : AdminSidebar
@@ -317,6 +322,41 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setModal({ mode: 'add-stock', item, direction: 'add' })
   }
 
+  function openEditPrice(item) {
+    setPriceDraft(Number(item.selling_price).toFixed(2))
+    setError('')
+    setNotice(null)
+    setModal({ mode: 'edit-price', item })
+  }
+
+  async function savePrice(event) {
+    event.preventDefault()
+    const price = priceDraft.trim()
+    if (!/^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/.test(price) || Number(price) <= 0) {
+      setError('Enter a price greater than zero with no more than two decimal places.')
+      return
+    }
+    if (Number(price) === Number(modal.item.selling_price)) {
+      setModal(null)
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`${inventoryApi}/pineapple-sizes/${modal.item.details.size_id}/price`, {
+        method: 'PATCH',
+        body: JSON.stringify({ selling_price: price, expected_price: modal.item.selling_price }),
+      })
+      const sizeName = modal.item.variant
+      setModal(null)
+      completeAction('Price updated:', `${sizeName} pineapple now sells for ${formatPrice(price)} per piece.`)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   // Opens the form to remove pineapple stock.
   function openRemoveStock(item) {
     setItemForm({ ...emptyItemForm, stock_quantity: item.stock_quantity, stock_to_add: '' })
@@ -461,7 +501,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
           <section className="inventory-browser">
             {workspace === 'seller' ? <header className="seller-stock-banner">
               <div className="seller-stock-banner-title">
-                <div><h2>Pineapple Stock</h2><p>Monitor available pineapple sizes and record new stock arrivals.</p></div>
+                <div><h2>Pineapple Stock</h2><p>Monitor pineapple stock, add new arrivals, and manage selling prices.</p></div>
               </div>
             </header> : <nav className="inventory-view-tabs" aria-label="Inventory views" role="tablist">
               <button className={activeView === 'items' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeView === 'items'} onClick={() => changeView('items')}>
@@ -501,14 +541,23 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
 
             <div className="inventory-table-wrap">
               {activeView === 'stock' ? <table className="inventory-table pineapple-stock-table">
-                <thead><tr><th>SIZE ID</th><th>PINEAPPLE SIZE</th><th>AVAILABLE STOCK</th><th>UNIT</th><th>STOCK STATUS</th><th>LAST UPDATED</th><th>ACTIONS</th></tr></thead>
+                <thead><tr><th>SIZE ID</th><th>PINEAPPLE SIZE</th><th>AVAILABLE STOCK</th><th>UNIT</th><th>SELLING PRICE</th><th>STOCK STATUS</th><th>LAST STOCK UPDATE</th><th>ACTIONS</th></tr></thead>
                 <tbody>
-                  {loading ? <tr><td className="inventory-empty" colSpan="7">Loading pineapple stock…</td></tr>
+                  {loading ? <tr><td className="inventory-empty" colSpan="8">Loading pineapple stock…</td></tr>
                     : items.length ? items.map((item) => {
                       const status = item.stock_quantity <= 0 ? 'out' : item.stock_quantity <= 10 ? 'low' : 'in'
                       const label = status === 'out' ? 'Out of Stock' : status === 'low' ? 'Low Stock' : 'In Stock'
-                      return <tr key={item.details.size_id}><td>{item.details.size_id}</td><td><strong>{item.variant}</strong></td><td><strong className="inventory-quantity">{item.stock_quantity}</strong></td><td>{item.unit_label || 'pcs'}</td><td><span className={`stock-status stock-${status}`}>{label}</span></td><td>{formatDate(item.updated_at)}</td><td><div className="inventory-actions"><button className="inventory-add-stock" type="button" onClick={() => openAddStock(item)}><span aria-hidden="true">+</span>Add Stock</button></div></td></tr>
-                    }) : <tr><td className="inventory-empty" colSpan="7">No pineapple stock records found.</td></tr>}
+                      return <tr key={item.details.size_id}>
+                        <td>{item.details.size_id}</td><td><strong>{item.variant}</strong></td>
+                        <td><strong className="inventory-quantity">{item.stock_quantity}</strong></td><td>{item.unit_label || 'pcs'}</td>
+                        <td><strong className="inventory-price">{formatPrice(item.selling_price)}</strong></td>
+                        <td><span className={`stock-status stock-${status}`}>{label}</span></td><td>{formatDate(item.updated_at)}</td>
+                        <td><div className="inventory-actions">
+                          <button className="inventory-add-stock" type="button" onClick={() => openAddStock(item)}><span aria-hidden="true">+</span>Add Stock</button>
+                          <button className="inventory-edit" type="button" onClick={() => openEditPrice(item)} aria-label={`Edit ${item.variant} pineapple price`} title={`Edit ${item.variant} pineapple price`}>✎</button>
+                        </div></td>
+                      </tr>
+                    }) : <tr><td className="inventory-empty" colSpan="8">No pineapple stock records found.</td></tr>}
                 </tbody>
               </table> : <table className="inventory-table inventory-records-table">
                 <thead><tr><th>ID</th><th>CATEGORY</th><th>ITEM NAME</th><th>CATEGORY DETAILS</th><th>QUANTITY</th><th>UNIT</th><th>{activeView === 'archive' ? 'ARCHIVED AT' : 'LAST UPDATED'}</th><th>ACTIONS</th></tr></thead>
@@ -639,6 +688,25 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
             <button type="button" autoFocus onClick={() => { setModal(null); setError('') }} disabled={saving}>Cancel</button>
             <button type="button" className={`inventory-action-submit${modal.mode === 'confirm-archive' ? ' is-warning' : ''}`} onClick={submitArchiveChange} disabled={saving}>{saving ? 'Saving…' : modal.mode === 'confirm-archive' ? 'Archive item' : 'Restore item'}</button>
           </footer>
+        </section>
+      </div>}
+
+      {/* Edits the marketplace price for a pineapple size. */}
+      {modal?.mode === 'edit-price' && <div className="inventory-modal-backdrop">
+        <section className="inventory-modal inventory-form-modal inventory-price-modal" role="dialog" aria-modal="true" aria-labelledby="price-modal-title">
+          <header className="inventory-form-header">
+            <div><p>Pineapple selling price</p><h2 id="price-modal-title">Edit {modal.item.variant} Price</h2></div>
+            <button className="inventory-modal-close" type="button" onClick={() => { setModal(null); setError('') }} disabled={saving} aria-label="Close"><X size={18} aria-hidden="true" /></button>
+          </header>
+          <div className="inventory-form-body">
+            {error && <InventoryNotice title="Price could not be saved:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
+            <form onSubmit={savePrice}>
+              <label><span>Current price per piece</span><input value={formatPrice(modal.item.selling_price)} readOnly aria-readonly="true" className="inventory-current-stock" /></label>
+              <label><span>New price per piece (₱)</span><input type="number" min="0.01" max="99999999.99" step="0.01" value={priceDraft} onChange={(event) => setPriceDraft(event.target.value)} required autoFocus /></label>
+              <p className="inventory-price-help">The new price will apply to future buyer orders. Existing orders keep their recorded prices.</p>
+              <footer><button type="button" onClick={() => { setModal(null); setError('') }} disabled={saving}>Cancel</button><button type="submit" disabled={saving || Number(priceDraft) === Number(modal.item.selling_price)}>{saving ? 'Saving…' : 'Save Price'}</button></footer>
+            </form>
+          </div>
         </section>
       </div>}
 

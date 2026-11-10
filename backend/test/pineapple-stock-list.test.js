@@ -11,7 +11,7 @@ auth.requireAuth = (req, _res, next) => {
   next();
 };
 
-const sizes = Array.from({ length: 7 }, (_, index) => ({ id: index + 1, size_name: `Size ${index + 1}` }));
+const sizes = Array.from({ length: 7 }, (_, index) => ({ id: index + 1, size_name: `Size ${index + 1}`, selling_price: 50 + index * 5 }));
 const lots = [
   { id: 1, item_name: "Size 1 Pineapple", category: { code: "pineapple" }, quantity: 4, updated_at: "2026-10-01T00:00:00Z", unit: { abbreviation: "pcs" }, pineapple_inventory: { size_id: 1 } },
   { id: 2, item_name: "Size 1 Pineapple", category: { code: "pineapple" }, quantity: 7, updated_at: "2026-10-03T00:00:00Z", unit: { abbreviation: "pcs" }, pineapple_inventory: { size_id: 1 } },
@@ -62,6 +62,7 @@ test("pineapple stock groups lots by size before pagination and includes zero-st
   assert.equal(first.pagination.totalPages, 2);
   assert.equal(first.items.length, 5);
   assert.equal(first.items[0].stock_quantity, 11);
+  assert.equal(first.items[0].selling_price, 50);
   assert.equal(first.items[0].updated_at, "2026-10-03T00:00:00Z");
   assert.equal(first.items[1].stock_quantity, 0);
 
