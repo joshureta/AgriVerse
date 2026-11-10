@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity,
   AlertCircle,
-  Camera,
   CheckCircle2,
   ClipboardList,
   FileClock,
+  Image as ImageIcon,
   ImageUp,
   RefreshCw,
   Sparkles,
@@ -435,7 +435,7 @@ export default function CropHealthMonitoring() {
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') uploadInput.current?.click(); }}
                 >
                   <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#eaf4e7', color: '#196c35', display: 'grid', placeItems: 'center', margin: '0 auto 14px', border: '1px solid #c8dbc4' }}>
-                    <Camera size={30} />
+                    <ImageIcon aria-hidden="true" size={30} />
                   </div>
                   <h3 style={{ margin: '0 0 6px', color: '#163e23', fontSize: '16px', fontWeight: 800, fontFamily: 'var(--display)' }}>
                     No Crop Photo Uploaded for {activeField}
