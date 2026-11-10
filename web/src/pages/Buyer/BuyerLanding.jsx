@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, CheckCircle2, MapPin, Star } from 'lucide-react'
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import FarmChatWidget from '../../components/FarmChatWidget.jsx'
 import { loadFeaturedBuyerReviews } from '../../services/buyerMarketplace.js'
 import marketplaceHero from '../../assets/buyer/pineapple-farmer-marketplace-hero.png'
 import trustIcons from '../../assets/buyer/buyer-trust-icons.png'
@@ -108,7 +109,7 @@ export default function BuyerLanding() {
   return (
     <main className="buyer-page buyer-marketplace-page">
       {/* Marketplace navigation and welcome banner. */}
-      <BuyerHeader active="home" />
+      <BuyerHeader active="home" showMessages={false} />
 
       <section
         className="marketplace-hero"
@@ -265,6 +266,7 @@ export default function BuyerLanding() {
       </section>
 
       <BuyerFooter />
+      <FarmChatWidget />
     </main>
   )
 }

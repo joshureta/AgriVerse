@@ -1,4 +1,5 @@
 import { BuyerFooter, BuyerHeader } from '../../components/BuyerChrome.jsx'
+import FarmChatWidget from '../../components/FarmChatWidget.jsx'
 import storyBackground from '../../assets/buyer/about-story-background-1200x500.png'
 import landPreparationImage from '../../assets/buyer/about-process/land-preparation-hd.webp'
 import plantingImage from '../../assets/buyer/about-process/planting-hd.webp'
@@ -65,7 +66,7 @@ export default function AboutUs() {
   return (
     <main className="buyer-page">
       {/* Marketplace navigation and farm story banner. */}
-      <BuyerHeader active="about" />
+      <BuyerHeader active="about" showMessages={false} />
       <section
         className="buyer-about-banner"
         aria-labelledby="about-story-title"
@@ -108,6 +109,7 @@ export default function AboutUs() {
         </section>
       </article>
       <BuyerFooter />
+      <FarmChatWidget />
     </main>
   )
 }

@@ -1,0 +1,130 @@
+.farm-chat-widget {
+  position: fixed;
+  z-index: 100;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  font-family: var(--sans);
+}
+
+.farm-chat-launcher {
+  position: relative;
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 14px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 24px;
+  color: #fff;
+  background: var(--marketplace-green, #1f6f2f);
+  box-shadow: 0 10px 30px rgba(20, 79, 34, .3);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.farm-chat-launcher:hover { background: var(--marketplace-deep-green, #155625); transform: translateY(-2px); }
+.farm-chat-launcher:focus-visible,
+.farm-chat-header-actions button:focus-visible,
+.farm-chat-composer button:focus-visible { outline: 3px solid #ffdc68; outline-offset: 3px; }
+.farm-chat-launcher > svg { width: 26px; height: 26px; flex: none; }
+
+.farm-chat-unread {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  min-width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 999px;
+  padding: 0 4px;
+  color: #fff;
+  background: #d4383c;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.farm-chat-panel {
+  width: min(400px, calc(100vw - 32px));
+  height: min(580px, calc(100dvh - 48px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #dce7e3;
+  border-radius: 14px;
+  color: #263735;
+  background: #fff;
+  box-shadow: 0 18px 55px rgba(16, 48, 43, .28);
+}
+
+.farm-chat-header {
+  min-height: 72px;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--buyer-green) 0%, var(--buyer-green-dark) 100%);
+}
+
+.farm-chat-title-group { min-width: 0; display: flex; align-items: center; gap: 10px; }
+.farm-chat-title-group > img { width: 36px; height: 36px; flex: none; border-radius: 50%; object-fit: cover; }
+.farm-chat-title-group h2 { margin: 0; font-size: 17px; line-height: 1.2; }
+.farm-chat-title-group p { display: flex; align-items: center; gap: 5px; margin: 4px 0 0; font-size: 11px; opacity: .95; }
+.farm-chat-title-group p span { width: 7px; height: 7px; flex: none; border-radius: 50%; background: #c9d8cb; }
+.farm-chat-title-group p span.is-online { background: #9af3a5; }
+.farm-chat-header-actions { display: flex; flex: none; align-items: center; gap: 2px; }
+.farm-chat-header-actions button { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 6px; color: #fff; background: transparent; cursor: pointer; }
+.farm-chat-header-actions button:hover { background: rgba(255, 255, 255, .2); }
+.farm-chat-header-actions svg { width: 20px; height: 20px; }
+
+.farm-chat-history {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 14px 20px;
+  background: #fbfcfc;
+}
+.farm-chat-state { margin: 30px 0; color: #627b77; font-size: 13px; text-align: center; }
+.farm-chat-welcome { display: flex; align-items: flex-end; gap: 8px; margin-top: 22px; }
+.farm-chat-welcome img,
+.farm-chat-message > img { width: 27px; height: 27px; flex: none; border-radius: 50%; object-fit: cover; }
+.farm-chat-welcome p { margin: 0; border-radius: 14px 14px 14px 3px; padding: 12px 13px; color: #34413f; background: #edf1f1; font-size: 13px; line-height: 1.5; }
+.farm-chat-message-group { margin-bottom: 13px; }
+.farm-chat-day { margin: 10px 0 18px; color: #7a8987; font-size: 11px; text-align: center; }
+.farm-chat-day span { border-radius: 99px; padding: 5px 12px; background: #edf2f1; }
+.farm-chat-message { display: flex; align-items: flex-end; gap: 8px; }
+.farm-chat-message > div { max-width: 83%; display: flex; flex-direction: column; align-items: flex-start; }
+.farm-chat-message p { margin: 0; border-radius: 14px 14px 14px 3px; padding: 10px 12px; color: #34413f; background: #edf1f1; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+.farm-chat-message time { margin: 4px 2px 0; color: #7d8987; font-size: 10px; }
+.farm-chat-message.is-buyer { justify-content: flex-end; }
+.farm-chat-message.is-buyer > div { align-items: flex-end; }
+.farm-chat-message.is-buyer p { border-radius: 14px 14px 3px 14px; color: #fff; background: linear-gradient(135deg, #227b3d 0%, #17652f 100%); }
+.farm-chat-typing { margin: 4px 0 0 35px; color: #647a76; font-size: 11px; font-style: italic; }
+
+.farm-chat-error { flex: none; padding: 8px 14px; color: #a23431; background: #fff0ed; font-size: 12px; }
+.farm-chat-composer { display: flex; flex: none; align-items: center; gap: 8px; border-top: 1px solid #e5ecea; padding: 11px 12px; background: #fff; }
+.farm-chat-composer input { min-width: 0; height: 43px; flex: 1; border: 1px solid #cad8d4; border-radius: 8px; padding: 0 12px; color: #243633; background: #fff; font: inherit; font-size: 13px; outline: none; }
+.farm-chat-composer input:focus { border-color: #227b3d; box-shadow: 0 0 0 3px rgba(34, 123, 61, .13); }
+.farm-chat-composer button { width: 42px; height: 42px; display: grid; flex: none; place-items: center; border: 0; border-radius: 8px; color: #fff; background: linear-gradient(135deg, #227b3d 0%, #16642f 100%); cursor: pointer; }
+.farm-chat-composer button:hover:not(:disabled) { background: var(--marketplace-deep-green, #155625); }
+.farm-chat-composer button:disabled { opacity: .45; cursor: not-allowed; }
+.farm-chat-composer button svg { width: 19px; height: 19px; }
+
+@media (max-width: 600px) {
+  .farm-chat-widget { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); }
+  .farm-chat-launcher { min-height: 54px; gap: 9px; padding: 0 16px; font-size: 14px; }
+  .farm-chat-launcher > svg { width: 22px; height: 22px; }
+  .farm-chat-panel { width: calc(100vw - 24px); height: calc(100dvh - 24px - env(safe-area-inset-bottom)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .farm-chat-launcher { transition: none; }
+}

@@ -46,7 +46,7 @@ function createOrderNotifications(records) {
   })
 }
 
-export function BuyerHeader({ active = 'home', cartCount }) {
+export function BuyerHeader({ active = 'home', cartCount, showMessages = true }) {
   const { profile, signOut } = useAuth()
   const buyerName = profile?.full_name || 'Buyer'
   const displayedCartCount = cartCount ?? buyerCartQuantity(readBuyerCart())
@@ -61,6 +61,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
   const homeActive = active === 'home'
 
   useEffect(() => {
+    if (!showMessages) return undefined
     let cancelled = false
 
     async function fetchUnreadCount() {
@@ -78,7 +79,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
       cancelled = true
       window.clearInterval(interval)
     }
-  }, [])
+  }, [showMessages])
 
   useEffect(() => {
     let cancelled = false
@@ -165,8 +166,8 @@ export function BuyerHeader({ active = 'home', cartCount }) {
         </nav>
 
         <div className="buyer-header-tools">
-          <div className="buyer-header-alerts" aria-label="Messages and notifications">
-            <a
+          <div className="buyer-header-alerts" aria-label={showMessages ? 'Messages and notifications' : 'Notifications'}>
+            {showMessages && <a
               className={`buyer-icon-link${active === 'messages' ? ' is-active' : ''}`}
               href="/buyer/messages"
               aria-label={unreadCount > 0 ? `Messages (${unreadCount} unread)` : 'Messages'}
@@ -176,7 +177,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
               {unreadCount > 0 && (
                 <span className="buyer-status-dot">{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
-            </a>
+            </a>}
             <details className={`buyer-notification-menu${active === 'notifications' ? ' is-active' : ''}`} ref={notificationMenuRef}>
               <summary className="buyer-icon-link" aria-label={notificationUnreadCount ? `Notifications (${notificationUnreadCount} unread)` : 'Notifications'}>
                 <Bell aria-hidden="true" />
@@ -231,7 +232,7 @@ export function BuyerHeader({ active = 'home', cartCount }) {
           <a className={homeActive ? 'is-active' : ''} href="/buyer" aria-current={homeActive ? 'page' : undefined}>Home</a>
           <a className={active === 'orders' ? 'is-active' : ''} href="/buyer/order" aria-current={active === 'orders' ? 'page' : undefined}>Order</a>
           <a className={active === 'cart' ? 'is-active' : ''} href="/buyer/cart" aria-current={active === 'cart' ? 'page' : undefined}>Shopping Cart</a>
-          <a className={active === 'messages' ? 'is-active' : ''} href="/buyer/messages" aria-current={active === 'messages' ? 'page' : undefined}>Messages</a>
+          {showMessages && <a className={active === 'messages' ? 'is-active' : ''} href="/buyer/messages" aria-current={active === 'messages' ? 'page' : undefined}>Messages</a>}
           <a className={active === 'notifications' ? 'is-active' : ''} href="/buyer/notifications" aria-current={active === 'notifications' ? 'page' : undefined}>Notifications{notificationUnreadCount > 0 ? ` (${notificationUnreadCount})` : ''}</a>
           <a href="/buyer/delivery-progress">My Orders</a>
           <a className={active === 'profile' ? 'is-active' : ''} href="/buyer/profile" aria-current={active === 'profile' ? 'page' : undefined}>My Profile</a>
