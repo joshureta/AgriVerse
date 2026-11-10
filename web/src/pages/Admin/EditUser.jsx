@@ -9,7 +9,6 @@ const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replac
 const roles = [
   { value: 'buyer', label: 'Buyer' },
   { value: 'farm_worker', label: 'Farm Worker' },
-  { value: 'admin', label: 'Admin' },
 ]
 // Gets an access token for admin requests.
 async function getToken(refresh = false) {
@@ -209,14 +208,16 @@ export default function EditUser() {
                     <EditableField label="Email Address" name="email" type="email" value={form.email} onChange={handleFieldChange} required />
                     <EditableField label="Mobile Number" name="mobile_number" value={form.mobile_number} onChange={handleFieldChange} />
                     <ReadOnlyField label="Created At" value={formatDate(userProfile.created_at)} />
-                    <label className="edit-user-field is-editable">
-                      <span>Role</span>
-                      <select name="role" value={form.role} onChange={handleFieldChange}>
-                        {roles.map((option) => (
-                          <option value={option.value} key={option.value}>{option.label}</option>
-                        ))}
-                      </select>
-                    </label>
+                    {form.role === 'admin'
+                      ? <ReadOnlyField label="Role" value="Admin" />
+                      : <label className="edit-user-field is-editable">
+                        <span>Role</span>
+                        <select name="role" value={form.role} onChange={handleFieldChange}>
+                          {roles.map((option) => (
+                            <option value={option.value} key={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </label>}
                     <label className="edit-user-field is-editable">
                       <span>Worker Category</span>
                       <select

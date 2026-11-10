@@ -153,6 +153,9 @@ router.post("/", async (req, res, next) => {
   try {
     const fullName = readFullName(req.body.full_name);
     const role = readRole(req.body.role);
+    if (role === "admin") {
+      throw httpError(400, "Admin accounts cannot be created in User Management");
+    }
     const email = readEmail(req.body.email);
     const password = String(req.body.password || "");
     const workerCategory = readWorkerCategory(req.body.worker_category, role);
@@ -216,6 +219,21 @@ router.patch("/:id", async (req, res, next) => {
     const email = readEmail(req.body.email);
     const mobileNumber = readMobileNumber(req.body.mobile_number);
     const role = readRole(req.body.role);
+    const { data: currentProfile, error: profileLookupError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", req.params.id)
+      .single();
+    if (profileLookupError?.code === "PGRST116") {
+      throw httpError(404, "User profile was not found");
+    }
+    if (profileLookupError) throw profileLookupError;
+    if (role === "admin" && currentProfile.role !== "admin") {
+      throw httpError(400, "Admin role cannot be assigned in User Management");
+    }
+    if (currentProfile.role === "admin" && role !== "admin") {
+      throw httpError(400, "Existing administrator roles cannot be changed in User Management");
+    }
     const workerCategory = readWorkerCategory(req.body.worker_category, role);
     const { data: authData, error: authLookupError } =
       await supabase.auth.admin.getUserById(req.params.id);

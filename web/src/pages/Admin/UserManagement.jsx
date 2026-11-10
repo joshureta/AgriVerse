@@ -13,7 +13,6 @@ const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replac
 const PAGE_SIZE = 10
 const roleOptions = [
   { value: '', label: 'All roles' },
-  { value: 'admin', label: 'Admin' },
   { value: 'buyer', label: 'Buyer' },
   { value: 'farm_worker', label: 'Farm Worker' },
 ]
@@ -456,18 +455,19 @@ export default function UserManagement() {
                   </div>
                 </div>
               </>}
-              <label>
-                <span>Role</span>
-                <select
-                  name="role"
-                  value={modalRole}
-                  onChange={(event) => setModal((current) => ({ ...current, role: event.target.value }))}
-                >
-                  <option value="buyer">Buyer</option>
-                  <option value="farm_worker">Farm Worker</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </label>
+              {modalRole === 'admin' && modal.mode !== 'add'
+                ? <label><span>Role</span><input value="Admin" readOnly /><input type="hidden" name="role" value="admin" /></label>
+                : <label>
+                  <span>Role</span>
+                  <select
+                    name="role"
+                    value={modalRole}
+                    onChange={(event) => setModal((current) => ({ ...current, role: event.target.value }))}
+                  >
+                    <option value="buyer">Buyer</option>
+                    <option value="farm_worker">Farm Worker</option>
+                  </select>
+                </label>}
               {modalRole === 'farm_worker' && (
                 <label>
                   <span>Worker Category</span>
