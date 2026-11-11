@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, CircleAlert, ClipboardCheck, Eye, Pencil, Printer, X } from 'lucide-react'
+import { Ban, Check, ChevronDown, CircleAlert, ClipboardCheck, Eye, Pencil, Printer, Save, TriangleAlert, X } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
@@ -309,6 +309,17 @@ function SummaryCard({ label, value, icon, className = '' }) {
   return <article className={`task-summary-card ${className}`}><div><span>{label}</span><strong>{value}</strong></div><i aria-hidden="true">{icon}</i></article>
 }
 
+// Displays form errors with a consistent, accessible warning treatment.
+function AssignmentWarning({ message }) {
+  if (!message) return null
+  return (
+    <div className="wo-assignment-warning" role="alert">
+      <span className="wo-assignment-warning-icon" aria-hidden="true"><TriangleAlert /></span>
+      <span>{message}</span>
+    </div>
+  )
+}
+
 // Displays task assignments, reviews, and schedule settings.
 export default function TaskScheduleManagement({ settingsOnly = false }) {
   const [activeTab, setActiveTab] = useState(() => {
@@ -528,6 +539,38 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
       })
       setModal(null)
       setRefreshKey((key) => key + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Cancels a farm task only while the worker has not started it.
+  async function cancelPendingTask(task) {
+    if (!window.confirm(`Cancel ${task.task_name || task.category || `task #${task.id}`}? The worker will be notified.`)) return
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/tasks/${task.id}/cancel`, { method: 'POST', body: '{}' })
+      setModal(null)
+      setRefreshKey((key) => key + 1)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Releases an unaccepted delivery back to the ready queue without cancelling the buyer's order.
+  async function cancelDeliveryAssignment(order) {
+    if (!window.confirm(`Cancel the driver assignment for order #${order.order_number}? The driver will be notified and the order can be assigned again.`)) return
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/deliveries/${order.id}/cancel-assignment`, { method: 'POST', body: '{}' })
+      setModal(null)
+      await loadAssignedDeliveryOrders()
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -1159,12 +1202,13 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         const isCompleted = task.status === 'completed'
         const isInProgress = task.status === 'in_progress'
         const isAwaitingApproval = task.status === 'awaiting_approval'
+        const isCancelled = task.status === 'cancelled'
         const isScheduled = task.status === 'pending' || task.status === 'scheduled'
         const timeWindow = task.schedule?.start_time && task.schedule?.end_time
           ? `${formatTime12(task.schedule.start_time)} – ${formatTime12(task.schedule.end_time)}`
           : formatSchedule(task.schedule_start)
         const [smallCount, mediumCount, largeCount, damagedCount] = [task.harvest_small_count, task.harvest_medium_count, task.harvest_large_count, task.harvest_damaged_count].map((count) => Number(count) || 0)
-        const steps = [
+        const activeSteps = [
           { label: 'Scheduled', note: task.created_at ? formatSchedule(task.created_at) : 'Scheduled', state: isScheduled ? 'is-now' : 'is-done' },
           { label: 'In progress', note: task.started_at ? `Started ${formatSchedule(task.started_at)}` : isInProgress ? 'In progress' : 'Not started', state: isInProgress ? 'is-now' : isAwaitingApproval || isCompleted ? 'is-done' : '' },
           {
@@ -1173,6 +1217,10 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             state: isCompleted ? 'is-done' : isAwaitingApproval ? 'is-now' : '',
           },
         ]
+        const steps = isCancelled ? [
+          { label: 'Scheduled', note: task.created_at ? formatSchedule(task.created_at) : 'Scheduled', state: 'is-done' },
+          { label: 'Cancelled', note: task.cancelled_at ? formatSchedule(task.cancelled_at) : 'Cancelled by admin', state: 'is-now' },
+        ] : activeSteps
 
         return (
           <WorkOrderDialog
@@ -1180,20 +1228,26 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             id={`#TASK-${String(task.id).padStart(4, '0')}`}
             title={task.category || 'Farm Operations'}
             titleId="view-crop-task-title"
-            sub={task.created_at ? `Created ${formatSchedule(task.created_at)}` : null}
+            sub={isCancelled && task.cancelled_at ? `Cancelled ${formatSchedule(task.cancelled_at)}` : task.created_at ? `Created ${formatSchedule(task.created_at)}` : null}
             steps={<WoSteps items={steps} />}
             onClose={() => setModal(null)}
             footerNote={<button type="button" className="wo-btn is-link" onClick={() => window.print()}><Printer size={15} aria-hidden="true" />Print slip</button>}
             footer={<>
-              <button type="button" className="wo-btn" onClick={() => setModal(null)}>Close</button>
               {isAwaitingApproval && (
                 <button type="button" className="wo-btn is-primary" onClick={() => { const taskToReview = modal.task; setModal(null); openReviewHarvest(taskToReview) }}>
                   <Check size={15} aria-hidden="true" />Review harvest
                 </button>
               )}
-              <button type="button" className="wo-btn is-primary" onClick={() => { const taskToEdit = modal.task; setModal(null); openEditTask(taskToEdit) }}>
-                <Pencil size={14} aria-hidden="true" />Edit task
-              </button>
+              {isScheduled && (
+                <button type="button" className="wo-btn is-danger" disabled={saving} onClick={() => cancelPendingTask(task)}>
+                  <Ban size={14} aria-hidden="true" />{saving ? 'Cancelling…' : 'Cancel task'}
+                </button>
+              )}
+              {!isCancelled && (
+                <button type="button" className="wo-btn is-primary" onClick={() => { const taskToEdit = modal.task; setModal(null); openEditTask(taskToEdit) }}>
+                  <Pencil size={14} aria-hidden="true" />Edit task
+                </button>
+              )}
             </>}
           >
             <div className="wo-two is-even">
@@ -1249,6 +1303,8 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               <p className="wo-prose">{task.description || 'No additional instructions provided for this task.'}</p>
             </WoSection>
 
+            <AssignmentWarning message={error} />
+
             {task.completion_notes && (
               <WoSection title="Worker completion notes">
                 <p className="wo-prose">{task.completion_notes}</p>
@@ -1290,6 +1346,11 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             footerNote={<button type="button" className="wo-btn is-link" onClick={() => window.print()}><Printer size={15} aria-hidden="true" />Print slip</button>}
             footer={<>
               <button type="button" className="wo-btn" onClick={() => setModal(null)}>Close</button>
+              {canEdit && (
+                <button type="button" className="wo-btn is-danger" disabled={saving} onClick={() => cancelDeliveryAssignment(order)}>
+                  <Ban size={14} aria-hidden="true" />{saving ? 'Cancelling…' : 'Cancel assignment'}
+                </button>
+              )}
               {canEdit && (
                 <button type="button" className="wo-btn is-primary" onClick={() => { const orderToEdit = order; setModal(null); openEditDelivery(orderToEdit) }}>
                   <Pencil size={14} aria-hidden="true" />Edit schedule
@@ -1350,6 +1411,8 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                 </tbody>
               </table>
             </WoSection>
+
+            <AssignmentWarning message={error} />
 
             {(order.delivery_proof_image_url || isDelivered) && (
               <WoSection title="Proof of delivery">
@@ -1910,7 +1973,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               </button>
             </>}
           >
-            {error && <p className="wo-error" role="alert">{error}</p>}
+            <AssignmentWarning message={error} />
             <WoSection title="Order">
               <WoList>
                 <WoRow label="Recipient">{order.delivery_full_name || 'Valued customer'}{order.delivery_mobile_number ? ` · ${order.delivery_mobile_number}` : ''}</WoRow>
@@ -2020,13 +2083,14 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             onSubmit={saveTask}
             footerNote={editingTask && modal.task.updated_at ? `Last updated ${formatSchedule(modal.task.updated_at)}` : assigningDriver ? 'Deliveries run from 7:00 AM to 6:00 PM' : 'All fields except description are required'}
             footer={<>
-              <button type="button" className="wo-btn" onClick={() => setModal(null)}>Cancel</button>
+              {!editingTask && <button type="button" className="wo-btn" onClick={() => setModal(null)}>Cancel</button>}
               <button type="submit" className="wo-btn is-primary" disabled={saving || (assigningDriver && (!deliveryForm.order_id || !deliveryForm.delivery_date))}>
+                {editingTask && !saving && <Save size={15} strokeWidth={2.25} aria-hidden="true" />}
                 {saving ? 'Saving…' : assigningDriver ? 'Assign order' : editingTask ? 'Save task' : 'Assign task'}
               </button>
             </>}
           >
-            {error && <p className="wo-error" role="alert">{error}</p>}
+            <AssignmentWarning message={error} />
 
             <WoSection title={assigningDriver ? 'Driver' : 'Assignee'}>
               <div className="wo-grid">
@@ -2126,7 +2190,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                   {editingTask && (
                     <WoField label="Status" htmlFor="task-status">
                       <select id="task-status" className="wo-input" value={form.status_id} onChange={(event) => setForm({ ...form, status_id: event.target.value })}>
-                        {options.statuses.map((status) => <option value={status.id} key={status.id}>{status.status_name}</option>)}
+                        {options.statuses.filter((status) => status.code !== 'cancelled').map((status) => <option value={status.id} key={status.id}>{status.status_name}</option>)}
                       </select>
                     </WoField>
                   )}

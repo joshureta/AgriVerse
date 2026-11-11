@@ -50,4 +50,16 @@ async function notifyTaskUpdate(task) {
   });
 }
 
-module.exports = { notifyTaskAssignment, notifyTaskUpdate, scheduleLabel };
+async function notifyTaskCancellation(task) {
+  if (!task?.id || !task.assigned_worker_id) return;
+  await insertNotifications({
+    recipient_id: task.assigned_worker_id,
+    type: 'task_cancelled',
+    title: 'Task cancelled',
+    body: `${task.task_name || `Task #${task.id}`} was cancelled by an administrator.`,
+    entity_type: 'task',
+    entity_id: task.id,
+  });
+}
+
+module.exports = { notifyTaskAssignment, notifyTaskCancellation, notifyTaskUpdate, scheduleLabel };

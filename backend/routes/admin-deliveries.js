@@ -2,10 +2,11 @@ const express = require("express");
 const { randomUUID } = require("node:crypto");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
-const { createDeliveryAssignedNotification, createDeliveryScheduleUpdatedNotification, createDisputeResolvedNotification, createRefundRejectedNotification } = require("../lib/order-notifications");
+const { createDeliveryAssignedNotification, createDeliveryAssignmentCancelledNotification, createDeliveryScheduleUpdatedNotification, createDisputeResolvedNotification, createRefundRejectedNotification } = require("../lib/order-notifications");
 const { paymongoGet } = require("../lib/paymongo");
 const { refundCentavos, resolvePaidPayment, submitApprovedRefund, applyRefundResource, getRefundResource } = require("../lib/order-refunds");
 const { httpError } = require("../lib/http-error");
+const { assertDriverScheduleAvailable, mapScheduleConflictDatabaseError } = require("../lib/schedule-conflicts");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
@@ -103,19 +104,65 @@ router.get("/assigned-orders", async (req, res, next) => {
 
 router.post("/:id/assign", async (req, res, next) => {
   try {
+    const id = orderId(req.params.id);
     const assignedDriverId = driverId(req.body.driver_id);
     const schedule = readSchedule(req.body);
     const { data: driver, error: driverError } = await getSupabase().from("profiles").select("id")
       .eq("id", assignedDriverId).eq("role", "farm_worker").eq("worker_category", "driver").single();
     if (driverError || !driver) throw httpError(400, "The selected worker is not a driver");
+    await assertDriverScheduleAvailable(getSupabase(), {
+      driverId: assignedDriverId, start: schedule.start, end: schedule.end, excludeOrderId: id,
+    });
     const { data, error } = await getSupabase().from("buyer_orders")
       .update({ assigned_driver_id: assignedDriverId, assigned_vehicle_id: null, delivery_assignment_status: 'assigned', delivery_accepted_at: null, delivery_picked_up_at: null, delivery_scheduled_at: schedule.start, delivery_window_end_at: schedule.end, driver_assigned_at: new Date().toISOString() })
-      .eq("id", orderId(req.params.id)).eq("delivery_method", "delivery").eq("order_status", "ready_for_delivery").is("assigned_driver_id", null)
+      .eq("id", id).eq("delivery_method", "delivery").eq("order_status", "ready_for_delivery").is("assigned_driver_id", null)
       .select("id, order_number, assigned_driver_id, delivery_scheduled_at, delivery_window_end_at").maybeSingle();
-    if (error) throw error;
+    if (error) throw mapScheduleConflictDatabaseError(error);
     if (!data) throw httpError(409, "This order is no longer ready for driver assignment");
     await createDeliveryAssignedNotification({ driverId: data.assigned_driver_id, orderId: data.id, orderNumber: data.order_number });
     return res.status(201).json({ order: data });
+  } catch (error) { return next(error); }
+});
+
+router.post("/:id/cancel-assignment", async (req, res, next) => {
+  try {
+    const id = orderId(req.params.id);
+    const { data: current, error: currentError } = await getSupabase().from("buyer_orders")
+      .select("id, order_number, assigned_driver_id, order_status, delivery_assignment_status")
+      .eq("id", id).eq("delivery_method", "delivery").maybeSingle();
+    if (currentError) throw currentError;
+    if (!current) throw httpError(404, "Delivery order was not found");
+    if (current.order_status !== "ready_for_delivery" || current.delivery_assignment_status !== "assigned" || !current.assigned_driver_id) {
+      throw httpError(409, "Only delivery assignments waiting for driver acceptance can be cancelled");
+    }
+
+    const { data, error } = await getSupabase().from("buyer_orders").update({
+      assigned_driver_id: null,
+      assigned_vehicle_id: null,
+      delivery_assignment_status: "declined",
+      delivery_scheduled_at: null,
+      delivery_window_end_at: null,
+      driver_assigned_at: null,
+    })
+      .eq("id", id)
+      .eq("order_status", "ready_for_delivery")
+      .eq("delivery_assignment_status", "assigned")
+      .eq("assigned_driver_id", current.assigned_driver_id)
+      .select("id, order_number, order_status, delivery_assignment_status, assigned_driver_id, delivery_scheduled_at, delivery_window_end_at")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw httpError(409, "This delivery assignment is no longer waiting for acceptance");
+
+    try {
+      await createDeliveryAssignmentCancelledNotification({
+        driverId: current.assigned_driver_id,
+        orderId: current.id,
+        orderNumber: current.order_number,
+      });
+    } catch (notificationError) {
+      console.error("Failed to notify the driver about assignment cancellation:", notificationError.message);
+    }
+    return res.json({ order: data });
   } catch (error) { return next(error); }
 });
 
@@ -439,16 +486,20 @@ router.post("/:id/resolve-dispute", async (req, res, next) => {
 
 router.patch("/:id/assignment", async (req, res, next) => {
   try {
+    const id = orderId(req.params.id);
     const assignedDriverId = driverId(req.body.driver_id);
     const schedule = readSchedule(req.body);
     const { data: driver, error: driverError } = await getSupabase().from("profiles").select("id")
       .eq("id", assignedDriverId).eq("role", "farm_worker").eq("worker_category", "driver").single();
     if (driverError || !driver) throw httpError(400, "The selected worker is not a driver");
+    await assertDriverScheduleAvailable(getSupabase(), {
+      driverId: assignedDriverId, start: schedule.start, end: schedule.end, excludeOrderId: id,
+    });
     const { data, error } = await getSupabase().from("buyer_orders")
       .update({ assigned_driver_id: assignedDriverId, delivery_scheduled_at: schedule.start, delivery_window_end_at: schedule.end })
-      .eq("id", orderId(req.params.id)).eq("delivery_method", "delivery").eq("order_status", "ready_for_delivery").eq("delivery_assignment_status", "assigned")
+      .eq("id", id).eq("delivery_method", "delivery").eq("order_status", "ready_for_delivery").eq("delivery_assignment_status", "assigned")
       .select("id, order_number, assigned_driver_id, delivery_scheduled_at, delivery_window_end_at").maybeSingle();
-    if (error) throw error;
+    if (error) throw mapScheduleConflictDatabaseError(error);
     if (!data) throw httpError(409, "Only unaccepted ready-for-delivery orders can be edited");
     await createDeliveryScheduleUpdatedNotification({ driverId: data.assigned_driver_id, orderId: data.id, orderNumber: data.order_number });
     return res.json({ order: data });

@@ -2,6 +2,7 @@ const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { httpError } = require("../lib/http-error");
+const { assertWorkerScheduleAvailable, mapScheduleConflictDatabaseError } = require("../lib/schedule-conflicts");
 
 const router = express.Router();
 const scheduleSelect = [
@@ -49,14 +50,16 @@ async function readScheduleBody(body) {
 
   const supabase = getSupabase();
   const [taskResult, statusResult] = await Promise.all([
-    supabase.from("tasks").select("id").eq("id", taskId).single(),
-    supabase.from("schedule_statuses").select("id").eq("id", statusId).eq("status", true).single(),
+    supabase.from("tasks").select("id, assigned_worker_id").eq("id", taskId).single(),
+    supabase.from("schedule_statuses").select("id, code").eq("id", statusId).eq("status", true).single(),
   ]);
   if (taskResult.error || !taskResult.data) throw httpError(400, "The selected task is unavailable");
   if (statusResult.error || !statusResult.data) throw httpError(400, "The selected schedule status is unavailable");
 
   return {
     task_id: taskId,
+    assigned_worker_id: taskResult.data.assigned_worker_id,
+    schedule_status_code: statusResult.data.code,
     schedule_date: readDate(body.schedule_date),
     start_time: startTime,
     end_time: endTime,
@@ -67,6 +70,8 @@ async function readScheduleBody(body) {
 }
 
 function databaseError(error) {
+  const scheduleError = mapScheduleConflictDatabaseError(error);
+  if (scheduleError !== error) return scheduleError;
   if (error?.code === "23505") return httpError(409, "This task already has a schedule");
   if (error?.code === "PGRST116") return httpError(404, "Schedule was not found");
   return error;
@@ -84,7 +89,14 @@ router.get("/", async (req, res, next) => {
 router.post("/", async (req, res, next) => {
   try {
     const payload = await readScheduleBody(req.body);
-    const { data, error } = await getSupabase().from("schedules").insert(payload)
+    const { assigned_worker_id: workerId, schedule_status_code: statusCode, ...schedule } = payload;
+    if (statusCode !== "cancelled") {
+      await assertWorkerScheduleAvailable(getSupabase(), {
+        workerId, scheduleDate: schedule.schedule_date, startTime: schedule.start_time,
+        endTime: schedule.end_time, excludeTaskId: schedule.task_id,
+      });
+    }
+    const { data, error } = await getSupabase().from("schedules").insert(schedule)
       .select(scheduleSelect).single();
     if (error) throw databaseError(error);
     return res.status(201).json({ schedule: data });
@@ -94,7 +106,14 @@ router.post("/", async (req, res, next) => {
 router.patch("/:id", async (req, res, next) => {
   try {
     const payload = await readScheduleBody(req.body);
-    const { data, error } = await getSupabase().from("schedules").update(payload)
+    const { assigned_worker_id: workerId, schedule_status_code: statusCode, ...schedule } = payload;
+    if (statusCode !== "cancelled") {
+      await assertWorkerScheduleAvailable(getSupabase(), {
+        workerId, scheduleDate: schedule.schedule_date, startTime: schedule.start_time,
+        endTime: schedule.end_time, excludeTaskId: schedule.task_id,
+      });
+    }
+    const { data, error } = await getSupabase().from("schedules").update(schedule)
       .eq("id", readId(req.params.id, "Schedule ID")).select(scheduleSelect).single();
     if (error) throw databaseError(error);
     return res.json({ schedule: data });

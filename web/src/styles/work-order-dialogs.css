@@ -63,6 +63,7 @@
 
 /* ---------- Progress steps ---------- */
 .wo-steps { flex: none; list-style: none; margin: 0; padding: 16px 36px 8px; display: grid; grid-template-columns: repeat(3, 1fr); }
+.wo-steps.is-2 { grid-template-columns: repeat(2, 1fr); }
 .wo-steps.is-4 { grid-template-columns: repeat(4, 1fr); }
 .wo-steps li { position: relative; display: flex; align-items: flex-start; gap: 10px; padding-top: 14px; }
 .wo-steps li::before { content: ''; position: absolute; top: 0; left: 0; right: 10px; height: 2px; background: var(--wo-rule); }
@@ -99,6 +100,30 @@
 .wo-priority.is-medium { color: #94660a; font-weight: 700; }
 .wo-priority.is-low { color: var(--wo-muted); font-weight: 700; }
 .wo-error { margin: 14px 0 0; padding: 10px 12px; border-radius: 6px; color: #8a1c12; background: #fdecea; font-size: 13px; font-weight: 600; }
+.wo-assignment-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #f6c7c2;
+  border-radius: 10px;
+  color: #7a271a;
+  background: linear-gradient(135deg, #fff8f7 0%, #fef3f2 100%);
+  box-shadow: 0 5px 14px rgba(180, 35, 24, 0.07);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+.wo-assignment-warning-icon {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  color: #7a271a;
+}
+.wo-assignment-warning-icon svg { width: 20px; height: 20px; stroke-width: 2.3; }
 .wo-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; margin: 8px 0 0; color: var(--wo-muted); font-size: 13px; }
 .wo-links button { padding: 0; border: 0; color: var(--wo-green); background: none; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .wo-summary { margin: 10px 0 0; font-size: 13.5px; font-weight: 600; }

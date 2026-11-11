@@ -121,6 +121,7 @@ router.get("/", async (req, res, next) => {
       .eq("assigned_worker_id", req.user.id).order("created_at", { ascending: false });
     if (status === "completed") query = query.in("status_id", completedStatusIds);
     else if (status) query = query.eq("status_id", statusIds[status]);
+    else query = query.in("status_id", Object.values(statusIds));
 
     const [taskResult, pendingResult, activeResult, completedResult] = await Promise.all([
       query,

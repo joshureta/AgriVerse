@@ -52,6 +52,19 @@ async function createDeliveryScheduleUpdatedNotification({ driverId, orderId, or
   });
 }
 
+async function createDeliveryAssignmentCancelledNotification({ driverId, orderId, orderNumber }) {
+  if (!driverId || !orderId) return;
+
+  await insertNotifications({
+    recipient_id: driverId,
+    type: "delivery_cancelled",
+    title: "Delivery assignment cancelled",
+    body: `Your delivery assignment for order ${orderNumber || `#${orderId}`} was cancelled by an administrator.`,
+    entity_type: "order",
+    entity_id: orderId,
+  });
+}
+
 const DISPUTE_CATEGORY_LABELS = {
   damaged: "damaged produce",
   spoiled_rotten: "spoiled or rotten produce",
@@ -149,6 +162,7 @@ async function createRefundRejectedNotification({ buyerId, orderId, orderNumber 
 module.exports = {
   createOrderStatusNotification,
   createDeliveryAssignedNotification,
+  createDeliveryAssignmentCancelledNotification,
   createDeliveryScheduleUpdatedNotification,
   createDisputeOpenedNotifications,
   createDisputeResolvedNotification,
