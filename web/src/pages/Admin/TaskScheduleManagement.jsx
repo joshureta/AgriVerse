@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Ban, Check, ChevronDown, CircleAlert, ClipboardCheck, Eye, Pencil, Printer, Save, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Ban, Check, ChevronDown, CircleAlert, ClipboardCheck, Eye, LockKeyhole, Pencil, Printer, Save, Sprout, TriangleAlert, Truck, X } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
@@ -28,6 +28,10 @@ const vehicleStatusLabels = { available: 'Available', in_use: 'In Use', maintena
 const workerCategoryLabels = {
   crop_management_worker: 'Crop Management Worker',
   driver: 'Driver',
+}
+const workerCategoryDescriptions = {
+  crop_management_worker: 'Planting, fertilizing, crop care, and harvesting tasks',
+  driver: 'Delivery orders and scheduled transport assignments',
 }
 const driverDeliveryStatuses = [
   { code: 'delivery:assigned', status_name: 'Assigned' },
@@ -371,11 +375,6 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     () => Object.fromEntries((options.statuses || []).map((status) => [status.code, status.status_name])),
     [options.statuses],
   )
-  // Finds the worker selected in the task form.
-  const selectedWorker = useMemo(
-    () => options.workers.find((worker) => worker.id === form.assigned_worker_id),
-    [form.assigned_worker_id, options.workers],
-  )
   // Lists worker categories available for assignment.
   const availableWorkerCategories = useMemo(
     () => [...new Set(options.workers.map((worker) => worker.worker_category).filter((category) => category && category !== 'seller'))],
@@ -386,7 +385,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     () => options.workers.filter((worker) => !form.worker_category || worker.worker_category === form.worker_category),
     [form.worker_category, options.workers],
   )
-  const assigningDriver = modal?.mode === 'add' && selectedWorker?.worker_category === 'driver'
+  const assigningDriver = modal?.mode === 'add' && form.worker_category === 'driver'
   const isPestAndDisease = options.categories.find((category) => String(category.id) === String(form.category_id))?.category_name === 'Pest & Disease'
   const isDriverStatusFilter = filter.startsWith('delivery:')
 
@@ -736,22 +735,44 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   // Opens a blank task assignment form.
   function openNewTask() {
     setError('')
-    const initialWorker = options.workers.find((worker) => worker.worker_category !== 'driver') || options.workers[0]
     setForm({
       ...emptyForm,
-      assigned_worker_id: initialWorker?.id || '',
-      worker_category: initialWorker?.worker_category || '',
       category_id: options.categories[0]?.id || '',
       field_id: options.fields[0]?.id || '',
       priority_id: options.priorities[0]?.id || '',
       status_id: options.statuses.find((status) => status.code === 'pending')?.id || options.statuses[0]?.id || '',
-      ...(initialWorker?.worker_category === 'crop_management_worker' ? { start_time: '08:00', end_time: '09:00' } : {}),
     })
     setDeliveryForm(emptyDeliveryForm)
     apiRequest('/api/admin/deliveries/ready-orders')
       .then((data) => setReadyOrders(data.orders || []))
       .catch((requestError) => setError(requestError.message))
-    setModal({ mode: 'add' })
+    setModal({ mode: 'add', step: 'category' })
+  }
+
+  // Selects a worker category and prepares the first eligible assignee.
+  function selectWorkerCategory(workerCategory) {
+    const firstWorker = options.workers.find((worker) => worker.worker_category === workerCategory)
+    setError('')
+    setForm((previous) => ({
+      ...previous,
+      worker_category: workerCategory,
+      assigned_worker_id: firstWorker?.id || '',
+      ...(workerCategory === 'crop_management_worker' ? { start_time: '08:00', end_time: '09:00' } : {}),
+    }))
+  }
+
+  // Continues from category selection to the category-specific assignment form.
+  function continueNewTask(event) {
+    event.preventDefault()
+    if (!form.worker_category) return
+    setError('')
+    setModal({ mode: 'add', step: 'details' })
+  }
+
+  // Returns to category selection before the assignment is created.
+  function returnToWorkerCategory() {
+    setError('')
+    setModal({ mode: 'add', step: 'category' })
   }
 
   // Opens the form with an existing task's details.
@@ -2070,46 +2091,103 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
           ? [formatLongDate(`${summaryDate}T12:00:00`), summaryStart && summaryEnd ? `${formatTime12(summaryStart)} – ${formatTime12(summaryEnd)}` : null, summaryDuration].filter(Boolean).join(' · ')
           : ''
         const selectedReadyOrder = readyOrders.find((order) => String(order.id) === String(deliveryForm.order_id))
+        const selectedCategoryLabel = workerCategoryLabels[form.worker_category] || form.worker_category
+
+        if (!editingTask && modal.step !== 'details') {
+          return (
+            <WorkOrderDialog
+              size="form"
+              eyebrow="New work order"
+              title="Assign New Task"
+              titleId="assign-task-category-title"
+              sub="Choose a farm worker category"
+              steps={<WoSteps items={[
+                { label: 'Worker category', note: 'Choose the required role', state: 'is-now' },
+                { label: 'Task details', note: 'Complete the work order' },
+              ]} />}
+              onClose={() => setModal(null)}
+              onSubmit={continueNewTask}
+              footerNote={null}
+              footer={(
+                <button type="submit" className="wo-btn is-primary" disabled={!form.worker_category}>
+                  Continue <ArrowRight size={15} strokeWidth={2.25} aria-hidden="true" />
+                </button>
+              )}
+            >
+              <AssignmentWarning message={error} />
+              <WoSection title="Assignee" className="wo-category-picker">
+                <h4 className="wo-category-question">What type of farm worker is needed?</h4>
+                <p className="wo-category-help">The worker list and assignment fields on the next screen will match this category.</p>
+                <div className="wo-category-options" role="radiogroup" aria-label="Farm worker category">
+                  {availableWorkerCategories.map((category) => {
+                    const selected = form.worker_category === category
+                    const CategoryIcon = category === 'driver' ? Truck : Sprout
+                    return (
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        className={`wo-category-card${selected ? ' is-selected' : ''}`}
+                        key={category}
+                        onClick={() => selectWorkerCategory(category)}
+                      >
+                        <span className="wo-category-icon" aria-hidden="true"><CategoryIcon size={22} strokeWidth={2.15} /></span>
+                        <span className="wo-category-copy">
+                          <strong>{workerCategoryLabels[category] || category}</strong>
+                          <small>{workerCategoryDescriptions[category] || 'Assign work to eligible workers in this category'}</small>
+                        </span>
+                        <span className="wo-category-radio" aria-hidden="true" />
+                      </button>
+                    )
+                  })}
+                </div>
+              </WoSection>
+            </WorkOrderDialog>
+          )
+        }
 
         return (
           <WorkOrderDialog
             size={assigningDriver ? 'form' : undefined}
             eyebrow={assigningDriver ? 'New delivery assignment' : editingTask ? 'Edit work order' : 'New work order'}
             id={editingTask ? `#TASK-${String(modal.task.id).padStart(4, '0')}` : null}
-            title={assigningDriver ? 'Assign Delivery Order' : editingTask ? 'Edit Task' : 'Assign New Task'}
+            title={assigningDriver ? 'Complete Delivery Details' : editingTask ? 'Edit Task' : 'Complete Task Details'}
             titleId="assign-task-title"
-            sub={editingTask ? [modal.task.category, modal.task.field].filter(Boolean).join(', ') : assigningDriver ? 'Choose a driver and a ready order, then set the delivery window' : 'Issue a work order to a farm worker'}
+            sub={editingTask ? [modal.task.category, modal.task.field].filter(Boolean).join(', ') : assigningDriver ? 'Choose a driver and a ready order, then set the delivery window' : 'Complete the work order for the selected category'}
+            steps={!editingTask ? <WoSteps items={[
+              { label: 'Worker category', note: selectedCategoryLabel, state: 'is-done' },
+              { label: 'Task details', note: 'Complete the work order', state: 'is-now' },
+            ]} /> : null}
             onClose={() => setModal(null)}
             onSubmit={saveTask}
-            footerNote={editingTask && modal.task.updated_at ? `Last updated ${formatSchedule(modal.task.updated_at)}` : assigningDriver ? 'Deliveries run from 7:00 AM to 6:00 PM' : 'All fields except description are required'}
+            footerNote={editingTask && modal.task.updated_at
+              ? `Last updated ${formatSchedule(modal.task.updated_at)}`
+              : <span className="wo-foot-lock"><LockKeyhole size={14} aria-hidden="true" /> Category locks after assignment</span>}
             footer={<>
-              {!editingTask && <button type="button" className="wo-btn" onClick={() => setModal(null)}>Cancel</button>}
               <button type="submit" className="wo-btn is-primary" disabled={saving || (assigningDriver && (!deliveryForm.order_id || !deliveryForm.delivery_date))}>
                 {editingTask && !saving && <Save size={15} strokeWidth={2.25} aria-hidden="true" />}
+                {!editingTask && !saving && <ClipboardCheck size={15} strokeWidth={2.25} aria-hidden="true" />}
                 {saving ? 'Saving…' : assigningDriver ? 'Assign order' : editingTask ? 'Save task' : 'Assign task'}
               </button>
             </>}
           >
             <AssignmentWarning message={error} />
 
+            <div className={`wo-category-summary${editingTask ? ' is-locked' : ''}`}>
+              <span className="wo-category-icon" aria-hidden="true">
+                {form.worker_category === 'driver' ? <Truck size={20} strokeWidth={2.15} /> : <Sprout size={20} strokeWidth={2.15} />}
+              </span>
+              <span className="wo-category-summary-copy">
+                <strong>{selectedCategoryLabel}</strong>
+                <small>{editingTask ? 'Worker category is locked for this task' : 'Selected worker category'}</small>
+              </span>
+              {editingTask
+                ? <LockKeyhole className="wo-category-lock" size={17} aria-label="Category locked" />
+                : <button type="button" onClick={returnToWorkerCategory}>Change</button>}
+            </div>
+
             <WoSection title={assigningDriver ? 'Driver' : 'Assignee'}>
               <div className="wo-grid">
-                <WoField label="Farm worker category" htmlFor="task-worker-category">
-                  <select
-                    id="task-worker-category"
-                    className="wo-input"
-                    value={form.worker_category}
-                    onChange={(event) => {
-                      const workerCategory = event.target.value
-                      const firstWorker = options.workers.find((worker) => worker.worker_category === workerCategory)
-                      setForm({ ...form, worker_category: workerCategory, assigned_worker_id: firstWorker?.id || '', ...(workerCategory === 'crop_management_worker' ? { start_time: '08:00', end_time: '09:00' } : {}) })
-                    }}
-                    required
-                  >
-                    <option value="" disabled>Select worker category</option>
-                    {availableWorkerCategories.map((category) => <option value={category} key={category}>{workerCategoryLabels[category] || category}</option>)}
-                  </select>
-                </WoField>
                 <WoField label={assigningDriver ? 'Select driver' : 'Worker'} htmlFor="task-worker">
                   <select
                     id="task-worker"

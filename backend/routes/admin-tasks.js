@@ -143,6 +143,7 @@ async function readTaskBody(body) {
   const description = readDescription(body.description);
 
   return {
+    workerCategory: worker.worker_category,
     task: {
       assigned_worker_id: assignedWorkerId,
       category_id: category.id,
@@ -358,18 +359,21 @@ router.patch("/:id", async (req, res, next) => {
   try {
     const id = readTaskId(req.params.id);
     const payload = await readTaskBody(req.body);
-    await assertTaskScheduleAvailable(payload, id);
     const { data: current, error: currentError } = await getSupabase().from("tasks")
-      .select("assigned_worker_id, category_id, field_id, priority_id, status_id, task_name, estimated_duration_minutes, description, activity_type, started_at, completed_at, inventory_item_id, task_status:task_statuses!tasks_status_id_fkey(code)")
+      .select("assigned_worker_id, category_id, field_id, priority_id, status_id, task_name, estimated_duration_minutes, description, activity_type, started_at, completed_at, inventory_item_id, assigned_worker:profiles!tasks_assigned_worker_id_fkey(worker_category), task_status:task_statuses!tasks_status_id_fkey(code)")
       .eq("id", id).maybeSingle();
     if (currentError) throwDatabaseError(currentError);
     if (!current) throw httpError(404, "Task was not found");
+    if (current.assigned_worker?.worker_category !== payload.workerCategory) {
+      throw httpError(400, "The worker category cannot be changed after the task is assigned.");
+    }
     if (current.task_status?.code !== "pending" && current.activity_type !== payload.task.activity_type) {
       throw httpError(400, "The activity cannot be changed after the task has started.");
     }
     if (current.inventory_item_id && current.category_id !== payload.task.category_id) {
       throw httpError(400, "The category cannot be changed after supplies were taken for this task.");
     }
+    await assertTaskScheduleAvailable(payload, id);
     const { error: taskError } = await getSupabase().from("tasks").update(payload.task).eq("id", id);
     if (taskError) throwDatabaseError(taskError);
     const { error: scheduleError } = await getSupabase().from("schedules")
@@ -377,7 +381,7 @@ router.patch("/:id", async (req, res, next) => {
     if (scheduleError) {
       // The task and its schedule live in separate tables. Restore the task if
       // the database catches a conflict that appeared after the preflight check.
-      const { task_status: _taskStatus, inventory_item_id: _inventoryItemId, ...originalTask } = current;
+      const { task_status: _taskStatus, assigned_worker: _assignedWorker, inventory_item_id: _inventoryItemId, ...originalTask } = current;
       const { error: rollbackError } = await getSupabase().from("tasks").update(originalTask).eq("id", id);
       if (rollbackError) console.error("Failed to restore task after schedule update failure:", rollbackError.message);
       throwDatabaseError(scheduleError);

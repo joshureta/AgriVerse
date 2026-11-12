@@ -1,4 +1,5 @@
 import { GREEN, styles } from '@/styles/driver-task-pending.styles';
+import { AssignmentDateList, assignmentTaskStyle } from '@/components/assignment-date-list';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -109,7 +110,7 @@ function PendingDeliveryCard({
     : 'Date pending';
 
   return (
-    <View style={[styles.pendingCard, expanded && styles.pendingCardExpanded]}>
+    <View style={[styles.pendingCard, expanded && styles.pendingCardExpanded, assignmentTaskStyle]}>
       {/* Header Row: Pineapple Produce Icon, Title 'Order Delivery {orderNumber}', and Top-Right Dropdown Icon */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
         <View style={[styles.categorySquircle, { backgroundColor: '#EEF3EF' }]}>
@@ -357,7 +358,7 @@ export default function DriverTaskPending() {
               <Text style={styles.loadingText}>Loading assigned deliveries...</Text>
             </View>
           ) : filteredOrders.length ? (
-            filteredOrders.map((order) => (
+            <AssignmentDateList items={filteredOrders} assignedAt={(order) => order.driver_assigned_at} renderItem={(order) => (
               <PendingDeliveryCard
                 key={order.id}
                 order={order}
@@ -375,7 +376,7 @@ export default function DriverTaskPending() {
                 }}
                 onOpenVehicleSelector={() => setVehiclePickerOrderId(order.id)}
               />
-            ))
+            )} />
           ) : (
             <View style={styles.emptyBox}>
               <View style={styles.emptyCheckCircle}>
