@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { buyerCartQuantity, readBuyerCart, subscribeToCartChanges } from '@/lib/buyer-marketplace';
+import { buyerCartSizeCount, readBuyerCart, subscribeToCartChanges } from '@/lib/buyer-marketplace';
 import {
   ACTIVE_ICON_COLOR,
   GREEN_NAV_GRADIENT,
@@ -106,7 +106,7 @@ export function BuyerBottomNavigation({ activeTab }: { activeTab: BuyerTab }) {
     let active = true;
     const updateCount = async () => {
       const savedItems = await readBuyerCart();
-      if (active) setCartCount(buyerCartQuantity(savedItems));
+      if (active) setCartCount(buyerCartSizeCount(savedItems));
     };
     updateCount();
     const unsubscribe = subscribeToCartChanges(updateCount);

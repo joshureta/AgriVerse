@@ -32,6 +32,7 @@ export type DriverOrder = {
   delivery_scheduled_at: string | null;
   delivery_window_end_at: string | null;
   delivery_accepted_at?: string | null;
+  driver_assigned_at?: string | null;
   delivery_picked_up_at?: string | null;
   delivered_at?: string | null;
   delivery_proof_image_url?: string | null;

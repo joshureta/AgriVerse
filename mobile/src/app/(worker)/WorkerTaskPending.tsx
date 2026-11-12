@@ -1,4 +1,5 @@
 import { styles } from '@/styles/worker-task-pending.styles';
+import { AssignmentDateList, assignmentTaskStyle } from '@/components/assignment-date-list';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -35,6 +36,7 @@ type WorkerTaskRecord = {
   priority: 'high' | 'medium' | 'low';
   status: TaskStatus;
   schedule_start: string;
+  created_at?: string | null;
   estimated_duration_minutes: number;
   description: string | null;
   activity_type?: ActivityType | null;
@@ -372,7 +374,7 @@ function TaskCard({
   const instructions = getTaskInstructions(task, cleanField);
 
   return (
-    <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
+    <View style={[styles.taskCard, expanded && styles.taskCardExpanded, assignmentTaskStyle]}>
       {/* Header Row: Category Squircle Icon, Title, Field + Priority Pill & Top-Right Dropdown Button (Driver Style) */}
       <View style={styles.pendingCardHeader}>
         <View style={[styles.categorySquircle, { backgroundColor: config.bg, borderColor: config.border }, TASK_ICON_CONTAINER_STYLE]}>
@@ -636,7 +638,7 @@ export default function WorkerTaskPending() {
               <Text style={styles.loadingText}>Loading assigned tasks...</Text>
             </View>
           ) : visibleTasks.length ? (
-            visibleTasks.map((task) => (
+            <AssignmentDateList items={visibleTasks} assignedAt={(task) => task.created_at} renderItem={(task) => (
               <TaskCard
                 busy={busyId === task.id}
                 expanded={expandedId === task.id}
@@ -646,7 +648,7 @@ export default function WorkerTaskPending() {
                 task={task}
                 workAllowed={workAllowed}
               />
-            ))
+            )} />
           ) : (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>

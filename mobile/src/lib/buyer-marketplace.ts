@@ -301,6 +301,15 @@ export function buyerCartQuantity(items: CartItem[]): number {
   return items.reduce((total, item) => total + Math.max(0, Number(item.quantity) || 0), 0);
 }
 
+/** Count each pineapple size once, regardless of the number of pieces. */
+export function buyerCartSizeCount(items: CartItem[]): number {
+  return new Set(
+    items
+      .filter((item) => Number(item.quantity) > 0)
+      .map((item) => item.size_name.trim().toLowerCase()),
+  ).size;
+}
+
 type CartListener = () => void;
 const cartListeners = new Set<CartListener>();
 

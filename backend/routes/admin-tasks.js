@@ -4,13 +4,14 @@ const { getSupabase } = require("../supabase");
 const { assertCropTaskSchedule } = require("../lib/crop-work-hours");
 const { ACTIVITY_TYPES, readActivityType } = require("../lib/task-details");
 const { httpError } = require("../lib/http-error");
-const { notifyTaskAssignment, notifyTaskUpdate } = require("../lib/task-notifications");
+const { notifyTaskAssignment, notifyTaskCancellation, notifyTaskUpdate } = require("../lib/task-notifications");
+const { assertWorkerScheduleAvailable, mapScheduleConflictDatabaseError } = require("../lib/schedule-conflicts");
 
 const router = express.Router();
 const taskSelect = [
   "id, task_name, description, estimated_duration_minutes, created_at, updated_at",
   "assigned_worker_id, category_id, field_id, priority_id, status_id",
-  "started_at, completed_at, completion_notes, activity_type",
+  "started_at, completed_at, cancelled_at, cancelled_by, completion_notes, activity_type",
   "harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count",
   "harvest_proof_image_url, harvest_proof_image_name",
   "harvest_rejection_reason, harvest_rejected_at, approved_at",
@@ -124,6 +125,7 @@ async function readTaskBody(body) {
   const field = await ensureActive("farm_fields", body.field_id, "Field", "id, field_name");
   const priority = await ensureActive("task_priorities", body.priority_id, "Priority", "id, code");
   const taskStatus = await ensureActive("task_statuses", body.status_id, "Status", "id, code");
+  if (taskStatus.code === "cancelled") throw httpError(400, "Use the cancel action to cancel a pending task");
   if (category.category_name === "Harvesting" && ["completed", "awaiting_approval"].includes(taskStatus.code)) {
     throw httpError(400, "Harvesting tasks can only be completed through the harvest review flow (Approve/Reject), not edited directly.");
   }
@@ -141,6 +143,7 @@ async function readTaskBody(body) {
   const description = readDescription(body.description);
 
   return {
+    workerCategory: worker.worker_category,
     task: {
       assigned_worker_id: assignedWorkerId,
       category_id: category.id,
@@ -160,6 +163,7 @@ async function readTaskBody(body) {
       status_id: scheduleStatus.id,
       notes: readDescription(body.notes ?? body.description),
     },
+    scheduleStatusCode: scheduleStatus.code,
   };
 }
 
@@ -174,9 +178,22 @@ function readTaskId(value) {
 }
 
 function throwDatabaseError(error) {
+  const scheduleError = mapScheduleConflictDatabaseError(error);
+  if (scheduleError !== error) throw scheduleError;
   if (error?.code === "PGRST116") throw httpError(404, "Task was not found");
   if (error?.code === "23503") throw httpError(400, "A referenced task option is invalid");
   throw error;
+}
+
+async function assertTaskScheduleAvailable(payload, excludeTaskId = null) {
+  if (payload.scheduleStatusCode === "cancelled") return;
+  await assertWorkerScheduleAvailable(getSupabase(), {
+    workerId: payload.task.assigned_worker_id,
+    scheduleDate: payload.schedule.schedule_date,
+    startTime: payload.schedule.start_time,
+    endTime: payload.schedule.end_time,
+    excludeTaskId,
+  });
 }
 
 async function fetchTask(id) {
@@ -317,6 +334,7 @@ router.post("/", async (req, res, next) => {
   let createdTaskId = null;
   try {
     const payload = await readTaskBody(req.body);
+    await assertTaskScheduleAvailable(payload);
     const { data: task, error: taskError } = await getSupabase().from("tasks")
       .insert({ ...payload.task, created_by: req.user.id }).select("id").single();
     if (taskError) throwDatabaseError(taskError);
@@ -342,21 +360,32 @@ router.patch("/:id", async (req, res, next) => {
     const id = readTaskId(req.params.id);
     const payload = await readTaskBody(req.body);
     const { data: current, error: currentError } = await getSupabase().from("tasks")
-      .select("assigned_worker_id, category_id, activity_type, inventory_item_id, task_status:task_statuses!tasks_status_id_fkey(code)")
+      .select("assigned_worker_id, category_id, field_id, priority_id, status_id, task_name, estimated_duration_minutes, description, activity_type, started_at, completed_at, inventory_item_id, assigned_worker:profiles!tasks_assigned_worker_id_fkey(worker_category), task_status:task_statuses!tasks_status_id_fkey(code)")
       .eq("id", id).maybeSingle();
     if (currentError) throwDatabaseError(currentError);
     if (!current) throw httpError(404, "Task was not found");
+    if (current.assigned_worker?.worker_category !== payload.workerCategory) {
+      throw httpError(400, "The worker category cannot be changed after the task is assigned.");
+    }
     if (current.task_status?.code !== "pending" && current.activity_type !== payload.task.activity_type) {
       throw httpError(400, "The activity cannot be changed after the task has started.");
     }
     if (current.inventory_item_id && current.category_id !== payload.task.category_id) {
       throw httpError(400, "The category cannot be changed after supplies were taken for this task.");
     }
+    await assertTaskScheduleAvailable(payload, id);
     const { error: taskError } = await getSupabase().from("tasks").update(payload.task).eq("id", id);
     if (taskError) throwDatabaseError(taskError);
     const { error: scheduleError } = await getSupabase().from("schedules")
       .upsert({ ...payload.schedule, task_id: id }, { onConflict: "task_id" });
-    if (scheduleError) throwDatabaseError(scheduleError);
+    if (scheduleError) {
+      // The task and its schedule live in separate tables. Restore the task if
+      // the database catches a conflict that appeared after the preflight check.
+      const { task_status: _taskStatus, assigned_worker: _assignedWorker, inventory_item_id: _inventoryItemId, ...originalTask } = current;
+      const { error: rollbackError } = await getSupabase().from("tasks").update(originalTask).eq("id", id);
+      if (rollbackError) console.error("Failed to restore task after schedule update failure:", rollbackError.message);
+      throwDatabaseError(scheduleError);
+    }
     const updatedTask = await fetchTask(id);
     try {
       if (current.assigned_worker_id !== updatedTask.assigned_worker_id) {
@@ -368,6 +397,39 @@ router.patch("/:id", async (req, res, next) => {
       console.error("Failed to notify the assigned worker:", notificationError.message);
     }
     return res.json({ task: updatedTask });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/:id/cancel", async (req, res, next) => {
+  try {
+    const id = readTaskId(req.params.id);
+    const { data: current, error: currentError } = await getSupabase().from("tasks")
+      .select("id, task_name, assigned_worker_id, task_status:task_statuses!tasks_status_id_fkey(code)")
+      .eq("id", id).maybeSingle();
+    if (currentError) throwDatabaseError(currentError);
+    if (!current) throw httpError(404, "Task was not found");
+    if (current.task_status?.code !== "pending") throw httpError(409, "Only pending tasks can be cancelled");
+
+    const { error } = await getSupabase().rpc("cancel_pending_task", {
+      p_task_id: id,
+      p_cancelled_by: req.user.id,
+    });
+    if (error) {
+      if (error.code === "P0001" && String(error.message || "").includes("task_not_pending")) {
+        throw httpError(409, "Only pending tasks can be cancelled");
+      }
+      throw error;
+    }
+
+    const task = await fetchTask(id);
+    try {
+      await notifyTaskCancellation(current);
+    } catch (notificationError) {
+      console.error("Failed to notify the worker about task cancellation:", notificationError.message);
+    }
+    return res.json({ task });
   } catch (error) {
     return next(error);
   }
