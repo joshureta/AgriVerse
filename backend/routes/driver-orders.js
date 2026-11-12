@@ -3,6 +3,7 @@ const { requireAuth, requireRole, requireInitialPasswordChanged, requireProfileO
 const { getSupabase } = require("../supabase");
 const { createOrderStatusNotification } = require("../lib/order-notifications");
 const { httpError } = require("../lib/http-error");
+const { isTaskStartLocked } = require("../lib/crop-work-hours");
 const { uploadImage } = require("../lib/storage");
 
 const router = express.Router();
@@ -40,11 +41,10 @@ router.get("/fleet", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
-// A delivery the driver hasn't accepted yet, booked for a future date/time, stays locked until then.
+// Deliveries open at midnight on their scheduled Philippine calendar date.
 function isDeliveryLocked(order) {
   return order.delivery_assignment_status === "assigned"
-    && order.delivery_scheduled_at
-    && new Date(order.delivery_scheduled_at).getTime() > Date.now();
+    && isTaskStartLocked(order.delivery_scheduled_at);
 }
 
 router.get("/", async (req, res, next) => {

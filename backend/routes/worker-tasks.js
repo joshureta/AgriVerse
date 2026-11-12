@@ -80,7 +80,7 @@ function serializeTask(task) {
   };
 }
 
-// When the temporary restriction flag is enabled, future tasks stay locked until their start time.
+// Future tasks stay locked until their scheduled Philippine calendar date.
 function isTaskLocked(task) {
   return task.status === "pending" && isTaskStartLocked(task.schedule_start);
 }

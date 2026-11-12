@@ -52,21 +52,17 @@ function assertCropTaskSchedule(workerCategory, startTime, endTime) {
   }
 }
 
-function isTaskStartLocked(scheduleStart, now = new Date(), env = process.env) {
-  if (!taskStartTimeRestrictionsEnabled(env) || !scheduleStart) return false;
+function isTaskStartLocked(scheduleStart, now = new Date()) {
+  if (!scheduleStart) return false;
   const start = new Date(scheduleStart);
-  return !Number.isNaN(start.getTime()) && start.getTime() > now.getTime();
+  const day = (date) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: PHILIPPINES_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(date);
+  return !Number.isNaN(start.getTime()) && day(start) > day(now);
 }
 
-function assertCropWorkerCanWork(profile, now = new Date(), env = process.env) {
-  if (taskStartTimeRestrictionsEnabled(env)
-    && profile?.worker_category === "crop_management_worker"
-    && !isCropWorkTime(now)) {
-    const error = new Error(cropWorkHoursMessage());
-    error.status = 403;
-    error.code = "CROP_WORK_HOURS_CLOSED";
-    throw error;
-  }
+function assertCropWorkerCanWork() {
+  // Execution is allowed at any hour; scheduled dates are enforced separately.
 }
 
 module.exports = {

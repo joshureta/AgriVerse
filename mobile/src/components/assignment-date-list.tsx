@@ -47,6 +47,6 @@ const styles = StyleSheet.create({
   dayText: { fontSize: 20, fontWeight: '600', color: '#484E49' },
   today: { borderWidth: 1.5, borderColor: '#166534', borderRadius: 18 },
   todayText: { color: '#166534' },
-  tasks: { flex: 1, minWidth: 0 },
+  tasks: { flex: 1, minWidth: 0, borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: '#D6D9D2', paddingLeft: 10 },
   taskDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#D6D9D2', paddingTop: 10 },
 });

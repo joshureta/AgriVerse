@@ -54,7 +54,7 @@ export function UpcomingCard({
         <View style={styles.strip}>
           <View style={styles.opens}>
             <LockIcon />
-            <Text style={styles.opensText}>{when ? `Opens ${when.time}` : 'Date pending'}</Text>
+            <Text style={styles.opensText}>{when ? 'Opens at 12:00 AM (PH)' : 'Date pending'}</Text>
           </View>
           {when ? <Text style={styles.countdown}>{when.countdown}</Text> : null}
         </View>
