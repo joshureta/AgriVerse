@@ -379,9 +379,6 @@ export default function BuyerHomeScreen() {
               onPress={() => router.push('/BuyerProductDetail' as never)}
               style={({ pressed }) => [styles.shopNowButton, pressed && styles.shopNowPressed]}>
               <Text style={styles.shopNowText}>SHOP NOW</Text>
-              <View style={styles.shopNowArrowBadge}>
-                <Text style={styles.shopNowArrow}>→</Text>
-              </View>
             </Pressable>
           </View>
         </ImageBackground>

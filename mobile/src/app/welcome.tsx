@@ -1,5 +1,4 @@
 import { styles } from '@/styles/welcome.styles';
-import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Image, ImageBackground, Pressable, Text, useWindowDimensions, View } from 'react-native';
@@ -76,16 +75,14 @@ export default function WelcomeScreen() {
           Growing sweeter pineapples today for a greener tomorrow.
         </Text>
 
-        {/* Bottom Glassmorphic CTA Button */}
+        {/* Primary action */}
         <View style={styles.buttonContainer}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Get started with AgriVerse"
             onPress={() => router.push('/authentication?mode=login')}
             style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}>
-            <BlurView intensity={35} tint="light" style={styles.startButtonBlur}>
-              <Text style={styles.startButtonText}>Get Started</Text>
-            </BlurView>
+            <Text style={styles.startButtonText}>Get Started</Text>
           </Pressable>
         </View>
       </View>
