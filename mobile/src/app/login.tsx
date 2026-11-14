@@ -21,13 +21,14 @@ import { Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react-native';
 import { ConvexDomeCap } from '@/components/convex-dome-cap';
 import { useAuth } from '@/context/auth-context';
 import { postAuthenticationRoute } from '@/lib/mobile-routing';
+import { setRememberSession } from '@/lib/remember-session';
 
 export default function LoginScreen({ embedded = false, onSignUp }: { embedded?: boolean; onSignUp?: () => void }) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [focusedField, setFocusedField] = useState<'email' | 'password' | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +43,7 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
     setSubmitting(true);
     setError('');
     try {
+      if (Platform.OS !== 'web') await setRememberSession(rememberMe);
       const profile = await signIn(email.trim(), password);
       if (router.canDismiss()) {
         router.dismissAll();
@@ -156,8 +158,8 @@ export default function LoginScreen({ embedded = false, onSignUp }: { embedded?:
                 <Pressable
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: rememberMe }}
-                  hitSlop={6}
-                  onPress={() => setRememberMe(!rememberMe)}
+                  hitSlop={12}
+                  onPress={() => setRememberMe((remember) => !remember)}
                   style={styles.rememberRow}>
                   <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
                     {rememberMe ? <Text style={styles.checkboxCheckmark}>✓</Text> : null}

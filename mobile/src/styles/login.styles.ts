@@ -143,7 +143,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: 14,
     marginBottom: 4,
   },
   rememberRow: {
@@ -152,10 +152,10 @@ export const styles = StyleSheet.create({
     gap: 7,
   },
   checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1.5,
+    width: 13,
+    height: 13,
+    borderRadius: 2,
+    borderWidth: 1,
     borderColor: '#185C35',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
@@ -167,14 +167,14 @@ export const styles = StyleSheet.create({
   },
   checkboxCheckmark: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '900',
-    lineHeight: 13,
+    lineHeight: 11,
   },
   rememberText: {
     color: '#526157',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '400',
   },
   error: {
     color: '#8C2020',

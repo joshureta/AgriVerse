@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.js'
 import { getHomePathForRole } from '../lib/authRouting.js'
 import { supabase } from '../lib/supabase.js'
@@ -108,13 +109,15 @@ export default function Login() {
                     required
                   />
                   <button
-                    className={`login-password-toggle${showPassword ? ' is-visible' : ''}`}
+                    className="login-password-toggle"
                     type="button"
                     onClick={() => setShowPassword((visible) => !visible)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     aria-pressed={showPassword}
                     disabled={loading}
-                  />
+                  >
+                    {showPassword ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
+                  </button>
                 </div>
               </label>
 

@@ -27,31 +27,11 @@ export default function AuthenticationScreen() {
   const { height } = useWindowDimensions();
   const panelHeight = Math.max(430, Math.min(height * 0.58, 500));
   const [choice, setChoice] = useState<AuthChoice | null>(mode === 'login' ? 'login' : null);
-  const [signUpStep, setSignUpStep] = useState(0);
   const keyboardOffset = useRef(new Animated.Value(0)).current;
   const [keyboardActive, setKeyboardActive] = useState(false);
 
   const loginPanelHeight = Math.max(535, Math.min(height * 0.68, 600));
-  const signupPersonalHeight = Math.max(590, Math.min(height * 0.74, 650));
-  const signupSecurityHeight = Math.max(560, Math.min(height * 0.70, 620));
-  const signupLocationHeight = Math.max(610, Math.min(height - 18, height * 0.80));
-  const signupVerificationHeight = Math.max(500, Math.min(height * 0.62, 560));
-
-  const signupPanelHeight =
-    signUpStep === 3
-      ? signupVerificationHeight
-      : signUpStep === 1
-      ? signupSecurityHeight
-      : signUpStep === 2
-      ? signupLocationHeight
-      : signupPersonalHeight;
-
-  const finalPanelHeight =
-    choice === 'login'
-      ? loginPanelHeight
-      : choice === 'signup'
-      ? signupPanelHeight
-      : panelHeight;
+  const finalPanelHeight = choice === 'login' ? loginPanelHeight : panelHeight;
 
   const animatedHeight = useRef(new Animated.Value(panelHeight)).current;
 
@@ -104,8 +84,11 @@ export default function AuthenticationScreen() {
 
   function openAuth(nextChoice: AuthChoice) {
     Keyboard.dismiss();
-    setSignUpStep(0);
     setChoice(nextChoice);
+  }
+
+  if (choice === 'signup') {
+    return <SignUpScreen onSignIn={() => openAuth('login')} />;
   }
 
   return (
@@ -147,11 +130,7 @@ export default function AuthenticationScreen() {
         {/* Panel Body */}
         <View style={[styles.panelBody, !choice && styles.landingContent]}>
           {choice ? (
-            choice === 'login' ? (
-              <LoginScreen embedded onSignUp={() => openAuth('signup')} />
-            ) : (
-              <SignUpScreen embedded onSignIn={() => openAuth('login')} onStepChange={setSignUpStep} />
-            )
+            <LoginScreen embedded onSignUp={() => openAuth('signup')} />
           ) : (
             <>
               {/* Bottom-left leaf decoration matching web */}

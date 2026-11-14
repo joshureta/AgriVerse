@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MailCheck } from 'lucide-react'
+import { Eye, EyeOff, MailCheck } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.js'
 import { supabase } from '../lib/supabase.js'
 import {
@@ -43,13 +43,15 @@ function Field({
         />
         {isPassword && (
           <button
-            className={`register-password-toggle${showPassword ? ' is-visible' : ''}`}
+            className="register-password-toggle"
             type="button"
             onClick={() => setShowPassword((visible) => !visible)}
             aria-label={showPassword ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
             aria-pressed={showPassword}
             disabled={disabled}
-          />
+          >
+            {showPassword ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
+          </button>
         )}
       </div>
     </label>

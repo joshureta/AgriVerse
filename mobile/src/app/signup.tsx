@@ -3,10 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   ImageBackground,
   KeyboardAvoidingView,
   Modal,
@@ -15,13 +15,14 @@ import {
   ScrollView,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ConvexDomeCap } from '@/components/convex-dome-cap';
 import { useAuth } from '@/context/auth-context';
 import { postAuthenticationRoute } from '@/lib/mobile-routing';
+import { setRememberSession } from '@/lib/remember-session';
 import { supabase } from '@/lib/supabase';
 import {
   getCityMunicipalityBarangays,
@@ -146,6 +147,8 @@ export default function SignUpScreen({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { width } = useWindowDimensions();
 
   const [regions, setRegions] = useState<PsgcItem[]>([]);
   const [provinces, setProvinces] = useState<PsgcItem[]>([]);
@@ -279,6 +282,7 @@ export default function SignUpScreen({
     ],
     [password]
   );
+  const passwordScore = passwordChecks.filter((check) => check.met).length;
 
   function validateStep() {
     setError('');
@@ -311,6 +315,7 @@ export default function SignUpScreen({
     setError('');
     setMessage('');
     try {
+      if (Platform.OS !== 'web') await setRememberSession(true);
       const registrationEmail = email.trim();
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: registrationEmail,
@@ -355,6 +360,7 @@ export default function SignUpScreen({
     setMessage('');
     let verified = false;
     try {
+      if (Platform.OS !== 'web') await setRememberSession(true);
       const { data, error: verifyError } = await supabase.auth.verifyOtp({
         email: pendingEmail,
         token: verificationDigits.join(''),
@@ -434,38 +440,32 @@ export default function SignUpScreen({
   return (
     <SafeAreaView style={[styles.safeArea, embedded && styles.embeddedSafeArea]}>
       <StatusBar style="dark" />
-      {!embedded ? (
-        <ImageBackground
-          source={require('@/assets/images/auth-banner-haze-v2.png')}
-          resizeMode="cover"
-          style={styles.background}>
-          <View style={styles.backgroundTint} />
-        </ImageBackground>
-      ) : null}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         enabled={!embedded}
         style={styles.flex}>
         <View style={[styles.cardContainer, embedded && styles.embeddedCardContainer]}>
           {!embedded ? (
-            <View style={styles.domeCap}>
-              <ConvexDomeCap color="#FFFFFF" height={54} />
-            </View>
+            <ImageBackground
+              source={require('@/assets/images/auth-banner-haze-v2.png')}
+              resizeMode="cover"
+              style={styles.hero}>
+              <View style={styles.heroTint} />
+              <View style={styles.heroContent}>
+                <Text style={styles.heroTitle}>Welcome to{'\n'}Jtoledo Trading</Text>
+                <Text style={styles.heroCopy}>
+                  Proudly providing fresh, high-quality pineapples from our farm to your table.
+                </Text>
+              </View>
+            </ImageBackground>
           ) : null}
 
-          <View style={[styles.card, embedded && styles.embeddedCard]}>
-            {/* Bottom-left leaf decoration matching web */}
-            <View pointerEvents="none" style={styles.leafContainer}>
-              <Image
-                source={require('@/assets/images/sign-in-up-bg.png')}
-                style={styles.leafImage}
-                resizeMode="cover"
-              />
-            </View>
-
+          <ImageBackground
+            source={require('@/assets/images/sign-in-up-bg.png')}
+            resizeMode="cover"
+            style={[styles.card, embedded && styles.embeddedCard]}>
             {/* FIXED HEADER: Remains intact and does not scroll */}
             <View style={[styles.fixedHeader, embedded && styles.embeddedFixedHeader]}>
-              <Text style={styles.kicker}>CREATE ACCOUNT</Text>
               <Text style={styles.title}>{pendingEmail ? 'Verify your email' : 'Create Account'}</Text>
               <Text style={styles.subtitle}>
                 {pendingEmail ? `Enter the 6-digit code sent to ${pendingEmail}.` : 'Complete three quick steps to get started.'}
@@ -604,66 +604,77 @@ export default function SignUpScreen({
               {/* STEP 2: SECURITY CREDENTIALS */}
               {!pendingEmail && step === 1 ? (
                 <View>
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Create password</Text>
-                    <View style={styles.passwordRow}>
-                      <TextInput
-                        autoCapitalize="none"
-                        autoComplete="new-password"
-                        onChangeText={setPassword}
-                        placeholder="Create a strong password"
-                        placeholderTextColor="#7F8982"
-                        secureTextEntry={!showPassword}
-                        style={styles.passwordInput}
-                        value={password}
-                      />
-                      <Pressable
-                        accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-                        accessibilityRole="button"
-                        hitSlop={8}
-                        onPress={() => setShowPassword((visible) => !visible)}
-                        style={styles.showButton}>
-                        <Text style={styles.showText}>{showPassword ? 'Hide' : 'Show'}</Text>
-                      </Pressable>
+                  <View style={width >= 650 ? styles.passwordFieldsWide : undefined}>
+                    <View style={[styles.field, width >= 650 && styles.passwordFieldWide]}>
+                      <Text style={styles.label}>Password</Text>
+                      <View style={styles.passwordRow}>
+                        <TextInput
+                          accessibilityLabel="Password"
+                          autoCapitalize="none"
+                          autoComplete="new-password"
+                          onChangeText={setPassword}
+                          placeholder="Create a strong password"
+                          placeholderTextColor="#7F8982"
+                          secureTextEntry={!showPassword}
+                          style={styles.passwordInput}
+                          value={password}
+                        />
+                        <Pressable
+                          accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                          accessibilityRole="button"
+                          hitSlop={8}
+                          onPress={() => setShowPassword((visible) => !visible)}
+                          style={styles.showButton}>
+                          {showPassword ? <EyeOff size={20} color="#5D6C62" /> : <Eye size={20} color="#5D6C62" />}
+                        </Pressable>
+                      </View>
+                    </View>
+                    <View style={[styles.field, width >= 650 && styles.passwordFieldWide]}>
+                      <Text style={styles.label}>Confirm password</Text>
+                      <View style={styles.passwordRow}>
+                        <TextInput
+                          accessibilityLabel="Confirm password"
+                          autoCapitalize="none"
+                          autoComplete="new-password"
+                          onChangeText={setConfirmPassword}
+                          placeholder="Repeat password"
+                          placeholderTextColor="#7F8982"
+                          secureTextEntry={!showConfirmPassword}
+                          style={styles.passwordInput}
+                          value={confirmPassword}
+                        />
+                        <Pressable
+                          accessibilityLabel={showConfirmPassword ? 'Hide confirmation password' : 'Show confirmation password'}
+                          accessibilityRole="button"
+                          hitSlop={8}
+                          onPress={() => setShowConfirmPassword((visible) => !visible)}
+                          style={styles.showButton}>
+                          {showConfirmPassword ? <EyeOff size={20} color="#5D6C62" /> : <Eye size={20} color="#5D6C62" />}
+                        </Pressable>
+                      </View>
                     </View>
                   </View>
-
-                  {/* 2x2 Password Requirement Badges */}
-                  <View style={styles.requirementsGrid}>
-                    {passwordChecks.map((check) => (
-                      <View
-                        key={check.label}
-                        style={[
-                          styles.requirementBadge,
-                          check.met && styles.requirementBadgeMet,
-                        ]}>
-                        <Text
-                          style={[
-                            styles.requirementBadgeIcon,
-                            check.met && styles.requirementBadgeIconMet,
-                          ]}>
-                          {check.met ? '✓' : '○'}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.requirementBadgeText,
-                            check.met && styles.requirementBadgeTextMet,
-                          ]}>
-                          {check.label}
-                        </Text>
-                      </View>
-                    ))}
+                  {confirmPassword && confirmPassword !== password ? (
+                    <Text accessibilityRole="alert" style={styles.inlineError}>Passwords do not match.</Text>
+                  ) : null}
+                  <View style={styles.passwordGuide}>
+                    <View style={styles.strengthBar} accessibilityLabel={`Password strength: ${['Not set', 'Weak', 'Fair', 'Good', 'Strong'][passwordScore]}`}>
+                      {passwordChecks.map((check, index) => (
+                        <View key={check.label} style={[styles.strengthSegment, index < passwordScore && styles.strengthSegmentMet]} />
+                      ))}
+                    </View>
+                    <Text style={styles.strengthLabel}>
+                      Password strength: {['Not set', 'Weak', 'Fair', 'Good', 'Strong'][passwordScore]}
+                    </Text>
+                    <View style={styles.requirementsGrid}>
+                      {passwordChecks.map((check) => (
+                        <View key={check.label} style={styles.requirementItem}>
+                          <Text style={[styles.requirementIcon, check.met && styles.requirementMet]}>{check.met ? '✓' : '○'}</Text>
+                          <Text style={[styles.requirementText, check.met && styles.requirementMet]}>{check.label}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
-
-                  <FormField
-                    autoCapitalize="none"
-                    autoComplete="new-password"
-                    label="Confirm password"
-                    onChangeText={setConfirmPassword}
-                    placeholder="Repeat password"
-                    secureTextEntry={!showPassword}
-                    value={confirmPassword}
-                  />
                 </View>
               ) : null}
 
@@ -772,7 +783,7 @@ export default function SignUpScreen({
                 </Pressable>
               </View>
             </ScrollView>
-          </View>
+          </ImageBackground>
         </View>
       </KeyboardAvoidingView>
 
