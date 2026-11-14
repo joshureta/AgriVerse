@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import dashboardIllustration from '../../assets/admin-dashboard-illustration.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import FieldConditions from '../../components/FieldConditions.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
-import { loadAdminActivities, loadAdminProductivity, loadAdminRevenue, loadAdminSummary } from '../../services/adminDashboard.js'
+import { loadAdminActivities, loadAdminInventory, loadAdminRevenue, loadAdminSummary } from '../../services/adminDashboard.js'
 import '../../styles/admin-dashboard.css'
 
 const ACTIVITY_MAX_COUNT = 30
 const ACTIVITY_REFRESH_MS = 60000
+const INVENTORY_COLORS = ['#196c35', '#78b83d', '#d9a51d', '#4b9b70']
 const completedAtFormat = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
@@ -61,12 +62,10 @@ export default function AdminDashboard() {
   const [ongoingActivities, setOngoingActivities] = useState([])
   const [activitiesLoading, setActivitiesLoading] = useState(true)
   const [activitiesError, setActivitiesError] = useState('')
-  const [productivity, setProductivity] = useState(null)
-  const [productivityLoading, setProductivityLoading] = useState(true)
-  const [productivityError, setProductivityError] = useState('')
+  const [inventory, setInventory] = useState(null)
+  const [inventoryError, setInventoryError] = useState('')
   const [summary, setSummary] = useState(null)
   const [summaryError, setSummaryError] = useState('')
-  const reportDialogRef = useRef(null)
   const [now, setNow] = useState(() => Date.now())
   const displayName = profile?.full_name || 'Josh Ureta'
   const firstName = displayName.split(' ')[0]
@@ -139,24 +138,22 @@ export default function AdminDashboard() {
     return () => window.clearInterval(timer)
   }, [fetchActivities])
 
-  // Loads the task and worker productivity report.
-  const fetchProductivity = useCallback(async () => {
+  // Loads current pineapple stock by size.
+  const fetchInventory = useCallback(async () => {
     try {
-      setProductivity(await loadAdminProductivity())
-      setProductivityError('')
+      setInventory(await loadAdminInventory())
+      setInventoryError('')
     } catch (error) {
-      setProductivityError(error.message)
-    } finally {
-      setProductivityLoading(false)
+      setInventoryError(error.message)
     }
   }, [])
 
-  // Refreshes productivity on a timer.
+  // Refreshes stock alongside the dashboard figures.
   useEffect(() => {
-    fetchProductivity()
-    const timer = window.setInterval(fetchProductivity, ACTIVITY_REFRESH_MS)
+    fetchInventory()
+    const timer = window.setInterval(fetchInventory, ACTIVITY_REFRESH_MS)
     return () => window.clearInterval(timer)
-  }, [fetchProductivity])
+  }, [fetchInventory])
 
   // Loads the dashboard summary figures.
   const fetchSummary = useCallback(async () => {
@@ -176,16 +173,16 @@ export default function AdminDashboard() {
   }, [fetchSummary])
 
   const hasActivities = completedActivities.length + ongoingActivities.length > 0
-  const completionPercent = productivity?.tasks.completion_percent ?? 0
-  const utilizationPercent = productivity?.workers.utilization_percent ?? 0
-  const comparison = productivity?.comparison
-  const change = comparison?.change_percent
-  const performanceTitle = change == null
-    ? comparison?.current_approved ? 'Approvals this month' : 'No approved tasks yet'
-    : change > 0 ? 'Completed tasks increased' : change < 0 ? 'Completed tasks decreased' : 'Completed tasks steady'
-  const performanceDetail = change == null
-    ? comparison?.current_approved ? `${comparison.current_approved} approved so far; no prior-month baseline.` : 'No approved tasks in either period yet.'
-    : `${comparison.current_approved} approved this month vs ${comparison.previous_approved} by this date last month (${change > 0 ? '+' : ''}${change}%).`
+  const totalStock = inventory?.reduce((total, item) => total + item.quantity, 0) ?? 0
+  const inventoryGradient = useMemo(() => {
+    if (!totalStock) return 'conic-gradient(#dfe8df 0 100%)'
+    let cursor = 0
+    return `conic-gradient(${inventory.map((item, index) => {
+      const start = cursor
+      cursor += (item.quantity / totalStock) * 360
+      return `${INVENTORY_COLORS[index % INVENTORY_COLORS.length]} ${start}deg ${cursor}deg`
+    }).join(', ')})`
+  }, [inventory, totalStock])
 
   return (
     <main className="admin-dashboard admin-overview-dashboard">
@@ -221,6 +218,7 @@ export default function AdminDashboard() {
                   <div>
                     <p>Sales This {revenuePeriodLabels[revenuePeriod]}</p>
                     <strong>{revenueLoading ? '—' : revenue ? peso.format(revenue.net) : 'Unavailable'}</strong>
+                    <small>{revenueLoading ? 'Loading orders…' : revenue ? `${revenue.order_count.toLocaleString('en-PH')} order${revenue.order_count === 1 ? '' : 's'}` : 'Orders unavailable'}</small>
                   </div>
                 </article>
 
@@ -320,45 +318,6 @@ export default function AdminDashboard() {
                 )}
               </article>
 
-              {/* Team productivity summary. */}
-              <article className="admin-panel productivity-panel">
-                <div className="panel-heading">
-                  <div>
-                    <span>Productivity reports</span>
-                    <strong>Team performance</strong>
-                  </div>
-                  <button type="button" onClick={() => reportDialogRef.current?.showModal()}>View report</button>
-                </div>
-
-                {productivityLoading && !productivity ? (
-                  <p className="productivity-state">Loading productivity report…</p>
-                ) : productivityError && !productivity ? (
-                  <p className="productivity-state is-error">{productivityError} <button type="button" onClick={fetchProductivity}>Retry</button></p>
-                ) : productivity && (
-                  <div className="productivity-metrics">
-                    <div className="progress-metric">
-                      <div className="progress-ring" style={{ '--progress': `${completionPercent}%` }}>
-                        <strong>{completionPercent}%</strong>
-                      </div>
-                      <p>Tasks completed today</p>
-                    </div>
-                    <div className="progress-metric">
-                      <div className="progress-ring" style={{ '--progress': `${utilizationPercent}%` }}>
-                        <strong>{utilizationPercent}%</strong>
-                      </div>
-                      <p>Resource utilization</p>
-                    </div>
-                    <div className={`performance-note${change == null || change === 0 ? ' is-neutral' : change < 0 ? ' is-decrease' : ''}`}>
-                      <span aria-hidden="true">{change == null || change === 0 ? '→' : change < 0 ? '↘' : '↗'}</span>
-                      <div>
-                        <strong>{performanceTitle}</strong>
-                        <p>{performanceDetail}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {productivity && productivityError && <p className="productivity-state is-error">Could not refresh the report. <button type="button" onClick={fetchProductivity}>Retry</button></p>}
-              </article>
             </section>
 
             <div className="admin-side-column">
@@ -397,43 +356,34 @@ export default function AdminDashboard() {
               </aside>
               {/* Current field conditions. */}
               <FieldConditions />
+              {/* Pineapple inventory summary, using the same stock as the seller dashboard. */}
+              <article className="admin-panel admin-inventory-panel" aria-labelledby="admin-inventory-title">
+                <header className="admin-inventory-heading">
+                  <div><small>Inventory</small><h2 id="admin-inventory-title">Inventory Statistics</h2></div>
+                  <span className="admin-inventory-menu" aria-hidden="true">•••</span>
+                </header>
+                {inventoryError && !inventory ? (
+                  <p className="admin-inventory-state is-error">{inventoryError} <button type="button" onClick={fetchInventory}>Retry</button></p>
+                ) : inventory ? (
+                  <div className="admin-inventory-content">
+                    <div className="admin-stock-donut" style={{ background: inventoryGradient }} role="img" aria-label={`${totalStock.toLocaleString()} pineapples in stock`}>
+                      <span><strong>{totalStock.toLocaleString()}</strong><small>In stock</small></span>
+                    </div>
+                    <ul className="admin-inventory-legend">
+                      {inventory.map((item, index) => (
+                        <li key={item.size}>
+                          <i style={{ background: INVENTORY_COLORS[index % INVENTORY_COLORS.length] }} aria-hidden="true" />
+                          <span>{item.size}</span><strong>{item.quantity.toLocaleString()}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : <p className="admin-inventory-state">Loading inventory…</p>}
+                {inventory && inventoryError && <p className="admin-inventory-state is-error">Could not refresh inventory. <button type="button" onClick={fetchInventory}>Retry</button></p>}
+              </article>
             </div>
           </div>
         </div>
-        {/* Detailed productivity report dialog. */}
-        <dialog className="productivity-report-dialog" ref={reportDialogRef} aria-labelledby="productivity-report-title">
-          <div className="productivity-report-heading">
-            <div>
-              <h2 id="productivity-report-title">Productivity report</h2>
-              <p>{productivity?.date || 'Today'} · Philippines</p>
-            </div>
-            <button type="button" onClick={() => reportDialogRef.current?.close()} aria-label="Close report">×</button>
-          </div>
-          {productivityLoading && !productivity ? (
-            <p className="productivity-report-state">Loading report…</p>
-          ) : productivityError && !productivity ? (
-            <p className="productivity-report-state is-error">{productivityError} <button type="button" onClick={fetchProductivity}>Retry</button></p>
-          ) : productivity && (
-            <>
-              <div className="productivity-report-grid">
-                <div><strong>{productivity.tasks.completed} / {productivity.tasks.scheduled}</strong><span>Scheduled tasks completed today</span></div>
-                <div><strong>{productivity.tasks.awaiting_review}</strong><span>Awaiting admin review</span></div>
-                <div><strong>{productivity.workers.scheduled} / {productivity.workers.total}</strong><span>Crop workers scheduled today</span></div>
-              </div>
-              <p className="productivity-report-definition">Completion rate is approved tasks divided by tasks scheduled today. Resource utilization is crop workers with a task today divided by all crop workers.</p>
-              <div className="productivity-report-comparison">
-                <h3>Monthly comparison</h3>
-                <p>{performanceDetail}</p>
-                <small>{productivity.month_label} to date compared with {productivity.previous_month_label} through the equivalent calendar day. Counts include admin-approved tasks.</small>
-              </div>
-              <div className="productivity-report-actions">
-                <a href="/admin/tasks">View task schedule</a>
-                <a href="/admin/records">View completed records</a>
-              </div>
-              {productivityError && <p className="productivity-report-state is-error">These are the last loaded results. <button type="button" onClick={fetchProductivity}>Retry</button></p>}
-            </>
-          )}
-        </dialog>
       </section>
     </main>
   )

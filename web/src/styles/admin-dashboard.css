@@ -1239,251 +1239,66 @@
   transform: translate(-50%, -50%);
 }
 
-.productivity-panel {
-  min-height: 205px;
+.admin-inventory-panel {
+  align-self: start;
 }
 
-.productivity-state {
-  margin: 20px;
-  color: #647368;
-  font-size: 12px;
-}
-
-.productivity-state.is-error,
-.productivity-report-state.is-error {
-  color: #a33b31;
-}
-
-.productivity-state button,
-.productivity-report-state button {
-  border: 0;
-  color: var(--admin-green);
-  background: transparent;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.productivity-metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1.6fr;
+.admin-inventory-heading {
+  display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 9px 20px 20px;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 16px 18px 4px;
 }
 
-.progress-metric {
+.admin-inventory-heading > div { display: grid; gap: 2px; }
+.admin-inventory-heading small { color: #718073; font-size: 9px; font-weight: 750; text-transform: uppercase; }
+.admin-inventory-heading h2 { margin: 0; color: #1c3222; font-size: 17px; }
+.admin-inventory-menu { color: #b6c0b8; font-size: 14px; letter-spacing: 2px; }
+
+.admin-inventory-content {
   display: grid;
-  justify-items: center;
-  gap: 6px;
+  grid-template-columns: 125px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 6px 18px 12px;
 }
 
-.progress-ring {
-  position: relative;
-  width: 70px;
-  height: 70px;
+.admin-stock-donut {
+  width: 125px;
+  height: 125px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: conic-gradient(#4b9851 var(--progress), #e4e9df 0);
 }
 
-.progress-ring::after {
-  position: absolute;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: white;
+.admin-stock-donut::before {
   content: '';
+  grid-area: 1 / 1;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #fff;
 }
 
-.progress-ring strong {
+.admin-stock-donut > span {
   z-index: 1;
-  color: #3c4940;
-  font-size: 14px;
-}
-
-.progress-metric p {
-  margin: 0;
-  color: #6d776f;
-  font-size: 10px;
-  text-align: center;
-}
-
-.performance-note {
-  min-height: 76px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  box-sizing: border-box;
-  padding: 14px;
-  border: 1px solid #7ab184;
-  border-radius: 9px;
-  background: #e6f5e4;
-}
-
-.performance-note > span {
-  color: #4a984f;
-  font-size: 31px;
-}
-
-.performance-note strong {
-  color: #24592f;
-  font-size: 11px;
-}
-
-.performance-note p {
-  margin: 4px 0 0;
-  color: #59715e;
-  font-size: 10px;
-  line-height: 1.4;
-}
-
-.performance-note.is-decrease {
-  border-color: #e5b0a8;
-  background: #fff1ef;
-}
-
-.performance-note.is-decrease > span,
-.performance-note.is-decrease strong {
-  color: #a33b31;
-}
-
-.performance-note.is-neutral {
-  border-color: #ced9ce;
-  background: #f3f6f1;
-}
-
-.performance-note.is-neutral > span,
-.performance-note.is-neutral strong {
-  color: #41664b;
-}
-
-.productivity-report-dialog {
-  width: min(520px, calc(100vw - 32px));
-  max-height: calc(100svh - 32px);
-  box-sizing: border-box;
-  border: 1px solid #dbe5d8;
-  border-radius: 16px;
-  padding: 24px;
-  color: #172c1d;
-  background: white;
-  box-shadow: 0 24px 70px rgba(20, 47, 26, 0.2);
-  font-family: var(--sans);
-}
-
-.productivity-report-dialog::backdrop {
-  background: rgba(14, 36, 20, 0.45);
-}
-
-.productivity-report-heading,
-.productivity-report-actions {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.productivity-report-heading h2,
-.productivity-report-comparison h3 {
-  margin: 0;
-  color: #173d25;
-}
-
-.productivity-report-heading h2 {
-  font-size: 20px;
-}
-
-.productivity-report-heading p {
-  margin: 5px 0 0;
-  color: #718077;
-  font-size: 12px;
-}
-
-.productivity-report-heading button {
-  border: 0;
-  padding: 0 4px;
-  color: #536a59;
-  background: transparent;
-  font-size: 25px;
-  cursor: pointer;
-}
-
-.productivity-report-grid {
+  grid-area: 1 / 1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 9px;
-  margin-top: 22px;
+  justify-items: center;
 }
 
-.productivity-report-grid > div {
-  display: grid;
-  align-content: start;
-  gap: 7px;
-  min-height: 86px;
-  box-sizing: border-box;
-  border: 1px solid #e0e9dd;
-  border-radius: 10px;
-  padding: 12px;
-  background: #f7faf6;
-}
+.admin-stock-donut strong { color: #16251a; font-size: 20px; }
+.admin-stock-donut small { color: #87928a; font-size: 10px; }
 
-.productivity-report-grid strong {
-  color: #1b6639;
-  font-size: 19px;
-}
+.admin-inventory-legend { display: grid; gap: 8px; width: min(100%, 190px); margin: 0; padding: 0; list-style: none; }
+.admin-inventory-legend li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 9px; color: #657168; font-size: 11px; }
+.admin-inventory-legend i { width: 10px; height: 10px; border-radius: 50%; }
+.admin-inventory-legend strong { color: #26352b; font-size: 12px; }
+.admin-inventory-state { margin: 26px 24px; color: #647368; font-size: 12px; }
+.admin-inventory-state.is-error { color: #a33b31; }
+.admin-inventory-state button { border: 0; color: var(--admin-green); background: transparent; font: inherit; font-weight: 800; cursor: pointer; }
 
-.productivity-report-grid span,
-.productivity-report-definition,
-.productivity-report-comparison p,
-.productivity-report-comparison small {
-  color: #657469;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.productivity-report-definition {
-  margin: 15px 0;
-}
-
-.productivity-report-comparison {
-  border-top: 1px solid #e5ece2;
-  padding-top: 15px;
-}
-
-.productivity-report-comparison h3 {
-  font-size: 14px;
-}
-
-.productivity-report-comparison p {
-  margin: 8px 0 5px;
-}
-
-.productivity-report-actions {
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  margin-top: 20px;
-}
-
-.productivity-report-actions a {
-  border-radius: 8px;
-  padding: 9px 11px;
-  color: white;
-  background: #196c35;
-  font-size: 11px;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.productivity-report-actions a + a {
-  color: #196c35;
-  background: #e9f4e8;
-}
-
-.productivity-report-state {
-  margin: 24px 0 0;
-  font-size: 12px;
-}
 
 .activity-panel {
   min-height: 0;
@@ -1704,28 +1519,12 @@
     min-height: 94px;
   }
 
-  .productivity-metrics {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .performance-note {
-    grid-column: 1 / -1;
-  }
-
   .activity-list {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 430px) {
-  .productivity-report-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .productivity-report-grid > div {
-    min-height: 0;
-  }
-
   .admin-identity {
     min-width: 0;
   }
@@ -1857,11 +1656,7 @@
 
 /* Compact summary layout on the admin dashboard */
 .admin-overview-dashboard .admin-dashboard-grid {
-  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr);
-  grid-template-areas:
-    "summary activities"
-    "revenue activities"
-    "productivity conditions";
+  grid-template-columns: repeat(20, minmax(0, 1fr));
   align-items: stretch;
 }
 
@@ -1870,12 +1665,13 @@
   display: contents;
 }
 
-.admin-overview-dashboard .admin-stat-grid { grid-area: summary; }
-.admin-overview-dashboard .revenue-panel { grid-area: revenue; }
-.admin-overview-dashboard .productivity-panel { grid-area: productivity; }
+.admin-overview-dashboard .admin-stat-grid { grid-column: 1 / 14; grid-row: 1; }
+.admin-overview-dashboard .revenue-panel { grid-column: 1 / 14; grid-row: 2; }
+.admin-overview-dashboard .admin-inventory-panel { grid-column: 14 / -1; grid-row: 3; align-self: stretch; }
 
 .admin-overview-dashboard .activity-panel {
-  grid-area: activities;
+  grid-column: 14 / -1;
+  grid-row: 1 / 3;
   height: 600px;
   min-height: 0;
   max-height: none;
@@ -1888,8 +1684,9 @@
 }
 
 .admin-overview-dashboard .field-conditions-panel {
-  grid-area: conditions;
-  align-self: start;
+  grid-column: 1 / 14;
+  grid-row: 3;
+  align-self: stretch;
 }
 
 .field-conditions-panel {
@@ -2029,10 +1826,20 @@
 .field-conditions-footer a:hover { text-decoration: underline; }
 
 .admin-overview-dashboard .revenue-panel,
-.admin-overview-dashboard .productivity-panel {
+.admin-overview-dashboard .field-conditions-panel,
+.admin-overview-dashboard .admin-inventory-panel {
   width: 100%;
   max-width: 720px;
   justify-self: end;
+}
+
+@media (min-width: 1041px) {
+  .admin-overview-dashboard .field-conditions-panel { padding: 14px 18px; }
+  .admin-overview-dashboard .field-conditions-metrics { margin-top: 10px; }
+  .admin-overview-dashboard .field-conditions-metric { padding: 7px 8px; }
+  .admin-overview-dashboard .field-conditions-metric span { min-height: 24px; }
+  .admin-overview-dashboard .field-conditions-metric strong { margin-top: 4px; }
+  .admin-overview-dashboard .field-conditions-footer { gap: 6px; margin-top: 10px; padding-top: 8px; }
 }
 
 .admin-overview-dashboard .admin-stat-grid {
@@ -2116,7 +1923,6 @@
 @media (max-width: 1040px) {
   .admin-overview-dashboard .admin-dashboard-grid {
     grid-template-columns: 1fr;
-    grid-template-areas: none;
     align-items: start;
   }
   .admin-overview-dashboard .admin-main-column,
@@ -2128,13 +1934,19 @@
   }
   .admin-overview-dashboard .admin-stat-grid,
   .admin-overview-dashboard .revenue-panel,
-  .admin-overview-dashboard .productivity-panel,
+  .admin-overview-dashboard .admin-inventory-panel,
   .admin-overview-dashboard .activity-panel,
   .admin-overview-dashboard .field-conditions-panel { grid-area: auto; }
   .admin-overview-dashboard .activity-panel { height: 500px; }
   .admin-overview-dashboard .admin-stat-grid,
   .admin-overview-dashboard .revenue-panel,
-  .admin-overview-dashboard .productivity-panel { justify-self: start; }
+  .admin-overview-dashboard .field-conditions-panel,
+  .admin-overview-dashboard .admin-inventory-panel { justify-self: start; }
+}
+
+@media (max-width: 560px) {
+  .admin-inventory-content { grid-template-columns: 1fr; justify-items: center; }
+  .admin-inventory-legend { width: 100%; }
 }
 
 @media (max-width: 430px) {

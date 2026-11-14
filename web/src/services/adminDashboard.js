@@ -32,15 +32,15 @@ export async function loadAdminRevenue(period = 'month') {
   return body
 }
 
-export async function loadAdminProductivity() {
+export async function loadAdminInventory() {
   const token = await accessToken()
-  const response = await fetch(`${API_URL}/api/admin/dashboard/productivity`, {
+  const response = await fetch(`${API_URL}/api/admin/dashboard/inventory`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',
   })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error || 'Unable to load productivity report')
-  return body
+  if (!response.ok) throw new Error(body.error || 'Unable to load inventory statistics')
+  return body.inventory || []
 }
 
 export async function loadAdminSummary() {

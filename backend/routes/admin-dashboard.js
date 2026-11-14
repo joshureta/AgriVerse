@@ -84,6 +84,25 @@ async function allRows(buildQuery) {
   }
 }
 
+// Uses the same active pineapple lots and size ordering as the seller dashboard.
+router.get("/inventory", async (_req, res, next) => {
+  try {
+    const supabase = getSupabase();
+    const items = await allRows(() => supabase.from("inventory_items")
+      .select("id, quantity, pineapple_inventory(size_id, size:pineapple_sizes!pineapple_inventory_size_id_fkey(id, size_name)), category:inventory_categories!inventory_items_inventory_category_id_fkey!inner(code)")
+      .is("archived_at", null).eq("category.code", "pineapple"));
+    const bySize = new Map();
+    for (const item of items) {
+      const pineapple = Array.isArray(item.pineapple_inventory) ? item.pineapple_inventory[0] : item.pineapple_inventory;
+      const size = pineapple?.size?.size_name || "Other";
+      bySize.set(size, (bySize.get(size) || 0) + Number(item.quantity || 0));
+    }
+    return res.json({ inventory: [...bySize.entries()].map(([size, quantity]) => ({ size, quantity })) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get("/summary", async (_req, res, next) => {
   try {
     const supabase = getSupabase();
