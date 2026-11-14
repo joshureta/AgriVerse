@@ -13,15 +13,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import {
   DriverOrder,
   formatDeliveryAddress,
-  formatDeliveryRoute,
-  formatDeliveryWindow,
   formatPeso,
 } from '@/lib/driver-deliveries';
 
@@ -131,39 +129,23 @@ export default function DriverCompletedDeliveryDetailsScreen() {
   if (!profile) return <Redirect href="/login" />;
 
   const formatDateTime = (dateStr?: string | null) => {
-    if (!dateStr) return 'Completed';
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('en-PH', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-    } catch {
-      return 'Completed';
-    }
-  };
-
-  const formatTimeOnly = (dateStr?: string | null) => {
     if (!dateStr) return null;
-    try {
-      return new Date(dateStr).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    } catch {
-      return null;
-    }
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat('en-PH', {
+      timeZone: 'Asia/Manila', day: 'numeric', month: 'short', year: 'numeric',
+      hour: 'numeric', minute: '2-digit',
+    }).format(date);
   };
 
-  const deliveredTime =
-    formatDateTime(order?.delivered_at) ||
-    formatDateTime(order?.delivery_proof_submitted_at) ||
-    'Completed';
-
-  const deliveredTimeShort =
-    formatTimeOnly(order?.delivered_at) ||
-    formatTimeOnly(order?.delivery_proof_submitted_at) ||
-    'Completed';
+  const deliveredTime = formatDateTime(order?.delivered_at);
+  const timelineEvents = [
+    order?.driver_assigned_at && { title: 'Assigned', dateTime: formatDateTime(order.driver_assigned_at) },
+    order?.delivery_accepted_at && { title: 'Accepted', dateTime: formatDateTime(order.delivery_accepted_at) },
+    order?.delivery_picked_up_at && { title: 'Picked up', dateTime: formatDateTime(order.delivery_picked_up_at) },
+    order?.delivery_proof_submitted_at && { title: 'Proof submitted', dateTime: formatDateTime(order.delivery_proof_submitted_at) },
+    order?.delivered_at && { title: 'Delivered', dateTime: deliveredTime },
+  ].filter((event): event is { title: string; dateTime: string } => Boolean(event && event.dateTime));
 
   const totalItemsCount = order?.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
 
@@ -218,10 +200,9 @@ export default function DriverCompletedDeliveryDetailsScreen() {
                   <Text style={styles.receiptLogoText}>AgriVerse Delivery Slip</Text>
                 </View>
                 <Text style={styles.receiptOrderNumber}>{order.order_number || `Order #${order.id}`}</Text>
-                <Text style={styles.receiptDateStamp}>{deliveredTime}</Text>
+                <Text style={styles.receiptDateStamp}>{deliveredTime || 'Delivery time not recorded'}</Text>
 
                 <View style={styles.receiptStatusStamp}>
-                  <CheckIcon size={12} color="#166534" />
                   <Text style={styles.receiptStatusStampText}>DELIVERED</Text>
                 </View>
               </View>
@@ -250,14 +231,9 @@ export default function DriverCompletedDeliveryDetailsScreen() {
               </View>
 
               <View style={styles.infoGrid}>
-                <Text style={styles.infoLabel}>Route Dispatch:</Text>
-                <Text style={styles.infoValue}>{formatDeliveryRoute(order)}</Text>
-              </View>
-
-              <View style={styles.infoGrid}>
                 <Text style={styles.infoLabel}>Assigned Vehicle:</Text>
                 <Text style={styles.infoValue}>
-                  {order.vehicle ? `${order.vehicle.vehicle_name} (${order.vehicle.plate_number})` : 'Standard Delivery Unit'}
+                  {order.vehicle ? `${order.vehicle.vehicle_name} (${order.vehicle.plate_number})` : 'No vehicle recorded'}
                 </Text>
               </View>
 
@@ -291,13 +267,7 @@ export default function DriverCompletedDeliveryDetailsScreen() {
                 ))
               ) : (
                 <View style={styles.manifestItemRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.manifestItemName}>Fresh Pineapple Harvest Package</Text>
-                    <Text style={styles.manifestItemMeta}>Standard Produce Delivery</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.manifestItemPrice}>{formatPeso(order.total_amount)}</Text>
-                  </View>
+                  <Text style={styles.manifestItemName}>No item details recorded</Text>
                 </View>
               )}
 
@@ -310,7 +280,7 @@ export default function DriverCompletedDeliveryDetailsScreen() {
                   <View style={styles.paymentMethodBadge}>
                     <CheckIcon size={10} color="#166534" />
                     <Text style={styles.paymentMethodBadgeText}>
-                      {order.payment_method === 'gcash' ? 'GCash (Paid)' : order.payment_method === 'qrph' ? 'QR Ph (Paid)' : `${order.payment_method.toUpperCase()} (Collected)`}
+                      {order.payment_method?.toUpperCase() || 'Not recorded'}
                     </Text>
                   </View>
                 </View>
@@ -350,68 +320,24 @@ export default function DriverCompletedDeliveryDetailsScreen() {
                 </View>
               ) : null}
 
-              {/* Delivery Timeline Stepper at the Bottom */}
-              <View style={styles.dashedDivider} />
-              <Text style={styles.receiptSectionKicker}>Delivery Timeline</Text>
-
-              <View style={styles.timelineContainer}>
-                {/* Step 1 */}
-                <View style={styles.timelineStep}>
-                  <View style={styles.timelineLine} />
-                  <View style={styles.timelineDot}>
-                    <CheckIcon size={10} color="#166534" />
+              {timelineEvents.length > 0 ? (
+                <>
+                  <View style={styles.dashedDivider} />
+                  <Text style={styles.receiptSectionKicker}>Delivery Timeline</Text>
+                  <View style={styles.timelineContainer}>
+                    {timelineEvents.map((event, index) => (
+                      <View key={event.title} style={[styles.timelineStep, index === timelineEvents.length - 1 && styles.timelineStepLast]}>
+                        {index < timelineEvents.length - 1 ? <View style={styles.timelineLine} /> : null}
+                        <View style={styles.timelineDot} />
+                        <View style={styles.timelineStepContent}>
+                          <Text style={styles.timelineStepTitle}>{event.title}</Text>
+                          <Text style={styles.timelineStepSub}>{event.dateTime}</Text>
+                        </View>
+                      </View>
+                    ))}
                   </View>
-                  <View style={styles.timelineStepContent}>
-                    <Text style={styles.timelineStepTitle}>Delivery Assigned & Accepted</Text>
-                    <Text style={styles.timelineStepSub}>
-                      {formatTimeOnly(order.delivery_accepted_at) || deliveredTimeShort} · Vehicle {order.vehicle?.plate_number || 'Linked'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Step 2 */}
-                <View style={styles.timelineStep}>
-                  <View style={styles.timelineLine} />
-                  <View style={styles.timelineDot}>
-                    <CheckIcon size={10} color="#166534" />
-                  </View>
-                  <View style={styles.timelineStepContent}>
-                    <Text style={styles.timelineStepTitle}>Picked Up from Hub</Text>
-                    <Text style={styles.timelineStepSub}>
-                      {formatTimeOnly(order.delivery_picked_up_at) || deliveredTimeShort} · Cargo loaded & verified
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Step 3 */}
-                <View style={styles.timelineStep}>
-                  <View style={styles.timelineLine} />
-                  <View style={styles.timelineDot}>
-                    <CheckIcon size={10} color="#166534" />
-                  </View>
-                  <View style={styles.timelineStepContent}>
-                    <Text style={styles.timelineStepTitle}>Out for Delivery</Text>
-                    <Text style={styles.timelineStepSub}>
-                      In transit to destination
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Step 4 */}
-                <View style={[styles.timelineStep, styles.timelineStepLast]}>
-                  <View style={[styles.timelineDot, { backgroundColor: '#166534' }]}>
-                    <CheckIcon size={10} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.timelineStepContent}>
-                    <Text style={[styles.timelineStepTitle, { color: '#166534' }]}>
-                      Delivered Successfully
-                    </Text>
-                    <Text style={styles.timelineStepSub}>
-                      {deliveredTimeShort} · Proof of delivery submitted
-                    </Text>
-                  </View>
-                </View>
-              </View>
+                </>
+              ) : null}
 
               <View style={styles.dashedDivider} />
 
@@ -435,7 +361,7 @@ export default function DriverCompletedDeliveryDetailsScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>Proof of Delivery Photo</Text>
-                <Text style={styles.modalSub}>{order?.order_number} · {deliveredTime}</Text>
+                <Text style={styles.modalSub}>{order?.order_number}{deliveredTime ? ` · ${deliveredTime}` : ''}</Text>
               </View>
               <Pressable
                 accessibilityRole="button"

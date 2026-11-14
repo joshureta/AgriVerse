@@ -275,7 +275,7 @@ function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
           <View style={styles.cardHeaderRow}>
             <View style={[styles.statusPill, isAwaitingApproval ? styles.statusPillAwaiting : styles.statusPillCompleted]}>
               <Text style={isAwaitingApproval ? styles.statusPillTextAwaiting : styles.statusPillTextCompleted}>
-                {isAwaitingApproval ? '⏳ Awaiting Approval' : '✓ Completed'}
+                {isAwaitingApproval ? 'Awaiting Approval' : 'Completed'}
               </Text>
             </View>
           </View>

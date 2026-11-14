@@ -1,5 +1,5 @@
 import { styles } from '@/styles/worker-task-pending.styles';
-import { AssignmentDateList, assignmentTaskStyle } from '@/components/assignment-date-list';
+import { AssignmentDateList } from '@/components/assignment-date-list';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -374,7 +374,7 @@ function TaskCard({
   const instructions = getTaskInstructions(task, cleanField);
 
   return (
-    <View style={[styles.taskCard, expanded && styles.taskCardExpanded, assignmentTaskStyle]}>
+    <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
       {/* Header Row: Category Squircle Icon, Title, Field + Priority Pill & Top-Right Dropdown Button (Driver Style) */}
       <View style={styles.pendingCardHeader}>
         <View style={[styles.categorySquircle, { backgroundColor: config.bg, borderColor: config.border }, TASK_ICON_CONTAINER_STYLE]}>

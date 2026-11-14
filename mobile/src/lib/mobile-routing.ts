@@ -12,7 +12,7 @@ export function dashboardRoute(profile: RoutingProfile): Href {
   if (profile.role === 'buyer') return '/BuyerHome' as Href;
   return profile.worker_category === 'driver'
     ? '/DriverTaskDashboard'
-    : '/WorkerTaskPending';
+    : '/WorkerTaskDashboard';
 }
 
 export function requiredOnboardingRoute(profile: RoutingProfile): Href | null {

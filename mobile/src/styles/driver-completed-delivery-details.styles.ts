@@ -114,9 +114,7 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
   receiptStatusStamp: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 14,

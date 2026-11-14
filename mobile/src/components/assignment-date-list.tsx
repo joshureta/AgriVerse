@@ -34,10 +34,6 @@ export function AssignmentDateList<T>({ items, assignedAt, renderItem }: {
   ))}</View>;
 }
 
-export const assignmentTaskStyle = StyleSheet.create({
-  card: { backgroundColor: 'transparent', borderWidth: 0, borderRadius: 0, paddingHorizontal: 0, paddingVertical: 8, marginBottom: 8, shadowOpacity: 0, elevation: 0 },
-}).card;
-
 const styles = StyleSheet.create({
   group: { flexDirection: 'row', gap: 10, paddingVertical: 14 },
   groupDivider: { borderTopWidth: 1, borderTopColor: '#A8ADA5' },

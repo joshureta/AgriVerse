@@ -123,9 +123,7 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
   receiptStatusStamp: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 14,
@@ -382,7 +380,7 @@ export const styles = StyleSheet.create({
     marginRight: 12,
     zIndex: 2,
   },
-  timelineDotActive: {
+  timelineDotApproved: {
     backgroundColor: '#166534',
   },
   timelineLine: {
@@ -421,29 +419,6 @@ export const styles = StyleSheet.create({
     color: '#94A3B8',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-  },
-
-  // Bottom Action Button
-  bottomBackButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 13,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  bottomBackButtonText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#334155',
   },
 
   // Error & Retry

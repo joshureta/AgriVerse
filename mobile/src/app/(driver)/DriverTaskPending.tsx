@@ -1,5 +1,5 @@
 import { GREEN, styles } from '@/styles/driver-task-pending.styles';
-import { AssignmentDateList, assignmentTaskStyle } from '@/components/assignment-date-list';
+import { AssignmentDateList } from '@/components/assignment-date-list';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -110,7 +110,7 @@ function PendingDeliveryCard({
     : 'Date pending';
 
   return (
-    <View style={[styles.pendingCard, expanded && styles.pendingCardExpanded, assignmentTaskStyle]}>
+    <View style={[styles.pendingCard, expanded && styles.pendingCardExpanded]}>
       {/* Header Row: Pineapple Produce Icon, Title 'Order Delivery {orderNumber}', and Top-Right Dropdown Icon */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
         <View style={[styles.categorySquircle, { backgroundColor: '#EEF3EF' }]}>

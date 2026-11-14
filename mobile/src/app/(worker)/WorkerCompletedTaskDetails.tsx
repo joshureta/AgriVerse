@@ -12,14 +12,16 @@ import {
   Text,
   View,
 } from 'react-native';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { INSPECTION_QUESTIONS, suppliesSummary, supplyKindFor, type InspectionDetails, type TaskSupplyFields } from '@/lib/task-supplies';
 
 type TaskStatus = 'pending' | 'in_progress' | 'awaiting_approval' | 'completed';
+type TimelineEvent = { title: string; dateTime: string; icon: 'start' | 'completed' | 'approved' };
 
-type WorkerTaskDetail = {
+type WorkerTaskDetail = TaskSupplyFields & {
   id: number;
   category: string;
   field: string;
@@ -31,12 +33,14 @@ type WorkerTaskDetail = {
   approved_at?: string | null;
   completion_notes: string | null;
   harvest_proof_image_url?: string | null;
+  completion_proof_image_url?: string | null;
   harvest_small_count?: number | null;
   harvest_medium_count?: number | null;
   harvest_large_count?: number | null;
   harvest_damaged_count?: number | null;
   estimated_duration_minutes?: number | null;
   schedule_start?: string | null;
+  details?: Partial<InspectionDetails> | null;
   schedule?: {
     schedule_date?: string;
     start_time?: string;
@@ -60,14 +64,6 @@ function BackIcon() {
   return (
     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
       <Path d="m15 18-6-6 6-6" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
-function CheckIcon({ size = 13, color = '#166534' }: { size?: number; color?: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M20 6 9 17l-5-5" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -111,6 +107,20 @@ function ZoomIcon() {
   );
 }
 
+function TimelineEventIcon({ type, color }: { type: TimelineEvent['icon']; color: string }) {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+      {type === 'start' ? (
+        <Path d="m9 6 9 6-9 6V6Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      ) : type === 'completed' ? (
+        <Path d="M5 21V4h13l-2.5 4L18 12H5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <Path d="m5 12 5 5L19 7" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </Svg>
+  );
+}
+
 export default function WorkerCompletedTaskDetails() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading: authLoading, profile } = useAuth();
@@ -126,7 +136,8 @@ export default function WorkerCompletedTaskDetails() {
       setLoading(false);
       return;
     }
-    refresh ? setRefreshing(true) : setLoading(true);
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
     setError('');
     try {
       const response = await apiRequest<{ task: WorkerTaskDetail }>(`/api/worker/tasks/${id}`);
@@ -159,57 +170,44 @@ export default function WorkerCompletedTaskDetails() {
     border: '#E2E8F0',
   };
 
-  const hasHarvestCounts =
-    task &&
-    (task.category === 'Harvesting' ||
-      task.harvest_small_count != null ||
-      task.harvest_medium_count != null ||
-      task.harvest_large_count != null ||
-      task.harvest_damaged_count != null);
+  const harvestCounts = [task?.harvest_small_count, task?.harvest_medium_count, task?.harvest_large_count, task?.harvest_damaged_count];
+  const hasHarvestCounts = harvestCounts.every((count) => count != null);
+  const showHarvestSection = task?.category === 'Harvesting' || harvestCounts.some((count) => count != null);
+  const totalYield = hasHarvestCounts ? harvestCounts.reduce((sum, count) => sum + Number(count), 0) : null;
+  const goodYield = hasHarvestCounts ? harvestCounts.slice(0, 3).reduce((sum, count) => sum + Number(count), 0) : null;
+  const qualityRate = totalYield && goodYield != null ? ((goodYield / totalYield) * 100).toFixed(1) : null;
 
-  const totalYield = hasHarvestCounts
-    ? (task.harvest_small_count || 0) +
-      (task.harvest_medium_count || 0) +
-      (task.harvest_large_count || 0) +
-      (task.harvest_damaged_count || 0)
-    : 0;
-
-  const goodYield = hasHarvestCounts
-    ? (task.harvest_small_count || 0) +
-      (task.harvest_medium_count || 0) +
-      (task.harvest_large_count || 0)
-    : 0;
-
-  const qualityRate = totalYield > 0 ? ((goodYield / totalYield) * 100).toFixed(1) : '100.0';
-
-  const formatTimeOnly = (dateStr?: string | null) => {
-    if (!dateStr) return null;
-    try {
-      return new Date(dateStr).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    } catch {
-      return null;
-    }
+  const formatRecordedDateTime = (value?: string | null) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat('en-PH', {
+      timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit',
+    }).format(date);
   };
 
-  const formattedFinishTime =
-    formatTimeOnly(task?.completed_at) || '5:27 PM';
-
-  const formattedStartTime =
-    formatTimeOnly(task?.started_at) ||
-    formatTimeOnly(task?.schedule_start) ||
-    '3:02 PM';
-
-  const formattedDuration = task?.estimated_duration_minutes
-    ? `${task.estimated_duration_minutes} mins`
-    : '145 mins';
-
-  const rawField = task?.field?.trim() || 'Field';
-  const cleanField = rawField.toLowerCase().startsWith('field') ? rawField : `Field ${rawField}`;
-  const sectorName = rawField.replace(/^field\s*/i, '').trim() || rawField;
-
-  const taskNumberStr = task?.id
-    ? `TASK #WRK-${String(task.id).padStart(4, '0')}`
-    : 'TASK #WRK-0044';
+  const completedAt = formatRecordedDateTime(task?.completed_at);
+  const startedAt = formatRecordedDateTime(task?.started_at);
+  const approvedAt = formatRecordedDateTime(task?.approved_at);
+  const startMs = task?.started_at ? Date.parse(task.started_at) : NaN;
+  const finishMs = task?.completed_at ? Date.parse(task.completed_at) : NaN;
+  const workedSeconds = Number.isFinite(startMs) && Number.isFinite(finishMs) && finishMs >= startMs
+    ? Math.floor((finishMs - startMs) / 1000) : null;
+  const workedDuration = workedSeconds == null ? null
+    : `${Math.floor(workedSeconds / 3600)}h ${Math.floor((workedSeconds % 3600) / 60)}m ${workedSeconds % 60}s`;
+  const fieldName = task?.field?.trim() || 'Field not recorded';
+  const location = task?.schedule?.location?.trim() || fieldName;
+  const taskNumberStr = task ? `TASK #WRK-${String(task.id).padStart(4, '0')}` : '';
+  const inventoryUsed = task ? suppliesSummary(task) : null;
+  const usesInventory = task ? Boolean(supplyKindFor(task.category, task.activity_type)) : false;
+  const proofImageUrl = task?.harvest_proof_image_url || task?.completion_proof_image_url;
+  const inspectionAnswers = INSPECTION_QUESTIONS.filter((question) => task?.details?.[question.key]);
+  const timelineEvents = [
+    startedAt && { title: 'Work started', dateTime: startedAt, icon: 'start' as const },
+    completedAt && { title: 'Work completed', dateTime: completedAt, icon: 'completed' as const },
+    approvedAt && { title: 'Approved', dateTime: approvedAt, icon: 'approved' as const },
+  ].filter((event): event is TimelineEvent => Boolean(event));
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -233,7 +231,7 @@ export default function WorkerCompletedTaskDetails() {
               styles.headerStatusBadgeText,
               isAwaitingApproval && styles.headerStatusBadgeTextAwaiting,
             ]}>
-            {isAwaitingApproval ? '⏳ Awaiting Approval' : '✓ Verified'}
+            {isAwaitingApproval ? 'Awaiting Approval' : 'Completed'}
           </Text>
         </View>
       </View>
@@ -276,20 +274,21 @@ export default function WorkerCompletedTaskDetails() {
                 </View>
 
                 <Text style={styles.receiptTaskNumber}>{taskNumberStr}</Text>
-                <Text style={styles.receiptDateStamp}>Finished today at {formattedFinishTime}</Text>
+                <Text style={styles.receiptDateStamp}>
+                  {completedAt ? `Completed ${completedAt}` : 'Completion time not recorded'}
+                </Text>
 
                 <View
                   style={[
                     styles.receiptStatusStamp,
                     isAwaitingApproval && styles.receiptStatusStampAwaiting,
                   ]}>
-                  <CheckIcon size={12} color={isAwaitingApproval ? '#92400E' : '#166534'} />
                   <Text
                     style={[
                       styles.receiptStatusStampText,
                       isAwaitingApproval && styles.receiptStatusStampTextAwaiting,
                     ]}>
-                    {isAwaitingApproval ? 'AWAITING APPROVAL' : 'COMPLETED & VERIFIED'}
+                    {isAwaitingApproval ? 'AWAITING APPROVAL' : 'COMPLETED'}
                   </Text>
                 </View>
               </View>
@@ -306,7 +305,7 @@ export default function WorkerCompletedTaskDetails() {
                   <View style={[styles.categoryBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
                     <Text style={[styles.categoryBadgeText, { color: theme.color }]}>{task.category}</Text>
                   </View>
-                  <Text style={styles.specValue}>{cleanField}</Text>
+                  <Text style={styles.specValue}>{fieldName}</Text>
                 </View>
               </View>
 
@@ -314,76 +313,69 @@ export default function WorkerCompletedTaskDetails() {
                 <Text style={styles.specLabel}>Location:</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <PinIcon />
-                  <Text style={styles.specValue}>Sector {sectorName} (Operating Quad)</Text>
+                  <Text style={styles.specValue}>{location}</Text>
                 </View>
               </View>
 
               <View style={styles.specRow}>
                 <Text style={styles.specLabel}>Assigned Worker:</Text>
-                <Text style={styles.specValue}>{profile?.full_name || 'Worker'}</Text>
+                <Text style={styles.specValue}>{profile.full_name || 'Name not recorded'}</Text>
               </View>
 
-              <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Duration:</Text>
-                <Text style={[styles.specValue, { color: GREEN }]}>{formattedDuration}</Text>
-              </View>
+              {workedDuration ? (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>Time worked:</Text>
+                  <Text style={[styles.specValue, { color: GREEN }]}>{workedDuration}</Text>
+                </View>
+              ) : null}
+
+              {usesInventory || inventoryUsed ? (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>Inventory used:</Text>
+                  <Text style={styles.specValue}>{inventoryUsed || 'No inventory use recorded'}</Text>
+                </View>
+              ) : null}
 
               {/* 3. Harvest Yield Manifest (Table Format, like Cargo Manifest) */}
-              {hasHarvestCounts ? (
+              {showHarvestSection ? (
                 <>
                   <View style={styles.dashedDivider} />
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <Text style={styles.receiptSectionKicker}>Harvest Yield Manifest</Text>
-                    <Text style={[styles.receiptSectionKicker, { color: GREEN }]}>Total: {totalYield} pcs</Text>
+                    {totalYield != null ? (
+                      <Text style={[styles.receiptSectionKicker, { color: GREEN }]}>Total: {totalYield} pcs</Text>
+                    ) : null}
                   </View>
-
-                  <View style={styles.manifestHeaderRow}>
-                    <Text style={styles.manifestColItem}>Grade / Classification</Text>
-                    <Text style={styles.manifestColCount}>Count</Text>
-                  </View>
-
-                  <View style={styles.manifestItemRow}>
-                    <View>
-                      <Text style={styles.manifestItemName}>Small Grade</Text>
-                      <Text style={styles.manifestItemMeta}>0.8kg – 1.1kg per fruit</Text>
-                    </View>
-                    <Text style={styles.manifestItemCount}>{task.harvest_small_count ?? 0} pcs</Text>
-                  </View>
-
-                  <View style={styles.manifestItemRow}>
-                    <View>
-                      <Text style={styles.manifestItemName}>Medium Grade</Text>
-                      <Text style={styles.manifestItemMeta}>1.2kg – 1.6kg per fruit</Text>
-                    </View>
-                    <Text style={styles.manifestItemCount}>{task.harvest_medium_count ?? 0} pcs</Text>
-                  </View>
-
-                  <View style={styles.manifestItemRow}>
-                    <View>
-                      <Text style={styles.manifestItemName}>Large Grade</Text>
-                      <Text style={styles.manifestItemMeta}>1.7kg+ premium weight</Text>
-                    </View>
-                    <Text style={styles.manifestItemCount}>{task.harvest_large_count ?? 0} pcs</Text>
-                  </View>
-
-                  <View style={styles.manifestItemRow}>
-                    <View>
-                      <Text style={[styles.manifestItemName, { color: '#DC2626' }]}>Damaged / Rejected</Text>
-                      <Text style={[styles.manifestItemMeta, { color: '#EF4444' }]}>Culled / Unmarketable</Text>
-                    </View>
-                    <Text style={[styles.manifestItemCount, { color: '#DC2626' }]}>
-                      {task.harvest_damaged_count ?? 0} pcs
-                    </Text>
-                  </View>
-
-                  {/* Quality Benchmark Banner */}
-                  <View style={styles.qualityBenchmarkBox}>
-                    <View style={styles.qualityBenchmarkLeft}>
-                      <View style={styles.qualityBenchmarkDot} />
-                      <Text style={styles.qualityBenchmarkLabel}>Marketable Quality Rate</Text>
-                    </View>
-                    <Text style={styles.qualityBenchmarkValue}>{qualityRate}% Marketable</Text>
-                  </View>
+                  {hasHarvestCounts ? (
+                    <>
+                      <View style={styles.manifestHeaderRow}>
+                        <Text style={styles.manifestColItem}>Grade / Classification</Text>
+                        <Text style={styles.manifestColCount}>Count</Text>
+                      </View>
+                      {([
+                        ['Small Grade', task.harvest_small_count],
+                        ['Medium Grade', task.harvest_medium_count],
+                        ['Large Grade', task.harvest_large_count],
+                        ['Damaged / Rejected', task.harvest_damaged_count],
+                      ] as const).map(([label, count]) => (
+                        <View key={label} style={styles.manifestItemRow}>
+                          <Text style={styles.manifestItemName}>{label}</Text>
+                          <Text style={styles.manifestItemCount}>{count} pcs</Text>
+                        </View>
+                      ))}
+                      {qualityRate != null ? (
+                        <View style={styles.qualityBenchmarkBox}>
+                          <View style={styles.qualityBenchmarkLeft}>
+                            <View style={styles.qualityBenchmarkDot} />
+                            <Text style={styles.qualityBenchmarkLabel}>Marketable Quality Rate</Text>
+                          </View>
+                          <Text style={styles.qualityBenchmarkValue}>{qualityRate}% Marketable</Text>
+                        </View>
+                      ) : null}
+                    </>
+                  ) : (
+                    <Text style={styles.specValue}>Harvest counts not recorded</Text>
+                  )}
                 </>
               ) : null}
 
@@ -391,13 +383,13 @@ export default function WorkerCompletedTaskDetails() {
               <View style={styles.dashedDivider} />
               <Text style={styles.receiptSectionKicker}>Proof of Work (Field Photo)</Text>
 
-              {task.harvest_proof_image_url ? (
+              {proofImageUrl ? (
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setModalVisible(true)}
                   style={styles.podWrapper}>
                   <Image
-                    source={{ uri: task.harvest_proof_image_url }}
+                    source={{ uri: proofImageUrl }}
                     style={styles.podImage}
                   />
                   <View style={styles.podZoomBadge}>
@@ -405,92 +397,52 @@ export default function WorkerCompletedTaskDetails() {
                     <Text style={styles.podZoomBadgeText}>Tap to Zoom</Text>
                   </View>
                   <View style={styles.podMetaBox}>
-                    <Text style={styles.podMetaText}>{cleanField} · {formattedFinishTime}</Text>
+                    <Text style={styles.podMetaText}>{fieldName}{completedAt ? ` · ${completedAt}` : ''}</Text>
                   </View>
                 </Pressable>
-              ) : null}
+              ) : <Text style={styles.specValue}>No field photo recorded</Text>}
 
               {/* Worker Field Notes */}
               <View style={styles.notesBox}>
                 <Text style={styles.notesKicker}>Worker Field Notes</Text>
                 <Text style={styles.notesText}>
-                  {task.completion_notes ||
-                    `Sector ${sectorName} crop standard operating procedure completed. Fruit ripeness index within acceptable range.`}
+                  {task.completion_notes?.trim() || 'No notes provided by worker.'}
                 </Text>
               </View>
 
-              {/* 5. Task Timeline Stepper */}
-              <View style={styles.dashedDivider} />
-              <Text style={styles.receiptSectionKicker}>Task Audit Timeline</Text>
+              {inspectionAnswers.length > 0 ? (
+                <>
+                  <View style={styles.dashedDivider} />
+                  <Text style={styles.receiptSectionKicker}>Inspection Details</Text>
+                  {inspectionAnswers.map((question) => (
+                    <View key={question.key} style={styles.specRow}>
+                      <Text style={styles.specLabel}>{question.label}:</Text>
+                      <Text style={styles.specValue}>{task.details?.[question.key]}</Text>
+                    </View>
+                  ))}
+                </>
+              ) : null}
 
-              <View style={styles.timelineContainer}>
-                {/* Step 1 */}
-                <View style={styles.timelineStep}>
-                  <View style={styles.timelineLine} />
-                  <View style={styles.timelineDot}>
-                    <CheckIcon size={10} color="#166534" />
+              {timelineEvents.length > 0 ? (
+                <>
+                  <View style={styles.dashedDivider} />
+                  <Text style={styles.receiptSectionKicker}>Task Timeline</Text>
+                  <View style={styles.timelineContainer}>
+                    {timelineEvents.map((event, index) => (
+                      <View key={event.title} style={[styles.timelineStep, index === timelineEvents.length - 1 && styles.timelineStepLast]}>
+                        {index < timelineEvents.length - 1 ? <View style={styles.timelineLine} /> : null}
+                        <View style={[styles.timelineDot, event.icon === 'approved' && styles.timelineDotApproved]}>
+                          <TimelineEventIcon type={event.icon} color={event.icon === 'approved' ? '#FFFFFF' : '#166534'} />
+                        </View>
+                        <View style={styles.timelineStepContent}>
+                          <Text style={styles.timelineStepTitle}>{event.title}</Text>
+                          <Text style={styles.timelineStepSub}>{event.dateTime}</Text>
+                        </View>
+                      </View>
+                    ))}
                   </View>
-                  <View style={styles.timelineStepContent}>
-                    <Text style={styles.timelineStepTitle}>Task Assigned & Scheduled</Text>
-                    <Text style={styles.timelineStepSub}>
-                      Scheduled for {cleanField} · Assigned to {profile?.full_name || 'Worker'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Step 2 */}
-                <View style={styles.timelineStep}>
-                  <View style={styles.timelineLine} />
-                  <View style={styles.timelineDot}>
-                    <CheckIcon size={10} color="#166534" />
-                  </View>
-                  <View style={styles.timelineStepContent}>
-                    <Text style={styles.timelineStepTitle}>Field Operations Started</Text>
-                    <Text style={styles.timelineStepSub}>
-                      {formattedStartTime} · Field check-in registered
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Step 3 */}
-                <View style={styles.timelineStep}>
-                  <View style={styles.timelineLine} />
-                  <View style={styles.timelineDot}>
-                    <CheckIcon size={10} color="#166534" />
-                  </View>
-                  <View style={styles.timelineStepContent}>
-                    <Text style={styles.timelineStepTitle}>Completed & Yield Logged</Text>
-                    <Text style={styles.timelineStepSub}>
-                      {formattedFinishTime} · {hasHarvestCounts ? `${totalYield} pcs logged & photo uploaded` : 'Field work submitted'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Step 4 */}
-                <View style={[styles.timelineStep, styles.timelineStepLast]}>
-                  <View
-                    style={[
-                      styles.timelineDot,
-                      !isAwaitingApproval && styles.timelineDotActive,
-                    ]}>
-                    <CheckIcon size={10} color={isAwaitingApproval ? '#166534' : '#FFFFFF'} />
-                  </View>
-                  <View style={styles.timelineStepContent}>
-                    <Text
-                      style={[
-                        styles.timelineStepTitle,
-                        !isAwaitingApproval && { color: '#166534' },
-                      ]}>
-                      {isAwaitingApproval ? 'Awaiting Supervisor Review' : 'Verified by Supervisor'}
-                    </Text>
-                    <Text style={styles.timelineStepSub}>
-                      {isAwaitingApproval
-                        ? 'Pending supervisor verification'
-                        : 'Quality and count benchmarks approved'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
+                </>
+              ) : null}
 
               {/* Dashed Separator */}
               <View style={styles.dashedDivider} />
@@ -501,14 +453,6 @@ export default function WorkerCompletedTaskDetails() {
               </View>
             </View>
 
-            {/* Bottom Back Button */}
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.back()}
-              style={styles.bottomBackButton}>
-              <BackIcon />
-              <Text style={styles.bottomBackButtonText}>Back to Completed Tasks</Text>
-            </Pressable>
           </ScrollView>
         )}
       </View>
@@ -524,7 +468,7 @@ export default function WorkerCompletedTaskDetails() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>Proof of Work Photo</Text>
-                <Text style={styles.modalSub}>{cleanField} · {formattedFinishTime}</Text>
+                <Text style={styles.modalSub}>{fieldName}{completedAt ? ` · ${completedAt}` : ''}</Text>
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -535,17 +479,19 @@ export default function WorkerCompletedTaskDetails() {
             </View>
 
             <View style={styles.modalImageContainer}>
-              {task?.harvest_proof_image_url ? (
+              {proofImageUrl ? (
                 <Image
-                  source={{ uri: task.harvest_proof_image_url }}
+                  source={{ uri: proofImageUrl }}
                   style={styles.modalImage}
                 />
               ) : null}
             </View>
 
             <View style={styles.modalFooter}>
-              <Text style={styles.modalFooterTitle}>{task?.category} - {cleanField}</Text>
-              <Text style={styles.modalFooterSub}>Total yield: {totalYield} pcs ({qualityRate}% Marketable)</Text>
+              <Text style={styles.modalFooterTitle}>{task?.category} - {fieldName}</Text>
+              {totalYield != null ? (
+                <Text style={styles.modalFooterSub}>Total yield: {totalYield} pcs{qualityRate != null ? ` (${qualityRate}% marketable)` : ''}</Text>
+              ) : null}
             </View>
           </View>
         </View>
