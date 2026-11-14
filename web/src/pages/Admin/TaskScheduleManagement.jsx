@@ -2162,7 +2162,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             onSubmit={saveTask}
             footerNote={editingTask && modal.task.updated_at
               ? `Last updated ${formatSchedule(modal.task.updated_at)}`
-              : <span className="wo-foot-lock"><LockKeyhole size={14} aria-hidden="true" /> Category locks after assignment</span>}
+              : null}
             footer={<>
               <button type="submit" className="wo-btn is-primary" disabled={saving || (assigningDriver && (!deliveryForm.order_id || !deliveryForm.delivery_date))}>
                 {editingTask && !saving && <Save size={15} strokeWidth={2.25} aria-hidden="true" />}
