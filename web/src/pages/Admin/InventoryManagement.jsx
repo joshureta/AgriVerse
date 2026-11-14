@@ -593,7 +593,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
               {historyError && <InventoryNotice title="Stock history unavailable:" onDismiss={() => setHistoryError('')}>{historyError}</InventoryNotice>}
               <div className="inventory-table-wrap">
                 <table className="stock-history-table">
-                  <thead><tr><th>DATE &amp; TIME</th><th>PINEAPPLE SIZE</th><th>MOVEMENT</th><th>QUANTITY</th><th>LOT BEFORE</th><th>LOT AFTER</th></tr></thead>
+                  <thead><tr><th>DATE &amp; TIME</th><th>PINEAPPLE SIZE</th><th>MOVEMENT</th><th>QUANTITY</th><th>STOCK BEFORE</th><th>STOCK AFTER</th></tr></thead>
                   <tbody>
                     {historyLoading ? <tr><td colSpan="6">Loading stock history…</td></tr>
                       : stockHistory.length ? stockHistory.map((movement) => <tr key={movement.id}>
