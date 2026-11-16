@@ -95,9 +95,10 @@ export default function FieldConditions() {
   }, [])
 
   const temperature = latestCurrentReading(climateReadings, 'temperature_c', now)
+  const soilTemperature = latestCurrentReading(climateReadings, 'soil_temperature_c', now)
   const humidity = latestCurrentReading(climateReadings, 'humidity_percent', now)
   const moisture = latestMoistureReading(climateReadings, soilReadings, now)
-  const activeCount = [temperature, humidity, moisture].filter(Boolean).length
+  const activeCount = [temperature, soilTemperature, humidity, moisture].filter(Boolean).length
   const lastReadingAt = Math.max(0, ...climateReadings.map((reading) => reading.measuredAt || 0), ...soilReadings.map((reading) => reading.measuredAt || 0))
   const lowMoisture = moisture && Number(moisture.moisture_percent) < 25
   const highTemperature = temperature && Number(temperature.temperature_c) >= 33
@@ -105,13 +106,13 @@ export default function FieldConditions() {
   const alert = !sensorSupabase
     ? 'Sensor monitoring is currently unavailable.'
     : loading ? 'Checking sensor readings…'
-      : activeCount < 3 ? (error || 'Some sensors are offline. Check the device connection.')
+      : activeCount < 4 ? (error || 'Some sensors are offline. Check the device connection.')
         : lowMoisture ? 'Low soil moisture — check irrigation.'
-          : highTemperature ? 'High soil temperature — check crop hydration.'
+          : highTemperature ? 'High air temperature — check crop hydration.'
             : fungalRisk ? 'High humidity may increase fungal risk.'
               : 'No active threshold alerts.'
   const status = !sensorSupabase || (!loading && activeCount === 0) ? 'Offline'
-    : loading ? 'Checking' : activeCount < 3 || lowMoisture || highTemperature || fungalRisk ? 'Needs attention' : 'Normal'
+    : loading ? 'Checking' : activeCount < 4 || lowMoisture || highTemperature || fungalRisk ? 'Needs attention' : 'Normal'
   const StatusIcon = status === 'Normal' ? CheckCircle2 : AlertTriangle
 
   return (
@@ -125,12 +126,16 @@ export default function FieldConditions() {
       </div>
       <div className="field-conditions-metrics">
         <div className="field-conditions-metric">
-          <span>Soil temperature <Thermometer aria-hidden="true" /></span>
+          <span>Air temperature <Thermometer aria-hidden="true" /></span>
           <strong>{metricValue(temperature, 'temperature_c', '°C')}</strong>
         </div>
         <div className="field-conditions-metric">
           <span>Humidity <Droplets aria-hidden="true" /></span>
           <strong>{metricValue(humidity, 'humidity_percent', '%')}</strong>
+        </div>
+        <div className="field-conditions-metric">
+          <span>Soil temperature <Thermometer aria-hidden="true" /></span>
+          <strong>{metricValue(soilTemperature, 'soil_temperature_c', '°C')}</strong>
         </div>
         <div className={`field-conditions-metric${lowMoisture ? ' is-warning' : ''}`}>
           <span>Soil moisture <Waves aria-hidden="true" /></span>

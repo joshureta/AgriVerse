@@ -15,7 +15,7 @@ function describeMetric(label, metric, unit) {
 }
 
 function describePattern(metrics) {
-  const list = Object.values(metrics);
+  const list = [metrics.airTemperature, metrics.humidity, metrics.soilMoisture];
   if (list.some((metric) => metric.count < 2)) return "The available readings cannot establish a pattern across all three sensors.";
   const [temperature, humidity, moisture] = list.map((metric) => Math.sign(change(metric)));
   if (temperature === 0 && humidity === 0 && moisture === 0) return "All three sensors ended where they began, showing a stable first-to-last pattern.";
@@ -26,7 +26,7 @@ function describePattern(metrics) {
 }
 
 function chooseSuggestion(report, { target = null, activities = [] } = {}) {
-  const { soilTemperature, humidity, soilMoisture } = report.metrics;
+  const { airTemperature, humidity, soilMoisture } = report.metrics;
   if (report.qualityIssues?.length) {
     return `Check the sensors in ${report.field} before acting on this report. Some readings are missing, delayed, or unchanged. Generate a new summary once the sensors are reporting normally.`;
   }
@@ -39,10 +39,10 @@ function chooseSuggestion(report, { target = null, activities = [] } = {}) {
     }
     return `Water ${report.field} because its latest soil moisture reading is below the farm's target. After watering, watch the next few readings to see whether moisture rises. If it stays low, check the soil and sensor before watering again.`;
   }
-  const temperatureChanged = soilTemperature.count > 1 && change(soilTemperature) !== 0;
+  const temperatureChanged = airTemperature.count > 1 && change(airTemperature) !== 0;
   const humidityChanged = humidity.count > 1 && change(humidity) !== 0;
   const moistureChanged = soilMoisture.count > 1 && change(soilMoisture) !== 0;
-  if (soilTemperature.count > 1 && humidity.count > 1 && soilMoisture.count > 1 &&
+  if (airTemperature.count > 1 && humidity.count > 1 && soilMoisture.count > 1 &&
     ((moistureChanged && !temperatureChanged && !humidityChanged) ||
       (!moistureChanged && (temperatureChanged || humidityChanged)))) {
     return `Check the irrigation and drainage in ${report.field}. Compare any field activity with the time the sensor readings changed. Watch the next readings before changing the watering schedule.`;
@@ -54,7 +54,7 @@ function chooseSuggestion(report, { target = null, activities = [] } = {}) {
       : `Check the weather conditions in ${report.field} during this period. All three sensors changed, which may be related to weather or sun exposure. Watch the next readings to see whether this pattern continues.`;
   }
   if (!temperatureChanged && !humidityChanged && !moistureChanged &&
-    [soilTemperature, humidity, soilMoisture].every((metric) => metric.count > 1)) {
+    [airTemperature, humidity, soilMoisture].every((metric) => metric.count > 1)) {
     return `Keep monitoring ${report.field} as new readings arrive. The three sensors ended near where they began, so this report does not call for a change in watering or shading. Compare with the next report for any new pattern.`;
   }
   return `Keep monitoring ${report.field} as new readings arrive. This report does not show a clear reason to change field care. Review the next summary before adjusting watering or shading.`;
@@ -62,21 +62,22 @@ function chooseSuggestion(report, { target = null, activities = [] } = {}) {
 
 function buildEnvironmentalSummary(report, options = {}) {
   if (!report.hasReadings) throw new Error("Cannot summarize a field without valid readings");
-  const { soilTemperature, humidity, soilMoisture } = report.metrics;
-  const counts = [soilTemperature.count, humidity.count, soilMoisture.count];
+  const { airTemperature, soilTemperature, humidity, soilMoisture } = report.metrics;
+  const counts = [airTemperature.count, humidity.count, soilMoisture.count];
   const countText = counts.every((count) => count === counts[0])
-    ? `${counts[0]} valid ${counts[0] === 1 ? "reading" : "readings"} per sensor`
-    : `${counts[0]} soil temperature, ${counts[1]} humidity, and ${counts[2]} soil moisture readings`;
+    ? `${counts[0]} valid ${counts[0] === 1 ? "reading" : "readings"} for each core sensor`
+    : `${counts[0]} air temperature, ${counts[1]} humidity, and ${counts[2]} soil moisture readings`;
   const latest = report.isToday && report.lastAt &&
     Date.parse(report.generatedAt) - Date.parse(report.lastAt) >= 60 * 1000
     ? ` (latest valid reading at ${manilaTime(report.lastAt)})` : "";
   const period = report.isToday
     ? `As of generation at ${manilaTime(report.generatedAt)}, ${report.field} had ${countText} since the first valid reading at ${manilaTime(report.firstAt)}`
     : `On ${report.date}, ${report.field} had ${countText} from ${manilaTime(report.firstAt)} to ${manilaTime(report.lastAt)}`;
-  const temperatureSentence = describeMetric("soil temperature", soilTemperature, "°C");
+  const temperatureSentence = describeMetric("air temperature", airTemperature, "°C");
   const firstSentence = `${period}${latest}; ${temperatureSentence[0].toLowerCase()}${temperatureSentence.slice(1)}`;
   const summary = [
     firstSentence,
+    describeMetric("soil temperature", soilTemperature, "°C"),
     describeMetric("humidity", humidity, "%"),
     describeMetric("soil moisture", soilMoisture, "%"),
     describePattern(report.metrics),

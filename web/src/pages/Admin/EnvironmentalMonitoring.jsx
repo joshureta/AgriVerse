@@ -109,6 +109,19 @@ function formatSensorTime(measuredAt) {
     })
 }
 
+function summarizeVisibleMetric(rows, key) {
+  const values = rows.map((row) => Number(row[key]))
+    .filter((value, index) => rows[index][key] != null && Number.isFinite(value))
+  if (!values.length) return { count: 0, average: null, min: null, max: null }
+  const round = (value) => Math.round(value * 10) / 10
+  return {
+    count: values.length,
+    average: round(values.reduce((sum, value) => sum + value, 0) / values.length),
+    min: round(Math.min(...values)),
+    max: round(Math.max(...values)),
+  }
+}
+
 // Formats a climate sensor reading for display.
 function formatSensorReading(reading) {
   const measuredAt = new Date(reading.created_at)
@@ -117,7 +130,8 @@ function formatSensorReading(reading) {
     id: `climate-${reading.id}`,
     measuredAt: measuredAt.getTime(),
     time: formatSensorTime(measuredAt),
-    temperature: reading.temperature_c == null ? '—' : `${Number(reading.temperature_c).toFixed(1)}°C`,
+    airTemperature: reading.temperature_c == null ? '—' : `${Number(reading.temperature_c).toFixed(1)}°C`,
+    soilTemperature: reading.soil_temperature_c == null ? '—' : `${Number(reading.soil_temperature_c).toFixed(1)}°C`,
     humidity: reading.humidity_percent == null ? '—' : `${Number(reading.humidity_percent).toFixed(1)}%`,
     moisture: reading.soil_moisture == null
       ? '—'
@@ -133,7 +147,8 @@ function formatSoilReading(reading) {
     id: `soil-${reading.id}`,
     measuredAt: measuredAt.getTime(),
     time: formatSensorTime(measuredAt),
-    temperature: '—',
+    airTemperature: '—',
+    soilTemperature: '—',
     humidity: '—',
     moisture: `${Number(reading.moisture_percent).toFixed(1)}%`,
   }
@@ -234,7 +249,33 @@ export default function EnvironmentalMonitoring() {
   const fieldReadings = useMemo(() => readingsForField(readings, activeField), [readings, activeField])
   // Selects soil readings for the active field.
   const fieldSoilReadings = useMemo(() => readingsForField(soilReadings, activeField), [soilReadings, activeField])
+  // Today's cards use the same rows as the live history, which refreshes every
+  // 10 seconds. Saved reports for earlier dates still come from the backend.
+  const displayedReportMetrics = useMemo(() => {
+    if (reportDate !== todayInManila || (!fieldReadings.length && !fieldSoilReadings.length)) {
+      return reportData?.metrics
+    }
+    const soilSource = fieldSoilReadings.some((row) => row.moisture_percent != null)
+      ? fieldSoilReadings : fieldReadings
+    const soilKey = soilSource === fieldSoilReadings ? 'moisture_percent' : 'soil_moisture'
+    return {
+      airTemperature: summarizeVisibleMetric(fieldReadings, 'temperature_c'),
+      soilTemperature: summarizeVisibleMetric(fieldReadings, 'soil_temperature_c'),
+      humidity: summarizeVisibleMetric(fieldReadings, 'humidity_percent'),
+      soilMoisture: summarizeVisibleMetric(soilSource, soilKey),
+    }
+  }, [reportData, reportDate, todayInManila, fieldReadings, fieldSoilReadings])
+  const liveReportData = reportDate === todayInManila && displayedReportMetrics &&
+    (fieldReadings.length || fieldSoilReadings.length)
+    ? {
+        hasReadings: true,
+        firstAt: new Date(Math.min(...[...fieldReadings, ...fieldSoilReadings].map((row) => row.measuredAt))).toISOString(),
+        lastAt: new Date(Math.max(...[...fieldReadings, ...fieldSoilReadings].map((row) => row.measuredAt))).toISOString(),
+      }
+    : null
+  const displayedReport = liveReportData || reportData
   const currentTemperature = latestCurrentReading(fieldReadings, 'temperature_c', statusNow)
+  const currentSoilTemperature = latestCurrentReading(fieldReadings, 'soil_temperature_c', statusNow)
   const currentHumidity = latestCurrentReading(fieldReadings, 'humidity_percent', statusNow)
   const currentSoil = latestMoistureReading(fieldReadings, fieldSoilReadings, statusNow)
   // Combines climate and soil data for the history table.
@@ -251,10 +292,11 @@ export default function EnvironmentalMonitoring() {
     (page - 1) * readingsPerPage,
     page * readingsPerPage,
   )
-  const reportingSensors = [currentTemperature, currentHumidity, currentSoil].filter(Boolean).length
+  const reportingSensors = [currentTemperature, currentSoilTemperature, currentHumidity, currentSoil].filter(Boolean).length
   const connectedDevices = countConnectedSensors([fieldReadings, fieldSoilReadings], statusNow)
   const deviceIsLive = connectedDevices > 0
-  const fieldAssigned = Object.values(deviceFields).includes(activeField)
+  const fieldAssigned = Object.values(deviceFields).includes(activeField) ||
+    (activeField === 'Field A' && readings.some((reading) => reading.device_id === 'ESP32_001' && reading.field_name == null))
   const sensorHasError = !sensorSupabase || Boolean(sensorError && soilError)
   const sensorStatusTitle = sensorLoading
     ? 'Checking Device'
@@ -262,7 +304,7 @@ export default function EnvironmentalMonitoring() {
       : fieldMappingError ? 'Field Setup Unavailable'
         : !fieldAssigned ? 'No Device Assigned'
           : sensorHasError ? 'Device Status Unavailable' : 'Sensor Offline'
-  const sensorStatusBadge = sensorLoading ? 'Checking' : deviceIsLive ? reportingSensors === 3 ? 'Live' : 'Sensor Alert' : fieldMappingError || sensorHasError ? 'Unavailable' : !fieldAssigned ? 'Unassigned' : 'Offline'
+  const sensorStatusBadge = sensorLoading ? 'Checking' : deviceIsLive ? reportingSensors === 4 ? 'Live' : 'Sensor Alert' : fieldMappingError || sensorHasError ? 'Unavailable' : !fieldAssigned ? 'Unassigned' : 'Offline'
   const SensorStatusIcon = deviceIsLive ? Radio : sensorLoading ? Antenna : WifiOff
   const soilStatus = !currentSoil
     ? 'Offline'
@@ -278,7 +320,8 @@ export default function EnvironmentalMonitoring() {
 
     if (!sensorLoading && fieldAssigned) {
       for (const [id, name, reading, error] of [
-        ['soil-temperature-offline', 'Soil Temperature', currentTemperature, sensorError],
+        ['air-temperature-offline', 'Air Temperature', currentTemperature, sensorError],
+        ['soil-temperature-offline', 'Soil Temperature', currentSoilTemperature, sensorError],
         ['humidity-offline', 'Humidity', currentHumidity, sensorError],
         ['soil-moisture-offline', 'Soil Moisture', currentSoil, soilError],
       ]) {
@@ -315,7 +358,7 @@ export default function EnvironmentalMonitoring() {
           type: 'warning',
           icon: ThermometerSun,
           title: `Crop Heat Stress Warning (${activeField})`,
-          message: `High soil temperature (${currentTemperature.temperature}) detected. Transpiration stress risk—ensure adequate shade and hydration.`,
+          message: `High air temperature (${currentTemperature.airTemperature}) detected. Transpiration stress risk—ensure adequate shade and hydration.`,
           timestamp: 'Live reading',
         })
       }
@@ -330,7 +373,7 @@ export default function EnvironmentalMonitoring() {
           type: 'warning',
           icon: AlertTriangle,
           title: `Fungal Pathogen Risk Warning`,
-          message: `Elevated relative humidity (${currentHumidity.humidity}) at ${currentTemperature.temperature} creates favorable conditions for fungal leaf spot.`,
+          message: `Elevated relative humidity (${currentHumidity.humidity}) at ${currentTemperature.airTemperature} creates favorable conditions for fungal leaf spot.`,
           timestamp: 'Live reading',
         })
       }
@@ -348,19 +391,19 @@ export default function EnvironmentalMonitoring() {
       })
     }
 
-    if (!list.length && reportingSensors === 3) {
+    if (!list.length && reportingSensors === 4) {
       list.push({
         id: 'all-optimal',
         type: 'success',
         icon: CheckCircle2,
         title: `Optimal Microclimate Status (${activeField})`,
-        message: `All environmental conditions (temperature, humidity, and soil moisture) are within optimal agricultural bounds.`,
+        message: `Air and soil temperature, humidity, and soil moisture are reporting without threshold alerts.`,
         timestamp: 'Live monitoring',
       })
     }
 
     return list
-  }, [sensorError, soilError, sensorLoading, currentTemperature, currentHumidity, currentSoil, reportingSensors, weather, activeField, fieldAssigned])
+  }, [sensorError, soilError, sensorLoading, currentTemperature, currentSoilTemperature, currentHumidity, currentSoil, reportingSensors, weather, activeField, fieldAssigned])
 
   // Hides alerts that the admin dismissed.
   const visibleAlerts = useMemo(
@@ -371,7 +414,8 @@ export default function EnvironmentalMonitoring() {
   // Clears dismissed sensor alerts after readings recover.
   useEffect(() => {
     const recovered = new Set([
-      currentTemperature && 'soil-temperature-offline',
+      currentTemperature && 'air-temperature-offline',
+      currentSoilTemperature && 'soil-temperature-offline',
       currentHumidity && 'humidity-offline',
       currentSoil && 'soil-moisture-offline',
     ].filter(Boolean))
@@ -380,7 +424,7 @@ export default function EnvironmentalMonitoring() {
         ? current.filter((id) => !recovered.has(id))
         : current)
     }
-  }, [currentTemperature, currentHumidity, currentSoil])
+  }, [currentTemperature, currentSoilTemperature, currentHumidity, currentSoil])
 
   // Loads the weather snapshot when the page opens.
   useEffect(() => {
@@ -630,7 +674,7 @@ export default function EnvironmentalMonitoring() {
           </header>
 
           {/* Live sensor device status. */}
-          <section className={`environment-network-status${sensorLoading ? ' is-checking' : !deviceIsLive ? ' is-offline' : reportingSensors < 3 ? ' is-partial' : ''}`} aria-label="Device status">
+          <section className={`environment-network-status${sensorLoading ? ' is-checking' : !deviceIsLive ? ' is-offline' : reportingSensors < 4 ? ' is-partial' : ''}`} aria-label="Device status">
             <div><i aria-hidden="true" /><span><strong>{sensorStatusTitle}</strong><small>{sensorLoading ? 'Checking for recent readings…' : deviceIsLive ? `${connectedDevices} ${connectedDevices === 1 ? 'device' : 'devices'} connected` : fieldMappingError ? 'Field assignments could not be loaded' : !fieldAssigned ? `No device assigned to ${activeField}` : 'No recent sensor readings'}</small></span></div>
             <span><SensorStatusIcon aria-hidden="true" /> {sensorStatusBadge}</span>
           </section>
@@ -711,14 +755,19 @@ export default function EnvironmentalMonitoring() {
 
             <section className="environment-reading-grid" aria-label={`${activeField} latest readings`}>
               <article className={!sensorLoading && !currentTemperature ? 'is-disconnected' : ''}>
-                <h2>Soil Temperature</h2>
-                <div><strong>{currentTemperature?.temperature || '—'}</strong><img src={temperatureMetricIcon} alt="" /></div>
+                <h2>Air Temperature</h2>
+                <div><strong>{currentTemperature?.airTemperature || '—'}</strong><img src={temperatureMetricIcon} alt="" /></div>
                 <small>{sensorLoading ? 'Checking sensor' : currentTemperature ? 'Reporting · live reading' : 'Sensor Offline'}</small>
               </article>
               <article className={!sensorLoading && !currentHumidity ? 'is-disconnected' : ''}>
                 <h2>Humidity</h2>
                 <div><strong>{currentHumidity?.humidity || '—'}</strong><img src={humidityMetricIcon} alt="" /></div>
                 <small>{sensorLoading ? 'Checking sensor' : currentHumidity ? 'Reporting · live reading' : 'Sensor Offline'}</small>
+              </article>
+              <article className={!sensorLoading && !currentSoilTemperature ? 'is-disconnected' : ''}>
+                <h2>Soil Temperature</h2>
+                <div><strong>{currentSoilTemperature?.soilTemperature || '—'}</strong><img src={temperatureMetricIcon} alt="" /></div>
+                <small>{sensorLoading ? 'Checking sensor' : currentSoilTemperature ? 'Reporting · live reading' : 'Sensor Offline'}</small>
               </article>
               <article className={!sensorLoading && !currentSoil ? 'is-disconnected' : ''}>
                 <h2>Soil Moisture</h2>
@@ -729,13 +778,14 @@ export default function EnvironmentalMonitoring() {
 
             <div className="environment-table-wrap">
               <table>
-                <thead><tr><th>Time</th><th>Soil Temperature</th><th>Humidity</th><th>Soil Moisture</th></tr></thead>
+                <thead><tr><th>Time</th><th>Air Temperature</th><th>Humidity</th><th>Soil Temperature</th><th>Soil Moisture</th></tr></thead>
                 <tbody>
                   {visibleReadings.map((reading) => (
                     <tr key={reading.id}>
                       <td><strong>{reading.time}</strong></td>
-                      <td><span className="environment-cell-value">{reading.temperature}</span></td>
+                      <td><span className="environment-cell-value">{reading.airTemperature}</span></td>
                       <td><span className="environment-cell-value">{reading.humidity}</span></td>
+                      <td><span className="environment-cell-value">{reading.soilTemperature}</span></td>
                       <td>
                         <div className="environment-moisture-cell">
                           <span>{reading.moisture}</span>
@@ -744,7 +794,7 @@ export default function EnvironmentalMonitoring() {
                     </tr>
                   ))}
                   {!visibleReadings.length && (
-                    <tr><td colSpan="4">{sensorError || `No readings received for ${activeField} today.`}</td></tr>
+                    <tr><td colSpan="5">{sensorError || `No readings received for ${activeField} today.`}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -766,9 +816,9 @@ export default function EnvironmentalMonitoring() {
                 <p>{activeField}</p>
               </div>
               <div className="environment-report-controls">
-                {!reportLoading && reportData && (
-                  <span className="environment-report-recorded">{reportData.firstAt && reportData.lastAt
-                    ? `Recorded ${new Date(reportData.firstAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}–${new Date(reportData.lastAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}`
+                {!reportLoading && displayedReport && (
+                  <span className="environment-report-recorded">{displayedReport.firstAt && displayedReport.lastAt
+                    ? `Recorded ${new Date(displayedReport.firstAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}–${new Date(displayedReport.lastAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}`
                     : 'No readings recorded'}</span>
                 )}
                 <div className="environment-report-date-control">
@@ -780,19 +830,20 @@ export default function EnvironmentalMonitoring() {
 
             {reportLoading && <p className="environment-report-state">Loading daily readings…</p>}
             {reportError && <p className="environment-report-state is-error" role="alert"><AlertTriangle aria-hidden="true" />{reportError}</p>}
-            {!reportLoading && reportData && (
+            {!reportLoading && displayedReport && (
               <>
                 <div className="environment-report-metrics">
                   {[
-                    ['Soil temperature', reportData.metrics.soilTemperature, '°C'],
-                    ['Humidity', reportData.metrics.humidity, '%'],
-                    ['Soil moisture', reportData.metrics.soilMoisture, '%'],
+                    ['Air temperature', displayedReportMetrics.airTemperature, '°C'],
+                    ['Humidity', displayedReportMetrics.humidity, '%'],
+                    ['Soil temperature', displayedReportMetrics.soilTemperature, '°C'],
+                    ['Soil moisture', displayedReportMetrics.soilMoisture, '%'],
                   ].map(([label, metric, unit]) => (
                     <article key={label}>
                       <h3>{label}</h3>
-                      <strong>{metric.count ? `${metric.average}${unit}` : '—'}</strong>
-                      <span>{metric.count ? `Range ${metric.min}–${metric.max}${unit}` : 'No readings'}</span>
-                      <small>{metric.count} valid readings</small>
+                      <strong>{metric?.count ? `${metric.average}${unit}` : '—'}</strong>
+                      <span>{metric?.count ? `Range ${metric.min}–${metric.max}${unit}` : 'No readings'}</span>
+                      <small>{metric?.count || 0} valid readings</small>
                     </article>
                   ))}
                 </div>
@@ -801,7 +852,7 @@ export default function EnvironmentalMonitoring() {
                     <h3>{savedSummary?.metrics?.firstAt
                       ? `Environmental Summary: ${activeField} (${new Date(savedSummary.metrics.firstAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })} to ${new Date(savedSummary.metrics.isToday ? savedSummary.generated_at : savedSummary.metrics.lastAt).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })})`
                       : 'Environmental Summary'}</h3>
-                    {reportData.hasReadings && (
+                    {displayedReport.hasReadings && (
                       <button type="button" onClick={generateReport} disabled={reportGenerating}>
                         {reportGenerating ? (
                         <>
@@ -829,12 +880,12 @@ export default function EnvironmentalMonitoring() {
                       <small>Generated {new Date(savedSummary.generated_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })}</small>
                       {savedSummary.ephemeral && <p>This summary is temporary and may be lost when you leave this page.</p>}
                     </>
-                  ) : !reportData.hasReadings ? (
+                  ) : !displayedReport.hasReadings ? (
                     <p>No sensor readings are available for {activeField} on this date.</p>
                   ) : (
                     <p>Generate a summary from the recorded sensor readings.</p>
                   )}
-                  {!dailyReport.storageReady && reportData.hasReadings && !savedSummary?.ephemeral && (
+                  {!dailyReport?.storageReady && displayedReport.hasReadings && !savedSummary?.ephemeral && (
                     <small>Daily summaries can&apos;t be saved right now.</small>
                   )}
                 </div>
