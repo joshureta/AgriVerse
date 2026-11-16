@@ -876,7 +876,6 @@ export default function EnvironmentalMonitoring() {
                   {savedSummary?.summary ? (
                     <>
                       <p>{savedSummary.summary}</p>
-                      {savedSummary.suggested_check && <><h4>Suggestion</h4><p>{savedSummary.suggested_check}</p></>}
                       <small>Generated {new Date(savedSummary.generated_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })}</small>
                       {savedSummary.ephemeral && <p>This summary is temporary and may be lost when you leave this page.</p>}
                     </>
