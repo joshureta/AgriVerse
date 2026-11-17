@@ -204,6 +204,11 @@ function App() {
     )
   }
 
+  if (path === '/admin/recovery') {
+    window.location.replace('/admin/tasks?modal=overdue')
+    return null
+  }
+
   if (path === '/admin') {
     return (
       <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>

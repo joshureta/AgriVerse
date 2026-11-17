@@ -15,7 +15,7 @@ const orderSelect = [
   "id, order_number, buyer_id, delivery_method, payment_method, payment_status, order_status",
   "subtotal, shipping_fee, total_amount, customer_note",
   "delivery_full_name, delivery_mobile_number, delivery_country, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay",
-  "estimated_delivery_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
+  "estimated_delivery_at, delivery_scheduled_at, delivery_window_end_at, confirmed_at, preparing_at, ready_for_delivery_at, out_for_delivery_at, delivered_at, cancelled_at, created_at, updated_at",
   "ready_for_pickup_at, pickup_code, picked_up_at, picked_up_by",
   "paymongo_payment_intent_id, paymongo_payment_id",
   "delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at",
@@ -276,7 +276,24 @@ router.get("/", async (req, res, next) => {
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw error;
-    return res.json({ orders: (data || []).map(serializeOrder) });
+    const orders = (data || []).map(serializeOrder);
+    if (orders.length > 0) {
+      const orderIds = orders.map((o) => o.id);
+      const { data: incidents } = await getSupabase()
+        .from("operation_incidents")
+        .select("id, order_id, detected_at, recovered_at, new_scheduled_at, buyer_requested_date")
+        .in("order_id", orderIds)
+        .order("detected_at", { ascending: false });
+
+      const incidentMap = new Map();
+      (incidents || []).forEach((inc) => {
+        if (!incidentMap.has(inc.order_id)) incidentMap.set(inc.order_id, inc);
+      });
+      orders.forEach((o) => {
+        o.delivery_incident = incidentMap.get(o.id) || null;
+      });
+    }
+    return res.json({ orders });
   } catch (error) {
     return next(error);
   }
@@ -307,7 +324,16 @@ router.get("/:id", async (req, res, next) => {
         console.error("Could not reconcile PayMongo refund:", refundError.message);
       }
     }
-    return res.json({ order: await attachCancellationReason(serializeOrder(reconciledOrder)) });
+    const finalOrder = await attachCancellationReason(serializeOrder(reconciledOrder));
+    const { data: incident } = await getSupabase()
+      .from("operation_incidents")
+      .select("id, order_id, detected_at, recovered_at, new_scheduled_at, buyer_requested_date, buyer_request_notes")
+      .eq("order_id", id)
+      .order("detected_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    finalOrder.delivery_incident = incident || null;
+    return res.json({ order: finalOrder });
   } catch (error) {
     return next(error);
   }

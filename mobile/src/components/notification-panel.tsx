@@ -26,6 +26,10 @@ const TYPE_META: Record<NotificationType, { tone: 'green' | 'amber' | 'red' | 'i
   cod_confirmed: { tone: 'green', icon: 'cash' },
   rating_received: { tone: 'info', icon: 'star' },
   order_status_updated: { tone: 'green', icon: 'package' },
+  operation_overdue: { tone: 'amber', icon: 'clock' },
+  operation_recovery: { tone: 'green', icon: 'swap' },
+  operation_reason: { tone: 'info', icon: 'task' },
+  operation_incident: { tone: 'red', icon: 'alertTriangle' },
 };
 
 const TONE_STYLES = {

@@ -1,4 +1,5 @@
 import { GREEN, styles } from '@/styles/driver-task-pending.styles';
+import { OverdueAlertBanner, OverdueBadge } from '@/components/operations-recovery';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -53,6 +54,7 @@ function ActiveDeliveryCard({
 
   return (
     <View style={styles.taskCard}>
+      <OverdueBadge scheduledAt={order.delivery_scheduled_at} orderId={order.id} />
       {/* Top Header Row with Active label & Radar Badge */}
       <View style={styles.cardHeaderRow}>
         <View style={styles.deliveryHeadingWithIcon}>
@@ -238,6 +240,8 @@ export default function DriverTaskActiveScreen() {
             <View style={styles.titleRow}>
               <Text style={styles.sectionTitle}>My Deliveries</Text>
             </View>
+
+            <OverdueAlertBanner />
 
             <View style={styles.deliveryToolbar}><View style={styles.deliverySearch}><SearchIcon /><TextInput accessibilityLabel="Search deliveries" onChangeText={setSearchQuery} placeholder="Search deliveries" placeholderTextColor="#94A3B8" style={styles.deliverySearchInput} value={searchQuery} /></View></View>
             <View style={styles.deliveryStatusTabs}>{[{ label: 'Pending', route: '/DriverTaskPending' }, { label: 'Active', route: '/DriverTaskActive' }, { label: 'Completed', route: '/DriverTaskCompleted' }].map((tab) => { const active = tab.label === 'Active'; return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[styles.deliveryStatusTab, active && styles.deliveryStatusTabActive]}><Text style={[styles.deliveryStatusTabText, active && styles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>; })}</View>

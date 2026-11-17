@@ -66,6 +66,7 @@ function AdminNotificationMenu() {
       }
     }
     if (notification.type === 'dispute_opened') window.location.assign('/admin/tasks?tab=disputes')
+    if (notification.type.startsWith('operation_')) window.location.assign('/admin/tasks?modal=overdue')
   }
 
   async function markAllRead() {

@@ -1,4 +1,5 @@
 import { styles } from '@/styles/worker-task-pending.styles';
+import { OverdueAlertBanner, OverdueBadge } from '@/components/operations-recovery';
 import { AssignmentDateList } from '@/components/assignment-date-list';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -375,6 +376,7 @@ function TaskCard({
 
   return (
     <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
+      <OverdueBadge scheduledAt={task.schedule_start} taskId={task.id} />
       {/* Header Row: Category Squircle Icon, Title, Field + Priority Pill & Top-Right Dropdown Button (Driver Style) */}
       <View style={styles.pendingCardHeader}>
         <View style={[styles.categorySquircle, { backgroundColor: config.bg, borderColor: config.border }, TASK_ICON_CONTAINER_STYLE]}>
@@ -571,6 +573,8 @@ export default function WorkerTaskPending() {
               <Text style={styles.sectionTitle}>My Tasks</Text>
             </View>
           </View>
+
+          <OverdueAlertBanner />
 
           <View style={deliveryStyles.deliveryToolbar}>
             <View style={deliveryStyles.deliverySearch}>

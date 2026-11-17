@@ -56,10 +56,42 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CDE5CF',
   },
+  statusPillDelayed: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+  },
   statusPillText: {
     fontSize: 11,
     fontWeight: '700',
     color: GREEN,
+  },
+  statusPillTextDelayed: {
+    color: '#B45309',
+  },
+  routeDelayNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  routeDelayIcon: {
+    fontSize: 16,
+  },
+  routeDelayTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#92400E',
+  },
+  routeDelaySub: {
+    fontSize: 11,
+    color: '#B45309',
+    marginTop: 2,
+    lineHeight: 15,
   },
 
   // Vertical route layout

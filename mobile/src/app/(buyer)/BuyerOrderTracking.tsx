@@ -6,6 +6,7 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { BuyerCancelOrderModal } from '@/components/buyer-cancel-order-modal';
 import { BuyerHeader } from '@/components/buyer-header';
+import { BuyerRecoveryUpdate } from '@/components/operations-recovery';
 import { BuyerInlineNotice } from '@/components/buyer-inline-notice';
 import { useBuyerFeedback } from '@/context/buyer-feedback-context';
 import {
@@ -13,6 +14,7 @@ import {
   canCancelBuyerOrder,
   confirmBuyerOrderReceipt,
   DisputeCategory,
+  isOrderDeliveryDelayed,
   loadBuyerOrder,
   qrphRefundLink,
   readBuyerCart,
@@ -881,6 +883,7 @@ export default function BuyerOrderTrackingScreen() {
 
       <ScrollView contentContainerStyle={w.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={w.title}>Order {order.order_number}</Text>
+        <BuyerRecoveryUpdate orderId={order.id} order={order} />
 
         {showReceipt ? (
           <CancelledReceipt
@@ -904,8 +907,10 @@ export default function BuyerOrderTrackingScreen() {
             <View style={[styles.card, { marginBottom: 20 }]}>
               <View style={styles.cardHeaderRow}>
                 <Text style={styles.sectionTitle}>Delivery Route</Text>
-                <View style={styles.statusPill}>
-                  <Text style={styles.statusPillText}>{getStatusLabel(order.order_status)}</Text>
+                <View style={[styles.statusPill, isOrderDeliveryDelayed(order) && styles.statusPillDelayed]}>
+                  <Text style={[styles.statusPillText, isOrderDeliveryDelayed(order) && styles.statusPillTextDelayed]}>
+                    {isOrderDeliveryDelayed(order) ? 'Delivery Delayed' : getStatusLabel(order.order_status)}
+                  </Text>
                 </View>
               </View>
 
@@ -938,6 +943,22 @@ export default function BuyerOrderTrackingScreen() {
                   </View>
                 </View>
               </View>
+
+              {isOrderDeliveryDelayed(order) && (
+                <View style={styles.routeDelayNotice}>
+                  <Text style={styles.routeDelayIcon}>⚠️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.routeDelayTitle}>
+                      Delivery Delayed {order.delivered_at ? `(Delivered ${formatDate(order.delivered_at)})` : '— Rescheduled'}
+                    </Text>
+                    <Text style={styles.routeDelaySub}>
+                      {order.delivered_at
+                        ? `Delivered after original scheduled window (${order.delivery_scheduled_at ? formatDate(order.delivery_scheduled_at) : 'scheduled date'}).`
+                        : 'Dispatch has flagged this delivery for recovery and confirmed driver notification.'}
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               {isCancelled ? (
                 <View style={styles.cancellationPanel}>

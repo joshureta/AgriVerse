@@ -1,4 +1,5 @@
 import { styles } from '@/styles/worker-task-active.styles';
+import { OverdueAlertBanner, OverdueBadge } from '@/components/operations-recovery';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -286,6 +287,7 @@ function ActiveTaskCard({
 
   return (
     <View style={styles.taskCard}>
+      <OverdueBadge scheduledAt={task.schedule_start} taskId={task.id} />
       {/* Top Header Row with Active label & Radar Badge (Driver Style) */}
       <View style={styles.cardHeaderRow}>
         <View style={styles.deliveryHeadingWithIcon}>
@@ -406,6 +408,7 @@ export default function WorkerTaskActiveScreen() {
             contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
             refreshControl={<RefreshControl colors={[GREEN]} refreshing={refreshing} onRefresh={() => loadTasks(true)} />}>
             <Text style={styles.pageTitle}>My Tasks</Text>
+            <OverdueAlertBanner />
             <View style={deliveryStyles.deliveryToolbar}><View style={deliveryStyles.deliverySearch}><SearchIcon /><TextInput accessibilityLabel="Search tasks" onChangeText={setSearchQuery} placeholder="Search tasks" placeholderTextColor="#94A3B8" style={deliveryStyles.deliverySearchInput} value={searchQuery} /></View></View>
             <View style={deliveryStyles.deliveryStatusTabs}>{[{ label: 'Pending', route: '/WorkerTaskPending' }, { label: 'Active', route: '/WorkerTaskActive' }, { label: 'Completed', route: '/WorkerTaskCompleted' }].map((tab) => { const active = tab.label === 'Active'; return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[deliveryStyles.deliveryStatusTab, active && deliveryStyles.deliveryStatusTabActive]}><Text style={[deliveryStyles.deliveryStatusTabText, active && deliveryStyles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>; })}</View>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
