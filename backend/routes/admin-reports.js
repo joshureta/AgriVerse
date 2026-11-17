@@ -3,13 +3,14 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { computeFieldReport } = require("../lib/environmental-report-service");
 const { httpError } = require("../lib/http-error");
+const { historicalMonths, aggregateHistoricalSeries } = require("./admin-dashboard");
 
 const router = express.Router();
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const REPORT_TYPES = new Set(["operations", "harvest", "sales", "inventory", "environment", "delivery"]);
-const FIELD_REPORTS = new Set(["operations", "harvest", "environment"]);
-const PERIODS = new Set(["week", "month", "year"]);
+const REPORT_TYPES = new Set(["operations", "productivity", "harvest", "sales", "inventory", "environment", "delivery", "history"]);
+const FIELD_REPORTS = new Set(["operations", "productivity", "harvest", "environment", "history"]);
+const PERIODS = new Set(["week", "month", "year", "last3", "last6", "last12"]);
 
 router.use(requireAuth, requireRole("admin"));
 
@@ -27,7 +28,9 @@ function reportRange(period, now = new Date()) {
   const month = local.getUTCMonth();
   const day = local.getUTCDate();
   let start;
-  if (period === "week") {
+  if (period.startsWith("last")) {
+    start = manilaInstant(year, month - Number(period.slice(4)) + 1, 1);
+  } else if (period === "week") {
     start = manilaInstant(year, month, day - ((local.getUTCDay() + 6) % 7));
   } else if (period === "year") {
     start = manilaInstant(year, 0, 1);
@@ -39,7 +42,8 @@ function reportRange(period, now = new Date()) {
     end: now.toISOString(),
     startDate: manilaDate(start),
     endDate: manilaDate(now),
-    label: period === "week" ? "This week" : period === "year" ? "This year" : "This month",
+    label: period.startsWith("last") ? `Last ${period.slice(4)} months`
+      : period === "week" ? "This week" : period === "year" ? "This year" : "This month",
   };
 }
 
@@ -101,6 +105,72 @@ async function operationsReport(supabase, range, field) {
       [...byCategory].sort(([a], [b]) => a.localeCompare(b)).map(([name, row]) => [name, count(row.scheduled), count(row.completed), count(row.awaiting)]))],
     notes: ["Counts reflect the current status of tasks scheduled during the selected period."],
     hasData: tasks.length > 0,
+  };
+}
+
+async function productivityReport(supabase, range, field) {
+  const tasks = await allRows(() => {
+    let query = supabase.from("tasks")
+      .select("id, assigned_worker_id, worker:profiles!tasks_assigned_worker_id_fkey(full_name), task_status:task_statuses!tasks_status_id_fkey(code)")
+      .gte("schedule_start", range.start).lte("schedule_start", range.end);
+    if (field) query = query.eq("field_id", field.id);
+    return query;
+  });
+  const byWorker = new Map();
+  for (const task of tasks) {
+    const key = task.assigned_worker_id || "unassigned";
+    const row = byWorker.get(key) || { name: one(task.worker)?.full_name || "Unassigned", scheduled: 0, completed: 0, awaiting: 0 };
+    row.scheduled += 1;
+    const status = one(task.task_status)?.code;
+    if (status === "completed") row.completed += 1;
+    if (status === "awaiting_approval") row.awaiting += 1;
+    byWorker.set(key, row);
+  }
+  const rows = [...byWorker.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const completed = rows.reduce((sum, row) => sum + row.completed, 0);
+  return {
+    title: "Worker Productivity Report",
+    summary: [
+      { label: "Scheduled tasks", value: count(tasks.length) },
+      { label: "Completed tasks", value: count(completed) },
+      { label: "Completion rate", value: tasks.length ? `${Math.round(completed / tasks.length * 100)}%` : "-" },
+    ],
+    sections: [section("Scheduled work by worker", ["Worker", "Scheduled", "Completed", "Awaiting review", "Completion %"],
+      rows.map((row) => [row.name, count(row.scheduled), count(row.completed), count(row.awaiting), `${Math.round(row.completed / row.scheduled * 100)}%`]))],
+    notes: ["Counts reflect the current status of tasks scheduled during the selected period; worker utilization on the dashboard is based on today's assigned crop workers."],
+    hasData: tasks.length > 0,
+  };
+}
+
+async function historyReport(supabase, range, field, period) {
+  const months = Number(period.slice(4));
+  const buckets = historicalMonths(months);
+  const [orders, harvests] = await Promise.all([
+    allRows(() => supabase.from("buyer_orders")
+      .select("id, created_at, total_amount, payment_status, refund_amount")
+      .in("payment_status", ["paid", "refunded"])
+      .gte("created_at", range.start).lte("created_at", range.end)),
+    allRows(() => {
+      let query = supabase.from("tasks")
+        .select("id, approved_at, harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count")
+        .gte("approved_at", range.start).lte("approved_at", range.end)
+        .not("harvest_small_count", "is", null);
+      if (field) query = query.eq("field_id", field.id);
+      return query;
+    }),
+  ]);
+  const series = aggregateHistoricalSeries(buckets, orders, harvests);
+  return {
+    title: "Historical Farm Trends Report",
+    summary: [
+      { label: "Months", value: count(months) },
+      { label: "Net sales", value: money(series.reduce((sum, item) => sum + item.revenue, 0)) },
+      { label: "Harvested pieces", value: count(series.reduce((sum, item) => sum + item.harvested, 0)) },
+    ],
+    sections: [section("Monthly trends", ["Month", "Net sales", "Harvested pieces"],
+      series.map((item) => [item.label, money(item.revenue), count(item.harvested)]))],
+    notes: ["The latest month is in progress. Revenue is farm-wide; the selected field applies only to harvest counts. Harvests include approved reports only."],
+    hasData: orders.length > 0 || harvests.length > 0,
   };
 }
 
@@ -317,12 +387,17 @@ router.get("/", async (req, res, next) => {
     const field = fieldName === "all" ? null : fields.find((item) => item.field_name === fieldName);
     if (fieldName !== "all" && (!FIELD_REPORTS.has(type) || !field)) throw httpError(400, "Choose a valid field for this report");
     const range = reportRange(period);
+    if (type === "history" ? !period.startsWith("last") : period.startsWith("last")) {
+      throw httpError(400, "Choose a valid period for this report");
+    }
     const report = type === "operations" ? await operationsReport(supabase, range, field)
+      : type === "productivity" ? await productivityReport(supabase, range, field)
       : type === "harvest" ? await harvestReport(supabase, range, field)
         : type === "sales" ? await salesReport(supabase, range)
           : type === "inventory" ? await inventoryReport(supabase, range)
             : type === "environment" ? await environmentReport(supabase, range, field, fields)
-              : await deliveryReport(supabase, range);
+              : type === "delivery" ? await deliveryReport(supabase, range)
+                : await historyReport(supabase, range, field, period);
     res.json({ ...report, type, period, periodLabel: range.label, startDate: range.startDate,
       endDate: range.endDate, field: field?.field_name || "All fields", generatedAt: new Date().toISOString() });
   } catch (error) { next(error); }

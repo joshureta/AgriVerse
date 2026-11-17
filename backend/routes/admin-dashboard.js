@@ -222,6 +222,133 @@ router.get("/productivity", async (_req, res, next) => {
   }
 });
 
+const ANALYTICS_MONTHS = new Set([3, 6, 12]);
+
+function historicalMonths(months, now = new Date()) {
+  const local = new Date(now.getTime() + MANILA_OFFSET_MS);
+  const year = local.getUTCFullYear();
+  const month = local.getUTCMonth();
+  return Array.from({ length: months }, (_, index) => {
+    const start = manilaInstant(year, month - months + index + 1, 1);
+    const end = manilaInstant(year, month - months + index + 2, 1);
+    const date = new Date(start.getTime() + MANILA_OFFSET_MS);
+    return {
+      key: date.toISOString().slice(0, 7),
+      label: new Intl.DateTimeFormat("en-PH", { month: "short", year: "numeric", timeZone: "Asia/Manila" }).format(start),
+      start,
+      end,
+      revenue: 0,
+      harvested: 0,
+    };
+  });
+}
+
+function manilaMonthKey(value) {
+  return new Date(new Date(value).getTime() + MANILA_OFFSET_MS).toISOString().slice(0, 7);
+}
+
+function aggregateHistoricalSeries(buckets, orders, harvests) {
+  const byMonth = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+  for (const order of orders) {
+    const bucket = byMonth.get(manilaMonthKey(order.created_at));
+    if (!bucket) continue;
+    const gross = money(order.total_amount);
+    const refund = order.payment_status === "refunded"
+      ? money(order.refund_amount == null ? gross : order.refund_amount) : 0;
+    bucket.revenue = money(bucket.revenue + Math.max(0, gross - refund));
+  }
+  for (const task of harvests) {
+    const bucket = byMonth.get(manilaMonthKey(task.approved_at));
+    if (!bucket) continue;
+    bucket.harvested += ["small", "medium", "large", "damaged"]
+      .reduce((sum, size) => sum + Number(task[`harvest_${size}_count`] || 0), 0);
+  }
+  return buckets.map(({ start: _start, end: _end, ...bucket }) => bucket);
+}
+
+function soilMoistureTrend(reports, now = new Date()) {
+  const today = new Date(now.getTime() + MANILA_OFFSET_MS);
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 6 + index));
+    return { date: date.toISOString().slice(0, 10), moisture: null, samples: 0 };
+  });
+  const byDate = new Map(days.map((day) => [day.date, { day, sum: 0 }]));
+  for (const report of reports) {
+    const entry = byDate.get(report.report_date);
+    const metric = report.metrics?.metrics?.soilMoisture;
+    const count = Number(metric?.count || 0);
+    if (!entry || !count || metric.average == null) continue;
+    entry.sum += Number(metric.average) * count;
+    entry.day.samples += count;
+  }
+  return [...byDate.values()].map(({ day, sum }) => ({
+    date: day.date,
+    moisture: day.samples ? Math.round(sum / day.samples * 10) / 10 : null,
+  }));
+}
+
+router.get("/analytics", async (req, res, next) => {
+  try {
+    const months = Number(req.query.months || 6);
+    if (!ANALYTICS_MONTHS.has(months)) {
+      const error = new Error("Analytics range must be 3, 6, or 12 months");
+      error.status = 400;
+      throw error;
+    }
+    const supabase = getSupabase();
+    const { data: fields, error: fieldsError } = await supabase.from("farm_fields")
+      .select("id, field_name").eq("status", true).order("field_name");
+    if (fieldsError) throw fieldsError;
+    const fieldName = String(req.query.field || "all");
+    const field = fieldName === "all" ? null : (fields || []).find((item) => item.field_name === fieldName);
+    if (fieldName !== "all" && !field) {
+      const error = new Error("Choose a valid field");
+      error.status = 400;
+      throw error;
+    }
+    const buckets = historicalMonths(months);
+    const start = buckets[0].start.toISOString();
+    const end = buckets.at(-1).end.toISOString();
+    const [orders, harvests] = await Promise.all([
+      allRows(() => supabase.from("buyer_orders")
+        .select("id, created_at, total_amount, payment_status, refund_amount")
+        .in("payment_status", ["paid", "refunded"])
+        .gte("created_at", start).lt("created_at", end)),
+      allRows(() => {
+        let query = supabase.from("tasks")
+          .select("id, approved_at, harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count")
+          .gte("approved_at", start).lt("approved_at", end)
+          .not("harvest_small_count", "is", null);
+        if (field) query = query.eq("field_id", field.id);
+        return query;
+      }),
+    ]);
+    let environmentalReports = [];
+    let environmentalHistoryAvailable = true;
+    try {
+      const local = new Date(Date.now() + MANILA_OFFSET_MS);
+      const firstDay = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() - 6)).toISOString().slice(0, 10);
+      environmentalReports = await allRows(() => supabase.from("environmental_daily_reports")
+        .select("id, report_date, metrics")
+        .gte("report_date", firstDay));
+    } catch (error) {
+      if (!["42P01", "PGRST205"].includes(error?.code)) throw error;
+      environmentalHistoryAvailable = false;
+    }
+    res.json({
+      months,
+      field: fieldName,
+      fields: fields || [],
+      series: aggregateHistoricalSeries(buckets, orders, harvests),
+      soil_moisture: soilMoistureTrend(environmentalReports),
+      environmental_history_available: environmentalHistoryAvailable,
+      generated_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get("/revenue", async (req, res, next) => {
   try {
     const period = String(req.query.period || "month").toLowerCase();
@@ -431,3 +558,6 @@ module.exports = router;
 module.exports.revenuePeriod = revenuePeriod;
 module.exports.productivityPeriod = productivityPeriod;
 module.exports.summarizeProductivity = summarizeProductivity;
+module.exports.historicalMonths = historicalMonths;
+module.exports.aggregateHistoricalSeries = aggregateHistoricalSeries;
+module.exports.soilMoistureTrend = soilMoistureTrend;

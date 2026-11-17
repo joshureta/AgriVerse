@@ -5,11 +5,13 @@ import { loadDashboardReport, loadReportFields } from '../services/adminDashboar
 
 const reportTypes = [
   { value: 'operations', label: 'Farm Operations', fields: true },
+  { value: 'productivity', label: 'Worker Productivity', fields: true },
   { value: 'harvest', label: 'Harvest & Yield', fields: true },
   { value: 'sales', label: 'Sales & Orders' },
   { value: 'inventory', label: 'Inventory & Stock' },
   { value: 'environment', label: 'Environmental Monitoring', fields: true },
   { value: 'delivery', label: 'Delivery Performance' },
+  { value: 'history', label: 'Historical Farm Trends', fields: true },
 ]
 
 export default function DashboardReportMenu() {
@@ -86,6 +88,7 @@ export default function DashboardReportMenu() {
         <label htmlFor="dashboard-report-type">Report type</label>
         <select id="dashboard-report-type" value={type} onChange={(event) => {
           setType(event.target.value)
+          setPeriod(event.target.value === 'history' ? 'last6' : 'month')
           setField('all')
           setError('')
         }}>
@@ -93,9 +96,15 @@ export default function DashboardReportMenu() {
         </select>
         <label htmlFor="dashboard-report-period">Date range</label>
         <select id="dashboard-report-period" value={period} onChange={(event) => setPeriod(event.target.value)}>
-          <option value="week">This week</option>
-          <option value="month">This month</option>
-          <option value="year">This year</option>
+          {type === 'history' ? <>
+            <option value="last3">Last 3 months</option>
+            <option value="last6">Last 6 months</option>
+            <option value="last12">Last 12 months</option>
+          </> : <>
+            <option value="week">This week</option>
+            <option value="month">This month</option>
+            <option value="year">This year</option>
+          </>}
         </select>
         {fieldReport && <>
           <label htmlFor="dashboard-report-field">Field</label>

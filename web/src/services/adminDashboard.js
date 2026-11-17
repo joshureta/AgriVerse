@@ -54,6 +54,29 @@ export async function loadAdminSummary() {
   return body
 }
 
+export async function loadAdminProductivity() {
+  const token = await accessToken()
+  const response = await fetch(`${API_URL}/api/admin/dashboard/productivity`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load productivity data')
+  return body
+}
+
+export async function loadAdminAnalytics({ months = 6, field = 'all' } = {}) {
+  const token = await accessToken()
+  const params = new URLSearchParams({ months: String(months), field })
+  const response = await fetch(`${API_URL}/api/admin/dashboard/analytics?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load historical analytics')
+  return body
+}
+
 export async function loadReportFields() {
   const token = await accessToken()
   const response = await fetch(`${API_URL}/api/admin/reports/options`, {

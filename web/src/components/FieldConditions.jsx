@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Droplets, Sprout, Thermometer, Waves } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Sprout } from 'lucide-react'
 import { sensorSupabase } from '../lib/sensorSupabase.js'
 import { latestCurrentReading, latestMoistureReading } from '../lib/sensorStatus.js'
 
@@ -29,7 +29,7 @@ function metricValue(reading, field, unit) {
   return reading ? `${Number(reading[field]).toFixed(1)}${unit}` : '—'
 }
 
-export default function FieldConditions() {
+export default function FieldConditions({ soilTrend = [], historyAvailable = true }) {
   const [climateReadings, setClimateReadings] = useState([])
   const [soilReadings, setSoilReadings] = useState([])
   const [loading, setLoading] = useState(Boolean(sensorSupabase))
@@ -126,19 +126,19 @@ export default function FieldConditions() {
       </div>
       <div className="field-conditions-metrics">
         <div className="field-conditions-metric">
-          <span>Air temperature <Thermometer aria-hidden="true" /></span>
+          <span>Air temperature</span>
           <strong>{metricValue(temperature, 'temperature_c', '°C')}</strong>
         </div>
         <div className="field-conditions-metric">
-          <span>Humidity <Droplets aria-hidden="true" /></span>
+          <span>Humidity</span>
           <strong>{metricValue(humidity, 'humidity_percent', '%')}</strong>
         </div>
         <div className="field-conditions-metric">
-          <span>Soil temperature <Thermometer aria-hidden="true" /></span>
+          <span>Soil temperature</span>
           <strong>{metricValue(soilTemperature, 'soil_temperature_c', '°C')}</strong>
         </div>
         <div className={`field-conditions-metric${lowMoisture ? ' is-warning' : ''}`}>
-          <span>Soil moisture <Waves aria-hidden="true" /></span>
+          <span>Soil moisture</span>
           <strong>{metricValue(moisture, 'moisture_percent', '%')}</strong>
         </div>
       </div>
@@ -147,6 +147,15 @@ export default function FieldConditions() {
           <StatusIcon aria-hidden="true" />{alert}
         </p>
         <a href="/admin/monitoring/environmental">Open monitoring →</a>
+      </div>
+      <div className="field-conditions-history">
+        <div><strong>Soil moisture · last 7 days</strong><small>Recorded daily averages across fields</small></div>
+        {soilTrend.some((day) => day.moisture != null) ? <div className="field-conditions-history-bars" role="img" aria-label="Seven-day soil moisture averages; exact values appear below each bar">
+          {soilTrend.map((day) => <div key={day.date}>
+            <span className="field-conditions-history-bar" style={{ height: day.moisture == null ? '3px' : `${Math.max(4, Math.min(100, day.moisture))}%` }} />
+            <small>{day.date.slice(5)}</small><b>{day.moisture == null ? '—' : `${day.moisture}%`}</b>
+          </div>)}
+        </div> : <p className="field-conditions-history-empty">{historyAvailable ? 'No saved readings for the last 7 days.' : 'Historical readings are unavailable.'}</p>}
       </div>
     </section>
   )
