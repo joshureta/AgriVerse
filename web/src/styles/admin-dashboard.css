@@ -1746,7 +1746,7 @@
 
 .field-conditions-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
   margin-top: 17px;
 }
@@ -1951,7 +1951,7 @@
 
 @media (max-width: 430px) {
   .field-conditions-header { flex-wrap: wrap; }
-  .field-conditions-metrics { gap: 5px; }
+  .field-conditions-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
   .field-conditions-metric { padding: 9px 6px; }
   .field-conditions-metric strong { font-size: 16px; }
 }

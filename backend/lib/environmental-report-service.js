@@ -39,17 +39,20 @@ async function loadFieldActivities(field, date, cutoffAt) {
   }
 }
 
-async function loadFieldRows(client, table, columns, field, window) {
+async function loadFieldRows(client, table, columns, field, window, unassignedDevice = null) {
   const rows = [];
   for (let offset = 0; ;) {
-    const { data, error } = await client.from(table)
+    let query = client.from(table)
       .select(columns)
-      .eq("field_name", field)
       .gte("created_at", new Date(window.start).toISOString())
       .lt("created_at", new Date(window.end).toISOString())
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
+    query = unassignedDevice
+      ? query.eq("device_id", unassignedDevice).is("field_name", null)
+      : query.eq("field_name", field);
+    const { data, error } = await query;
     if (error) throw error;
     if (!data?.length) break;
     rows.push(...data);
@@ -67,11 +70,18 @@ async function computeFieldReport(field, date, now = Date.now()) {
   }
   const sensor = getSensorSupabase();
   const collectedWindow = { ...window, end: Math.min(window.end, now) };
-  const [climateRows, soilRows] = await Promise.all([
+  const [assignedClimate, assignedSoil, unassignedClimate, unassignedSoil] = await Promise.all([
     loadFieldRows(sensor, "sensor_readings", "*", field, collectedWindow),
     loadFieldRows(sensor, "soil_readings", "*", field, collectedWindow),
+    field === "Field A" ? loadFieldRows(sensor, "sensor_readings", "*", field, collectedWindow, "ESP32_001") : [],
+    field === "Field A" ? loadFieldRows(sensor, "soil_readings", "*", field, collectedWindow, "ESP32_001") : [],
   ]);
-  return buildEnvironmentalReport({ field, date, climateRows, soilRows, now });
+  return buildEnvironmentalReport({
+    field, date,
+    climateRows: [...assignedClimate, ...unassignedClimate],
+    soilRows: [...assignedSoil, ...unassignedSoil],
+    now,
+  });
 }
 
 function missingReportTable(error) {

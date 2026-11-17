@@ -31,5 +31,8 @@ export async function loadDailySensorRows(client, table, columns, bounds) {
 }
 
 export function readingsForField(readings, field) {
-  return readings.filter((reading) => reading.field_name === field)
+  // Current firmware identifies itself as ESP32_001. Older deployments did not
+  // register that ID in sensor_device_fields, so their rows have no field_name.
+  return readings.filter((reading) => reading.field_name === field ||
+    (reading.field_name == null && reading.device_id === 'ESP32_001' && field === 'Field A'))
 }

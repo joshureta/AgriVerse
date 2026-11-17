@@ -55,7 +55,8 @@ function buildEnvironmentalReport({ field, date, climateRows, soilRows, now = Da
   soilRows = soilRows.filter(inWindow);
   const hasNumber = (value) => value != null && Number.isFinite(Number(value));
   const validClimateRows = climateRows.filter((row) =>
-    hasNumber(row.temperature_c) || hasNumber(row.humidity_percent) || hasNumber(row.soil_moisture));
+    hasNumber(row.temperature_c) || hasNumber(row.soil_temperature_c) ||
+    hasNumber(row.humidity_percent) || hasNumber(row.soil_moisture));
   const validSoilRows = soilRows.filter((row) => hasNumber(row.moisture_percent));
   const firstRowTime = [...validClimateRows, ...validSoilRows]
     .reduce((first, row) => Math.min(first, Date.parse(row.created_at)), Infinity);
@@ -64,7 +65,8 @@ function buildEnvironmentalReport({ field, date, climateRows, soilRows, now = Da
   const soilSource = validSoilRows.length ? soilRows : climateRows;
   const soilKey = validSoilRows.length ? "moisture_percent" : "soil_moisture";
   const metrics = {
-    soilTemperature: summarizeMetric(climateRows, "temperature_c", expected),
+    airTemperature: summarizeMetric(climateRows, "temperature_c", expected),
+    soilTemperature: summarizeMetric(climateRows, "soil_temperature_c", expected),
     humidity: summarizeMetric(climateRows, "humidity_percent", expected),
     soilMoisture: summarizeMetric(soilSource, soilKey, expected),
   };
@@ -73,12 +75,13 @@ function buildEnvironmentalReport({ field, date, climateRows, soilRows, now = Da
   const firstAt = allTimes.length ? new Date(Math.min(...allTimes)).toISOString() : null;
   const lastAt = allTimes.length ? new Date(Math.max(...allTimes)).toISOString() : null;
   const spanMs = allTimes.length ? Math.max(...allTimes) - Math.min(...allTimes) : 0;
-  const enoughData = spanMs >= MIN_SPAN_MS && Object.values(metrics).every(
+  const enoughData = spanMs >= MIN_SPAN_MS && [metrics.airTemperature, metrics.humidity, metrics.soilMoisture].every(
     (metric) => metric.count > 0 && metric.coveragePercent >= MIN_COVERAGE,
   );
   const hasReadings = Object.values(metrics).some((metric) => metric.count > 0);
   const qualityIssues = [];
   for (const [name, metric] of Object.entries(metrics)) {
+    if (name === "soilTemperature" && !metric.count) continue;
     if (hasReadings && !metric.count) qualityIssues.push(`${name} has no valid readings`);
     if (metric.count === 1) qualityIssues.push(`${name} has only one valid reading`);
     if (metric.hasGap) qualityIssues.push(`${name} has a gap longer than 10 minutes`);

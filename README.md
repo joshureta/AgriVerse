@@ -35,8 +35,9 @@ Admins can press Generate Summary whenever at least one valid sensor reading is
 available, including during the current day. The report begins with the first
 valid reading for the selected Manila date and uses only readings collected by
 the generation time. It shows the latest valid reading time separately when it
-precedes generation. The calculated summary covers soil temperature, humidity,
-and soil moisture, followed by one suggestion chosen from the measured data.
+precedes generation. The calculated summary covers air temperature, soil
+temperature, humidity, and soil moisture, followed by one suggestion chosen
+from the measured data.
 An empty field cannot be summarized. Automatic final reports are generated after
 the Manila day ends when at least one valid reading exists; six hours of readings
 and 50% coverage indicate a fuller report but are not required for generation.
@@ -44,13 +45,18 @@ Weather is excluded because this app does not store historical weather observati
 
 Apply `supabase/migrations/045_environmental_daily_reports.sql` in the **main**
 AgriVerse Supabase project. The earlier `044_sensor_device_fields.sql` belongs in
-the separate **sensor** project. Configure the backend with
+the **sensor** project. Configure the backend with
 `SENSOR_SUPABASE_URL` and `SENSOR_SUPABASE_PUBLISHABLE_KEY` for that sensor
 project. The backend generates final
 reports for the previous Manila day shortly after midnight and checks for a
 missed final report when it starts. Manual summaries can be generated before
 the reports migration is applied, but they are only shown for the current page
 session until report storage is set up.
+
+The current firmware reports as `ESP32_001` in Field A. Apply
+`supabase/migrations/056_assign_esp32_001_field_a.sql` in the sensor project to
+assign new and existing readings to that field. Until then, the website and
+report service recognize unassigned readings from that device as Field A.
 
 To enable a direct watering suggestion, set `ENVIRONMENTAL_SOIL_MOISTURE_TARGETS`
 on the backend to a JSON object keyed by field, such as
