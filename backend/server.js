@@ -29,6 +29,7 @@ const notificationsRouter = require("./routes/notifications");
 const { router: pushDevicesRouter } = require("./routes/push-devices");
 const { firebaseIsConfigured } = require("./lib/push-notifications");
 const adminDashboardRouter = require("./routes/admin-dashboard");
+const adminReportsRouter = require("./routes/admin-reports");
 const sellerDashboardRouter = require("./routes/seller-dashboard");
 const environmentalReportsRouter = require("./routes/environmental-reports");
 
@@ -114,6 +115,7 @@ app.use("/api/admin/lookups", adminLookupsRouter);
 app.use("/api/admin/schedules", adminSchedulesRouter);
 app.use("/api/admin/deliveries", adminDeliveriesRouter);
 app.use("/api/admin/dashboard", adminDashboardRouter);
+app.use("/api/admin/reports", adminReportsRouter);
 app.use("/api/seller/dashboard", sellerDashboardRouter);
 app.use("/api/buyer/products", buyerProductsRouter);
 app.use("/api/buyer/orders", buyerOrdersRouter);

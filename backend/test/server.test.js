@@ -296,6 +296,15 @@ test("dashboard productivity report requires an access token", async () => {
   assert.equal(body.error, "Authentication required");
 });
 
+test("dashboard PDF report data requires an access token", async () => {
+  for (const path of ["/api/admin/reports/options", "/api/admin/reports?type=operations&period=month&field=all"]) {
+    const response = await fetch(`${baseUrl}${path}`);
+    const body = await response.json();
+    assert.equal(response.status, 401);
+    assert.equal(body.error, "Authentication required");
+  }
+});
+
 test("lookup routes require an access token", async () => {
   const response = await fetch(`${baseUrl}/api/admin/lookups/task-categories`);
   const body = await response.json();

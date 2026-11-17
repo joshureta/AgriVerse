@@ -53,3 +53,26 @@ export async function loadAdminSummary() {
   if (!response.ok) throw new Error(body.error || 'Unable to load dashboard summary')
   return body
 }
+
+export async function loadReportFields() {
+  const token = await accessToken()
+  const response = await fetch(`${API_URL}/api/admin/reports/options`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to load report fields')
+  return body.fields || []
+}
+
+export async function loadDashboardReport({ type, period, field }) {
+  const token = await accessToken()
+  const params = new URLSearchParams({ type, period, field })
+  const response = await fetch(`${API_URL}/api/admin/reports?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Unable to generate report')
+  return body
+}

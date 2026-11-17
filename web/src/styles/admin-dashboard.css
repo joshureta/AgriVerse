@@ -1667,11 +1667,20 @@
 
 .admin-overview-dashboard .admin-stat-grid { grid-column: 1 / 14; grid-row: 1; }
 .admin-overview-dashboard .revenue-panel { grid-column: 1 / 14; grid-row: 2; }
-.admin-overview-dashboard .admin-inventory-panel { grid-column: 14 / -1; grid-row: 3; align-self: stretch; }
-
-.admin-overview-dashboard .activity-panel {
+.admin-overview-dashboard .dashboard-activity-stack {
   grid-column: 14 / -1;
   grid-row: 1 / 3;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+.admin-overview-dashboard .admin-inventory-panel { grid-column: 14 / -1; grid-row: 3; align-self: stretch; }
+.admin-overview-dashboard .dashboard-activity-stack .activity-panel {
+  min-width: 0;
+  justify-self: stretch;
+}
+
+.admin-overview-dashboard .activity-panel {
   height: 600px;
   min-height: 0;
   max-height: none;
@@ -1846,12 +1855,14 @@
   width: 100%;
   max-width: 720px;
   justify-self: end;
+  align-self: stretch;
+  min-height: 196px;
   grid-template-columns: minmax(0, 1fr) minmax(175px, 250px);
   gap: 10px;
 }
 
 .admin-overview-dashboard .admin-stat-card {
-  height: 196px;
+  height: 100%;
   min-height: 0;
   padding: 16px 18px;
 }
@@ -1888,7 +1899,7 @@
 }
 
 .admin-overview-dashboard .admin-stat-subgrid .admin-stat-card {
-  height: 94px;
+  height: 100%;
   padding: 12px 14px;
 }
 
@@ -1958,5 +1969,123 @@
 
 @media (max-width: 370px) {
   .admin-overview-dashboard .admin-stat-subgrid { grid-template-columns: 1fr; grid-template-rows: repeat(2, 1fr); }
+}
+
+/* The report generator sits directly above Recent Activities. */
+.admin-overview-dashboard .dashboard-report-placement {
+  width: 100%;
+}
+.dashboard-report-menu {
+  position: relative;
+  z-index: 20;
+  width: 100%;
+}
+.dashboard-report-trigger,
+.dashboard-report-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: #196c35;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.dashboard-report-trigger {
+  width: 100%;
+  min-height: 52px;
+  justify-content: space-between;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  color: #196c35;
+  background: #fff;
+  box-shadow: 0 5px 15px rgba(37, 75, 43, 0.06);
+  font-size: 13px;
+  transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+.dashboard-report-trigger:hover {
+  background: #fff;
+  box-shadow: 0 7px 17px rgba(37, 75, 43, 0.11);
+  transform: translateY(-1px);
+}
+.dashboard-report-trigger[aria-expanded="true"],
+.dashboard-report-trigger:active { background: #fff; }
+.dashboard-report-trigger-main { display: inline-flex; align-items: center; gap: 11px; }
+.dashboard-report-trigger-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  color: #334d39;
+}
+.dashboard-report-trigger-chevron { opacity: 0.85; transition: transform 150ms ease; }
+.dashboard-report-trigger[aria-expanded="true"] .dashboard-report-trigger-chevron { transform: rotate(180deg); }
+.dashboard-report-submit:hover:not(:disabled) { background: #0e5228; }
+.dashboard-report-trigger:focus-visible,
+.dashboard-report-submit:focus-visible,
+.dashboard-report-popover select:focus-visible {
+  outline: 2px solid #78b83d;
+  outline-offset: 2px;
+}
+.dashboard-report-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 18px;
+  border: 1px solid #dfe6d8;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(24, 63, 34, 0.2);
+}
+.dashboard-report-popover form { display: grid; gap: 7px; }
+.dashboard-report-popover label {
+  margin-top: 5px;
+  color: #334d39;
+  font-size: 11px;
+  font-weight: 800;
+}
+.dashboard-report-popover select {
+  width: 100%;
+  height: 38px;
+  box-sizing: border-box;
+  border: 1px solid #d2dfd0;
+  border-radius: 7px;
+  padding: 0 10px;
+  color: #1b2c20;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+}
+.dashboard-report-submit { width: 100%; min-height: 40px; margin-top: 10px; }
+.dashboard-report-submit:disabled { cursor: wait; opacity: 0.7; }
+.dashboard-report-help {
+  color: #748075;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.dashboard-report-error {
+  margin: 4px 0 0;
+  color: #b52828;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+@media (max-width: 1040px) {
+  .admin-overview-dashboard .dashboard-activity-stack {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 700px) {
+  .dashboard-report-trigger { min-height: 48px; }
 }
 
