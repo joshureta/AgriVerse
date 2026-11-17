@@ -18,6 +18,14 @@ const emptyItemForm = {
   equipment_type_id: '', condition: '', last_maintenance: '',
 }
 
+function todayForDateInput() {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // Gets an access token for inventory requests.
 async function readAccessToken(refresh = false) {
   const result = refresh
@@ -257,6 +265,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
       unit_id: options.units[0]?.id || '',
       size_id: options.pineappleSizes[0]?.id || '',
       equipment_type_id: options.equipmentTypes[0]?.id || '',
+      last_maintenance: todayForDateInput(),
     }
     setItemForm(initialForm)
     setModal({ mode: 'add-item', initialForm })
@@ -628,7 +637,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
           <div className="inventory-form-body">
             {error && <InventoryNotice title="Item could not be saved:" onDismiss={() => setError('')}>{error}</InventoryNotice>}
             <form onSubmit={saveItem}>
-            <label><span>Item type</span><select value={itemForm.inventory_category_id} onChange={(event) => setItemForm({ ...emptyItemForm, inventory_category_id: event.target.value, unit_id: itemForm.unit_id, item_name: itemForm.item_name, stock_quantity: itemForm.stock_quantity, stock_to_add: itemForm.stock_to_add, size_id: options.pineappleSizes[0]?.id || '', equipment_type_id: options.equipmentTypes[0]?.id || '' })} required><option value="" disabled>Select item type</option>{options.categories.filter((category) => category.code !== 'pineapple').map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
+            <label><span>Item type</span><select value={itemForm.inventory_category_id} onChange={(event) => setItemForm({ ...emptyItemForm, inventory_category_id: event.target.value, unit_id: itemForm.unit_id, item_name: itemForm.item_name, stock_quantity: itemForm.stock_quantity, stock_to_add: itemForm.stock_to_add, size_id: options.pineappleSizes[0]?.id || '', equipment_type_id: options.equipmentTypes[0]?.id || '', last_maintenance: modal.mode === 'add-item' ? todayForDateInput() : '' })} required><option value="" disabled>Select item type</option>{options.categories.filter((category) => category.code !== 'pineapple').map((category) => <option value={category.id} key={category.id}>{category.category_name}</option>)}</select></label>
             <label><span>Item name</span><input value={itemForm.item_name} onChange={(event) => setItemForm({ ...itemForm, item_name: event.target.value })} required maxLength="100" /></label>
             <label><span>Unit</span><select value={itemForm.unit_id} onChange={(event) => setItemForm({ ...itemForm, unit_id: event.target.value })} required><option value="" disabled>Select unit</option>{options.units.map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_name} ({unit.abbreviation})</option>)}</select></label>
             {modal.mode === 'add-item'
