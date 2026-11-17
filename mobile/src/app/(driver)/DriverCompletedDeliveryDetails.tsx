@@ -77,6 +77,42 @@ function ZoomIcon() {
   );
 }
 
+type TimelineEvent = {
+  title: string;
+  dateTime: string;
+  icon: 'assigned' | 'accepted' | 'picked_up' | 'proof_submitted' | 'delivered';
+};
+
+function TimelineEventIcon({ type, color }: { type: TimelineEvent['icon']; color: string }) {
+  return (
+    <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+      {type === 'assigned' ? (
+        <>
+          <Circle cx={12} cy={8} r={3} stroke={color} strokeWidth={2} />
+          <Path d="M5 20a7 7 0 0 1 14 0" stroke={color} strokeWidth={2} strokeLinecap="round" />
+        </>
+      ) : type === 'accepted' ? (
+        <Path d="m5 12 4 4L19 6" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      ) : type === 'picked_up' ? (
+        <>
+          <Path d="m3 7 9-4 9 4v10l-9 4-9-4V7Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+          <Path d="m3 7 9 4 9-4M12 11v10" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+        </>
+      ) : type === 'proof_submitted' ? (
+        <>
+          <Path d="M4 7h4l2-2h4l2 2h4v12H4V7Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+          <Circle cx={12} cy={13} r={3} stroke={color} strokeWidth={2} />
+        </>
+      ) : (
+        <>
+          <Path d="M12 21s-7-5-7-11a7 7 0 1 1 14 0c0 6-7 11-7 11Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+          <Path d="m9 10 2 2 4-4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      )}
+    </Svg>
+  );
+}
+
 export default function DriverCompletedDeliveryDetailsScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading: authLoading, profile } = useAuth();
@@ -140,14 +176,12 @@ export default function DriverCompletedDeliveryDetailsScreen() {
 
   const deliveredTime = formatDateTime(order?.delivered_at);
   const timelineEvents = [
-    order?.driver_assigned_at && { title: 'Assigned', dateTime: formatDateTime(order.driver_assigned_at) },
-    order?.delivery_accepted_at && { title: 'Accepted', dateTime: formatDateTime(order.delivery_accepted_at) },
-    order?.delivery_picked_up_at && { title: 'Picked up', dateTime: formatDateTime(order.delivery_picked_up_at) },
-    order?.delivery_proof_submitted_at && { title: 'Proof submitted', dateTime: formatDateTime(order.delivery_proof_submitted_at) },
-    order?.delivered_at && { title: 'Delivered', dateTime: deliveredTime },
-  ].filter((event): event is { title: string; dateTime: string } => Boolean(event && event.dateTime));
-
-  const totalItemsCount = order?.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    order?.driver_assigned_at && { title: 'Assigned', dateTime: formatDateTime(order.driver_assigned_at), icon: 'assigned' as const },
+    order?.delivery_accepted_at && { title: 'Accepted', dateTime: formatDateTime(order.delivery_accepted_at), icon: 'accepted' as const },
+    order?.delivery_picked_up_at && { title: 'Picked up', dateTime: formatDateTime(order.delivery_picked_up_at), icon: 'picked_up' as const },
+    order?.delivery_proof_submitted_at && { title: 'Proof submitted', dateTime: formatDateTime(order.delivery_proof_submitted_at), icon: 'proof_submitted' as const },
+    order?.delivered_at && { title: 'Delivered', dateTime: deliveredTime, icon: 'delivered' as const },
+  ].filter((event): event is TimelineEvent => Boolean(event && event.dateTime));
 
   const handleCall = () => {
     if (order?.delivery_mobile_number) {
@@ -239,40 +273,6 @@ export default function DriverCompletedDeliveryDetailsScreen() {
 
               <View style={styles.dashedDivider} />
 
-              {/* Itemized Manifest Table */}
-              <Text style={styles.receiptSectionKicker}>
-                Cargo Manifest ({order.items?.length || 0} {order.items?.length === 1 ? 'item' : 'items'} · {totalItemsCount} units)
-              </Text>
-
-              <View style={styles.manifestHeaderRow}>
-                <Text style={styles.manifestColItem}>Item / Description</Text>
-                <Text style={styles.manifestColTotal}>Subtotal</Text>
-              </View>
-
-              {order.items && order.items.length > 0 ? (
-                order.items.map((item) => (
-                  <View key={item.id} style={styles.manifestItemRow}>
-                    <View style={{ flex: 1, paddingRight: 12 }}>
-                      <Text style={styles.manifestItemName}>{item.product_name}</Text>
-                      <Text style={styles.manifestItemMeta}>
-                        {item.quantity} {item.quantity === 1 ? 'unit' : 'units'}
-                        {item.weight_label ? ` · ${item.weight_label}` : ''}
-                      </Text>
-                    </View>
-                    <View>
-                      <Text style={styles.manifestItemPrice}>{formatPeso(item.line_total)}</Text>
-                      <Text style={styles.manifestItemUnitRate}>{formatPeso(item.unit_price)} / unit</Text>
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <View style={styles.manifestItemRow}>
-                  <Text style={styles.manifestItemName}>No item details recorded</Text>
-                </View>
-              )}
-
-              <View style={styles.dashedDivider} />
-
               {/* Payment Summary */}
               <View style={styles.summaryBox}>
                 <View style={styles.summaryRow}>
@@ -328,7 +328,9 @@ export default function DriverCompletedDeliveryDetailsScreen() {
                     {timelineEvents.map((event, index) => (
                       <View key={event.title} style={[styles.timelineStep, index === timelineEvents.length - 1 && styles.timelineStepLast]}>
                         {index < timelineEvents.length - 1 ? <View style={styles.timelineLine} /> : null}
-                        <View style={styles.timelineDot} />
+                        <View style={[styles.timelineDot, event.icon === 'delivered' && styles.timelineDotComplete]}>
+                          <TimelineEventIcon type={event.icon} color={event.icon === 'delivered' ? '#FFFFFF' : '#166534'} />
+                        </View>
                         <View style={styles.timelineStepContent}>
                           <Text style={styles.timelineStepTitle}>{event.title}</Text>
                           <Text style={styles.timelineStepSub}>{event.dateTime}</Text>

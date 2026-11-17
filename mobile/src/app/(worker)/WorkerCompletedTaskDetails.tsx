@@ -214,26 +214,12 @@ export default function WorkerCompletedTaskDetails() {
       {/* Top Header Navigation Bar */}
       <View style={styles.headerBar}>
         <Pressable
+          accessibilityLabel="Go back"
           accessibilityRole="button"
           onPress={() => router.back()}
           style={styles.backButton}>
           <BackIcon />
-          <Text style={styles.backButtonText}>Completed Tasks</Text>
         </Pressable>
-
-        <View
-          style={[
-            styles.headerStatusBadge,
-            isAwaitingApproval && styles.headerStatusBadgeAwaiting,
-          ]}>
-          <Text
-            style={[
-              styles.headerStatusBadgeText,
-              isAwaitingApproval && styles.headerStatusBadgeTextAwaiting,
-            ]}>
-            {isAwaitingApproval ? 'Awaiting Approval' : 'Completed'}
-          </Text>
-        </View>
       </View>
 
       {/* Main Curved Cream Container */}

@@ -305,20 +305,6 @@ export const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.2,
   },
-  checkCircleBadge: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkCircleIcon: {
-    color: GREEN,
-    fontSize: 11,
-    fontWeight: '900',
-  },
-
   // Divider
   divider: {
     height: 1,

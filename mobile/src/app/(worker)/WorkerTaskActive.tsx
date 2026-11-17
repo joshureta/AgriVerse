@@ -282,6 +282,7 @@ function ActiveTaskCard({
 
   // Task title without trailing Field (e.g. Harvesting, Planting, Irrigation)
   const cleanTitle = getCleanActiveTitle(task);
+  const itemUsed = suppliesSummary(task);
 
   return (
     <View style={styles.taskCard}>
@@ -300,9 +301,9 @@ function ActiveTaskCard({
 
       {/* Sanitized Task Title */}
       <Text style={styles.taskTitle}>{cleanTitle}</Text>
-      {activityLabel(task.activity_type) || suppliesSummary(task) ? (
+      {activityLabel(task.activity_type) ? (
         <Text style={{ marginTop: 4, color: '#475569', fontSize: 13, fontWeight: '600' }}>
-          {[activityLabel(task.activity_type), suppliesSummary(task)].filter(Boolean).join(' · ')}
+          {activityLabel(task.activity_type)}
         </Text>
       ) : null}
 
@@ -327,6 +328,12 @@ function ActiveTaskCard({
           <Text style={styles.activeRowKey}>Field:</Text>
           <Text style={styles.activeRowVal}>{cleanField}</Text>
         </View>
+        {itemUsed ? (
+          <View style={styles.activeDataRow}>
+            <Text style={styles.activeRowKey}>Item used:</Text>
+            <Text style={styles.activeRowVal}>{itemUsed}</Text>
+          </View>
+        ) : null}
         <View style={styles.activeDataRow}>
           <Text style={styles.activeRowKey}>Duration:</Text>
           <Text style={[styles.activeRowVal, styles.activeRowValHighlighted]}>
@@ -348,9 +355,6 @@ function ActiveTaskCard({
           styles.markCompletedBtn,
           pressed && styles.markCompletedBtnPressed,
         ]}>
-        <View style={styles.checkCircleBadge}>
-          <Text style={styles.checkCircleIcon}>✓</Text>
-        </View>
         <Text style={styles.markCompletedBtnText}>Mark as Completed</Text>
       </Pressable>
     </View>

@@ -40,14 +40,6 @@ type WorkerTaskRecord = {
 const GREEN = '#176d34';
 function SearchIcon() { return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none"><Circle cx={11} cy={11} r={6.5} stroke="#64748B" strokeWidth={2} /><Path d="m16 16 4 4" stroke="#64748B" strokeWidth={2} strokeLinecap="round" /></Svg>; }
 
-function ChevronRightIcon() {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Path d="m9 18 6-6-6-6" stroke="#94A3B8" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
 function MonitoringIcon({ size = 22, color = '#166534' }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -287,11 +279,6 @@ function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
           <Text numberOfLines={1} style={styles.taskMetaSubtitle}>
             Finished at {formattedTime} · Sector {cleanSector}
           </Text>
-        </View>
-
-        {/* Right Chevron Arrow */}
-        <View style={styles.chevronWrapper}>
-          <ChevronRightIcon />
         </View>
       </View>
     </Pressable>

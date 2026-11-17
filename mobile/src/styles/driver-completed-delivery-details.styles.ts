@@ -213,61 +213,6 @@ export const styles = StyleSheet.create({
     color: '#1E293B',
   },
 
-  // Cargo Manifest Receipt Table
-  manifestHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    marginBottom: 8,
-  },
-  manifestColItem: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: '#64748B',
-    textTransform: 'uppercase',
-  },
-  manifestColTotal: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    textAlign: 'right',
-  },
-
-  manifestItemRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingVertical: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  manifestItemName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  manifestItemMeta: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  manifestItemPrice: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
-    textAlign: 'right',
-  },
-  manifestItemUnitRate: {
-    fontSize: 10.5,
-    color: '#64748B',
-    textAlign: 'right',
-    marginTop: 1,
-  },
-
   // Payment Summary Box
   summaryBox: {
     backgroundColor: '#F8FAFC',
@@ -400,9 +345,9 @@ export const styles = StyleSheet.create({
     marginBottom: 0,
   },
   timelineDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: '#ECFDF5',
     borderWidth: 2,
     borderColor: '#166534',
@@ -411,10 +356,14 @@ export const styles = StyleSheet.create({
     marginRight: 10,
     zIndex: 2,
   },
+  timelineDotComplete: {
+    backgroundColor: GREEN,
+    borderColor: GREEN,
+  },
   timelineLine: {
     position: 'absolute',
-    left: 9,
-    top: 20,
+    left: 12,
+    top: 26,
     bottom: -14,
     width: 2,
     backgroundColor: '#CBD5E1',

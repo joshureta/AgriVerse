@@ -115,11 +115,6 @@ export const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  chevronWrapper: {
-    paddingLeft: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',

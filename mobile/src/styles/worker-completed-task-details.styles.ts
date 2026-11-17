@@ -25,31 +25,6 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 0,
     backgroundColor: 'transparent',
   },
-  backButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  headerStatusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4.5,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
-  headerStatusBadgeAwaiting: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FDE68A',
-  },
-  headerStatusBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  headerStatusBadgeTextAwaiting: {
-    color: '#92400E',
-  },
   mainBodyContainer: {
     flex: 1,
     backgroundColor: BG_COLOR,
