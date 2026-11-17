@@ -55,6 +55,28 @@
 .assign-task-toolbar-button { grid-column: 4; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 6px; padding: 0 16px; color: #fff; background: #196c35; box-shadow: 0 2px 6px rgba(25,108,53,.18); font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: background-color .15s ease; }
 .assign-task-toolbar-button:hover:not(:disabled) { background: #14572a; }
 .assign-task-toolbar-button span { font-size: 15px; font-weight: 400; }.assign-task-toolbar-button:disabled { cursor: not-allowed; background: #9cbca4; box-shadow: none; opacity: .65; }
+.task-status.status-overdue.is-overdue-trigger {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #d92d20;
+  cursor: pointer;
+  display: inline;
+  line-height: inherit;
+  letter-spacing: inherit;
+  transition: opacity .15s ease;
+}
+.task-status.status-overdue.is-overdue-trigger:hover {
+  opacity: .8;
+}
+.task-review-alert.is-overdue { border-left-color: #dc2626; background: #fffdfc; }
+.task-review-alert.is-overdue .task-review-alert-icon { color: #dc2626; }
+.task-review-alert.is-overdue .task-review-alert-link { color: #dc2626; font-weight: 800; }
 .task-filter { position: relative; display: block; }
 .task-filter > button { width: 100%; height: 36px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 6px; padding: 0 14px; color: #fff; background: #196c35; box-shadow: 0 2px 6px rgba(25,108,53,.18); font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; transition: background-color .15s ease; }
 .task-filter > button:hover, .task-filter > button:focus-visible { background: #14572a; outline: none; }.task-filter > button[aria-expanded='true'] { filter: brightness(.96); }
@@ -79,7 +101,7 @@
 .tasks-table th:nth-child(1) { width: 17%; }.tasks-table th:nth-child(2) { width: 17%; }.tasks-table th:nth-child(3) { width: 11%; }.tasks-table th:nth-child(4) { width: 19%; }.tasks-table th:nth-child(5) { width: 11%; }.tasks-table th:nth-child(6) { width: 13%; }.tasks-table th:nth-child(7) { width: 12%; }
 .task-settings-table { min-width: 620px; }.task-settings-table th:nth-child(1) { width: 24%; }.task-settings-table th:nth-child(2) { width: 42%; }.task-settings-table th:nth-child(3) { width: 14%; }.task-settings-table th:nth-child(4) { width: 20%; }
 .field-settings-table th:nth-child(1) { width: 48%; }.field-settings-table th:nth-child(2) { width: 20%; }.field-settings-table th:nth-child(3) { width: 32%; }
-.task-priority, .task-status { font-size: 9px; font-weight: 900; text-transform: uppercase; }.priority-high { color: #f2332d; }.priority-medium { color: #2920c9; }.priority-low { color: #efb51f; }.status-in_progress, .status-out_for_delivery { color: #2589e8; }.status-completed, .status-delivered { color: #17aa2f; }.status-pending, .status-preparing { color: #9ca39e; }.status-awaiting_approval, .status-cancelled, .status-declined { color: #d92d20; }.status-available { color: #17aa2f; }.status-in_use { color: #2589e8; }.status-maintenance { color: #b45309; }.status-inactive { color: #9ca39e; }
+.task-priority, .task-status { font-size: 9px; font-weight: 900; text-transform: uppercase; }.priority-high { color: #f2332d; }.priority-medium { color: #2920c9; }.priority-low { color: #efb51f; }.status-in_progress, .status-out_for_delivery { color: #2589e8; }.status-completed, .status-delivered { color: #17aa2f; }.status-pending, .status-preparing { color: #9ca39e; }.status-awaiting_approval { color: #efb51f; }.status-cancelled, .status-declined, .status-overdue { color: #d92d20; }.status-available { color: #17aa2f; }.status-in_use { color: #2589e8; }.status-maintenance { color: #b45309; }.status-inactive { color: #9ca39e; }
 .task-actions { display: flex; justify-content: center; gap: 6px; }
 .task-actions button { min-width: 40px; height: 27px; border: 0; border-radius: 6px; padding: 0 8px; color: #fff; background: #19743a; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }.task-actions .task-edit { min-width: 31px; padding: 0; font-size: 16px; }.task-actions .task-archive { background: #7bae39; }.task-actions .task-view { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 62px; line-height: 1; }
 .work-list-table th { padding: 14px 18px; text-align: left; }

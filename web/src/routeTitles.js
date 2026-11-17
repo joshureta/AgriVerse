@@ -11,6 +11,7 @@ export const routeTitles = {
   '/admin/users': 'User Management',
   '/admin/users/edit': 'Edit User',
   '/admin/tasks': 'Task and Schedule',
+  '/admin/recovery': 'Overdue Operations & Recovery',
   '/admin/inventory': 'Inventory',
   '/admin/records': 'Records',
   '/admin/monitoring/crop-health': 'Crop Health Monitoring',

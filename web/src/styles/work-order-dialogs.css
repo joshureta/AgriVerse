@@ -27,6 +27,11 @@
   text-align: left;
 }
 .wo-dialog.is-wide { width: min(1060px, 96vw); }
+.wo-dialog.is-recovery-dialog {
+  width: min(1140px, 96vw);
+  max-height: min(94svh, 920px);
+  border-radius: 14px;
+}
 .wo-dialog.is-form { width: min(820px, 96vw); }
 .wo-dialog.is-narrow { width: min(560px, 96vw); }
 
@@ -40,6 +45,19 @@
   padding: 20px 36px 22px;
   color: #fff;
   background: linear-gradient(100deg, #479237 0%, #2f7a31 45%, #1f5f2b 100%);
+}
+.is-recovery-dialog .wo-head {
+  padding: 16px 28px 18px;
+  background: linear-gradient(120deg, #134e2c 0%, #166534 50%, #1a7a3e 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.is-recovery-dialog .wo-head h2 {
+  font-size: 22px;
+  margin-top: 4px;
+}
+.is-recovery-dialog .wo-sub {
+  font-size: 12px;
+  margin-top: 4px;
 }
 .wo-head-text { min-width: 0; }
 .wo-eyebrow { margin: 0; color: rgba(255, 255, 255, 0.82); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }

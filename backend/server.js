@@ -125,6 +125,7 @@ app.use("/api/driver/orders", driverOrdersRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/weather", weatherRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/operations", require('./routes/operations'));
 app.use("/api/push/devices", pushDevicesRouter);
 app.use("/api/admin/environmental-reports", environmentalReportsRouter);
 
@@ -139,7 +140,8 @@ app.use((error, req, res, next) => {
     return next(error);
   }
 
-  const status = Number.isInteger(error.status) ? error.status : 500;
+  const operationConflict = error.code === 'P0001' && /^(Submit a delay reason|Use Operations Recovery)/.test(error.message || '');
+  const status = operationConflict ? 409 : Number.isInteger(error.status) ? error.status : 500;
   const message = status >= 500 ? "Service temporarily unavailable." : error.message;
   if (status >= 500) console.error(error);
 
@@ -147,6 +149,7 @@ app.use((error, req, res, next) => {
 });
 
 if (require.main === module) {
+  require('./lib/overdue-operations').startOverdueMonitor();
   app.listen(PORT, () => {
     console.log(`AgriVerse API listening on http://localhost:${PORT}`);
     if (!supabaseConfig.valid) {

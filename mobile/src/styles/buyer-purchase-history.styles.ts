@@ -169,6 +169,11 @@ export const styles = StyleSheet.create({
   statusBadgeDelivered: {},
   statusBadgeTransit: {},
   statusBadgeCancelled: {},
+  statusBadgeDelayed: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
   statusDot: {
     width: 6,
     height: 6,
@@ -183,6 +188,9 @@ export const styles = StyleSheet.create({
   statusDotCancelled: {
     backgroundColor: '#B13B3B',
   },
+  statusDotDelayed: {
+    backgroundColor: '#DC2626',
+  },
   statusText: {
     fontSize: 10.5,
     fontWeight: '800',
@@ -195,6 +203,53 @@ export const styles = StyleSheet.create({
   },
   statusTextCancelled: {
     color: '#B13B3B',
+  },
+  statusTextDelayed: {
+    color: '#B45309',
+  },
+
+  /* Delivery Delayed Notice Banner */
+  delayedNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+  },
+  delayedNoticeIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  delayedNoticeIcon: {
+    fontSize: 14,
+  },
+  delayedNoticeContent: {
+    flex: 1,
+  },
+  delayedNoticeTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#92400E',
+  },
+  delayedNoticeSub: {
+    fontSize: 10.5,
+    color: '#B45309',
+    marginTop: 1,
+  },
+  delayedNoticeArrow: {
+    color: '#D97706',
+    fontSize: 22,
+    fontWeight: '300',
+    lineHeight: 24,
   },
 
   emptyState: {

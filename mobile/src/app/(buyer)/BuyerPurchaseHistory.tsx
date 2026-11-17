@@ -13,6 +13,7 @@ import {
   BuyerOrderStatus,
   canCancelBuyerOrder,
   confirmBuyerOrderReceipt,
+  isOrderDeliveryDelayed,
   loadBuyerOrders,
 } from '@/lib/buyer-marketplace';
 import { GREEN, styles } from '@/styles/buyer-purchase-history.styles';
@@ -103,8 +104,17 @@ function orderItemsText(order: BuyerOrder) {
   return order.items.map((item) => `${item.quantity} ${item.product_name}`).join(', ');
 }
 
-function StatusBadge({ status }: { status: BuyerOrderStatus }) {
-  const variant = statusVariant(status);
+function StatusBadge({ order }: { order: BuyerOrder }) {
+  const isDelayed = isOrderDeliveryDelayed(order);
+  if (isDelayed) {
+    return (
+      <View style={[styles.statusBadge, styles.statusBadgeDelayed]}>
+        <View style={[styles.statusDot, styles.statusDotDelayed]} />
+        <Text style={[styles.statusText, styles.statusTextDelayed]}>Delivery Delayed</Text>
+      </View>
+    );
+  }
+  const variant = statusVariant(order.order_status);
   return (
     <View
       style={[
@@ -128,7 +138,7 @@ function StatusBadge({ status }: { status: BuyerOrderStatus }) {
           variant === 'pending' && styles.statusTextTransit,
           variant === 'cancelled' && styles.statusTextCancelled,
         ]}>
-        {STATUS_LABELS[status]}
+        {STATUS_LABELS[order.order_status]}
       </Text>
     </View>
   );
@@ -239,25 +249,49 @@ export default function BuyerPurchaseHistoryScreen() {
                 </Text>
                 <Text style={styles.orderTotal}>₱{order.total_amount.toFixed(2)}</Text>
               </View>
-              <StatusBadge status={order.order_status} />
+              <StatusBadge order={order} />
               </Pressable>
-              {order.order_status === 'delivered' && (
-                <>
-                  <Pressable onPress={() => router.push({ pathname: '/BuyerOrderTracking', params: { id: String(order.id) } })} style={styles.deliveryNotice}>
-                    <Text style={styles.deliveryNoticeText}>Delivered {order.delivered_at ? `on ${formatDate(order.delivered_at)}` : ''}</Text>
-                    <Text style={styles.deliveryNoticeArrow}>›</Text>
+              {isOrderDeliveryDelayed(order) ? (
+                <Pressable
+                  onPress={() => router.push({ pathname: '/BuyerOrderTracking', params: { id: String(order.id) } })}
+                  style={styles.delayedNoticeBanner}
+                >
+                  <View style={styles.delayedNoticeIconBox}>
+                    <Text style={styles.delayedNoticeIcon}>⚠️</Text>
+                  </View>
+                  <View style={styles.delayedNoticeContent}>
+                    <Text style={styles.delayedNoticeTitle}>
+                      {order.delivery_incident?.recovered_at
+                        ? 'Delivery Delayed — New Schedule Confirmed'
+                        : order.order_status === 'delivered' || order.order_status === 'completed'
+                          ? `Delivery Delayed — Delivered on ${order.delivered_at ? formatDate(order.delivered_at) : 'Late'}`
+                          : 'Delivery Delayed — Revised Schedule In Progress'}
+                    </Text>
+                    <Text style={styles.delayedNoticeSub}>
+                      {order.delivery_incident?.new_scheduled_at
+                        ? `New ETA: ${new Date(order.delivery_incident.new_scheduled_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                        : order.delivery_scheduled_at
+                          ? `Originally scheduled: ${formatDate(order.delivery_scheduled_at)} · Tap for update`
+                          : 'Tap to view revised delivery schedule & customer options'}
+                    </Text>
+                  </View>
+                  <Text style={styles.delayedNoticeArrow}>›</Text>
+                </Pressable>
+              ) : order.order_status === 'delivered' ? (
+                <Pressable onPress={() => router.push({ pathname: '/BuyerOrderTracking', params: { id: String(order.id) } })} style={styles.deliveryNotice}>
+                  <Text style={styles.deliveryNoticeText}>Delivered {order.delivered_at ? `on ${formatDate(order.delivered_at)}` : ''}</Text>
+                  <Text style={styles.deliveryNoticeArrow}>›</Text>
+                </Pressable>
+              ) : null}
+              {order.order_status === 'delivered' && !order.delivery_dispute_status && (
+                <View style={styles.orderActions}>
+                  <Pressable onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })} style={styles.actionButton}>
+                    <Text style={styles.actionButtonText}>Report an Issue</Text>
                   </Pressable>
-                  {!order.delivery_dispute_status && (
-                    <View style={styles.orderActions}>
-                      <Pressable onPress={() => router.push({ pathname: '/BuyerReturnRequest', params: { id: String(order.id) } })} style={styles.actionButton}>
-                        <Text style={styles.actionButtonText}>Report an Issue</Text>
-                      </Pressable>
-                      <Pressable disabled={confirmingOrderId === order.id} onPress={() => confirmReceipt(order)} style={[styles.actionButton, styles.actionButtonPrimary, confirmingOrderId === order.id && styles.actionButtonDisabled]}>
-                        <Text style={styles.actionButtonPrimaryText}>{confirmingOrderId === order.id ? 'Confirming…' : 'Order Received'}</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                </>
+                  <Pressable disabled={confirmingOrderId === order.id} onPress={() => confirmReceipt(order)} style={[styles.actionButton, styles.actionButtonPrimary, confirmingOrderId === order.id && styles.actionButtonDisabled]}>
+                    <Text style={styles.actionButtonPrimaryText}>{confirmingOrderId === order.id ? 'Confirming…' : 'Order Received'}</Text>
+                  </Pressable>
+                </View>
               )}
               {order.order_status === 'completed' && (
                 <View style={styles.orderActions}>

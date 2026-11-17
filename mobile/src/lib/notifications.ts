@@ -4,7 +4,8 @@ export type NotificationType =
   | 'task_assigned' | 'task_starting_soon' | 'harvest_approved' | 'harvest_rejected'
   | 'task_reassigned' | 'task_cancelled' | 'admin_broadcast' | 'weather_alert'
   | 'delivery_assigned' | 'delivery_cancelled' | 'delivery_window_approaching' | 'order_cancelled'
-  | 'dispute_opened' | 'cod_confirmed' | 'rating_received' | 'order_status_updated';
+  | 'dispute_opened' | 'cod_confirmed' | 'rating_received' | 'order_status_updated'
+  | 'operation_overdue' | 'operation_recovery' | 'operation_reason' | 'operation_incident';
 
 export type NotificationRecord = {
   id: number;

@@ -59,6 +59,8 @@ export type BuyerOrder = {
   delivery_city_municipality: string | null;
   delivery_barangay: string | null;
   estimated_delivery_at: string | null;
+  delivery_scheduled_at?: string | null;
+  delivery_window_end_at?: string | null;
   confirmed_at: string | null;
   preparing_at: string | null;
   ready_for_delivery_at: string | null;
@@ -96,8 +98,33 @@ export type BuyerOrder = {
   buyer_rating_comment: string | null;
   buyer_rated_at: string | null;
   cancellation_reason: string | null;
+  delivery_incident?: {
+    id: number;
+    detected_at: string;
+    recovered_at: string | null;
+    new_scheduled_at: string | null;
+    buyer_requested_date: string | null;
+    buyer_request_notes?: string | null;
+  } | null;
   items: BuyerOrderItem[];
 };
+
+export function isOrderDeliveryDelayed(order?: BuyerOrder | null): boolean {
+  if (!order || order.order_status === 'cancelled') return false;
+  if (order.delivery_incident) return true;
+  if (order.delivery_scheduled_at) {
+    if (order.delivered_at) {
+      const deliveredTime = new Date(order.delivered_at).getTime();
+      const scheduledTime = new Date(order.delivery_scheduled_at).getTime();
+      // If delivered after scheduled delivery window
+      return deliveredTime - scheduledTime > 12 * 60 * 60 * 1000;
+    }
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date());
+    const schedDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(order.delivery_scheduled_at));
+    return schedDate < today;
+  }
+  return false;
+}
 
 export function qrphRefundLink(order: BuyerOrder | null | undefined): string | null {
   if (order?.payment_method !== 'qrph' || order.refund_status !== 'processing') return null;

@@ -1,0 +1,25 @@
+# Overdue operations
+
+Apply `supabase/migrations/057_overdue_operations.sql` to the application database before starting the updated backend. This migration creates the incident, recovery, report, dependency and notification-outbox tables and database guards. It does not send historical alerts until the backend monitor or an operations endpoint runs detection.
+
+Restart the backend and reload the web/mobile apps. Admins can open **Operations → Overdue & Recovery** (`/admin/recovery`). Workers and drivers see an overdue banner that opens the required reason form. Buyers see delivery recovery updates and can request another date from order tracking.
+
+## Rules
+
+- A pending/in-progress task or an assigned/accepted/picked-up/out-for-delivery order becomes overdue at midnight **after** its scheduled date, in `Asia/Manila`. Future work still opens at midnight **on** its date. The scheduled hour is informational for execution eligibility.
+- A startup catch-up scan and 30-second monitor record incidents and immediately persist staff/admin notifications; delayed deliveries also notify buyers. Duplicate scans do not create duplicate incidents or in-app alerts. Keep the backend running continuously. With the current polling design, detection normally occurs within 30 seconds after cutoff.
+- In-app notifications work without external delivery providers. Push uses the existing Firebase configuration and registered device permissions. Push is retried through a durable, leased outbox. Delivery is at-least-once; retries after a crash may repeat a push. SMS and email are not configured or claimed as sent.
+- Overdue is an exception flag. Task and delivery lifecycle states are preserved. Original assignee, schedule, reason, review and recovery stay in incident history.
+- Staff must submit a reason and a 5–2000 character explanation before starting another job or closing/progressing work. The database enforces this across clients. Staff cannot classify their own reason as excused or unexcused. Missing reasons remain required after rescheduling or reassignment.
+- Recovery atomically updates the actual task/delivery schedule and assignment, records the original incident's resolution, and releases linked operational holds. Existing database schedule conflict checks apply; any failure rolls everything back. Started farm work and accepted deliveries must remain with their current assignee to preserve inventory/vehicle custody.
+- Older assignment editors direct overdue schedule/assignment changes to the recovery queue, preventing an old deadline from silently disappearing. Normal completion/cancellation resolves the operational flag on the next scan, while retaining the incident.
+- Buyers receive a delay notice without a fabricated ETA, followed by a confirmed revised delivery window after recovery. A buyer's requested date is a request only; the current schedule remains until admin confirmation.
+- Admins can register dependent warehouse/billing steps in the recovery queue. Their Complete Step action is disabled and rejected by the database while paused; confirmation releases them. These are explicitly registered operational steps, not an integration with an external warehouse or billing service. Payment collection, cancellations and refunds are not frozen.
+- Admins review a reason as excused/unexcused with decision notes. Decisions and reason submissions are one-time records. Managers can generate an incident report for a reviewed unexcused incident. The **third and subsequent reviewed unexcused incidents** automatically create an idempotent report for authorized HR review; no warning, suspension, or employment decision is automated. Adjust that report threshold to company policy before rollout if necessary.
+- Performance shows all recorded missed dates, excused/unexcused breakdown, and an on-time rate based on completed jobs. Original misses remain late after rescheduling. Backup staff are not charged another person's missed deadline. New tracking begins when detection is deployed; it is not a reconstruction of all historical lateness.
+
+## Verification
+
+Run `npm test` in `backend`. The overdue database tests run the SQL migration and scheduling triggers against an isolated, in-memory PostgreSQL engine (PGlite). They never connect to the application database. API tests check authentication, role restrictions, ownership and atomic recovery calls. Run `npm run build` and `npm run lint` in `web`, and TypeScript/lint checks in `mobile`.
+
+For a staging smoke test, create a task and a delivery dated yesterday. Confirm one incident per assignment/date and immediate in-app notifications; submit each reason; verify another job can then start. Confirm a new schedule and check the staff update, buyer ETA, dependency release and retained original deadline. Try an overlapping recovery window and confirm that no partial changes were saved. Review three unexcused incidents and confirm the report remains awaiting an authorized HR decision.

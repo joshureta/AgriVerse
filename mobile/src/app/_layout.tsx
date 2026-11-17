@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import { BuyerFeedbackProvider } from '@/context/buyer-feedback-context';
 import { PushNotificationManager } from '@/components/push-notification-manager';
+import { OperationsRecoveryProvider } from '@/components/operations-recovery';
 import { dashboardRoute, requiredOnboardingRoute } from '@/lib/mobile-routing';
 
 const onboardingPaths = new Set([
@@ -58,63 +59,65 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <BuyerFeedbackProvider>
-      <PushNotificationManager />
-      <OnboardingGuard>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-          <Stack.Screen
-            name="login"
-            options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: '#FFFFFF' }, presentation: 'card' }}
-          />
-          <Stack.Screen
-            name="signup"
-            options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
-          />
-          <Stack.Screen
-            name="change-password"
-            options={{
-              animation: 'slide_from_bottom',
-              animationTypeForReplace: 'push',
-              contentStyle: { backgroundColor: '#FFFFFF' },
-              presentation: 'card',
-            }}
-          />
-          <Stack.Screen
-            name="confirm-name"
-            options={{
-              animation: 'slide_from_bottom',
-              animationTypeForReplace: 'push',
-              contentStyle: { backgroundColor: '#FFFFFF' },
-              presentation: 'card',
-            }}
-          />
-          <Stack.Screen
-            name="location-information"
-            options={{
-              animation: 'slide_from_bottom',
-              animationTypeForReplace: 'push',
-              contentStyle: { backgroundColor: '#FFFFFF' },
-              presentation: 'card',
-            }}
-          />
-          <Stack.Screen
-            name="WorkerTaskCompletion"
-            options={{ animation: 'none', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
-          />
-          <Stack.Screen
-            name="DriverTaskCompletion"
-            options={{ animation: 'none', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
-          />
-          <Stack.Screen
-            name="WorkerCompletedTaskDetails"
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name="DriverCompletedDeliveryDetails"
-            options={{ animation: 'slide_from_right' }}
-          />
-        </Stack>
-      </OnboardingGuard>
+        <OperationsRecoveryProvider>
+          <PushNotificationManager />
+          <OnboardingGuard>
+            <StatusBar style="dark" />
+            <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+              <Stack.Screen
+                name="login"
+                options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: '#FFFFFF' }, presentation: 'card' }}
+              />
+              <Stack.Screen
+                name="signup"
+                options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
+              />
+              <Stack.Screen
+                name="change-password"
+                options={{
+                  animation: 'slide_from_bottom',
+                  animationTypeForReplace: 'push',
+                  contentStyle: { backgroundColor: '#FFFFFF' },
+                  presentation: 'card',
+                }}
+              />
+              <Stack.Screen
+                name="confirm-name"
+                options={{
+                  animation: 'slide_from_bottom',
+                  animationTypeForReplace: 'push',
+                  contentStyle: { backgroundColor: '#FFFFFF' },
+                  presentation: 'card',
+                }}
+              />
+              <Stack.Screen
+                name="location-information"
+                options={{
+                  animation: 'slide_from_bottom',
+                  animationTypeForReplace: 'push',
+                  contentStyle: { backgroundColor: '#FFFFFF' },
+                  presentation: 'card',
+                }}
+              />
+              <Stack.Screen
+                name="WorkerTaskCompletion"
+                options={{ animation: 'none', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
+              />
+              <Stack.Screen
+                name="DriverTaskCompletion"
+                options={{ animation: 'none', contentStyle: { backgroundColor: 'transparent' }, presentation: 'transparentModal' }}
+              />
+              <Stack.Screen
+                name="WorkerCompletedTaskDetails"
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="DriverCompletedDeliveryDetails"
+                options={{ animation: 'slide_from_right' }}
+              />
+            </Stack>
+          </OnboardingGuard>
+        </OperationsRecoveryProvider>
       </BuyerFeedbackProvider>
     </AuthProvider>
   );
