@@ -22,6 +22,7 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { isScheduledDateOverdue } from '@/lib/overdue-date';
 import { useWorkerTaskRefresh } from '@/lib/use-worker-task-refresh';
 import { TASK_ICON_CONTAINER_STYLE, taskCategoryIconSource } from '@/lib/task-category-icons';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
@@ -44,6 +45,11 @@ type WorkerTask = TaskSupplyFields & {
   started_at?: string | null;
   estimated_duration_minutes?: number | null;
 };
+
+function isTaskOverdue(task: WorkerTask | null) {
+  if (!task) return false;
+  return task.schedule_start ? isScheduledDateOverdue(task.schedule_start) : Boolean(task.is_overdue);
+}
 
 function PinSvg({ color = '#DC2626', size = 12 }: { color?: string; size?: number }) {
   return (
@@ -467,12 +473,12 @@ export default function WorkerTaskCompletionScreen() {
       setError('A photo of the completed work is required as proof of completion.');
       return;
     }
-    if (task.is_overdue && (delayNotes.trim().length < 5 || delayNotes.trim().length > 2000)) {
-      setError('Choose a reason and explain why this task is overdue (5–2000 characters).');
+    if (isTaskOverdue(task) && delayNotes.trim().length < 5) {
+      setError('Explain why this task is overdue (5–2000 characters).');
       return;
     }
     if (insights.trim().length > 2000) {
-      setError('Insights must not exceed 2000 characters.');
+      setError('Worker notes must not exceed 2000 characters.');
       return;
     }
     const needsInspection = collectsInspection(task.category, task.activity_type);
@@ -507,7 +513,7 @@ export default function WorkerTaskCompletionScreen() {
         body: JSON.stringify({
           completed_at: new Date().toISOString(),
           completion_notes: insights.trim() || null,
-          ...(task.is_overdue ? { delay_reason_notes: delayNotes.trim() } : {}),
+          ...(isTaskOverdue(task) ? { delay_reason_notes: delayNotes.trim() } : {}),
           image: photoBase64 ? `data:${photoMime};base64,${photoBase64}` : null,
           image_mime: photoMime,
           image_name: photoName || `${task.category} Proof Photo`,
@@ -534,6 +540,7 @@ export default function WorkerTaskCompletionScreen() {
 
   const workAllowed = canWorkCropTaskNow();
   const isHarvesting = task?.category === 'Harvesting';
+  const taskOverdue = isTaskOverdue(task);
 
 
   return (
@@ -811,13 +818,13 @@ export default function WorkerTaskCompletionScreen() {
 
                 {/* Insights Section */}
                 <View style={styles.insightsSection}>
-                  <Text style={styles.insightsLabel}>Field Insights (Optional)</Text>
+                  <Text style={styles.insightsLabel}>Worker Notes (Optional)</Text>
                   <TextInput
-                    accessibilityLabel="Completion insights"
+                    accessibilityLabel="Worker notes"
                     maxLength={2000}
                     multiline
                     onChangeText={setInsights}
-                    placeholder="Typed agronomic notes / added observations..."
+                    placeholder="Add notes about the completed work..."
                     placeholderTextColor="#94A3B8"
                     style={styles.insightsInput}
                     textAlignVertical="top"
@@ -825,12 +832,22 @@ export default function WorkerTaskCompletionScreen() {
                   />
                 </View>
 
-                {task?.is_overdue && (
-                   <View style={styles.insightsSection}>
-                     <Text style={styles.insightsLabel}>Why is this task overdue? (Required)</Text>
-                     <TextInput accessibilityLabel="Overdue explanation" maxLength={2000} multiline onChangeText={setDelayNotes} placeholder="Explain what caused the delay (at least 5 characters)" placeholderTextColor="#94A3B8" style={styles.insightsInput} textAlignVertical="top" value={delayNotes} />
-                   </View>
-                 )}
+                {taskOverdue && (
+                  <View style={styles.insightsSection}>
+                    <Text style={styles.insightsLabel}>Why is this task overdue? (Required)</Text>
+                    <TextInput
+                      accessibilityLabel="Overdue explanation"
+                      maxLength={2000}
+                      multiline
+                      onChangeText={setDelayNotes}
+                      placeholder="Explain what caused the delay (at least 5 characters)"
+                      placeholderTextColor="#94A3B8"
+                      style={styles.insightsInput}
+                      textAlignVertical="top"
+                      value={delayNotes}
+                    />
+                  </View>
+                )}
 
                  {/* Errors */}
                 {error ? (

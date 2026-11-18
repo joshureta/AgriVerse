@@ -13,7 +13,15 @@ router.use((req, res, next) => req.profile.worker_category === "driver" ? next()
 function orderId(value) { const id = Number(value); if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Invalid order ID"); return id; }
 function vehicleId(value) { const id = Number(value); if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, "Select a valid vehicle"); return id; }
 
-const orderSelect = "id, order_number, buyer_id, total_amount, payment_method, payment_status, order_status, delivery_assignment_status, assigned_vehicle_id, driver_assigned_at, delivery_full_name, delivery_mobile_number, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay, delivery_scheduled_at, delivery_window_end_at, delivery_accepted_at, delivery_picked_up_at, delivered_at, delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at, vehicle:delivery_vehicles(id, vehicle_name, plate_number), items:buyer_order_items!buyer_order_items_order_id_fkey(id, product_name, weight_label, quantity, unit_price, line_total)";
+const orderSelect = "id, order_number, buyer_id, total_amount, payment_method, payment_status, order_status, delivery_assignment_status, assigned_vehicle_id, driver_assigned_at, delivery_full_name, delivery_mobile_number, delivery_region, delivery_province, delivery_city_municipality, delivery_barangay, delivery_scheduled_at, delivery_window_end_at, delivery_accepted_at, delivery_picked_up_at, delivered_at, delivery_proof_image_url, delivery_proof_notes, delivery_proof_submitted_at, delivery_delay_reason_code, delivery_delay_reason_notes, delivery_delay_reason_submitted_at, vehicle:delivery_vehicles(id, vehicle_name, plate_number), items:buyer_order_items!buyer_order_items_order_id_fkey(id, product_name, weight_label, quantity, unit_price, line_total)";
+
+function isDeliveryOverdue(scheduledAt, now = new Date()) {
+  if (!scheduledAt) return false;
+  const scheduled = new Date(scheduledAt);
+  if (Number.isNaN(scheduled.getTime())) return false;
+  const manilaDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" });
+  return manilaDay.format(scheduled) < manilaDay.format(now);
+}
 
 async function fetchDriverOrder(id, driverId) {
   const { data, error } = await getSupabase().from("buyer_orders").select(orderSelect)
@@ -114,6 +122,11 @@ router.post("/:id/complete", async (req, res, next) => {
 
     const notes = String(req.body.notes || "").trim();
     if (notes.length > 2000) throw httpError(400, "Notes must not exceed 2000 characters");
+    const overdue = isDeliveryOverdue(order.delivery_scheduled_at);
+    const delayNotes = String(req.body.delivery_delay_reason_notes || "").trim();
+    if (overdue && (delayNotes.length < 5 || delayNotes.length > 2000)) {
+      throw httpError(400, "Explain why this delivery is overdue (5–2000 characters) before completing it");
+    }
 
     const uploadResult = await uploadImage("delivery-proofs", base64Data, mimeType, order.order_number);
     if (!uploadResult?.imageUrl) throw httpError(502, "Could not upload the delivery proof photo, please try again");
@@ -127,6 +140,7 @@ router.post("/:id/complete", async (req, res, next) => {
       delivery_proof_image_storage_path: uploadResult.storagePath,
       delivery_proof_notes: notes || null,
       delivery_proof_submitted_at: now,
+      ...(overdue ? { delivery_delay_reason_code: "other", delivery_delay_reason_notes: delayNotes, delivery_delay_reason_submitted_at: now } : {}),
     };
     // Cash on delivery is collected by the driver at hand-off, so delivery is the payment event.
     if (order.payment_method === "cash") update.payment_status = "paid";

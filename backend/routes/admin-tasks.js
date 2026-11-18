@@ -258,7 +258,6 @@ router.get("/", async (req, res, next) => {
     }
     const todayManila = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     const filteredTasks = (taskResult.data || []).map(serializeTask).filter((task) => statusCode !== "overdue" ||
-      overdueTaskIds.has(Number(task.id)) ||
       (["pending", "in_progress"].includes(task.status) && task.schedule?.schedule_date < todayManila));
     const total = statusCode === "overdue" ? filteredTasks.length : taskResult.count || 0;
     const scheduleTime = (task) => (task.schedule_start ? new Date(task.schedule_start).getTime() : Number.NEGATIVE_INFINITY);

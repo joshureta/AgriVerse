@@ -329,6 +329,27 @@ export const styles = StyleSheet.create({
     color: '#334155',
     fontStyle: 'italic',
   },
+  overdueReasonBox: {
+    backgroundColor: '#FFF8EA',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E9BF70',
+    marginTop: 8,
+  },
+  overdueReasonKicker: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#8A5200',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  overdueReasonText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#77501D',
+  },
 
   // Delivery Timeline
   timelineContainer: {

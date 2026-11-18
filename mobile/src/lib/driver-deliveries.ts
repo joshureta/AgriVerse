@@ -1,3 +1,5 @@
+import { isScheduledDateOverdue } from '@/lib/overdue-date';
+
 export type DeliveryAssignmentStatus = 'assigned' | 'accepted' | 'picked_up' | 'out_for_delivery' | 'delivered' | 'declined' | 'failed';
 
 export type DeliveryVehicle = { id: number; vehicle_name: string; plate_number: string };
@@ -38,6 +40,8 @@ export type DriverOrder = {
   delivery_proof_image_url?: string | null;
   delivery_proof_notes?: string | null;
   delivery_proof_submitted_at?: string | null;
+  delivery_delay_reason_notes?: string | null;
+  delivery_delay_reason_submitted_at?: string | null;
   vehicle: DeliveryVehicle | null;
   items?: DriverOrderItem[];
 };
@@ -47,6 +51,10 @@ export type DriverVehiclesResponse = { vehicles: DeliveryVehicle[] };
 export type DriverFleetResponse = { vehicles: FleetVehicle[] };
 
 export const ACTIVE_DELIVERY_STATUSES: DeliveryAssignmentStatus[] = ['accepted', 'picked_up', 'out_for_delivery'];
+
+export function isDeliveryOverdue(scheduledAt?: string | null, now = new Date()) {
+  return isScheduledDateOverdue(scheduledAt, now);
+}
 
 export function isActiveDelivery(order: DriverOrder) {
   return ACTIVE_DELIVERY_STATUSES.includes(order.delivery_assignment_status);

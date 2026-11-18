@@ -1,13 +1,11 @@
 import { Clock3 } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
+import { isScheduledDateOverdue } from '@/lib/overdue-date';
 
 type Props = { scheduledAt?: string | null; reasonCode?: string | null; reasonNotes?: string | null; taskId?: number; reasonSubmittedAt?: string | null };
-const manilaDate = (value: Date) => new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
-}).format(value);
 
-export function WorkerOverdueBadge({ scheduledAt, reasonCode, reasonNotes }: Props) {
-  if (!scheduledAt || Number.isNaN(new Date(scheduledAt).getTime()) || manilaDate(new Date(scheduledAt)) >= manilaDate(new Date())) return null;
+export function ScheduledOverdueBadge({ scheduledAt, reasonCode, reasonNotes }: Props) {
+  if (!isScheduledDateOverdue(scheduledAt)) return null;
 
   return (
     <View accessibilityRole="alert" style={styles.reminder}>
@@ -19,6 +17,8 @@ export function WorkerOverdueBadge({ scheduledAt, reasonCode, reasonNotes }: Pro
     </View>
   );
 }
+
+export const WorkerOverdueBadge = ScheduledOverdueBadge;
 
 const styles = StyleSheet.create({
   reminder: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFF8EA', borderColor: '#E9BF70', borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13, marginVertical: 8 },

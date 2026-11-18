@@ -340,6 +340,15 @@ export default function DriverCompletedDeliveryDetailsScreen() {
                 </View>
               ) : null}
 
+              {order.delivery_delay_reason_submitted_at ? (
+                <View style={styles.overdueReasonBox}>
+                  <Text style={styles.overdueReasonKicker}>Reason for Late Delivery</Text>
+                  <Text style={styles.overdueReasonText}>
+                    {order.delivery_delay_reason_notes?.trim() || 'No explanation was recorded.'}
+                  </Text>
+                </View>
+              ) : null}
+
               {timelineEvents.length > 0 ? (
                 <>
                   <View style={styles.dashedDivider} />

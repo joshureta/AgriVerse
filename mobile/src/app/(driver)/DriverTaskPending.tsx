@@ -1,5 +1,5 @@
 import { GREEN, styles } from '@/styles/driver-task-pending.styles';
-import { OverdueAlertBanner, OverdueBadge } from '@/components/operations-recovery';
+import { ScheduledOverdueBadge } from '@/components/worker-overdue-badge';
 import { AssignmentDateList } from '@/components/assignment-date-list';
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -112,7 +112,7 @@ function PendingDeliveryCard({
 
   return (
     <View style={[styles.pendingCard, expanded && styles.pendingCardExpanded]}>
-      <OverdueBadge scheduledAt={order.delivery_scheduled_at} orderId={order.id} />
+      <ScheduledOverdueBadge scheduledAt={order.delivery_scheduled_at} />
       {/* Header Row: Pineapple Produce Icon, Title 'Order Delivery {orderNumber}', and Top-Right Dropdown Icon */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
         <View style={[styles.categorySquircle, { backgroundColor: '#EEF3EF' }]}>
@@ -332,7 +332,6 @@ export default function DriverTaskPending() {
             <Text style={styles.sectionTitle}>My Deliveries</Text>
           </View>
 
-          <OverdueAlertBanner />
 
           <View style={styles.deliveryToolbar}>
             <View style={styles.deliverySearch}>

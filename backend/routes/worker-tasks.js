@@ -192,10 +192,10 @@ router.post("/:id/complete", async (req, res, next) => {
     if (Number.isNaN(completedAt.getTime())) throw httpError(400, "A valid finish time is required");
     if (completedAt.getTime() > Date.now() + 5 * 60 * 1000) throw httpError(400, "Finish time cannot be in the future");
     const completionNotes = String(req.body.completion_notes || "").trim();
-    if (completionNotes.length > 2000) throw httpError(400, "Insights must not exceed 2000 characters");
+    if (completionNotes.length > 2000) throw httpError(400, "Worker notes must not exceed 2000 characters");
 
     const { data: existingTask, error: existingTaskError } = await getSupabase().from("tasks")
-      .select("id, field_id, activity_type, delay_reason_submitted_at, schedules(schedule_date), category:task_categories!tasks_category_id_fkey(category_name), field:farm_fields!tasks_field_id_fkey(field_name)")
+      .select("id, field_id, activity_type, schedules(schedule_date), category:task_categories!tasks_category_id_fkey(category_name), field:farm_fields!tasks_field_id_fkey(field_name)")
       .eq("id", taskId).eq("assigned_worker_id", req.user.id).maybeSingle();
     if (existingTaskError) throw existingTaskError;
     if (!existingTask) throw httpError(404, "Assigned task was not found");
@@ -203,8 +203,8 @@ router.post("/:id/complete", async (req, res, next) => {
     const todayManila = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     const isOverdue = Boolean(schedule?.schedule_date && schedule.schedule_date < todayManila);
     const delayNotes = String(req.body.delay_reason_notes || "").trim();
-    if (isOverdue && !existingTask.delay_reason_submitted_at && (delayNotes.length < 5 || delayNotes.length > 2000)) {
-      throw httpError(400, "Explain why this task is overdue in 5–2000 characters before submitting it for review.");
+    if (isOverdue && (delayNotes.length < 5 || delayNotes.length > 2000)) {
+      throw httpError(400, "Explain why this task is overdue (5–2000 characters) before submitting it for review.");
     }
     const categoryName = existingTask.category?.category_name || "Crop";
     const fieldName = existingTask.field?.field_name || "Field A";
@@ -234,7 +234,7 @@ router.post("/:id/complete", async (req, res, next) => {
       status_id: statusIds.awaiting_approval,
       completed_at: completedAt.toISOString(),
       completion_notes: completionNotes || null,
-      ...(isOverdue && !existingTask.delay_reason_submitted_at ? { delay_reason_code: "other", delay_reason_notes: delayNotes, delay_reason_submitted_at: new Date().toISOString() } : {}),
+      ...(isOverdue ? { delay_reason_code: "other", delay_reason_notes: delayNotes, delay_reason_submitted_at: new Date().toISOString() } : {}),
       ...harvestCounts,
       ...(inspectionDetails ? { details: inspectionDetails } : {}),
       // Every task waits for admin review. A resubmission clears the last "sent back" reason.

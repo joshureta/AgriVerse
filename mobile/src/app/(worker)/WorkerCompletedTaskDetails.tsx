@@ -34,6 +34,8 @@ type WorkerTaskDetail = TaskSupplyFields & {
   completed_at: string | null;
   approved_at?: string | null;
   completion_notes: string | null;
+  delay_reason_notes?: string | null;
+  delay_reason_submitted_at?: string | null;
   harvest_proof_image_url?: string | null;
   completion_proof_image_url?: string | null;
   harvest_small_count?: number | null;
@@ -416,6 +418,15 @@ export default function WorkerCompletedTaskDetails() {
                   {task.completion_notes?.trim() || 'No notes provided by worker.'}
                 </Text>
               </View>
+
+              {task.delay_reason_submitted_at ? (
+                <View style={styles.overdueReasonBox}>
+                  <Text style={styles.overdueReasonKicker}>Reason for Late Completion</Text>
+                  <Text style={styles.overdueReasonText}>
+                    {task.delay_reason_notes?.trim() || 'No explanation was recorded.'}
+                  </Text>
+                </View>
+              ) : null}
 
               {inspectionAnswers.length > 0 ? (
                 <>

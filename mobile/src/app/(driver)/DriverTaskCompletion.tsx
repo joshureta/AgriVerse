@@ -27,6 +27,7 @@ import {
   formatDeliveryAddress,
   formatDeliveryWindow,
   formatPeso,
+  isDeliveryOverdue,
 } from '@/lib/driver-deliveries';
 
 function CameraSvg({ color = '#176D34', size = 20 }: { color?: string; size?: number }) {
@@ -88,6 +89,7 @@ export default function DriverTaskCompletionScreen() {
   const { loading: authLoading, profile } = useAuth();
   const [order, setOrder] = useState<DriverOrder | null>(passedOrder);
   const [notes, setNotes] = useState('');
+  const [delayNotes, setDelayNotes] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [photoMime, setPhotoMime] = useState<string>('image/jpeg');
@@ -213,6 +215,10 @@ export default function DriverTaskCompletionScreen() {
       setError('Notes must not exceed 2000 characters.');
       return;
     }
+    if (isDeliveryOverdue(order.delivery_scheduled_at) && delayNotes.trim().length < 5) {
+      setError('Explain why this delivery is overdue (5–2000 characters).');
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
@@ -223,6 +229,7 @@ export default function DriverTaskCompletionScreen() {
           image_mime: photoMime,
           image_name: photoName || `delivery-${order.id}-proof.jpg`,
           notes: notes.trim() || null,
+          ...(isDeliveryOverdue(order.delivery_scheduled_at) ? { delivery_delay_reason_notes: delayNotes.trim() } : {}),
         }),
       });
       router.replace('/DriverTaskCompleted');
@@ -420,6 +427,23 @@ export default function DriverTaskCompletionScreen() {
                     value={notes}
                   />
                 </View>
+
+                {isDeliveryOverdue(order.delivery_scheduled_at) && (
+                  <View style={styles.notesSection}>
+                    <Text style={styles.notesLabel}>Why is this delivery overdue? (Required)</Text>
+                    <TextInput
+                      accessibilityLabel="Reason for late delivery"
+                      maxLength={2000}
+                      multiline
+                      onChangeText={setDelayNotes}
+                      placeholder="Explain what delayed this delivery (at least 5 characters)"
+                      placeholderTextColor="#94A3B8"
+                      style={styles.notesInput}
+                      textAlignVertical="top"
+                      value={delayNotes}
+                    />
+                  </View>
+                )}
 
                 {/* Error Banner */}
                 {error ? (

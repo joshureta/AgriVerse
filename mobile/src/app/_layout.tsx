@@ -5,7 +5,6 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import { BuyerFeedbackProvider } from '@/context/buyer-feedback-context';
 import { PushNotificationManager } from '@/components/push-notification-manager';
-import { OperationsRecoveryProvider } from '@/components/operations-recovery';
 import { dashboardRoute, requiredOnboardingRoute } from '@/lib/mobile-routing';
 
 const onboardingPaths = new Set([
@@ -59,7 +58,6 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <BuyerFeedbackProvider>
-        <OperationsRecoveryProvider>
           <PushNotificationManager />
           <OnboardingGuard>
             <StatusBar style="dark" />
@@ -117,7 +115,6 @@ export default function RootLayout() {
               />
             </Stack>
           </OnboardingGuard>
-        </OperationsRecoveryProvider>
       </BuyerFeedbackProvider>
     </AuthProvider>
   );
