@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
-const { productivityPeriod, summarizeProductivity } = require("../routes/admin-dashboard");
+const { productivityPeriod, summarizeProductivity, todaySchedulePreview } = require("../routes/admin-dashboard");
 
 test("productivity periods use Manila dates across UTC and compare the same month-to-date span", () => {
   const period = productivityPeriod(new Date("2026-10-09T16:30:00.000Z"));
@@ -31,4 +31,17 @@ test("productivity counts approved scheduled work and distinct assigned workers"
     workers: { total: 0, scheduled: 0, utilization_percent: 0 },
     comparison: { current_approved: 0, previous_approved: 0, change_percent: null },
   });
+});
+
+test("today's schedule preview orders tasks and excludes cancelled work", () => {
+  const schedules = [
+    { start_time: "13:00:00", task: { id: 3, task_name: "Inspect crops", task_status: { code: "awaiting_approval" }, field: { field_name: "Corn Field" }, assigned_worker: { full_name: "Ana" } } },
+    { start_time: "08:00:00", task: { id: 1, task_name: "Water plants", task_status: { code: "in_progress" }, field: { field_name: "Tomato Field" }, assigned_worker: { full_name: "Ben" } } },
+    { start_time: "09:00:00", schedule_status: { code: "cancelled" }, task: { id: 2, task_status: { code: "pending" } } },
+  ];
+  assert.deepEqual(todaySchedulePreview(schedules), [
+    { id: 1, start_time: "08:00:00", title: "Water plants", field: "Tomato Field", worker: "Ben", status: "in_progress" },
+    { id: 3, start_time: "13:00:00", title: "Inspect crops", field: "Corn Field", worker: "Ana", status: "awaiting_approval" },
+  ]);
+  assert.equal(summarizeProductivity(schedules, 4, 0, 0).tasks.scheduled, 2);
 });

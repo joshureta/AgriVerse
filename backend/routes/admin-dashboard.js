@@ -165,7 +165,11 @@ async function todaySchedules(supabase, date) {
   const pageSize = 500;
   for (let from = 0; ; from += pageSize) {
     const { data, count, error } = await supabase.from("schedules")
-      .select("id, task:tasks!schedules_task_id_fkey(assigned_worker_id, task_status:task_statuses!tasks_status_id_fkey(code))", { count: "exact" })
+      .select([
+        "id, start_time",
+        "schedule_status:schedule_statuses!schedules_status_id_fkey(code)",
+        "task:tasks!schedules_task_id_fkey(id, task_name, assigned_worker_id, task_status:task_statuses!tasks_status_id_fkey(code), category:task_categories!tasks_category_id_fkey(category_name), field:farm_fields!tasks_field_id_fkey(field_name), assigned_worker:profiles!tasks_assigned_worker_id_fkey(full_name))",
+      ].join(", "), { count: "exact" })
       .eq("schedule_date", date)
       .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
@@ -176,7 +180,10 @@ async function todaySchedules(supabase, date) {
 }
 
 function summarizeProductivity(schedules, workerCount, currentApprovals, previousApprovals) {
-  const tasks = schedules.map((schedule) => Array.isArray(schedule.task) ? schedule.task[0] : schedule.task).filter(Boolean);
+  const tasks = schedules
+    .filter((schedule) => schedule.schedule_status?.code !== "cancelled")
+    .map((schedule) => Array.isArray(schedule.task) ? schedule.task[0] : schedule.task)
+    .filter((task) => task && task.task_status?.code !== "cancelled");
   const scheduled = tasks.length;
   const completed = tasks.filter((task) => task.task_status?.code === "completed").length;
   const awaitingReview = tasks.filter((task) => task.task_status?.code === "awaiting_approval").length;
@@ -192,15 +199,38 @@ function summarizeProductivity(schedules, workerCount, currentApprovals, previou
   };
 }
 
+function todaySchedulePreview(schedules) {
+  return schedules
+    .filter((schedule) => schedule.schedule_status?.code !== "cancelled")
+    .map((schedule) => {
+      const task = Array.isArray(schedule.task) ? schedule.task[0] : schedule.task;
+      if (!task || task.task_status?.code === "cancelled") return null;
+      return {
+        id: task.id,
+        start_time: schedule.start_time,
+        title: task.task_name || task.category?.category_name || "Farm task",
+        field: task.field?.field_name || "Field not specified",
+        worker: task.assigned_worker?.full_name || "Unassigned",
+        status: task.task_status?.code || "pending",
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "") || a.id - b.id)
+    .slice(0, 3);
+}
+
 router.get("/productivity", async (_req, res, next) => {
   try {
     const period = productivityPeriod();
     const supabase = getSupabase();
-    const { data: completedStatus, error: statusError } = await supabase.from("task_statuses")
-      .select("id").eq("code", "completed").single();
+    const { data: statuses, error: statusError } = await supabase.from("task_statuses")
+      .select("id, code").in("code", ["completed", "awaiting_approval"]);
     if (statusError) throw statusError;
+    const completedStatus = statuses.find((status) => status.code === "completed");
+    const reviewStatus = statuses.find((status) => status.code === "awaiting_approval");
+    if (!completedStatus || !reviewStatus) throw new Error("Task statuses are unavailable");
 
-    const [schedules, workers, current, previous] = await Promise.all([
+    const [schedules, workers, current, previous, awaitingReview, overdueTasks] = await Promise.all([
       todaySchedules(supabase, period.date),
       supabase.from("profiles").select("id", { count: "exact", head: true })
         .eq("role", "farm_worker").eq("worker_category", "crop_management_worker"),
@@ -208,14 +238,20 @@ router.get("/productivity", async (_req, res, next) => {
         .eq("status_id", completedStatus.id).gte("approved_at", period.current_start).lt("approved_at", period.current_end),
       supabase.from("tasks").select("id", { count: "exact", head: true })
         .eq("status_id", completedStatus.id).gte("approved_at", period.previous_start).lt("approved_at", period.previous_end),
+      supabase.from("tasks").select("id", { count: "exact", head: true })
+        .eq("status_id", reviewStatus.id),
+      supabase.from("operation_incidents").select("id", { count: "exact", head: true })
+        .is("recovered_at", null).not("task_id", "is", null),
     ]);
-    for (const result of [workers, current, previous]) if (result.error) throw result.error;
+    for (const result of [workers, current, previous, awaitingReview, overdueTasks]) if (result.error) throw result.error;
     return res.json({
       date: period.date,
       month_label: period.month_label,
       previous_month_label: period.previous_month_label,
       generated_at: new Date().toISOString(),
       ...summarizeProductivity(schedules, workers.count || 0, current.count || 0, previous.count || 0),
+      today_schedule: todaySchedulePreview(schedules),
+      attention: { overdue_tasks: overdueTasks.count || 0, awaiting_review: awaitingReview.count || 0 },
     });
   } catch (error) {
     return next(error);
@@ -238,6 +274,7 @@ function historicalMonths(months, now = new Date()) {
       start,
       end,
       revenue: 0,
+      orders: 0,
       harvested: 0,
     };
   });
@@ -252,6 +289,8 @@ function aggregateHistoricalSeries(buckets, orders, harvests) {
   for (const order of orders) {
     const bucket = byMonth.get(manilaMonthKey(order.created_at));
     if (!bucket) continue;
+    if (order.order_status !== "cancelled") bucket.orders += 1;
+    if (!["paid", "refunded"].includes(order.payment_status)) continue;
     const gross = money(order.total_amount);
     const refund = order.payment_status === "refunded"
       ? money(order.refund_amount == null ? gross : order.refund_amount) : 0;
@@ -311,8 +350,7 @@ router.get("/analytics", async (req, res, next) => {
     const end = buckets.at(-1).end.toISOString();
     const [orders, harvests] = await Promise.all([
       allRows(() => supabase.from("buyer_orders")
-        .select("id, created_at, total_amount, payment_status, refund_amount")
-        .in("payment_status", ["paid", "refunded"])
+        .select("id, created_at, order_status, total_amount, payment_status, refund_amount")
         .gte("created_at", start).lt("created_at", end)),
       allRows(() => {
         let query = supabase.from("tasks")
@@ -558,6 +596,7 @@ module.exports = router;
 module.exports.revenuePeriod = revenuePeriod;
 module.exports.productivityPeriod = productivityPeriod;
 module.exports.summarizeProductivity = summarizeProductivity;
+module.exports.todaySchedulePreview = todaySchedulePreview;
 module.exports.historicalMonths = historicalMonths;
 module.exports.aggregateHistoricalSeries = aggregateHistoricalSeries;
 module.exports.soilMoistureTrend = soilMoistureTrend;

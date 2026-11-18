@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { CircleCheck, ClipboardCheck, ClipboardList, Clock3, PackageCheck, Truck } from 'lucide-react'
 import dashboardIllustration from '../../assets/admin-dashboard-illustration.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { HistoricalFarmTrends, ProductivityPanel } from '../../components/DashboardAnalytics.jsx'
@@ -17,6 +18,14 @@ const completedAtFormat = new Intl.DateTimeFormat('en-US', {
 const peso = new Intl.NumberFormat('en-PH', {
   style: 'currency', currency: 'PHP', maximumFractionDigits: 0,
 })
+const activityIcons = {
+  task_completed: ClipboardCheck,
+  delivery_completed: PackageCheck,
+  task_ongoing: Clock3,
+  task_assigned: ClipboardList,
+  delivery_assigned: Truck,
+  delivery_ongoing: Truck,
+}
 
 function completedWhen(iso, now) {
   const minutes = Math.floor(Math.max(0, now - new Date(iso).getTime()) / 60000)
@@ -28,9 +37,10 @@ function completedWhen(iso, now) {
 }
 
 function ActivityRow({ activity, now, ongoing = false }) {
+  const ActivityIcon = activityIcons[activity.type] || CircleCheck
   return <article>
     <span className={`activity-status ${ongoing ? 'is-ongoing' : 'is-done'}`} aria-hidden="true">
-      {ongoing ? '◌' : '✓'}
+      <ActivityIcon />
     </span>
     <div>
       <strong title={activity.text}>{activity.text}</strong>
@@ -55,8 +65,6 @@ export default function AdminDashboard() {
   const [summaryError, setSummaryError] = useState('')
   const [productivity, setProductivity] = useState(null)
   const [productivityError, setProductivityError] = useState('')
-  const [soilTrend, setSoilTrend] = useState([])
-  const [environmentalHistoryAvailable, setEnvironmentalHistoryAvailable] = useState(true)
   const [now, setNow] = useState(() => Date.now())
   const displayName = profile?.full_name || 'Admin'
   const firstName = displayName.split(' ')[0]
@@ -100,10 +108,6 @@ export default function AdminDashboard() {
     return () => window.clearInterval(timer)
   }, [fetchRevenue, fetchActivities, fetchInventory, fetchSummary, fetchProductivity])
 
-  const updateSoilTrend = useCallback((trend, available) => {
-    setSoilTrend(trend)
-    setEnvironmentalHistoryAvailable(available)
-  }, [])
   const hasActivities = completedActivities.length + ongoingActivities.length > 0
   const totalStock = inventory?.reduce((total, item) => total + item.quantity, 0) ?? 0
   const inventoryGradient = useMemo(() => {
@@ -115,9 +119,6 @@ export default function AdminDashboard() {
       return `${INVENTORY_COLORS[index % INVENTORY_COLORS.length]} ${start}deg ${cursor}deg`
     }).join(', ')})`
   }, [inventory, totalStock])
-  const snapshotTimes = [summary?.generated_at, revenueData?.generated_at, productivity?.generated_at].filter(Boolean)
-  const oldestSnapshot = snapshotTimes.length ? snapshotTimes.reduce((oldest, time) => new Date(time) < new Date(oldest) ? time : oldest) : null
-
   return <main className="admin-dashboard admin-overview-dashboard">
     <AdminSidebar active="dashboard" />
     <section className="admin-workspace">
@@ -127,8 +128,7 @@ export default function AdminDashboard() {
           <div>
             <p className="admin-eyebrow">AgriVerse dashboard &amp; analytics</p>
             <h1>Hello {firstName}!</h1>
-            <p>Here is what is happening across your farm operations today.</p>
-            <small className="dashboard-updated">{oldestSnapshot ? `Summary updated ${completedWhen(oldestSnapshot, now)}` : 'Loading dashboard summaries…'}</small>
+            <p className="admin-hero-description">Here is what is happening across your farm operations today.</p>
           </div>
           <div className="admin-hero-art" aria-hidden="true">
             <img src={dashboardIllustration} alt="" />
@@ -139,20 +139,41 @@ export default function AdminDashboard() {
         </section>
 
         <div className="admin-dashboard-grid analytics-dashboard-grid">
-          <section className="admin-stat-grid" aria-label="Farm summary">
-            <article className="admin-stat-card is-featured"><div>
-              <p>Sales This Month</p>
-              <strong>{revenue ? peso.format(revenue.net) : revenueError ? 'Unavailable' : '—'}</strong>
-              <small>{revenue ? `${revenue.order_count.toLocaleString('en-PH')} orders` : revenueError || 'Loading orders…'}</small>
-            </div></article>
-            <article className="admin-stat-card"><div><p>Active Workers</p><strong>{summary?.active_workers ?? (summaryError ? 'Unavailable' : '—')}</strong></div></article>
-            <article className="admin-stat-card"><div><p>Harvested This Month</p><strong>{summary?.harvested_pieces?.toLocaleString('en-PH') ?? (summaryError ? 'Unavailable' : '—')} {summary && <em>pcs</em>}</strong></div></article>
-            <article className="admin-stat-card"><div><p>Tasks Completed Today</p><strong>{productivity?.tasks.completed ?? (productivityError ? 'Unavailable' : '—')}</strong></div></article>
-          </section>
+          <div className="dashboard-primary-stack">
+            <section className="admin-stat-grid" aria-label="Farm summary">
+              <article className="admin-stat-card is-featured"><div>
+                <p>Sales This Month</p>
+                <strong>{revenue ? peso.format(revenue.net) : revenueError ? 'Unavailable' : '—'}</strong>
+                <small>{revenue ? `${revenue.order_count.toLocaleString('en-PH')} orders` : revenueError || 'Loading orders…'}</small>
+              </div></article>
+              <div className="admin-stat-subgrid">
+                <article className="admin-stat-card"><div><p>Active Workers</p><strong>{summary?.active_workers ?? (summaryError ? 'Unavailable' : '—')}</strong></div></article>
+                <article className="admin-stat-card"><div><p>Harvested This Month</p><strong>{summary?.harvested_pieces?.toLocaleString('en-PH') ?? (summaryError ? 'Unavailable' : '—')} {summary && <em>pcs</em>}</strong></div></article>
+              </div>
+            </section>
 
-          <ProductivityPanel data={productivity} error={productivityError} />
+            <HistoricalFarmTrends />
+            <ProductivityPanel data={productivity} error={productivityError} />
+            <FieldConditions />
+          </div>
 
           <div className="dashboard-activity-stack">
+            <article className="admin-panel admin-inventory-panel" aria-labelledby="admin-inventory-title">
+              <header className="admin-inventory-heading">
+                <div><small>Inventory</small><h2 id="admin-inventory-title">Inventory Statistics</h2><p>Pineapple stock by size</p></div>
+              </header>
+              {inventoryError && !inventory ? <p className="admin-inventory-state is-error">{inventoryError} <button type="button" onClick={fetchInventory}>Retry</button></p>
+                : inventory ? <div className="admin-inventory-content">
+                  <div className="admin-stock-donut" style={{ background: inventoryGradient }} role="img" aria-label={`${totalStock.toLocaleString()} pineapples in stock`}>
+                    <span><strong>{totalStock.toLocaleString()}</strong><small>In stock</small></span>
+                  </div>
+                  <ul className="admin-inventory-legend">{inventory.map((item, index) => <li key={item.size}>
+                    <i style={{ background: INVENTORY_COLORS[index % INVENTORY_COLORS.length] }} aria-hidden="true" />
+                    <span>{item.size}</span><strong>{item.quantity.toLocaleString()}</strong>
+                  </li>)}</ul>
+                </div> : <p className="admin-inventory-state">Loading inventory…</p>}
+              {inventory && inventoryError && <p className="admin-inventory-state is-error">Could not refresh inventory. <button type="button" onClick={fetchInventory}>Retry</button></p>}
+            </article>
             <div className="dashboard-report-placement"><DashboardReportMenu /></div>
             <aside className="admin-panel activity-panel">
               <div className="panel-heading"><div><span>Recent activities</span><strong>Latest updates</strong></div></div>
@@ -170,26 +191,6 @@ export default function AdminDashboard() {
               </div>
             </aside>
           </div>
-
-          <HistoricalFarmTrends onSoilTrend={updateSoilTrend} />
-          <FieldConditions soilTrend={soilTrend} historyAvailable={environmentalHistoryAvailable} />
-
-          <article className="admin-panel admin-inventory-panel" aria-labelledby="admin-inventory-title">
-            <header className="admin-inventory-heading">
-              <div><small>Inventory</small><h2 id="admin-inventory-title">Inventory Statistics</h2><p>Pineapple stock by size</p></div>
-            </header>
-            {inventoryError && !inventory ? <p className="admin-inventory-state is-error">{inventoryError} <button type="button" onClick={fetchInventory}>Retry</button></p>
-              : inventory ? <div className="admin-inventory-content">
-                <div className="admin-stock-donut" style={{ background: inventoryGradient }} role="img" aria-label={`${totalStock.toLocaleString()} pineapples in stock`}>
-                  <span><strong>{totalStock.toLocaleString()}</strong><small>In stock</small></span>
-                </div>
-                <ul className="admin-inventory-legend">{inventory.map((item, index) => <li key={item.size}>
-                  <i style={{ background: INVENTORY_COLORS[index % INVENTORY_COLORS.length] }} aria-hidden="true" />
-                  <span>{item.size}</span><strong>{item.quantity.toLocaleString()}</strong>
-                </li>)}</ul>
-              </div> : <p className="admin-inventory-state">Loading inventory…</p>}
-            {inventory && inventoryError && <p className="admin-inventory-state is-error">Could not refresh inventory. <button type="button" onClick={fetchInventory}>Retry</button></p>}
-          </article>
         </div>
       </div>
     </section>

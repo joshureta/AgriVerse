@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Sprout } from 'lucide-react'
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { sensorSupabase } from '../lib/sensorSupabase.js'
 import { latestCurrentReading, latestMoistureReading } from '../lib/sensorStatus.js'
 
@@ -29,7 +29,7 @@ function metricValue(reading, field, unit) {
   return reading ? `${Number(reading[field]).toFixed(1)}${unit}` : '—'
 }
 
-export default function FieldConditions({ soilTrend = [], historyAvailable = true }) {
+export default function FieldConditions() {
   const [climateReadings, setClimateReadings] = useState([])
   const [soilReadings, setSoilReadings] = useState([])
   const [loading, setLoading] = useState(Boolean(sensorSupabase))
@@ -119,7 +119,7 @@ export default function FieldConditions({ soilTrend = [], historyAvailable = tru
     <section className="admin-panel field-conditions-panel" aria-label="Field conditions">
       <div className="field-conditions-header">
         <div>
-          <h2><Sprout aria-hidden="true" />Field Conditions</h2>
+          <h2>Field Conditions</h2>
           <p>Farm sensors · {relativeReadingTime(lastReadingAt, now)}</p>
         </div>
         <span className={`field-conditions-status is-${status.toLowerCase().replace(' ', '-')}`}>{status}</span>
@@ -146,16 +146,7 @@ export default function FieldConditions({ soilTrend = [], historyAvailable = tru
         <p className={status === 'Normal' ? 'is-normal' : 'is-alert'}>
           <StatusIcon aria-hidden="true" />{alert}
         </p>
-        <a href="/admin/monitoring/environmental">Open monitoring →</a>
-      </div>
-      <div className="field-conditions-history">
-        <div><strong>Soil moisture · last 7 days</strong><small>Recorded daily averages across fields</small></div>
-        {soilTrend.some((day) => day.moisture != null) ? <div className="field-conditions-history-bars" role="img" aria-label="Seven-day soil moisture averages; exact values appear below each bar">
-          {soilTrend.map((day) => <div key={day.date}>
-            <span className="field-conditions-history-bar" style={{ height: day.moisture == null ? '3px' : `${Math.max(4, Math.min(100, day.moisture))}%` }} />
-            <small>{day.date.slice(5)}</small><b>{day.moisture == null ? '—' : `${day.moisture}%`}</b>
-          </div>)}
-        </div> : <p className="field-conditions-history-empty">{historyAvailable ? 'No saved readings for the last 7 days.' : 'Historical readings are unavailable.'}</p>}
+        <a href="/admin/monitoring/environmental">Open monitoring</a>
       </div>
     </section>
   )
