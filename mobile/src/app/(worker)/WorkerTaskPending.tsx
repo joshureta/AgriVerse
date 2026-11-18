@@ -1,8 +1,8 @@
 import { styles } from '@/styles/worker-task-pending.styles';
-import { OverdueAlertBanner, OverdueBadge } from '@/components/operations-recovery';
+import { WorkerOverdueBadge } from '@/components/worker-overdue-badge';
 import { AssignmentDateList } from '@/components/assignment-date-list';
 import { Redirect, router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -22,6 +22,7 @@ import { useAuth } from '@/context/auth-context';
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { apiRequest } from '@/lib/api';
+import { useWorkerTaskRefresh } from '@/lib/use-worker-task-refresh';
 import { TASK_ICON_CONTAINER_STYLE, taskCategoryIconSource } from '@/lib/task-category-icons';
 import { TaskSuppliesSheet } from '@/components/task-supplies-sheet';
 import { UpcomingCard } from '@/components/upcoming-card';
@@ -37,6 +38,9 @@ type WorkerTaskRecord = {
   priority: 'high' | 'medium' | 'low';
   status: TaskStatus;
   schedule_start: string;
+  delay_reason_code?: string | null;
+  delay_reason_notes?: string | null;
+  delay_reason_submitted_at?: string | null;
   created_at?: string | null;
   estimated_duration_minutes: number;
   description: string | null;
@@ -376,7 +380,7 @@ function TaskCard({
 
   return (
     <View style={[styles.taskCard, expanded && styles.taskCardExpanded]}>
-      <OverdueBadge scheduledAt={task.schedule_start} taskId={task.id} />
+      <WorkerOverdueBadge scheduledAt={task.schedule_start} taskId={task.id} reasonCode={task.delay_reason_code} reasonNotes={task.delay_reason_notes} reasonSubmittedAt={task.delay_reason_submitted_at} />
       {/* Header Row: Category Squircle Icon, Title, Field + Priority Pill & Top-Right Dropdown Button (Driver Style) */}
       <View style={styles.pendingCardHeader}>
         <View style={[styles.categorySquircle, { backgroundColor: config.bg, borderColor: config.border }, TASK_ICON_CONTAINER_STYLE]}>
@@ -491,26 +495,35 @@ export default function WorkerTaskPending() {
   const [suppliesTask, setSuppliesTask] = useState<WorkerTaskRecord | null>(null);
   const [suppliesError, setSuppliesError] = useState('');
 
-  const loadTasks = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
+  const loadTasks = useCallback(async (refresh = false, silent = false) => {
+    if (!silent) {
+      if (refresh) setRefreshing(true);
+      else setLoading(true);
+    }
     setError('');
     try {
       const result = await apiRequest<{ tasks: WorkerTaskRecord[]; upcoming?: WorkerTaskRecord[]; summary: TaskSummary }>('/api/worker/tasks?status=pending');
       setTasks(result.tasks);
       setUpcoming(result.upcoming || []);
       setSummary(result.summary);
-      setExpandedId((current) => current ?? result.tasks[0]?.id ?? null);
+      setExpandedId((current) => result.tasks.some((task) => task.id === current) ? current : result.tasks[0]?.id ?? null);
+      setSuppliesTask((current) => current && result.tasks.some((task) => task.id === current.id) ? current : null);
     } catch (caught) {
+      setTasks([]);
+      setUpcoming([]);
+      setSummary({ pending: 0, active: 0, completed: 0, total: 0 });
+      setExpandedId(null);
+      setSuppliesTask(null);
       setError(caught instanceof Error ? caught.message : 'Could not load assigned tasks.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!silent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
-  useEffect(() => {
-    if (profile) loadTasks();
-  }, [loadTasks, profile]);
+  useWorkerTaskRefresh(loadTasks, profile?.id);
 
   const visibleTasks = tasks
     .filter((task) => task.status === filter)
@@ -574,7 +587,7 @@ export default function WorkerTaskPending() {
             </View>
           </View>
 
-          <OverdueAlertBanner />
+
 
           <View style={deliveryStyles.deliveryToolbar}>
             <View style={deliveryStyles.deliverySearch}>

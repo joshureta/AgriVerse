@@ -151,7 +151,6 @@ app.use((error, req, res, next) => {
 });
 
 if (require.main === module) {
-  require('./lib/overdue-operations').startOverdueMonitor();
   app.listen(PORT, () => {
     console.log(`AgriVerse API listening on http://localhost:${PORT}`);
     if (!supabaseConfig.valid) {

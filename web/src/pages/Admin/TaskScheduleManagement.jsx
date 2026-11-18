@@ -10,12 +10,15 @@ import OverdueRecoveryModal from '../../components/OverdueRecoveryModal.jsx'
 import { WoField, WoList, WoRadios, WoRow, WoSection, WoSteps, WorkOrderDialog } from '../../components/WorkOrderDialog.jsx'
 import { supabase } from '../../lib/supabase.js'
 import { qrphRefundLink } from '../../utils/paymongoRefund.js'
+import { workOrderTimeline } from '../../utils/workOrderTimeline.js'
+import { OPERATION_REASON_NAMES } from '../../utils/operationReasonNames.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/task-schedule-management.css'
 import '../../styles/work-order-dialogs.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 10
+const needsOverdueFollowup = (incident) => !incident.recovered_at || (incident.task_id && incident.recovery_action === 'completed' && !incident.reviewed_at)
 const emptyForm = {
   assigned_worker_id: '', worker_category: '', category_id: '', activity_type: '', field_id: '', priority_id: '', status_id: '',
   start_date: '', start_time: '07:00', end_time: '08:00', estimated_duration_minutes: '60', description: '',
@@ -85,6 +88,26 @@ function formatSchedule(value) {
   return new Intl.DateTimeFormat('en-US', {
     month: '2-digit', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit',
   }).format(date)
+}
+
+function WorkOrderTimeline({ events, title = 'Task timeline' }) {
+  if (!events.length) return null
+  return (
+    <WoSection title={title}>
+      <ol className="wo-task-timeline">
+        {events.map((event) => (
+          <li key={event.key}>
+            <span className="wo-task-timeline-dot" aria-hidden="true" />
+            <div>
+              <strong>{event.title}</strong>
+              <time dateTime={event.at}>{formatSchedule(event.at)}</time>
+              {event.detail && <p>{event.detail}</p>}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </WoSection>
+  )
 }
 
 // Determines whether a refund or dispute still needs review.
@@ -371,43 +394,61 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const [dismissedReviewAlerts, setDismissedReviewAlerts] = useState({ tasks: false, disputes: false, overdue: false })
   const [refreshKey, setRefreshKey] = useState(0)
   const [overdueCount, setOverdueCount] = useState(0)
+  const [operationsLoaded, setOperationsLoaded] = useState(false)
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false)
   const [selectedRecoveryIncidentId, setSelectedRecoveryIncidentId] = useState(null)
-  const [operationsData, setOperationsData] = useState({ incidents: [], workers: [], reports: [], dependencies: [], metrics: [] })
+  const [selectedRecoveryTarget, setSelectedRecoveryTarget] = useState(null)
+  const [operationsData] = useState({ incidents: [], workers: [], reports: [], dependencies: [], metrics: [] })
+  const overdueDeepLinkHandled = useRef(false)
   const filterRef = useRef(null)
 
-  // Opens overdue recovery modal if specified in URL query params.
+  // Open a deep-linked review only after the assignee has submitted a reason.
   useEffect(() => {
+    if (!operationsLoaded || overdueDeepLinkHandled.current) return
+    overdueDeepLinkHandled.current = true
     const params = new URLSearchParams(window.location.search)
-    if (params.get('modal') === 'overdue' || params.get('overdue') === '1' || params.get('tab') === 'recovery') {
-      setIsRecoveryModalOpen(true)
-    }
-  }, [])
+    if (params.get('modal') !== 'overdue' && params.get('overdue') !== '1' && params.get('tab') !== 'recovery') return
+    const taskId = Number(params.get('taskId'))
+    const orderId = Number(params.get('orderId'))
+    const incidents = operationsData.incidents || []
+    const incident = taskId > 0
+      ? incidents.find((item) => Number(item.task_id) === taskId && needsOverdueFollowup(item))
+      : orderId > 0
+        ? incidents.find((item) => Number(item.order_id) === orderId && !item.recovered_at)
+        : incidents.find((item) => needsOverdueFollowup(item) && item.reason_submitted_at)
+    if (!incident?.reason_submitted_at) return
+    setSelectedRecoveryIncidentId(incident.id)
+    setSelectedRecoveryTarget(incident.task_id ? { taskId: incident.task_id, status: incident.original_status } : { orderId: incident.order_id, status: incident.original_status })
+    setIsRecoveryModalOpen(true)
+  }, [operationsLoaded, operationsData.incidents])
 
   // Loads count of overdue incidents needing recovery and operations map.
   const loadOperationsData = useCallback(async () => {
     try {
-      const data = await apiRequest('/api/operations/admin')
-      setOperationsData(data || { incidents: [] })
-      const count = (data.incidents || []).filter((i) => !i.recovered_at).length
-      setOverdueCount(count)
+      const data = await apiRequest('/api/admin/tasks?status=overdue&pageSize=1')
+      setOverdueCount(data.pagination?.total || 0)
+      setOperationsLoaded(true)
     } catch {
-      // non-blocking
+      // The task list remains available if its count cannot refresh.
     }
   }, [])
 
   useEffect(() => {
     loadOperationsData()
     const timer = window.setInterval(loadOperationsData, 30000)
-    return () => window.clearInterval(timer)
+    window.addEventListener('focus', loadOperationsData)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', loadOperationsData)
+    }
   }, [loadOperationsData, refreshKey])
 
   const activeOverdueMap = useMemo(() => {
     const tasksMap = new Map()
     const ordersMap = new Map()
     for (const inc of operationsData.incidents || []) {
-      if (!inc.recovered_at) {
-        if (inc.task_id) tasksMap.set(Number(inc.task_id), inc)
+      if (needsOverdueFollowup(inc)) {
+        if (inc.task_id && !tasksMap.has(Number(inc.task_id))) tasksMap.set(Number(inc.task_id), inc)
         if (inc.order_id) ordersMap.set(Number(inc.order_id), inc)
       }
     }
@@ -429,7 +470,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     const isPastCutoff = Boolean(
       task.schedule?.schedule_date &&
       task.schedule.schedule_date < todayManila &&
-      ['pending', 'in_progress', 'scheduled'].includes(task.status)
+      (['pending', 'in_progress', 'scheduled'].includes(task.status) || Boolean(task.delay_reason_submitted_at))
     )
     return {
       isOverdue: Boolean(incident) || isPastCutoff,
@@ -442,7 +483,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     const incident = activeOverdueMap.orders.get(Number(order.id))
     const isPastCutoff = Boolean(
       order.delivery_scheduled_at &&
-      new Date(order.delivery_scheduled_at).toISOString().slice(0, 10) < todayManila &&
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(order.delivery_scheduled_at)) < todayManila &&
       ['assigned', 'accepted', 'picked_up', 'out_for_delivery'].includes(order.delivery_assignment_status)
     )
     return {
@@ -639,6 +680,19 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function cancelOverdueAssignment(incident, confirmed = false) {
+    if (incident.task_id) {
+      if (!confirmed && !window.confirm(`Cancel ${incident.label || `task #${incident.task_id}`}? The worker will be notified.`)) return false
+      await apiRequest(`/api/admin/tasks/${incident.task_id}/cancel`, { method: 'POST', body: '{}' })
+    } else if (incident.order_id) {
+      if (!confirmed && !window.confirm(`Cancel the driver assignment for ${incident.label || `order #${incident.order_id}`}? The order can be assigned again.`)) return false
+      await apiRequest(`/api/admin/deliveries/${incident.order_id}/cancel-assignment`, { method: 'POST', body: '{}' })
+    } else {
+      return false
+    }
+    return true
   }
 
   // Releases an unaccepted delivery back to the ready queue without cancelling the buyer's order.
@@ -1103,9 +1157,8 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                 <div className="task-review-alert is-overdue" role="status">
                   <span className="task-review-alert-icon"><TriangleAlert aria-hidden="true" /></span>
                   <p>
-                    <button type="button" className="task-review-alert-link" onClick={() => setIsRecoveryModalOpen(true)}>Overdue Operations:</button>{' '}
-                    {overdueCount} item{overdueCount === 1 ? ' has' : 's have'} missed scheduled cutoff. Review delay reasons and confirm recovery.
-                  </p>
+                    <strong>Overdue Operations:</strong>{' '}
+                    {overdueCount} task{overdueCount === 1 ? '' : 's'} past the scheduled date.</p>
                   <button type="button" className="task-review-alert-dismiss" aria-label="Dismiss overdue operations alert" onClick={() => setDismissedReviewAlerts((current) => ({ ...current, overdue: true }))}><X aria-hidden="true" /></button>
                 </div>
               )}
@@ -1263,46 +1316,28 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                 }</thead>
                 <tbody>{loading && workView !== 'deliveries' ? <tr><td className="tasks-empty" colSpan="7">Loading work assignments…</td></tr> : <>
                   {workView !== 'deliveries' && !isDriverStatusFilter && tasks.map((task) => {
-                    const { isOverdue, incident } = checkIsTaskOverdue(task)
+                    const { isOverdue } = checkIsTaskOverdue(task)
+                    const reasonSubmitted = Boolean(task.delay_reason_submitted_at)
                     const statusContent = isOverdue ? (
-                      <button
-                        type="button"
-                        className="task-status status-overdue is-overdue-trigger"
-                        onClick={() => {
-                          setSelectedRecoveryIncidentId(incident?.id || null)
-                          setIsRecoveryModalOpen(true)
-                        }}
-                        title="Overdue task. Click to review delay reason and recovery plan."
-                      >
-                        OVERDUE
-                      </button>
+                      <span className="overdue-status-group"><span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span><span className="overdue-dot" title="This task is overdue" aria-label="This task is overdue"></span>{reasonSubmitted && <small>{`Reason: ${task.delay_reason_notes || 'Submitted'}`}</small>}</span>
                     ) : (
                       <span className={`task-status status-${task.status}`}>{task.status_label || statusLabels[task.status]}</span>
                     )
                     return workView === 'crop'
-                      ? <tr key={`task-${task.id}`}><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-priority priority-${task.priority}`}>{task.priority_label}</span></td><td>{statusContent}</td><td><div className="task-actions">{task.status === 'awaiting_approval' ? <button className="task-review" type="button" onClick={() => openReviewHarvest(task)}>Review</button> : <><button className="task-view" type="button" onClick={() => setModal({ mode: 'view', task })} aria-label={`View task assigned to ${task.assigned_worker?.full_name}`}><Eye aria-hidden="true" size={14} /> View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></>}</div></td></tr>
-                      : <tr key={`task-${task.id}`}><td><span className="task-work-type is-crop">Crop Task</span></td><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td>{statusContent}</td><td><div className="task-actions">{task.status === 'awaiting_approval' ? <button className="task-review" type="button" onClick={() => openReviewHarvest(task)}>Review</button> : <><button type="button" onClick={() => setModal({ mode: 'view', task })}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></>}</div></td></tr>
+                      ? <tr key={`task-${task.id}`}><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td><span className={`task-priority priority-${task.priority}`}>{task.priority_label}</span></td><td>{statusContent}</td><td><div className="task-actions">{task.status === 'awaiting_approval' ? <button className="task-review" type="button" onClick={() => openReviewHarvest(task)}>Review</button> : <><button className="task-view" type="button" onClick={() => { setModal({ mode: 'view', task }); loadOperationsData() }} aria-label={`View task assigned to ${task.assigned_worker?.full_name}`}><Eye aria-hidden="true" size={14} /> View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></>}</div></td></tr>
+                      : <tr key={`task-${task.id}`}><td><span className="task-work-type is-crop">Crop Task</span></td><td>{task.assigned_worker?.full_name || 'Unknown worker'}</td><td><strong>{task.category}</strong><small>{task.description || 'No description added'}</small></td><td>{task.field}</td><td>{formatSchedule(task.schedule_start)}</td><td>{statusContent}</td><td><div className="task-actions">{task.status === 'awaiting_approval' ? <button className="task-review" type="button" onClick={() => openReviewHarvest(task)}>Review</button> : <><button type="button" onClick={() => { setModal({ mode: 'view', task }); loadOperationsData() }}>View</button><button className="task-edit" type="button" onClick={() => openEditTask(task)} aria-label={`Edit task assigned to ${task.assigned_worker?.full_name}`}>✎</button></>}</div></td></tr>
                   })}
                   {workView !== 'crop' && paginatedDeliveryOrders.map((order) => {
                     const { isOverdue, incident } = checkIsOrderOverdue(order)
+                    const reasonSubmitted = Boolean(incident?.reason_submitted_at)
                     const statusContent = isOverdue ? (
-                      <button
-                        type="button"
-                        className="task-status status-overdue is-overdue-trigger"
-                        onClick={() => {
-                          setSelectedRecoveryIncidentId(incident?.id || null)
-                          setIsRecoveryModalOpen(true)
-                        }}
-                        title="Overdue delivery. Click to review delay reason and recovery plan."
-                      >
-                        OVERDUE
-                      </button>
+                      <span className="overdue-status-group"><span className="overdue-dot" title="This task is overdue" aria-label="This task is overdue"></span><small>{reasonSubmitted ? 'Reason submitted' : 'Awaiting driver reason'}</small></span>
                     ) : (
                       <span className={`task-status status-${order.delivery_assignment_status || 'assigned'}`}>{(order.delivery_assignment_status || 'assigned').replaceAll('_', ' ')}</span>
                     )
                     return workView === 'deliveries'
-                      ? <tr key={`delivery-${order.id}`}><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{[order.delivery_barangay, order.delivery_city_municipality, order.delivery_province, order.delivery_region].filter(Boolean).join(', ')}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td>{statusContent}</td><td><div className="task-actions"><button className="task-view" type="button" onClick={() => setModal({ mode: 'view-delivery', order })} aria-label={`View delivery ${order.order_number}`}><Eye aria-hidden="true" size={14} /> View</button>{order.order_status === 'ready_for_delivery' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>
-                      : <tr key={`delivery-${order.id}`}><td><span className="task-work-type is-delivery">Delivery</span></td><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong></td><td>{deliveryAddressSummary(order)}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td>{statusContent}</td><td><div className="task-actions"><button type="button" onClick={() => setModal({ mode: 'view-delivery', order })}>View</button>{order.order_status === 'ready_for_delivery' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>
+                      ? <tr key={`delivery-${order.id}`}><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong></td><td>{order.delivery_full_name}</td><td>{[order.delivery_barangay, order.delivery_city_municipality, order.delivery_province, order.delivery_region].filter(Boolean).join(', ')}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td>{statusContent}</td><td><div className="task-actions"><button className="task-view" type="button" onClick={() => { setModal({ mode: 'view-delivery', order }); loadOperationsData() }} aria-label={`View delivery ${order.order_number}`}><Eye aria-hidden="true" size={14} /> View</button>{order.order_status === 'ready_for_delivery' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>
+                      : <tr key={`delivery-${order.id}`}><td><span className="task-work-type is-delivery">Delivery</span></td><td>{order.assigned_driver?.full_name || 'Unassigned driver'}</td><td><strong>{order.order_number}</strong></td><td>{deliveryAddressSummary(order)}</td><td>{formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at)}</td><td>{statusContent}</td><td><div className="task-actions"><button type="button" onClick={() => { setModal({ mode: 'view-delivery', order }); loadOperationsData() }}>View</button>{order.order_status === 'ready_for_delivery' && order.delivery_assignment_status === 'assigned' && <button className="task-edit" type="button" onClick={() => openEditDelivery(order)} aria-label={`Edit delivery ${order.order_number}`}>✎</button>}</div></td></tr>
                   })}
                   {((workView === 'crop' && !tasks.length) || (workView === 'deliveries' && !visibleDeliveryOrders.length) || (workView === 'all' && !tasks.length && !visibleDeliveryOrders.length)) && <tr><td className="tasks-empty" colSpan="7">No work assignments found.</td></tr>}
                 </>}</tbody>
@@ -1378,8 +1413,13 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         ]
         const steps = isCancelled ? [
           { label: 'Scheduled', note: task.created_at ? formatSchedule(task.created_at) : 'Scheduled', state: 'is-done' },
-          { label: 'Cancelled', note: task.cancelled_at ? formatSchedule(task.cancelled_at) : 'Cancelled by admin', state: 'is-now' },
+          ...(task.stopped_work_notes ? [{ label: 'In progress', note: task.started_at ? `Started ${formatSchedule(task.started_at)}` : 'Work started', state: 'is-done' }] : []),
+          { label: task.stopped_work_notes ? 'Stopped' : 'Cancelled', note: task.cancelled_at ? formatSchedule(task.cancelled_at) : 'Ended by admin', state: 'is-now' },
         ] : activeSteps
+        const taskIncidents = (operationsData.incidents || []).filter((incident) => Number(incident.task_id) === Number(task.id))
+        const timeline = workOrderTimeline(task, taskIncidents, 'task', formatSchedule,
+          (id) => operationsData.workers?.find((worker) => worker.id === id)?.full_name)
+        const { isOverdue, incident: overdueIncident } = checkIsTaskOverdue(task)
 
         return (
           <WorkOrderDialog
@@ -1387,36 +1427,17 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             id={`#TASK-${String(task.id).padStart(4, '0')}`}
             title={task.category || 'Farm Operations'}
             titleId="view-crop-task-title"
-            sub={isCancelled && task.cancelled_at ? `Cancelled ${formatSchedule(task.cancelled_at)}` : task.created_at ? `Created ${formatSchedule(task.created_at)}` : null}
+            sub={isCancelled && task.cancelled_at ? `${task.stopped_work_notes ? 'Stopped' : 'Cancelled'} ${formatSchedule(task.cancelled_at)}` : task.created_at ? `Created ${formatSchedule(task.created_at)}` : null}
             steps={<WoSteps items={steps} />}
             onClose={() => setModal(null)}
             footerNote={<button type="button" className="wo-btn is-link" onClick={() => window.print()}><Printer size={15} aria-hidden="true" />Print slip</button>}
             footer={<>
-              {(() => {
-                const { isOverdue, incident } = checkIsTaskOverdue(task)
-                if (isOverdue) {
-                  return (
-                    <button
-                      type="button"
-                      className="wo-btn is-danger"
-                      onClick={() => {
-                        setModal(null)
-                        setSelectedRecoveryIncidentId(incident?.id || null)
-                        setIsRecoveryModalOpen(true)
-                      }}
-                    >
-                      <TriangleAlert size={14} aria-hidden="true" />Overdue recovery
-                    </button>
-                  )
-                }
-                return null
-              })()}
               {isAwaitingApproval && (
                 <button type="button" className="wo-btn is-primary" onClick={() => { const taskToReview = modal.task; setModal(null); openReviewHarvest(taskToReview) }}>
                   <Check size={15} aria-hidden="true" />Review harvest
                 </button>
               )}
-              {isScheduled && (
+              {isScheduled && !isOverdue && (
                 <button type="button" className="wo-btn is-danger" disabled={saving} onClick={() => cancelPendingTask(task)}>
                   <Ban size={14} aria-hidden="true" />{saving ? 'Cancelling…' : 'Cancel task'}
                 </button>
@@ -1428,6 +1449,17 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               )}
             </>}
           >
+            {isOverdue && (
+              <div className="task-review-alert is-overdue wo-overdue-inline" role="status">
+                <span className="task-review-alert-icon"><TriangleAlert aria-hidden="true" /></span>
+                <p>
+                  <strong>Task is overdue.</strong> Missed schedule: {formatSchedule(overdueIncident?.scheduled_at || task.schedule_start)}.
+                  {!task.delay_reason_submitted_at && " Awaiting worker's delay reason."}
+                  {task.delay_reason_submitted_at && ` Reason: ${OPERATION_REASON_NAMES[task.delay_reason_code] || task.delay_reason_code || 'Submitted'}. ${task.delay_reason_notes || ''}`}
+                </p>
+
+              </div>
+            )}
             <div className="wo-two is-even">
               <WoSection title="Assignment">
                 <WoList>
@@ -1488,6 +1520,12 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                 <p className="wo-prose">{task.completion_notes}</p>
               </WoSection>
             )}
+            {task.stopped_work_notes && (
+              <WoSection title="Work recorded before stopping">
+                <p className="wo-prose">{task.stopped_work_notes}</p>
+              </WoSection>
+            )}
+            <WorkOrderTimeline events={timeline} />
           </WorkOrderDialog>
         )
       })()}
@@ -1511,6 +1549,10 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         ]
         const address = [order.delivery_barangay, order.delivery_city_municipality, order.delivery_province, order.delivery_region].filter(Boolean).join(', ') || 'No delivery address provided.'
         const canEdit = order.order_status === 'ready_for_delivery' && order.delivery_assignment_status === 'assigned'
+        const deliveryIncidents = (operationsData.incidents || []).filter((incident) => Number(incident.order_id) === Number(order.id))
+        const { isOverdue: isDeliveryOverdue, incident: overdueDeliveryIncident } = checkIsOrderOverdue(order)
+        const timeline = workOrderTimeline(order, deliveryIncidents, 'delivery', formatSchedule,
+          (id) => operationsData.workers?.find((worker) => worker.id === id)?.full_name)
 
         return (
           <WorkOrderDialog
@@ -1523,27 +1565,8 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             onClose={() => setModal(null)}
             footerNote={<button type="button" className="wo-btn is-link" onClick={() => window.print()}><Printer size={15} aria-hidden="true" />Print slip</button>}
             footer={<>
-              {(() => {
-                const { isOverdue, incident } = checkIsOrderOverdue(order)
-                if (isOverdue) {
-                  return (
-                    <button
-                      type="button"
-                      className="wo-btn is-danger"
-                      onClick={() => {
-                        setModal(null)
-                        setSelectedRecoveryIncidentId(incident?.id || null)
-                        setIsRecoveryModalOpen(true)
-                      }}
-                    >
-                      <TriangleAlert size={14} aria-hidden="true" />Overdue recovery
-                    </button>
-                  )
-                }
-                return null
-              })()}
               <button type="button" className="wo-btn" onClick={() => setModal(null)}>Close</button>
-              {canEdit && (
+              {canEdit && !isDeliveryOverdue && (
                 <button type="button" className="wo-btn is-danger" disabled={saving} onClick={() => cancelDeliveryAssignment(order)}>
                   <Ban size={14} aria-hidden="true" />{saving ? 'Cancelling…' : 'Cancel assignment'}
                 </button>
@@ -1555,6 +1578,23 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               )}
             </>}
           >
+            {isDeliveryOverdue && (
+              <div className="task-review-alert is-overdue wo-overdue-inline" role="status">
+                <span className="task-review-alert-icon"><TriangleAlert aria-hidden="true" /></span>
+                <p>
+                  <strong>Delivery is overdue.</strong> Missed schedule: {formatSchedule(overdueDeliveryIncident?.scheduled_at || order.delivery_scheduled_at)}.
+                  {!overdueDeliveryIncident?.reason_submitted_at && " Awaiting driver's delay reason."}
+                </p>
+                {overdueDeliveryIncident?.reason_submitted_at && (
+                  <button type="button" className="task-review-alert-link" onClick={() => {
+                    setModal(null)
+                    setSelectedRecoveryIncidentId(overdueDeliveryIncident.id)
+                    setSelectedRecoveryTarget({ orderId: order.id, status: order.delivery_assignment_status })
+                    setIsRecoveryModalOpen(true)
+                  }}>Review delivery</button>
+                )}
+              </div>
+            )}
             <div className="wo-two is-even">
               <div>
                 <WoSection title="Recipient">
@@ -1639,6 +1679,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                 )}
               </WoSection>
             )}
+            <WorkOrderTimeline events={timeline} title="Delivery timeline" />
           </WorkOrderDialog>
         )
       })()}
@@ -2601,10 +2642,15 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         <OverdueRecoveryModal
           isOpen={isRecoveryModalOpen}
           initialIncidentId={selectedRecoveryIncidentId}
+          initialTaskId={selectedRecoveryTarget?.taskId}
+          initialOrderId={selectedRecoveryTarget?.orderId}
+          initialStatus={selectedRecoveryTarget?.status}
+          onCancelAssignment={cancelOverdueAssignment}
           onClose={() => {
             setIsRecoveryModalOpen(false)
             setSelectedRecoveryIncidentId(null)
-            loadOperationsData()
+            setSelectedRecoveryTarget(null)
+            setRefreshKey((key) => key + 1)
           }}
           onCountChange={(count) => setOverdueCount(count)}
         />

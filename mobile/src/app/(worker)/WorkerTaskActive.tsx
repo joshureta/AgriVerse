@@ -1,7 +1,7 @@
 import { styles } from '@/styles/worker-task-active.styles';
-import { OverdueAlertBanner, OverdueBadge } from '@/components/operations-recovery';
+import { WorkerOverdueBadge } from '@/components/worker-overdue-badge';
 import { Redirect, router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -21,6 +21,7 @@ import { WorkerTaskSegmentedTabs } from '@/components/worker-task-segmented-tabs
 import { TaskCompletionBlurTarget } from '@/components/task-completion-blur-target';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { useWorkerTaskRefresh } from '@/lib/use-worker-task-refresh';
 import { TASK_ICON_CONTAINER_STYLE, taskCategoryIconSource } from '@/lib/task-category-icons';
 import { activityLabel, suppliesSummary, type TaskSupplyFields } from '@/lib/task-supplies';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
@@ -36,6 +37,9 @@ type WorkerTaskRecord = TaskSupplyFields & {
   description: string | null;
   started_at?: string | null;
   schedule_start?: string | null;
+  delay_reason_code?: string | null;
+  delay_reason_notes?: string | null;
+  delay_reason_submitted_at?: string | null;
   estimated_duration_minutes?: number | null;
   harvest_rejection_reason?: string | null;
 };
@@ -287,7 +291,7 @@ function ActiveTaskCard({
 
   return (
     <View style={styles.taskCard}>
-      <OverdueBadge scheduledAt={task.schedule_start} taskId={task.id} />
+      <WorkerOverdueBadge scheduledAt={task.schedule_start} taskId={task.id} reasonCode={task.delay_reason_code} reasonNotes={task.delay_reason_notes} reasonSubmittedAt={task.delay_reason_submitted_at} />
       {/* Top Header Row with Active label & Radar Badge (Driver Style) */}
       <View style={styles.cardHeaderRow}>
         <View style={styles.deliveryHeadingWithIcon}>
@@ -373,24 +377,29 @@ export default function WorkerTaskActiveScreen() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const loadTasks = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
+  const loadTasks = useCallback(async (refresh = false, silent = false) => {
+    if (!silent) {
+      if (refresh) setRefreshing(true);
+      else setLoading(true);
+    }
     setError('');
     try {
       const response = await apiRequest<{ tasks: WorkerTaskRecord[] }>('/api/worker/tasks?status=in_progress');
       setTasks(response.tasks);
-      setExpandedId((current) => current ?? response.tasks[0]?.id ?? null);
+      setExpandedId((current) => response.tasks.some((task) => task.id === current) ? current : response.tasks[0]?.id ?? null);
     } catch (caught) {
       setTasks([]);
       setExpandedId(null);
       setError(caught instanceof Error ? caught.message : 'Could not load active tasks.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!silent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
-  useEffect(() => { if (profile) loadTasks(); }, [loadTasks, profile]);
+  useWorkerTaskRefresh(loadTasks, profile?.id);
 
   if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
   if (!profile) return <Redirect href="/login" />;
@@ -408,7 +417,7 @@ export default function WorkerTaskActiveScreen() {
             contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
             refreshControl={<RefreshControl colors={[GREEN]} refreshing={refreshing} onRefresh={() => loadTasks(true)} />}>
             <Text style={styles.pageTitle}>My Tasks</Text>
-            <OverdueAlertBanner />
+
             <View style={deliveryStyles.deliveryToolbar}><View style={deliveryStyles.deliverySearch}><SearchIcon /><TextInput accessibilityLabel="Search tasks" onChangeText={setSearchQuery} placeholder="Search tasks" placeholderTextColor="#94A3B8" style={deliveryStyles.deliverySearchInput} value={searchQuery} /></View></View>
             <View style={deliveryStyles.deliveryStatusTabs}>{[{ label: 'Pending', route: '/WorkerTaskPending' }, { label: 'Active', route: '/WorkerTaskActive' }, { label: 'Completed', route: '/WorkerTaskCompleted' }].map((tab) => { const active = tab.label === 'Active'; return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[deliveryStyles.deliveryStatusTab, active && deliveryStyles.deliveryStatusTabActive]}><Text style={[deliveryStyles.deliveryStatusTabText, active && deliveryStyles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>; })}</View>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}

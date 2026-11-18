@@ -68,7 +68,7 @@ export function ProductivityPanel({ data, error }) {
           <aside className="dashboard-operations-side" aria-label="Farm operations overview">
             <div className="dashboard-operations-side-card is-attention">
               <h3>Needs attention</h3>
-              <a href="/admin/tasks?modal=overdue"><span>Overdue tasks</span><strong>{attention?.overdue_tasks ?? 0}</strong></a>
+              <a href="/admin/tasks"><span>Overdue tasks</span><strong>{attention?.overdue_tasks ?? 0}</strong></a>
               <a href="/admin/tasks"><span>Awaiting review</span><strong>{attention?.awaiting_review ?? 0}</strong></a>
             </div>
             <div className="dashboard-operations-side-card">

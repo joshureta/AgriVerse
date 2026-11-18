@@ -1,6 +1,6 @@
 import { styles } from '@/styles/worker-task-completed.styles';
 import { Redirect, router } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -16,8 +16,10 @@ import {
 
 import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
+import { OverdueAlertBanner } from '@/components/operations-recovery';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { useWorkerTaskRefresh } from '@/lib/use-worker-task-refresh';
 import { TASK_ICON_CONTAINER_STYLE, taskCategoryIconSource } from '@/lib/task-category-icons';
 import { styles as deliveryStyles } from '@/styles/driver-task-pending.styles';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -30,6 +32,8 @@ type WorkerTaskRecord = {
   description: string | null;
   completed_at: string | null;
   completion_notes: string | null;
+  delay_reason_code?: string | null;
+  delay_reason_notes?: string | null;
   harvest_proof_image_url?: string | null;
   harvest_small_count?: number | null;
   harvest_medium_count?: number | null;
@@ -275,7 +279,9 @@ function CompletedTaskCard({ task }: { task: WorkerTaskRecord }) {
           {/* Task Title */}
           <Text numberOfLines={1} style={styles.taskTitle}>{cleanTitle}</Text>
 
-          {/* Modern Meta Subtitle - Finished timestamp and sector (no redundant field name) */}
+          {task.delay_reason_code && <Text style={styles.taskMetaSubtitle}>Overdue reason: {task.delay_reason_notes || task.delay_reason_code.replaceAll('_', ' ')}</Text>}
+
+           {/* Modern Meta Subtitle - Finished timestamp and sector (no redundant field name) */}
           <Text numberOfLines={1} style={styles.taskMetaSubtitle}>
             Finished at {formattedTime} · Sector {cleanSector}
           </Text>
@@ -294,8 +300,11 @@ export default function WorkerTaskCompletedScreen() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const loadTasks = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
+  const loadTasks = useCallback(async (refresh = false, silent = false) => {
+    if (!silent) {
+      if (refresh) setRefreshing(true);
+      else setLoading(true);
+    }
     setError('');
     try {
       const response = await apiRequest<{ tasks: WorkerTaskRecord[] }>('/api/worker/tasks?status=completed');
@@ -304,12 +313,14 @@ export default function WorkerTaskCompletedScreen() {
       setTasks([]);
       setError(caught instanceof Error ? caught.message : 'Could not load completed tasks.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!silent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
-  useEffect(() => { if (profile) loadTasks(); }, [loadTasks, profile]);
+  useWorkerTaskRefresh(loadTasks, profile?.id);
 
   if (authLoading) return <View style={styles.center}><ActivityIndicator color={GREEN} size="large" /></View>;
   if (!profile) return <Redirect href="/login" />;
@@ -326,6 +337,7 @@ export default function WorkerTaskCompletedScreen() {
           contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
           refreshControl={<RefreshControl colors={[GREEN]} refreshing={refreshing} onRefresh={() => loadTasks(true)} />}>
           <Text style={styles.pageTitle}>My Tasks</Text>
+          <OverdueAlertBanner />
           <View style={deliveryStyles.deliveryToolbar}><View style={deliveryStyles.deliverySearch}><SearchIcon /><TextInput accessibilityLabel="Search tasks" onChangeText={setSearchQuery} placeholder="Search tasks" placeholderTextColor="#94A3B8" style={deliveryStyles.deliverySearchInput} value={searchQuery} /></View></View>
           <View style={deliveryStyles.deliveryStatusTabs}>{[{ label: 'Pending', route: '/WorkerTaskPending' }, { label: 'Active', route: '/WorkerTaskActive' }, { label: 'Completed', route: '/WorkerTaskCompleted' }].map((tab) => { const active = tab.label === 'Completed'; return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={tab.label} onPress={() => router.replace(tab.route as any)} style={[deliveryStyles.deliveryStatusTab, active && deliveryStyles.deliveryStatusTabActive]}><Text style={[deliveryStyles.deliveryStatusTabText, active && deliveryStyles.deliveryStatusTabTextActive]}>{tab.label}</Text></Pressable>; })}</View>
 

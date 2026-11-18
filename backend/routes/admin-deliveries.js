@@ -150,6 +150,7 @@ router.post("/:id/cancel-assignment", async (req, res, next) => {
       .eq("assigned_driver_id", current.assigned_driver_id)
       .select("id, order_number, order_status, delivery_assignment_status, assigned_driver_id, delivery_scheduled_at, delivery_window_end_at")
       .maybeSingle();
+    if (error?.code === "P0001" && String(error.message || "").includes("delay reason")) throw httpError(409, error.message);
     if (error) throw error;
     if (!data) throw httpError(409, "This delivery assignment is no longer waiting for acceptance");
 

@@ -2,6 +2,7 @@ const express = require('express');
 const { requireAuth, requireRole, requireInitialPasswordChanged, requireProfileOnboardingComplete } = require('../middleware/auth');
 const { getSupabase } = require('../supabase');
 const { httpError } = require('../lib/http-error');
+const { mapScheduleConflictDatabaseError } = require('../lib/schedule-conflicts');
 const { REASONS, validateReason, recoveryWindow, detectOverdueOperations, flushOperationPushes } = require('../lib/overdue-operations');
 const router = express.Router();
 router.use(requireAuth);
@@ -17,6 +18,14 @@ function fail(error) {
   if (!error) return;
   if (error.code === 'P0001' || error.code === '23514') throw httpError(409, error.message);
   throw error;
+}
+async function requireSubmittedReason(incidentId, requireReview = false) {
+  const { data, error } = await getSupabase().from('operation_incidents')
+    .select('reason_submitted_at, reviewed_at').eq('id', incidentId).maybeSingle();
+  fail(error);
+  if (!data) throw httpError(404, 'Overdue assignment was not found.');
+  if (!data.reason_submitted_at) throw httpError(409, 'The assignee must submit a delay reason before an admin decision.');
+  if (requireReview && !data.reviewed_at) throw httpError(409, 'Review the delay reason before deciding this assignment.');
 }
 async function notifyAdmins(item, type, title, body) {
   const { data, error } = await getSupabase().from('profiles').select('id').eq('role', 'admin');
@@ -36,10 +45,11 @@ router.get('/mine', staff, async (req, res, next) => {
 router.post('/:id/reason', staff, async (req, res, next) => {
   try {
     const changes = validateReason(req.body);
-    const { data, error } = await getSupabase().from('operation_incidents').update(changes).eq('id', id(req.params.id)).eq('assignee_id', req.user.id).is('reason_submitted_at', null).select('*').maybeSingle();
+    const { data, error } = await getSupabase().from('operation_incidents').update(changes).eq('id', id(req.params.id)).eq('assignee_id', req.user.id).is('reason_submitted_at', null)
+      .or('recovered_at.is.null,and(task_id.not.is.null,recovery_action.eq.completed)').select('*').maybeSingle();
     fail(error); if (!data) throw httpError(409, 'This reason was already submitted or the incident is not assigned to you.');
     // Reason is saved even if notification delivery needs a retry.
-    await notifyAdmins(data, 'operation_reason', 'Delay reason submitted', `${data.label}: ${changes.reason_code.replaceAll('_', ' ')}. Review Operations Recovery.`).catch(console.error);
+    await notifyAdmins(data, 'operation_reason', 'Delay reason submitted', `${data.label}: ${changes.reason_code.replaceAll('_', ' ')}. ${data.recovery_action === 'completed' ? 'Task submitted for review.' : changes.can_continue ? 'Assignee can continue.' : 'Assignee cannot continue.'} Review the overdue assignment.`).catch(console.error);
     res.json({ incident: data });
   } catch (error) { next(error); }
 });
@@ -60,7 +70,23 @@ router.get('/admin', admin, async (_req, res, next) => {
 });
 router.post('/:id/recover', admin, async (req, res, next) => {
   try {
-    const { error } = await getSupabase().rpc('recover_operation', { p_incident: id(req.params.id), p_admin: req.user.id, ...recoveryWindow(req.body) });
+    const incidentId = id(req.params.id);
+    const window = recoveryWindow(req.body);
+    await requireSubmittedReason(incidentId, true);
+    const { error } = await getSupabase().rpc('recover_operation', { p_incident: incidentId, p_admin: req.user.id, ...window });
+    if (error) fail(mapScheduleConflictDatabaseError(error));
+    res.json({ ok: true });
+  } catch (error) { next(error); }
+});
+router.post('/:id/stop', admin, async (req, res, next) => {
+  try {
+    const notes = String(req.body.notes || '').trim();
+    if (notes.length < 5 || notes.length > 2000) throw httpError(400, 'Record the work already done in 5–2000 characters.');
+    const incidentId = id(req.params.id);
+    await requireSubmittedReason(incidentId, true);
+    const { error } = await getSupabase().rpc('stop_overdue_task', {
+      p_incident: incidentId, p_admin: req.user.id, p_notes: notes,
+    });
     fail(error); res.json({ ok: true });
   } catch (error) { next(error); }
 });
@@ -68,9 +94,29 @@ router.post('/:id/review', admin, async (req, res, next) => {
   try {
     if (!['excused', 'unexcused'].includes(req.body.classification)) throw httpError(400, 'Select excused or unexcused.');
     const notes = String(req.body.notes || '').trim();
-    if (notes.length < 5 || notes.length > 2000) throw httpError(400, 'Enter review notes in 5–2000 characters.');
-    const { error } = await getSupabase().rpc('review_operation_incident', { p_incident: id(req.params.id), p_admin: req.user.id, p_classification: req.body.classification, p_notes: notes });
-    fail(error); res.json({ ok: true });
+    if (notes.length > 2000) throw httpError(400, 'Review notes must be 2000 characters or fewer.');
+    const db = getSupabase();
+    const incidentId = id(req.params.id);
+    await requireSubmittedReason(incidentId);
+    const { error } = await db.rpc('review_operation_incident', { p_incident: incidentId, p_admin: req.user.id, p_classification: req.body.classification, p_notes: notes || null });
+    fail(error);
+    try {
+      const { data: incident, error: readError } = await db.from('operation_incidents')
+        .select('assignee_id, label, task_id, order_id').eq('id', incidentId).single();
+      if (readError) throw readError;
+      const { error: notifyError } = await db.rpc('operation_notify', {
+        p_recipient: incident.assignee_id,
+        p_type: 'operation_recovery',
+        p_title: `Delay review: ${req.body.classification === 'excused' ? 'Excused' : 'Unexcused'}`,
+        p_body: `${incident.label}: your delay explanation was reviewed as ${req.body.classification}.`,
+        p_task: incident.task_id,
+        p_order: incident.order_id,
+      });
+      if (notifyError) throw notifyError;
+    } catch (notifyError) {
+      console.error('Delay review notification failed:', notifyError.message);
+    }
+    res.json({ ok: true });
   } catch (error) { next(error); }
 });
 router.post('/:id/report', admin, async (req, res, next) => {

@@ -7,7 +7,8 @@ function validateReason(body) {
   const notes = String(body.notes || '').trim();
   if (!REASONS.includes(body.reason_code)) throw httpError(400, 'Select a delay reason.');
   if (notes.length < 5 || notes.length > 2000) throw httpError(400, 'Explain the delay in 5–2000 characters.');
-  return { reason_code: body.reason_code, reason_notes: notes, reason_submitted_at: new Date().toISOString() };
+  if (typeof body.can_continue !== 'boolean') throw httpError(400, 'Select whether you can still complete this work.');
+  return { reason_code: body.reason_code, reason_notes: notes, can_continue: body.can_continue, reason_submitted_at: new Date().toISOString() };
 }
 function recoveryWindow(body, now = new Date()) {
   const date = String(body.date || '');
@@ -19,6 +20,7 @@ function recoveryWindow(body, now = new Date()) {
   if (Number.isNaN(from.getTime()) || new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date || to <= from) throw httpError(400, 'Select a valid date and an end time after the start time.');
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
   if (date < today) throw httpError(400, 'Recovery must be scheduled for today or a future date.');
+  if (from <= now) throw httpError(400, 'Choose a future start date and time.');
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(String(body.assignee_id || ''))) throw httpError(400, 'Choose a worker or driver.');
   return { p_assignee: body.assignee_id, p_start: from.toISOString(), p_end: to.toISOString() };
 }

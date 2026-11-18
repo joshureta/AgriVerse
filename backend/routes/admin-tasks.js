@@ -12,6 +12,7 @@ const taskSelect = [
   "id, task_name, description, estimated_duration_minutes, created_at, updated_at",
   "assigned_worker_id, category_id, field_id, priority_id, status_id",
   "started_at, completed_at, cancelled_at, cancelled_by, completion_notes, activity_type",
+  "delay_reason_code, delay_reason_notes, delay_reason_submitted_at",
   "harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count",
   "harvest_proof_image_url, harvest_proof_image_name",
   "harvest_rejection_reason, harvest_rejected_at, approved_at",
@@ -234,7 +235,7 @@ router.get("/", async (req, res, next) => {
     const from = (page - 1) * pageSize;
     const supabase = getSupabase();
     let statusId = null;
-    if (statusCode) statusId = await lookupIdByCode("task_statuses", statusCode);
+    if (statusCode && statusCode !== "overdue") statusId = await lookupIdByCode("task_statuses", statusCode);
 
     // Latest schedule first. The schedule lives on a related table, so sort the
     // full (small) result set here and page it afterwards.
@@ -255,9 +256,13 @@ router.get("/", async (req, res, next) => {
     for (const result of [taskResult, totalResult, progressResult, completedResult, workersResult]) {
       if (result.error) throw result.error;
     }
-    const total = taskResult.count || 0;
+    const todayManila = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const filteredTasks = (taskResult.data || []).map(serializeTask).filter((task) => statusCode !== "overdue" ||
+      overdueTaskIds.has(Number(task.id)) ||
+      (["pending", "in_progress"].includes(task.status) && task.schedule?.schedule_date < todayManila));
+    const total = statusCode === "overdue" ? filteredTasks.length : taskResult.count || 0;
     const scheduleTime = (task) => (task.schedule_start ? new Date(task.schedule_start).getTime() : Number.NEGATIVE_INFINITY);
-    const sortedTasks = (taskResult.data || []).map(serializeTask)
+    const sortedTasks = filteredTasks
       .sort((a, b) => scheduleTime(b) - scheduleTime(a))
       .slice(from, from + pageSize);
     return res.json({
@@ -419,6 +424,9 @@ router.post("/:id/cancel", async (req, res, next) => {
     if (error) {
       if (error.code === "P0001" && String(error.message || "").includes("task_not_pending")) {
         throw httpError(409, "Only pending tasks can be cancelled");
+      }
+      if (error.code === "P0001" && String(error.message || "").includes("delay reason")) {
+        throw httpError(409, error.message);
       }
       throw error;
     }

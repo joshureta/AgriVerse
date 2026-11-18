@@ -15,7 +15,6 @@ import {
   ViewStyle,
 } from 'react-native';
 import { usePathname } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 
@@ -27,36 +26,40 @@ type Incident = {
   scheduled_at: string;
   original_status: string;
   reason_code?: string | null;
+  reason_notes?: string | null;
+  can_continue?: boolean | null;
   reason_submitted_at: string | null;
   recovered_at: string | null;
+  recovery_action?: string | null;
   new_scheduled_at: string | null;
   classification: string;
 };
 
+const needsPostCompletionReason = (item: Incident) =>
+  item.task_id != null && item.recovery_action === 'completed' && !item.reason_submitted_at;
+
 type ReasonOption = {
   code: string;
   label: string;
-  sublabel: string;
-  icon: string;
 };
 
 const DRIVER_REASONS: ReasonOption[] = [
-  { code: 'vehicle_breakdown', label: 'Vehicle breakdown', sublabel: 'Engine trouble, flat tire, mechanical fault', icon: '🚗' },
-  { code: 'traffic_road_closure', label: 'Traffic / road closure', sublabel: 'Heavy congestion, road construction, detour', icon: '🚧' },
-  { code: 'customer_unavailable', label: 'Customer unavailable', sublabel: 'Buyer unreachable at delivery drop-off point', icon: '👤' },
-  { code: 'weather', label: 'Severe weather', sublabel: 'Heavy rains, flooding, zero visibility', icon: '🌧️' },
-  { code: 'supplies_unavailable', label: 'Cargo / warehouse delay', sublabel: 'Produce crates not packed or ready for pickup', icon: '📦' },
-  { code: 'illness_emergency', label: 'Driver illness / emergency', sublabel: 'Medical issue or family emergency', icon: '🩺' },
-  { code: 'other', label: 'Other operational delay', sublabel: 'Any other unforeseen delivery situation', icon: '📋' },
+  { code: 'vehicle_breakdown', label: 'Vehicle breakdown' },
+  { code: 'traffic_road_closure', label: 'Traffic or road closure' },
+  { code: 'customer_unavailable', label: 'Customer unavailable' },
+  { code: 'weather', label: 'Severe weather' },
+  { code: 'supplies_unavailable', label: 'Cargo or warehouse delay' },
+  { code: 'illness_emergency', label: 'Illness or emergency' },
+  { code: 'other', label: 'Other' },
 ];
 
 const WORKER_REASONS: ReasonOption[] = [
-  { code: 'supplies_unavailable', label: 'Supplies / tools unavailable', sublabel: 'Seeds, fertilizer, PPE, or tools not ready', icon: '📦' },
-  { code: 'weather', label: 'Inclement weather', sublabel: 'Heavy rainfall, lightning storm, extreme heat', icon: '🌧️' },
-  { code: 'traffic_road_closure', label: 'Field flooded / inaccessible', sublabel: 'Field sector waterlogged or access path blocked', icon: '🚧' },
-  { code: 'illness_emergency', label: 'Worker illness / emergency', sublabel: 'Personal injury, medical or family emergency', icon: '🩺' },
-  { code: 'vehicle_breakdown', label: 'Machinery / tool failure', sublabel: 'Tractor, irrigation pump, or field equipment failure', icon: '🚜' },
-  { code: 'other', label: 'Other operational delay', sublabel: 'Any other unforeseen agricultural delay', icon: '📋' },
+  { code: 'supplies_unavailable', label: 'Supplies or tools unavailable' },
+  { code: 'weather', label: 'Severe weather' },
+  { code: 'traffic_road_closure', label: 'Field inaccessible' },
+  { code: 'illness_emergency', label: 'Illness or emergency' },
+  { code: 'vehicle_breakdown', label: 'Machinery or tool failure' },
+  { code: 'other', label: 'Other' },
 ];
 
 const dayFormat = new Intl.DateTimeFormat('en-CA', {
@@ -74,9 +77,6 @@ export function openOverdueRecovery(target?: { taskId?: number; orderId?: number
   }
 }
 
-/**
- * Step 1: Modern Overdue Badge & Banner for Tasks / Deliveries
- */
 export function OverdueBadge({
   scheduledAt,
   taskId,
@@ -86,6 +86,7 @@ export function OverdueBadge({
   taskId?: number;
   orderId?: number;
 }) {
+  const { incidents } = useOperationsRecovery();
   if (!scheduledAt || Number.isNaN(new Date(scheduledAt).getTime())) return null;
 
   const isOverdue = dayFormat.format(new Date(scheduledAt)) < dayFormat.format(new Date());
@@ -96,11 +97,14 @@ export function OverdueBadge({
     month: 'short',
     day: 'numeric',
   });
+  const submitted = incidents.find((item) => !item.recovered_at && item.reason_submitted_at &&
+    (taskId != null ? item.task_id === taskId : item.order_id === orderId));
+  const reasonLabel = (taskId != null ? WORKER_REASONS : DRIVER_REASONS).find((item) => item.code === submitted?.reason_code)?.label;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Overdue work. Tap to submit delay reason"
+      accessibilityLabel={submitted ? 'Overdue work. Delay reason submitted' : 'Overdue work. Tap to submit delay reason'}
       onPress={() => openOverdueRecovery({ taskId, orderId })}
       style={({ pressed }) => [s.badgeContainer, pressed && s.badgePressed]}
     >
@@ -112,11 +116,7 @@ export function OverdueBadge({
         <Text style={s.badgeDateText}>Scheduled: {dateText} (Manila)</Text>
       </View>
 
-      <View style={s.badgePromptRow}>
-        <Text style={s.badgePromptIcon}>⚠</Text>
-        <Text style={s.badgePromptText}>Delay reason required to unlock next jobs</Text>
-        <Text style={s.badgeArrow}>→</Text>
-      </View>
+      <Text numberOfLines={2} style={s.badgePromptText}>{submitted ? `Reason: ${reasonLabel || 'Submitted'}${submitted.reason_notes ? ` — ${submitted.reason_notes}` : ''}` : 'Tap to submit a delay reason'}</Text>
     </Pressable>
   );
 }
@@ -141,15 +141,12 @@ export function useOperationsRecovery() {
   return useContext(OperationsRecoveryContext);
 }
 
-/**
- * Root Overdue Recovery Coordinator Provider & Modal Host
- */
 export function OperationsRecoveryProvider({ children }: { children?: React.ReactNode }) {
   const { profile } = useAuth();
   const path = usePathname();
   const enabled =
     profile?.role === 'farm_worker' &&
-    ['driver', 'crop_management_worker'].includes(profile.worker_category || '') &&
+    profile.worker_category === 'driver' &&
     !!profile.onboarding_completed_at;
 
   const isDriver = profile?.worker_category === 'driver';
@@ -160,12 +157,13 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
   const [selected, setSelected] = useState<Incident | null>(null);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
-  const [attachedImageName, setAttachedImageName] = useState<string | null>(null);
+  const [canContinue, setCanContinue] = useState<boolean | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [successToast, setSuccessToast] = useState('');
 
   const generation = useRef(0);
+  const requestedTarget = useRef<{ taskId?: number; orderId?: number; incidentId?: number } | null>(null);
   const invalidate = useCallback(() => {
     generation.current++;
   }, []);
@@ -177,6 +175,21 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
       const data = await apiRequest<{ incidents: Incident[] }>('/api/operations/mine');
       if (current !== generation.current) return;
       setIncidents(data.incidents || []);
+      if (requestedTarget.current) {
+        const target = requestedTarget.current;
+        const match = (data.incidents || []).find((item) =>
+          target.incidentId === item.id ||
+          target.taskId === item.task_id ||
+          target.orderId === item.order_id
+        );
+        if (match && !match.reason_submitted_at && (!match.recovered_at || needsPostCompletionReason(match))) {
+          setSelected(match);
+          setReason(match.reason_code || '');
+          setNotes('');
+          setCanContinue(needsPostCompletionReason(match) ? true : null);
+        }
+        requestedTarget.current = null;
+      }
       setError('');
     } catch (caught) {
       if (current === generation.current) {
@@ -191,25 +204,14 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
       setOpen(true);
       setError('');
       setSuccessToast('');
+      setSelected(null);
+      requestedTarget.current = target || null;
       load();
-
-      if (target) {
-        if (target.incidentId) {
-          const match = incidents.find((i) => i.id === target.incidentId);
-          if (match) setSelected(match);
-        } else if (target.taskId) {
-          const match = incidents.find((i) => i.task_id === target.taskId);
-          if (match) setSelected(match);
-        } else if (target.orderId) {
-          const match = incidents.find((i) => i.order_id === target.orderId);
-          if (match) setSelected(match);
-        }
-      }
     };
     return () => {
       openModalHandler = null;
     };
-  }, [incidents, load]);
+  }, [load]);
 
   useEffect(() => {
     const initial = setTimeout(() => {
@@ -242,28 +244,17 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
     return () => clearTimeout(timer);
   }, [enabled, path, load]);
 
-  const missing = incidents.filter((item) => !item.reason_submitted_at);
-  const active = incidents.filter((item) => !item.recovered_at || !item.reason_submitted_at);
+  const active = incidents.filter((item) => !item.recovered_at || needsPostCompletionReason(item));
+  const missing = active.filter((item) => !item.reason_submitted_at);
 
   const openRecovery = useCallback((target?: { taskId?: number; orderId?: number; incidentId?: number }) => {
     setOpen(true);
     setError('');
     setSuccessToast('');
+    setSelected(null);
+    requestedTarget.current = target || null;
     load();
-
-    if (target) {
-      if (target.incidentId) {
-        const match = incidents.find((i) => i.id === target.incidentId);
-        if (match) setSelected(match);
-      } else if (target.taskId) {
-        const match = incidents.find((i) => i.task_id === target.taskId);
-        if (match) setSelected(match);
-      } else if (target.orderId) {
-        const match = incidents.find((i) => i.order_id === target.orderId);
-        if (match) setSelected(match);
-      }
-    }
-  }, [incidents, load]);
+  }, [load]);
 
   const contextValue = useMemo<OperationsRecoveryContextValue>(
     () => ({
@@ -278,28 +269,12 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
 
   if (!enabled) return <>{children}</>;
 
-  async function pickEvidence() {
-    try {
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.7,
-      });
-      if (!res.canceled && res.assets && res.assets.length > 0) {
-        const file = res.assets[0];
-        const name = file.fileName || `evidence_${Date.now()}.jpg`;
-        setAttachedImageName(name);
-      }
-    } catch {
-      // Image picker canceled or unsupported in environment
-    }
-  }
-
   function handleSelectIncident(item: Incident) {
+    requestedTarget.current = null;
     setSelected(item);
     setReason(item.reason_code || '');
     setNotes('');
-    setAttachedImageName(null);
+    setCanContinue(needsPostCompletionReason(item) ? true : null);
     setError('');
   }
 
@@ -308,24 +283,16 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
     setBusy(true);
     setError('');
 
-    let finalNotes = notes.trim();
-    if (attachedImageName) {
-      finalNotes += `\n[Photo evidence attached: ${attachedImageName}]`;
-    }
-
     try {
       await apiRequest(`/api/operations/${selected.id}/reason`, {
         method: 'POST',
-        body: JSON.stringify({ reason_code: reason, notes: finalNotes }),
+        body: JSON.stringify({ reason_code: reason, notes: notes.trim(), can_continue: needsPostCompletionReason(selected) ? true : canContinue }),
       });
-      setSuccessToast('✓ Reason recorded! Dispatch and management have been notified.');
-      setTimeout(() => {
-        setSelected(null);
-        setReason('');
-        setNotes('');
-        setAttachedImageName(null);
-        setSuccessToast('');
-      }, 1400);
+      setSelected(null);
+      setReason('');
+      setNotes('');
+      setCanContinue(null);
+      setSuccessToast('Delay reason submitted. The admin has been notified.');
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to submit delay reason.');
@@ -334,13 +301,12 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
     }
   }
 
-  const isFormValid = !!reason && notes.trim().length >= 5 && notes.trim().length <= 2000;
+  const isFormValid = !!reason && notes.trim().length >= 5 && notes.trim().length <= 2000 && (selected != null && needsPostCompletionReason(selected) || canContinue !== null);
 
   return (
     <OperationsRecoveryContext.Provider value={contextValue}>
       {children}
 
-      {/* Step 2 Bottom Sheet Modal */}
       <Modal
         visible={open}
         transparent
@@ -354,10 +320,7 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
       >
         <View style={s.modalOverlay}>
           <SafeAreaView style={s.bottomSheetContainer}>
-            {/* Top Drag Indicator */}
             <View style={s.sheetHandleBar} />
-
-            {/* Header */}
             <View style={s.sheetHeader}>
               <View style={s.sheetHeaderLeft}>
                 {selected ? (
@@ -374,20 +337,10 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
                     <Text style={s.backButtonText}>←</Text>
                   </Pressable>
                 ) : null}
-                <View>
-                  <Text style={s.sheetBrandTitle}>
-                    Agri<Text style={s.sheetBrandGreen}>Verse</Text>
-                  </Text>
-                  <Text style={s.sheetSubTitle}>
-                    {selected ? 'Step 2 · Required Delay Reason' : 'Overdue Work & Recovery'}
-                  </Text>
-                </View>
+                <Text style={s.sheetBrandTitle}>{selected ? 'Delay reason' : 'Overdue work'}</Text>
               </View>
 
               <View style={s.sheetHeaderRight}>
-                <View style={s.roleBadge}>
-                  <Text style={s.roleBadgeText}>{isDriver ? 'Driver' : 'Worker'}</Text>
-                </View>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Close dialog"
@@ -398,7 +351,7 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
                   }}
                   style={s.closeCircleBtn}
                 >
-                  <Text style={s.closeCircleBtnText}>✕</Text>
+                  <Text style={s.closeCircleBtnText}>×</Text>
                 </Pressable>
               </View>
             </View>
@@ -410,7 +363,7 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
             >
               {error ? (
                 <View style={s.errorAlert}>
-                  <Text style={s.errorAlertText}>⚠ {error}</Text>
+                  <Text style={s.errorAlertText}>{error}</Text>
                 </View>
               ) : null}
 
@@ -421,14 +374,9 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
               ) : null}
 
               {selected ? (
-                /* Stage 2 Delay Reason Submission View */
                 <View style={s.formWrapper}>
-                  {/* Context Capsule */}
                   <View style={s.contextCard}>
-                    <View style={s.contextIconSquircle}>
-                      <Text style={s.contextIconEmoji}>{selected.order_id ? '🚚' : '🌱'}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
+                    <View style={s.contextContent}>
                       <View style={s.contextTitleRow}>
                         <Text style={s.contextLabelText} numberOfLines={1}>
                           {selected.label}
@@ -438,30 +386,26 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
                         </View>
                       </View>
                       <Text style={s.contextMetaText}>
-                        Scheduled:{' '}
+                        Scheduled{' '}
                         {new Date(selected.scheduled_at).toLocaleDateString('en-PH', {
                           timeZone: 'Asia/Manila',
                           month: 'short',
                           day: 'numeric',
-                        })}{' '}
-                        · Original status: {selected.original_status}
+                          year: 'numeric',
+                        })}
                       </Text>
                     </View>
                   </View>
 
-                  {/* Form Prompt */}
                   <View style={s.promptBlock}>
                     <Text style={s.promptTitle}>
                       {selected.order_id
                         ? 'Why was this delivery delayed?'
                         : 'Why was this task delayed?'}
                     </Text>
-                    <Text style={s.promptSub}>
-                      Select the primary reason. This will be reported directly to management.
-                    </Text>
+                    <Text style={s.promptSub}>Choose a reason and explain what happened.</Text>
                   </View>
 
-                  {/* Radio Option Tiles */}
                   <View style={s.reasonsList}>
                     {roleReasons.map((item) => {
                       const isChosen = reason === item.code;
@@ -474,17 +418,9 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
                           onPress={() => setReason(item.code)}
                           style={[s.reasonTile, isChosen && s.reasonTileChosen]}
                         >
-                          <View style={s.reasonTileIconBox}>
-                            <Text style={s.reasonTileEmoji}>{item.icon}</Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[s.reasonTileTitle, isChosen && s.reasonTileTitleChosen]}>
-                              {item.label}
-                            </Text>
-                            <Text style={s.reasonTileSub} numberOfLines={1}>
-                              {item.sublabel}
-                            </Text>
-                          </View>
+                          <Text style={[s.reasonTileTitle, isChosen && s.reasonTileTitleChosen]}>
+                            {item.label}
+                          </Text>
                           <View style={[s.radioOuter, isChosen && s.radioOuterChosen]}>
                             {isChosen ? <View style={s.radioInner} /> : null}
                           </View>
@@ -493,20 +429,17 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
                     })}
                   </View>
 
-                  {/* Notes & Explanation */}
                   <View style={s.inputSection}>
                     <View style={s.inputLabelRow}>
-                      <Text style={s.inputLabel}>
-                        Explanation Notes <Text style={{ color: '#DC2626' }}>*</Text>
-                      </Text>
-                      <Text style={s.charCounter}>{notes.trim().length} / 2000 (min 5)</Text>
+                      <Text style={s.inputLabel}>Explanation</Text>
+                      <Text style={s.charCounter}>{notes.length}/2000</Text>
                     </View>
                     <TextInput
                       accessibilityLabel="Delay explanation"
                       multiline
                       maxLength={2000}
                       editable={!busy}
-                      placeholder="Please explain what happened in detail..."
+                      placeholder="Explain the delay (at least 5 characters)"
                       placeholderTextColor="#94A3B8"
                       value={notes}
                       onChangeText={setNotes}
@@ -514,41 +447,32 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
                     />
                   </View>
 
-                  {/* Evidence Attachment Box */}
-                  <View style={s.evidenceBox}>
-                    <View style={s.evidenceLeft}>
-                      <Text style={s.evidenceIcon}>📎</Text>
-                      <View>
-                        <Text style={s.evidenceTitle}>Attach Photo / Evidence (Optional)</Text>
-                        <Text style={s.evidenceSub}>
-                          {attachedImageName ? attachedImageName : 'Repair receipts, tire photo, flooded path'}
-                        </Text>
-                      </View>
-                    </View>
-                    {attachedImageName ? (
-                      <Pressable
-                        onPress={() => setAttachedImageName(null)}
-                        style={s.evidenceClearBtn}
-                      >
-                        <Text style={s.evidenceClearText}>Remove</Text>
-                      </Pressable>
-                    ) : (
-                      <Pressable onPress={pickEvidence} style={s.evidenceUploadBtn}>
-                        <Text style={s.evidenceUploadText}>Browse</Text>
-                      </Pressable>
-                    )}
-                  </View>
-
-                  {/* Operational Guard Card */}
-                  <View style={s.guardNotice}>
-                    <Text style={s.guardNoticeIcon}>ⓘ</Text>
-                    <Text style={s.guardNoticeText}>
-                      Reason required before closing this task or starting another job. Original
-                      deadline is retained in operational audit history.
+                  {!needsPostCompletionReason(selected) && <View style={s.inputSection}>
+                    <Text style={s.inputLabel}>
+                      Can you still complete this {selected.order_id ? 'delivery' : 'task'}?
                     </Text>
-                  </View>
+                    <View style={s.reasonsList}>
+                      {[
+                        { value: true, label: 'Yes, I can continue' },
+                        { value: false, label: 'No, I cannot continue' },
+                      ].map((option) => (
+                        <Pressable
+                          key={option.label}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: canContinue === option.value }}
+                          disabled={busy}
+                          onPress={() => setCanContinue(option.value)}
+                          style={[s.reasonTile, canContinue === option.value && s.reasonTileChosen]}
+                        >
+                          <Text style={[s.reasonTileTitle, canContinue === option.value && s.reasonTileTitleChosen]}>{option.label}</Text>
+                          <View style={[s.radioOuter, canContinue === option.value && s.radioOuterChosen]}>
+                            {canContinue === option.value ? <View style={s.radioInner} /> : null}
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>}
 
-                  {/* Submit CTA */}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Submit delay reason"
@@ -559,23 +483,15 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
                     {busy ? (
                       <ActivityIndicator color="#FFFFFF" size="small" />
                     ) : (
-                      <Text style={s.submitBtnText}>Submit Reason & Notify Dispatch →</Text>
+                      <Text style={s.submitBtnText}>Submit delay reason</Text>
                     )}
                   </Pressable>
                 </View>
               ) : (
-                /* Overdue Incident Queue Overview */
                 <View style={s.queueWrapper}>
-                  <Text style={s.queueHeaderTitle}>Active Overdue Work</Text>
-                  <Text style={s.queueHeaderSub}>
-                    Unfinished items past Philippine midnight cutoff.
-                  </Text>
-
                   {active.length === 0 ? (
                     <View style={s.emptyState}>
-                      <Text style={s.emptyStateIcon}>✓</Text>
-                      <Text style={s.emptyStateTitle}>All caught up!</Text>
-                      <Text style={s.emptyStateSub}>No outstanding overdue work or delay reasons needed.</Text>
+                      <Text style={s.emptyStateTitle}>No overdue work</Text>
                     </View>
                   ) : null}
 
@@ -584,37 +500,21 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
                     return (
                       <View key={item.id} style={s.incidentCard}>
                         <View style={s.incidentCardHeader}>
-                          <View style={s.contextIconSquircle}>
-                            <Text style={s.contextIconEmoji}>{item.order_id ? '🚚' : '🌱'}</Text>
-                          </View>
                           <View style={{ flex: 1 }}>
                             <Text style={s.incidentCardTitle}>{item.label}</Text>
                             <Text style={s.incidentCardMeta}>
-                              Scheduled:{' '}
+                              Scheduled{' '}
                               {new Date(item.scheduled_at).toLocaleDateString('en-PH', {
                                 timeZone: 'Asia/Manila',
                                 month: 'short',
                                 day: 'numeric',
-                              })}{' '}
-                              · {item.original_status}
+                                year: 'numeric',
+                              })}
                             </Text>
                           </View>
                           <View style={s.miniOverduePill}>
-                            <Text style={s.miniOverduePillText}>OVERDUE</Text>
+                            <Text style={s.miniOverduePillText}>{item.recovered_at ? 'SUBMITTED' : 'OVERDUE'}</Text>
                           </View>
-                        </View>
-
-                        {/* Status Strip */}
-                        <View style={s.incidentStatusStrip}>
-                          {item.recovered_at ? (
-                            <Text style={s.incidentStatusRecovered}>
-                              ✓ Recovery confirmed {item.new_scheduled_at ? `· New: ${new Date(item.new_scheduled_at).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric' })}` : ''}
-                            </Text>
-                          ) : (
-                            <Text style={s.incidentStatusPending}>
-                              ⏳ Admin notified · Recovery pending confirmation
-                            </Text>
-                          )}
                         </View>
 
                         {needsReason ? (
@@ -624,14 +524,14 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
                             onPress={() => handleSelectIncident(item)}
                             style={s.incidentActionBtn}
                           >
-                            <Text style={s.incidentActionBtnText}>Submit Delay Reason →</Text>
+                            <Text style={s.incidentActionBtnText}>Submit delay reason</Text>
                           </Pressable>
                         ) : (
-                          <View style={s.reasonSubmittedPill}>
-                            <Text style={s.reasonSubmittedText}>
-                              Reason submitted · {item.classification === 'pending' ? 'Awaiting review' : item.classification}
-                            </Text>
-                          </View>
+                          <Text style={s.reasonSubmittedText}>
+                            {item.classification === 'pending'
+                              ? `Reason submitted for admin review${item.can_continue === false ? ' · Cannot continue' : ''}`
+                              : `Admin review: ${item.classification}`}
+                          </Text>
                         )}
                       </View>
                     );
@@ -648,11 +548,6 @@ export function OperationsRecoveryProvider({ children }: { children?: React.Reac
 
 export const OperationsRecovery = OperationsRecoveryProvider;
 
-/**
- * Option 1: Top In-Feed Alert Banner
- * Scrolls naturally with the feed, notifying farm workers and drivers
- * without obstructing "Start Task" buttons or the bottom tab bar.
- */
 export function OverdueAlertBanner({ style }: { style?: StyleProp<ViewStyle> }) {
   const { activeCount, missingCount, openRecovery } = useOperationsRecovery();
   const { profile } = useAuth();
@@ -675,23 +570,12 @@ export function OverdueAlertBanner({ style }: { style?: StyleProp<ViewStyle> }) 
       onPress={() => openRecovery()}
     >
       <View style={s.inFeedBannerLeft}>
-        <View style={s.inFeedBannerIconBox}>
-          <Text style={s.inFeedBannerIcon}>⚠</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.inFeedBannerTitle}>
-            {activeCount} Overdue {entityName} Flagged
-          </Text>
-          <Text style={s.inFeedBannerSub}>
-            {missingCount > 0
-              ? 'Submit delay reason to continue work'
-              : 'Recovery confirmation pending'}
-          </Text>
-        </View>
+        <Text style={s.inFeedBannerTitle}>{activeCount} overdue {entityName.toLowerCase()}</Text>
+        <Text style={s.inFeedBannerSub}>
+          {missingCount > 0 ? 'Submit a delay reason' : 'Admin review in progress'}
+        </Text>
       </View>
-      <View style={s.inFeedBannerActionPill}>
-        <Text style={s.inFeedBannerActionText}>Review →</Text>
-      </View>
+      <Text style={s.inFeedBannerActionText}>View</Text>
     </Pressable>
   );
 }
@@ -971,13 +855,14 @@ export function BuyerRecoveryUpdate({
 }
 
 const s = StyleSheet.create({
-  /* Step 1 Task Card Badge Styles */
   badgeContainer: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1.5,
-    borderColor: '#FCA5A5',
-    borderRadius: 14,
-    padding: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E8DB',
+    borderLeftWidth: 3,
+    borderLeftColor: '#C74732',
+    borderRadius: 12,
+    padding: 12,
     marginBottom: 10,
     gap: 6,
   },
@@ -994,50 +879,34 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: '#FFF1EC',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#F87171',
+    borderColor: '#F2D0C6',
   },
   badgeDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#DC2626',
+    backgroundColor: '#C74732',
   },
   badgePillText: {
-    color: '#DC2626',
+    color: '#B93224',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.5,
   },
   badgeDateText: {
-    color: '#64748B',
+    color: '#607263',
     fontSize: 11,
     fontWeight: '600',
   },
-  badgePromptRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingTop: 2,
-  },
-  badgePromptIcon: {
-    color: '#D97706',
-    fontSize: 12,
-  },
   badgePromptText: {
-    flex: 1,
-    color: '#991B1B',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  badgeArrow: {
-    color: '#166534',
-    fontSize: 13,
-    fontWeight: '800',
+    color: '#176D34',
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   /* Floating Amber Banner */
@@ -1106,82 +975,55 @@ const s = StyleSheet.create({
     fontWeight: '800',
   },
 
-  /* Option 1: In-Feed Alert Banner */
   inFeedBanner: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1.5,
-    borderColor: '#F59E0B',
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E8DB',
+    borderLeftWidth: 3,
+    borderLeftColor: '#C74732',
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 14,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 2,
   },
   inFeedBannerPressed: {
     opacity: 0.88,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#F8FAEF',
   },
   inFeedBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
     flex: 1,
     paddingRight: 8,
   },
-  inFeedBannerIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#D97706',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inFeedBannerIcon: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '900',
-  },
   inFeedBannerTitle: {
-    color: '#92400E',
-    fontSize: 13,
-    fontWeight: '800',
+    color: '#213B27',
+    fontSize: 14,
+    fontWeight: '700',
     lineHeight: 17,
   },
   inFeedBannerSub: {
-    color: '#B45309',
-    fontSize: 10.5,
-    fontWeight: '500',
+    color: '#607263',
+    fontSize: 12,
+    fontWeight: '400',
     marginTop: 2,
   },
-  inFeedBannerActionPill: {
-    backgroundColor: '#166534',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-  },
   inFeedBannerActionText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
+    color: '#176D34',
+    fontSize: 12,
+    fontWeight: '700',
   },
 
-  /* Modal & Bottom Sheet */
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: 'rgba(20, 36, 23, 0.48)',
     justifyContent: 'flex-end',
   },
   bottomSheetContainer: {
     backgroundColor: '#F8FAEF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     maxHeight: '94%',
     overflow: 'hidden',
   },
@@ -1189,7 +1031,7 @@ const s = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: '#CBD8CA',
     alignSelf: 'center',
     marginTop: 10,
     marginBottom: 6,
@@ -1201,7 +1043,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E0E8DB',
     backgroundColor: '#FFFFFF',
   },
   sheetHeaderLeft: {
@@ -1214,59 +1056,38 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2F6EE',
     alignItems: 'center',
     justifyContent: 'center',
   },
   backButtonText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#334155',
+    color: '#315638',
   },
   sheetBrandTitle: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     color: '#134B24',
     letterSpacing: -0.5,
-  },
-  sheetBrandGreen: {
-    color: '#16A34A',
-  },
-  sheetSubTitle: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
   },
   sheetHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  roleBadge: {
-    backgroundColor: '#DCFCE7',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  roleBadgeText: {
-    color: '#166534',
-    fontSize: 11,
-    fontWeight: '800',
-  },
   closeCircleBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2F6EE',
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeCircleBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#64748B',
+    fontSize: 20,
+    fontWeight: '400',
+    color: '#315638',
   },
   scrollContent: {
     padding: 18,
@@ -1288,9 +1109,9 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
   successAlert: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: '#EAF6E8',
     borderWidth: 1,
-    borderColor: '#86EFAC',
+    borderColor: '#C7E1C2',
     borderRadius: 12,
     padding: 12,
   },
@@ -1298,33 +1119,21 @@ const s = StyleSheet.create({
     color: '#14532D',
     fontSize: 12,
     fontWeight: '700',
-    textAlign: 'center',
+    textAlign: 'left',
   },
 
-  /* Form Section */
   formWrapper: {
     gap: 14,
   },
   contextCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 16,
+    borderColor: '#E0E8DB',
+    borderRadius: 12,
     padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
   },
-  contextIconSquircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#EEF2FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contextIconEmoji: {
-    fontSize: 20,
+  contextContent: {
+    gap: 5,
   },
   contextTitleRow: {
     flexDirection: 'row',
@@ -1335,29 +1144,28 @@ const s = StyleSheet.create({
   contextLabelText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#213B27',
     flex: 1,
   },
   miniOverduePill: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: '#FFF1EC',
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: '#F2D0C6',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
   miniOverduePillText: {
-    color: '#DC2626',
+    color: '#B93224',
     fontSize: 9,
     fontWeight: '900',
   },
   contextMetaText: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#607263',
     marginTop: 2,
   },
 
-  /* Prompt */
   promptBlock: {
     gap: 3,
   },
@@ -1371,48 +1179,30 @@ const s = StyleSheet.create({
     color: '#64748B',
   },
 
-  /* Reason Tiles */
   reasonsList: {
-    gap: 8,
+    gap: 6,
   },
   reasonTile: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
+    borderColor: '#E0E8DB',
+    borderRadius: 10,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   reasonTileChosen: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#166534',
-    borderWidth: 2,
-  },
-  reasonTileIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reasonTileEmoji: {
-    fontSize: 16,
+    backgroundColor: '#F2F8EF',
+    borderColor: '#176D34',
   },
   reasonTileTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#1E293B',
+    fontWeight: '600',
+    color: '#213B27',
   },
   reasonTileTitleChosen: {
     color: '#14532D',
-  },
-  reasonTileSub: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
   },
   radioOuter: {
     width: 20,
@@ -1434,7 +1224,6 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  /* Input Section */
   inputSection: {
     gap: 6,
   },
@@ -1446,118 +1235,30 @@ const s = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#213B27',
   },
   charCounter: {
     fontSize: 10,
-    color: '#64748B',
+    color: '#607263',
   },
   textArea: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 14,
+    borderColor: '#D4DFD0',
+    borderRadius: 10,
     padding: 12,
     fontSize: 13,
-    color: '#1E293B',
+    color: '#213B27',
     minHeight: 80,
     textAlignVertical: 'top',
   },
 
-  /* Evidence Box */
-  evidenceBox: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#94A3B8',
-    borderRadius: 14,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  evidenceLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  evidenceIcon: {
-    fontSize: 16,
-  },
-  evidenceTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  evidenceSub: {
-    fontSize: 10,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  evidenceUploadBtn: {
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  evidenceUploadText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  evidenceClearBtn: {
-    backgroundColor: '#FEE2E2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  evidenceClearText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#DC2626',
-  },
-
-  /* Guard Notice */
-  guardNotice: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-    borderRadius: 12,
-    padding: 12,
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-start',
-  },
-  guardNoticeIcon: {
-    color: '#D97706',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  guardNoticeText: {
-    color: '#92400E',
-    fontSize: 11,
-    fontWeight: '600',
-    lineHeight: 16,
-    flex: 1,
-  },
-
-  /* Submit CTA */
   submitBtn: {
-    backgroundColor: '#166534',
-    borderRadius: 14,
+    backgroundColor: '#176D34',
+    borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#166534',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
   },
   submitBtnDisabled: {
     opacity: 0.5,
@@ -1569,47 +1270,28 @@ const s = StyleSheet.create({
     fontWeight: '800',
   },
 
-  /* Queue Overview */
   queueWrapper: {
     gap: 12,
   },
-  queueHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#134B24',
-  },
-  queueHeaderSub: {
-    fontSize: 12,
-    color: '#64748B',
-  },
   emptyState: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 24,
+    borderColor: '#E0E8DB',
+    padding: 20,
     alignItems: 'center',
     gap: 6,
-  },
-  emptyStateIcon: {
-    fontSize: 28,
-    color: '#16A34A',
   },
   emptyStateTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E293B',
-  },
-  emptyStateSub: {
-    fontSize: 12,
-    color: '#64748B',
-    textAlign: 'center',
+    color: '#213B27',
   },
   incidentCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 16,
+    borderColor: '#E0E8DB',
+    borderRadius: 12,
     padding: 14,
     gap: 10,
   },
@@ -1621,28 +1303,15 @@ const s = StyleSheet.create({
   incidentCardTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#213B27',
   },
   incidentCardMeta: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#607263',
     marginTop: 1,
   },
-  incidentStatusStrip: {
-    paddingVertical: 4,
-  },
-  incidentStatusRecovered: {
-    fontSize: 11,
-    color: '#166534',
-    fontWeight: '700',
-  },
-  incidentStatusPending: {
-    fontSize: 11,
-    color: '#B45309',
-    fontWeight: '600',
-  },
   incidentActionBtn: {
-    backgroundColor: '#166534',
+    backgroundColor: '#176D34',
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
@@ -1652,16 +1321,10 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  reasonSubmittedPill: {
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-    padding: 8,
-  },
   reasonSubmittedText: {
-    fontSize: 11,
-    color: '#475569',
+    fontSize: 12,
+    color: '#607263',
     fontWeight: '600',
-    textAlign: 'center',
   },
 
   /* Step 5: Modern Buyer Card Styles */

@@ -1,6 +1,6 @@
 import { GREEN, styles } from '@/styles/worker-completed-task-details.styles';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -16,10 +16,12 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { useWorkerTaskRefresh } from '@/lib/use-worker-task-refresh';
+import { overdueTimelineEvents, type OperationIncident } from '@/lib/overdue-timeline';
 import { INSPECTION_QUESTIONS, suppliesSummary, supplyKindFor, type InspectionDetails, type TaskSupplyFields } from '@/lib/task-supplies';
 
 type TaskStatus = 'pending' | 'in_progress' | 'awaiting_approval' | 'completed';
-type TimelineEvent = { title: string; dateTime: string; icon: 'start' | 'completed' | 'approved' };
+type TimelineEvent = { key: string; at: string; title: string; dateTime: string; detail?: string | null; icon: 'start' | 'completed' | 'approved' | 'overdue' | 'reason' | 'rescheduled' | 'cancelled' };
 
 type WorkerTaskDetail = TaskSupplyFields & {
   id: number;
@@ -110,7 +112,15 @@ function ZoomIcon() {
 function TimelineEventIcon({ type, color }: { type: TimelineEvent['icon']; color: string }) {
   return (
     <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
-      {type === 'start' ? (
+      {type === 'cancelled' ? (
+        <><Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} /><Path d="m9 9 6 6m0-6-6 6" stroke={color} strokeWidth={2} strokeLinecap="round" /></>
+      ) : type === 'overdue' ? (
+        <><Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} /><Path d="M12 7v6m0 4h.01" stroke={color} strokeWidth={2} strokeLinecap="round" /></>
+      ) : type === 'reason' ? (
+        <Path d="M6 3h9l3 3v15H6V3Zm3 7h6m-6 4h6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      ) : type === 'rescheduled' ? (
+        <><Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} /><Path d="M12 7v5l3 2" stroke={color} strokeWidth={2} strokeLinecap="round" /></>
+      ) : type === 'start' ? (
         <Path d="m9 6 9 6-9 6V6Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
       ) : type === 'completed' ? (
         <Path d="M5 21V4h13l-2.5 4L18 12H5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -125,34 +135,40 @@ export default function WorkerCompletedTaskDetails() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading: authLoading, profile } = useAuth();
   const [task, setTask] = useState<WorkerTaskDetail | null>(null);
+  const [incidents, setIncidents] = useState<OperationIncident[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
 
-  const loadTask = useCallback(async (refresh = false) => {
+  const loadTask = useCallback(async (refresh = false, silent = false) => {
     if (!id) {
       setError('Task ID is missing.');
       setLoading(false);
       return;
     }
-    if (refresh) setRefreshing(true);
-    else setLoading(true);
+    if (!silent) {
+      if (refresh) setRefreshing(true);
+      else setLoading(true);
+    }
     setError('');
     try {
-      const response = await apiRequest<{ task: WorkerTaskDetail }>(`/api/worker/tasks/${id}`);
+      const response = await apiRequest<{ task: WorkerTaskDetail; incidents: OperationIncident[] }>(`/api/worker/tasks/${id}`);
       setTask(response.task);
+      setIncidents(response.incidents || []);
     } catch (caught) {
+      setTask(null);
+      setIncidents([]);
       setError(caught instanceof Error ? caught.message : 'Could not load task details.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!silent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [id]);
 
-  useEffect(() => {
-    if (profile) loadTask();
-  }, [loadTask, profile]);
+  useWorkerTaskRefresh(loadTask, profile?.id);
 
   if (authLoading) {
     return (
@@ -203,11 +219,16 @@ export default function WorkerCompletedTaskDetails() {
   const usesInventory = task ? Boolean(supplyKindFor(task.category, task.activity_type)) : false;
   const proofImageUrl = task?.harvest_proof_image_url || task?.completion_proof_image_url;
   const inspectionAnswers = INSPECTION_QUESTIONS.filter((question) => task?.details?.[question.key]);
-  const timelineEvents = [
-    startedAt && { title: 'Work started', dateTime: startedAt, icon: 'start' as const },
-    completedAt && { title: 'Work completed', dateTime: completedAt, icon: 'completed' as const },
-    approvedAt && { title: 'Approved', dateTime: approvedAt, icon: 'approved' as const },
-  ].filter((event): event is TimelineEvent => Boolean(event));
+  const timelineEvents: TimelineEvent[] = [
+    ...(task?.started_at && startedAt ? [{ key: 'started', at: task.started_at, title: 'Work started', dateTime: startedAt, icon: 'start' as const }] : []),
+    ...overdueTimelineEvents(incidents, formatRecordedDateTime).map((event) => ({
+      ...event,
+      dateTime: formatRecordedDateTime(event.at) || '',
+      icon: event.key.startsWith('overdue-') ? 'overdue' as const : event.key.startsWith('reason-') ? 'reason' as const : event.key.startsWith('cancelled-') ? 'cancelled' as const : 'rescheduled' as const,
+    })),
+    ...(task?.completed_at && completedAt ? [{ key: 'completed', at: task.completed_at, title: 'Work completed', dateTime: completedAt, icon: 'completed' as const }] : []),
+    ...(task?.approved_at && approvedAt ? [{ key: 'approved', at: task.approved_at, title: 'Approved', dateTime: approvedAt, icon: 'approved' as const }] : []),
+  ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -415,7 +436,7 @@ export default function WorkerCompletedTaskDetails() {
                   <Text style={styles.receiptSectionKicker}>Task Timeline</Text>
                   <View style={styles.timelineContainer}>
                     {timelineEvents.map((event, index) => (
-                      <View key={event.title} style={[styles.timelineStep, index === timelineEvents.length - 1 && styles.timelineStepLast]}>
+                      <View key={event.key} style={[styles.timelineStep, index === timelineEvents.length - 1 && styles.timelineStepLast]}>
                         {index < timelineEvents.length - 1 ? <View style={styles.timelineLine} /> : null}
                         <View style={[styles.timelineDot, event.icon === 'approved' && styles.timelineDotApproved]}>
                           <TimelineEventIcon type={event.icon} color={event.icon === 'approved' ? '#FFFFFF' : '#166534'} />
@@ -423,6 +444,7 @@ export default function WorkerCompletedTaskDetails() {
                         <View style={styles.timelineStepContent}>
                           <Text style={styles.timelineStepTitle}>{event.title}</Text>
                           <Text style={styles.timelineStepSub}>{event.dateTime}</Text>
+                          {event.detail ? <Text style={styles.timelineStepSub}>{event.detail}</Text> : null}
                         </View>
                       </View>
                     ))}

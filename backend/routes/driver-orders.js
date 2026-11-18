@@ -183,7 +183,11 @@ router.get("/:id", async (req, res, next) => {
   try {
     const id = orderId(req.params.id);
     const order = await fetchDriverOrder(id, req.user.id);
-    return res.json({ order });
+    const { data: incidents, error } = await getSupabase().from("operation_incidents")
+      .select("id, detected_at, scheduled_at, reason_submitted_at, recovered_at, recovery_action, new_scheduled_at")
+      .eq("order_id", id).order("detected_at", { ascending: true });
+    if (error) throw error;
+    return res.json({ order, incidents: incidents || [] });
   } catch (error) { return next(error); }
 });
 

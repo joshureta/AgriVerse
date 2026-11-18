@@ -66,7 +66,15 @@ function AdminNotificationMenu() {
       }
     }
     if (notification.type === 'dispute_opened') window.location.assign('/admin/tasks?tab=disputes')
-    if (notification.type.startsWith('operation_')) window.location.assign('/admin/tasks?modal=overdue')
+    if (notification.type === 'operation_reason') {
+      const entityId = Number(notification.entity_id)
+      const target = notification.entity_type === 'task' ? 'taskId' : notification.entity_type === 'order' ? 'orderId' : null
+      window.location.assign(target && Number.isSafeInteger(entityId) && entityId > 0
+        ? `/admin/tasks?modal=overdue&${target}=${entityId}`
+        : '/admin/tasks?modal=overdue')
+    } else if (notification.type.startsWith('operation_')) {
+      window.location.assign('/admin/tasks')
+    }
   }
 
   async function markAllRead() {

@@ -55,28 +55,11 @@
 .assign-task-toolbar-button { grid-column: 4; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 6px; padding: 0 16px; color: #fff; background: #196c35; box-shadow: 0 2px 6px rgba(25,108,53,.18); font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: background-color .15s ease; }
 .assign-task-toolbar-button:hover:not(:disabled) { background: #14572a; }
 .assign-task-toolbar-button span { font-size: 15px; font-weight: 400; }.assign-task-toolbar-button:disabled { cursor: not-allowed; background: #9cbca4; box-shadow: none; opacity: .65; }
-.task-status.status-overdue.is-overdue-trigger {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  font-size: 9px;
-  font-weight: 900;
-  text-transform: uppercase;
-  color: #d92d20;
-  cursor: pointer;
-  display: inline;
-  line-height: inherit;
-  letter-spacing: inherit;
-  transition: opacity .15s ease;
-}
-.task-status.status-overdue.is-overdue-trigger:hover {
-  opacity: .8;
-}
-.task-review-alert.is-overdue { border-left-color: #dc2626; background: #fffdfc; }
-.task-review-alert.is-overdue .task-review-alert-icon { color: #dc2626; }
-.task-review-alert.is-overdue .task-review-alert-link { color: #dc2626; font-weight: 800; }
+.overdue-status-group { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; text-align: left; }
+.tasks-table td .overdue-status-group small { margin: 0; color: #667568; font-size: 10px; font-weight: 600; line-height: 1.3; text-transform: none; }
+.overdue-dot { position: relative; display: inline-block; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: #c53030; cursor: pointer; }
+.overdue-dot::after { content: attr(title); position: absolute; bottom: calc(100% + 5px); left: 50%; transform: translateX(-50%); white-space: nowrap; border-radius: 4px; padding: 3px 6px; background: #26342a; color: #fff; font-size: 10px; font-weight: 600; line-height: 1.3; opacity: 0; pointer-events: none; transition: opacity .15s ease; z-index: 30; }
+.overdue-dot:hover::after { opacity: 1; }
 .task-filter { position: relative; display: block; }
 .task-filter > button { width: 100%; height: 36px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 6px; padding: 0 14px; color: #fff; background: #196c35; box-shadow: 0 2px 6px rgba(25,108,53,.18); font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; transition: background-color .15s ease; }
 .task-filter > button:hover, .task-filter > button:focus-visible { background: #14572a; outline: none; }.task-filter > button[aria-expanded='true'] { filter: brightness(.96); }
@@ -2879,9 +2862,11 @@
 .task-review-alert { min-height: 54px; display: flex; align-items: center; gap: 12px; box-sizing: border-box; border: 1px solid; border-left-width: 5px; border-radius: 8px; padding: 9px 14px; }
 .task-review-alert.is-tasks { border-color: #cde8ca; border-left-color: #278538; color: #193b25; background: #f4faf3; }
 .task-review-alert.is-disputes { border-color: #f7c8c3; border-left-color: #d93829; color: #45221f; background: #fff5f4; }
+.task-review-alert.is-overdue { border-color: #f7c8c3; border-left-color: #d93829; color: #45221f; background: #fff5f4; }
 .task-review-alert-icon { width: 28px; height: 28px; display: grid; flex: 0 0 28px; place-items: center; border-radius: 50%; color: #fff; }
 .task-review-alert.is-tasks .task-review-alert-icon { background: #278538; }
 .task-review-alert.is-disputes .task-review-alert-icon { background: #d93829; }
+.task-review-alert.is-overdue .task-review-alert-icon { background: #d93829; }
 .task-review-alert-icon svg { width: 16px; height: 16px; stroke-width: 2.4; }
 .task-review-alert p { flex: 1; min-width: 0; margin: 0; font-size: 13px; line-height: 1.45; }
 .task-review-alert-link { border: 0; padding: 0; color: inherit; background: none; font: inherit; font-weight: 800; cursor: pointer; }

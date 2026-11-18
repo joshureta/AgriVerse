@@ -205,7 +205,7 @@ function App() {
   }
 
   if (path === '/admin/recovery') {
-    window.location.replace('/admin/tasks?modal=overdue')
+    window.location.replace('/admin/tasks')
     return null
   }
 

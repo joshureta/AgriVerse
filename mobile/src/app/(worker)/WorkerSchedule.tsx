@@ -1,6 +1,6 @@
 import { GREEN, styles } from '@/styles/worker-schedule.styles';
 import { Redirect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, SafeAreaView, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { ScheduleCalendar, type ScheduleEvent } from '@/components/schedule-calendar';
@@ -8,13 +8,14 @@ import { WorkerBottomNavigation } from '@/components/worker-bottom-navigation';
 import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { useWorkerTaskRefresh } from '@/lib/use-worker-task-refresh';
 import { addDays, startOfWeek } from '@/lib/calendar';
 
 // Same task shape the API already returns to WorkerTaskDashboard/WorkerTaskPending
 // (see backend/routes/worker-tasks.js `serializeTask`) — this screen just also
 // reads the `schedule` object that was already being sent but not yet consumed
 // by the mobile app.
-type TaskStatus = 'pending' | 'in_progress' | 'completed';
+type TaskStatus = 'pending' | 'in_progress' | 'awaiting_approval' | 'completed';
 type WorkerScheduleTask = {
   id: number;
   category: string;
@@ -54,22 +55,27 @@ export default function WorkerScheduleScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const today = useMemo(() => new Date(), []);
 
-  const loadSchedule = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
+  const loadSchedule = useCallback(async (refresh = false, silent = false) => {
+    if (!silent) {
+      if (refresh) setRefreshing(true);
+      else setLoading(true);
+    }
     setError('');
     try {
       const response = await apiRequest<{ tasks: WorkerScheduleTask[] }>('/api/worker/tasks');
-      setTasks(response.tasks ?? []);
+      setTasks((response.tasks ?? []).filter((task) => task.status === 'pending' || task.status === 'in_progress'));
     } catch (caught) {
       setTasks([]);
       setError(caught instanceof Error ? caught.message : 'Could not load your schedule.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!silent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
-  useEffect(() => { if (profile) loadSchedule(); }, [loadSchedule, profile]);
+  useWorkerTaskRefresh(loadSchedule, profile?.id);
 
   const events = useMemo(() => tasks.map(taskToEvent), [tasks]);
   const horizontalPadding = width < 360 ? 14 : 18;

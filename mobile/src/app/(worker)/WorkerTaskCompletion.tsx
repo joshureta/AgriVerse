@@ -22,6 +22,7 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { useWorkerTaskRefresh } from '@/lib/use-worker-task-refresh';
 import { TASK_ICON_CONTAINER_STYLE, taskCategoryIconSource } from '@/lib/task-category-icons';
 import { canWorkCropTaskNow, CROP_WORK_HOURS_LABEL } from '@/lib/crop-work-hours';
 import {
@@ -39,6 +40,7 @@ type WorkerTask = TaskSupplyFields & {
   status: 'pending' | 'in_progress' | 'completed';
   description: string | null;
   schedule_start?: string | null;
+  is_overdue?: boolean;
   started_at?: string | null;
   estimated_duration_minutes?: number | null;
 };
@@ -336,6 +338,7 @@ export default function WorkerTaskCompletionScreen() {
   const { loading: authLoading, profile } = useAuth();
   const [task, setTask] = useState<WorkerTask | null>(passedTask);
   const [insights, setInsights] = useState('');
+  const [delayNotes, setDelayNotes] = useState('');
   const [inspection, setInspection] = useState<Partial<InspectionDetails>>({});
 
   // Harvest counts (Harvesting tasks only - 2x2 grid)
@@ -350,7 +353,7 @@ export default function WorkerTaskCompletionScreen() {
   const [photoMime, setPhotoMime] = useState<string>('image/jpeg');
   const [photoName, setPhotoName] = useState<string>('');
 
-  const [loading, setLoading] = useState(!passedTask);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -400,31 +403,27 @@ export default function WorkerTaskCompletionScreen() {
     return () => subscription.remove();
   }, [handleClose]);
 
-  const loadTask = useCallback(async () => {
+  const loadTask = useCallback(async (_refresh = false, silent = false) => {
     if (!taskId || !/^\d+$/.test(taskId)) {
       setError('A valid task is required.');
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError('');
     try {
       const response = await apiRequest<{ task: WorkerTask }>(`/api/worker/tasks/${taskId}`);
       if (response.task.status !== 'in_progress') throw new Error('This task is no longer active.');
       setTask(response.task);
     } catch (caught) {
+      setTask(null);
       setError(caught instanceof Error ? caught.message : 'Could not load this task.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [taskId]);
 
-  useEffect(() => {
-    // Task data was already loaded on the active-tasks screen and handed off via
-    // params, so the sheet can render its content immediately instead of showing
-    // a loading state and re-fetching what we already have.
-    if (profile && !passedTask) loadTask();
-  }, [loadTask, profile, passedTask]);
+  useWorkerTaskRefresh(loadTask, profile?.id);
 
   async function handlePickImage() {
     setError('');
@@ -468,6 +467,10 @@ export default function WorkerTaskCompletionScreen() {
       setError('A photo of the completed work is required as proof of completion.');
       return;
     }
+    if (task.is_overdue && (delayNotes.trim().length < 5 || delayNotes.trim().length > 2000)) {
+      setError('Choose a reason and explain why this task is overdue (5–2000 characters).');
+      return;
+    }
     if (insights.trim().length > 2000) {
       setError('Insights must not exceed 2000 characters.');
       return;
@@ -504,6 +507,7 @@ export default function WorkerTaskCompletionScreen() {
         body: JSON.stringify({
           completed_at: new Date().toISOString(),
           completion_notes: insights.trim() || null,
+          ...(task.is_overdue ? { delay_reason_notes: delayNotes.trim() } : {}),
           image: photoBase64 ? `data:${photoMime};base64,${photoBase64}` : null,
           image_mime: photoMime,
           image_name: photoName || `${task.category} Proof Photo`,
@@ -530,6 +534,7 @@ export default function WorkerTaskCompletionScreen() {
 
   const workAllowed = canWorkCropTaskNow();
   const isHarvesting = task?.category === 'Harvesting';
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -820,7 +825,14 @@ export default function WorkerTaskCompletionScreen() {
                   />
                 </View>
 
-                {/* Errors */}
+                {task?.is_overdue && (
+                   <View style={styles.insightsSection}>
+                     <Text style={styles.insightsLabel}>Why is this task overdue? (Required)</Text>
+                     <TextInput accessibilityLabel="Overdue explanation" maxLength={2000} multiline onChangeText={setDelayNotes} placeholder="Explain what caused the delay (at least 5 characters)" placeholderTextColor="#94A3B8" style={styles.insightsInput} textAlignVertical="top" value={delayNotes} />
+                   </View>
+                 )}
+
+                 {/* Errors */}
                 {error ? (
                   <Text accessibilityRole="alert" style={styles.errorText}>
                     {error}
@@ -840,16 +852,11 @@ export default function WorkerTaskCompletionScreen() {
                   {submitting ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
-                    <>
-                      <View style={styles.checkCircleBadge}>
-                        <Text style={styles.checkCircleIcon}>✓</Text>
-                      </View>
-                      <Text style={styles.submitText}>
-                        {!workAllowed
-                          ? 'Work unavailable'
-                          : 'Submit for Approval'}
-                      </Text>
-                    </>
+                    <Text style={styles.submitText}>
+                      {!workAllowed
+                        ? 'Work unavailable'
+                        : 'Submit for Approval'}
+                    </Text>
                   )}
                 </Pressable>
               </ScrollView>

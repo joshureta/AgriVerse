@@ -17,6 +17,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
+import { overdueTimelineEvents, type OperationIncident } from '@/lib/overdue-timeline';
 import {
   DriverOrder,
   formatDeliveryAddress,
@@ -78,15 +79,26 @@ function ZoomIcon() {
 }
 
 type TimelineEvent = {
+  key: string;
+  at: string;
   title: string;
   dateTime: string;
-  icon: 'assigned' | 'accepted' | 'picked_up' | 'proof_submitted' | 'delivered';
+  detail?: string | null;
+  icon: 'assigned' | 'accepted' | 'picked_up' | 'proof_submitted' | 'delivered' | 'overdue' | 'reason' | 'rescheduled' | 'cancelled';
 };
 
 function TimelineEventIcon({ type, color }: { type: TimelineEvent['icon']; color: string }) {
   return (
     <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
-      {type === 'assigned' ? (
+      {type === 'cancelled' ? (
+        <><Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} /><Path d="m9 9 6 6m0-6-6 6" stroke={color} strokeWidth={2} strokeLinecap="round" /></>
+      ) : type === 'overdue' ? (
+        <><Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} /><Path d="M12 7v6m0 4h.01" stroke={color} strokeWidth={2} strokeLinecap="round" /></>
+      ) : type === 'reason' ? (
+        <Path d="M6 3h9l3 3v15H6V3Zm3 7h6m-6 4h6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      ) : type === 'rescheduled' ? (
+        <><Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} /><Path d="M12 7v5l3 2" stroke={color} strokeWidth={2} strokeLinecap="round" /></>
+      ) : type === 'assigned' ? (
         <>
           <Circle cx={12} cy={8} r={3} stroke={color} strokeWidth={2} />
           <Path d="M5 20a7 7 0 0 1 14 0" stroke={color} strokeWidth={2} strokeLinecap="round" />
@@ -117,6 +129,7 @@ export default function DriverCompletedDeliveryDetailsScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading: authLoading, profile } = useAuth();
   const [order, setOrder] = useState<DriverOrder | null>(null);
+  const [incidents, setIncidents] = useState<OperationIncident[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -131,14 +144,16 @@ export default function DriverCompletedDeliveryDetailsScreen() {
     refresh ? setRefreshing(true) : setLoading(true);
     setError('');
     try {
-      const response = await apiRequest<{ order: DriverOrder }>(`/api/driver/orders/${id}`);
+      const response = await apiRequest<{ order: DriverOrder; incidents: OperationIncident[] }>(`/api/driver/orders/${id}`);
       setOrder(response.order);
+      setIncidents(response.incidents || []);
     } catch {
       try {
         const listResponse = await apiRequest<{ orders: DriverOrder[] }>('/api/driver/orders');
         const found = (listResponse.orders || []).find((o) => String(o.id) === String(id));
         if (found) {
           setOrder(found);
+          setIncidents([]);
         } else {
           setError('Completed delivery was not found.');
         }
@@ -175,13 +190,18 @@ export default function DriverCompletedDeliveryDetailsScreen() {
   };
 
   const deliveredTime = formatDateTime(order?.delivered_at);
-  const timelineEvents = [
-    order?.driver_assigned_at && { title: 'Assigned', dateTime: formatDateTime(order.driver_assigned_at), icon: 'assigned' as const },
-    order?.delivery_accepted_at && { title: 'Accepted', dateTime: formatDateTime(order.delivery_accepted_at), icon: 'accepted' as const },
-    order?.delivery_picked_up_at && { title: 'Picked up', dateTime: formatDateTime(order.delivery_picked_up_at), icon: 'picked_up' as const },
-    order?.delivery_proof_submitted_at && { title: 'Proof submitted', dateTime: formatDateTime(order.delivery_proof_submitted_at), icon: 'proof_submitted' as const },
-    order?.delivered_at && { title: 'Delivered', dateTime: deliveredTime, icon: 'delivered' as const },
-  ].filter((event): event is TimelineEvent => Boolean(event && event.dateTime));
+  const timelineEvents: TimelineEvent[] = [
+    ...(order?.driver_assigned_at ? [{ key: 'assigned', at: order.driver_assigned_at, title: 'Assigned', dateTime: formatDateTime(order.driver_assigned_at) || '', icon: 'assigned' as const }] : []),
+    ...overdueTimelineEvents(incidents, formatDateTime).map((event) => ({
+      ...event,
+      dateTime: formatDateTime(event.at) || '',
+      icon: event.key.startsWith('overdue-') ? 'overdue' as const : event.key.startsWith('reason-') ? 'reason' as const : event.key.startsWith('cancelled-') ? 'cancelled' as const : 'rescheduled' as const,
+    })),
+    ...(order?.delivery_accepted_at ? [{ key: 'accepted', at: order.delivery_accepted_at, title: 'Accepted', dateTime: formatDateTime(order.delivery_accepted_at) || '', icon: 'accepted' as const }] : []),
+    ...(order?.delivery_picked_up_at ? [{ key: 'picked-up', at: order.delivery_picked_up_at, title: 'Picked up', dateTime: formatDateTime(order.delivery_picked_up_at) || '', icon: 'picked_up' as const }] : []),
+    ...(order?.delivery_proof_submitted_at ? [{ key: 'proof', at: order.delivery_proof_submitted_at, title: 'Proof submitted', dateTime: formatDateTime(order.delivery_proof_submitted_at) || '', icon: 'proof_submitted' as const }] : []),
+    ...(order?.delivered_at && deliveredTime ? [{ key: 'delivered', at: order.delivered_at, title: 'Delivered', dateTime: deliveredTime, icon: 'delivered' as const }] : []),
+  ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 
   const handleCall = () => {
     if (order?.delivery_mobile_number) {
@@ -326,7 +346,7 @@ export default function DriverCompletedDeliveryDetailsScreen() {
                   <Text style={styles.receiptSectionKicker}>Delivery Timeline</Text>
                   <View style={styles.timelineContainer}>
                     {timelineEvents.map((event, index) => (
-                      <View key={event.title} style={[styles.timelineStep, index === timelineEvents.length - 1 && styles.timelineStepLast]}>
+                      <View key={event.key} style={[styles.timelineStep, index === timelineEvents.length - 1 && styles.timelineStepLast]}>
                         {index < timelineEvents.length - 1 ? <View style={styles.timelineLine} /> : null}
                         <View style={[styles.timelineDot, event.icon === 'delivered' && styles.timelineDotComplete]}>
                           <TimelineEventIcon type={event.icon} color={event.icon === 'delivered' ? '#FFFFFF' : '#166534'} />
@@ -334,6 +354,7 @@ export default function DriverCompletedDeliveryDetailsScreen() {
                         <View style={styles.timelineStepContent}>
                           <Text style={styles.timelineStepTitle}>{event.title}</Text>
                           <Text style={styles.timelineStepSub}>{event.dateTime}</Text>
+                          {event.detail ? <Text style={styles.timelineStepSub}>{event.detail}</Text> : null}
                         </View>
                       </View>
                     ))}

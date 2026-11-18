@@ -2495,3 +2495,124 @@
   opacity: 0.6;
   cursor: wait;
 }
+
+/* Admin overdue dialog follows the shared work order dialog system. */
+.is-recovery-dialog .recovery-nav-tabs {
+  gap: 24px;
+  padding: 0 36px;
+  background: #fff;
+  border-bottom-color: var(--wo-rule);
+}
+
+.is-recovery-dialog .recovery-nav-tab,
+.is-recovery-dialog .recovery-nav-tab.is-active {
+  padding: 14px 0 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--wo-muted);
+}
+
+.is-recovery-dialog .recovery-nav-tab.is-active {
+  border-bottom-color: var(--wo-green);
+  color: var(--wo-green-dark);
+}
+
+.is-recovery-dialog .recovery-nav-tab:hover { color: var(--wo-green-dark); background: transparent; }
+.is-recovery-dialog .recovery-item-switcher { border-color: var(--wo-rule); }
+.is-recovery-dialog .switcher-pill.is-selected { border-color: var(--wo-green); color: var(--wo-green-dark); background: #f0f8f1; box-shadow: none; }
+.is-recovery-dialog .wo-scroll { padding: 20px 36px; }
+
+.wo-overdue-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px 20px;
+  flex-wrap: wrap;
+  padding: 0 0 18px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--wo-rule);
+}
+.wo-overdue-facts { display: flex; flex: 1; flex-wrap: wrap; gap: 10px 24px; margin: 0; }
+.wo-overdue-facts div { min-width: 135px; }
+.wo-overdue-facts dt { color: var(--wo-muted); font-size: 12px; }
+.wo-overdue-facts dd { margin: 2px 0 0; color: var(--wo-ink); font-size: 13px; font-weight: 700; }
+.wo-overdue-status { text-transform: capitalize; }
+.wo-overdue-review-grid { display: grid; gap: 20px; }
+.wo-overdue-review-grid .wo-section > h3,
+.wo-overdue-review-grid .incident-review-title h3 {
+  margin: 0 0 10px;
+  color: var(--wo-ink);
+  font-family: var(--heading);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.wo-overdue-explanation { padding-bottom: 18px; border-bottom: 1px solid var(--wo-rule); }
+.wo-overdue-explanation .wo-quote { margin-top: 10px; max-width: none; }
+.wo-overdue-label { color: var(--wo-muted); font-size: 12.5px; font-weight: 600; }
+.wo-overdue-radios { gap: 8px 28px; }
+.wo-overdue-review-grid .incident-review-form { gap: 18px; }
+.wo-overdue-form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+.wo-overdue-review-grid .incident-review-card { border: 0; border-radius: 0; box-shadow: none; padding: 0; gap: 14px; }
+.wo-overdue-review-grid .incident-review-header { border-bottom: 1px solid var(--wo-rule); padding-bottom: 0; }
+.wo-overdue-review-grid .incident-review-header h3 { margin-bottom: 10px; }
+.wo-overdue-review-grid .review-already-completed { border-color: var(--wo-rule); border-radius: 6px; background: #f0f8f1; }
+
+.is-recovery-dialog .recovery-context-banner,
+.is-recovery-dialog .recovery-action-card {
+  border: 0;
+  border-bottom: 1px solid var(--wo-rule);
+  border-radius: 0;
+  padding: 0 0 20px;
+  background: transparent;
+  box-shadow: none;
+}
+.is-recovery-dialog .recovery-context-banner { grid-template-columns: 1fr; gap: 12px; }
+.is-recovery-dialog .context-explanation-box { border: 0; padding: 0; background: transparent; }
+.is-recovery-dialog .recovery-action-card-head { border-bottom-color: var(--wo-rule); }
+.is-recovery-dialog .recovery-action-card-head h3 { font-family: var(--heading); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.is-recovery-dialog .wo-overdue-recovery-form { display: flex; flex-direction: column; gap: 18px; }
+.is-recovery-dialog .wo-overdue-recovery-form .wo-grid { margin-top: 0; }
+.is-recovery-dialog .recovery-simple-card {
+  border-color: var(--wo-rule);
+  border-radius: 6px;
+  box-shadow: none;
+}
+.is-recovery-dialog .recovery-balanced-grid { grid-template-columns: 1fr; }
+.is-recovery-dialog .recovery-simple-card-header { border-bottom-color: var(--wo-rule); }
+@media (max-width: 760px) {
+  .is-recovery-dialog .recovery-nav-tabs { gap: 16px; padding-inline: 20px; overflow-x: auto; }
+  .is-recovery-dialog .recovery-nav-tab { white-space: nowrap; }
+  .is-recovery-dialog .wo-scroll { padding-inline: 20px; }
+  .wo-overdue-review-grid { gap: 18px; }
+}
+
+/* One work order review: explanation, classification, then assignment decision. */
+.is-recovery-dialog .wo-scroll { padding-bottom: 28px; }
+.or-facts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; margin-top: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--wo-rule); color: var(--wo-muted); font-size: 12.5px; }
+.or-facts strong { color: var(--wo-ink); font-weight: 700; }
+.or-facts .status-pill { text-transform: uppercase; }
+.or-section > h3 { margin: 20px 0 10px; }
+.or-explanation { border-left: 3px solid var(--wo-green); padding: 10px 14px; background: #f7faf6; }
+.or-explanation strong { display: block; color: var(--wo-ink); font-size: 13px; }
+.or-explanation p { margin: 5px 0; color: var(--wo-ink); font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+.or-explanation small { color: var(--wo-muted); font-size: 11.5px; }
+.or-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.or-decisions { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.or-choice { display: flex; align-items: center; gap: 9px; min-height: 42px; border: 1px solid var(--wo-rule); border-radius: 6px; padding: 9px 11px; color: var(--wo-ink); background: #fff; font: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+.or-choice:hover:not(:disabled), .or-choice.is-selected { border-color: var(--wo-green); background: #f3faf3; }
+.or-choice:focus-visible { outline: 3px solid rgba(31, 106, 55, .35); outline-offset: 2px; }
+.or-choice:disabled { opacity: .55; cursor: not-allowed; }
+.or-choice-dot { flex: none; width: 16px; height: 16px; border: 2px solid #c5d0c2; border-radius: 50%; background: #fff; }
+.or-choice.is-selected .or-choice-dot { border-color: var(--wo-green); box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 8px var(--wo-green); }
+.or-notes, .or-schedule { margin-top: 14px; }
+.or-review-result { margin: 0; color: var(--wo-muted); font-size: 13px; }
+.or-review-result strong { color: var(--wo-green); }
+.or-outcome { padding: 12px 14px; border-left: 3px solid var(--wo-green); background: #f7faf6; }
+.or-outcome strong { color: var(--wo-ink); font-size: 13px; }
+.or-outcome p { margin: 5px 0 0; color: var(--wo-muted); font-size: 12px; }
+.or-actions { display: flex; justify-content: flex-end; margin-top: 20px; }
+.or-success { margin: 14px 0 0; padding: 10px 12px; border-radius: 6px; color: var(--wo-green); background: #eaf6eb; font-size: 13px; font-weight: 700; }

@@ -18,6 +18,7 @@ const taskSelect = [
   "harvest_small_count, harvest_medium_count, harvest_large_count, harvest_damaged_count",
   "harvest_rejection_reason, harvest_rejected_at, approved_at, harvest_proof_image_url, completion_proof_image_url",
   "activity_type, details, inventory_item_id, inventory_quantity",
+  "delay_reason_code, delay_reason_notes, delay_reason_submitted_at",
   "inventory_item:inventory_items!tasks_inventory_item_id_fkey(id, item_name, unit:measurement_units!inventory_items_unit_id_fkey(abbreviation))",
   "category:task_categories!tasks_category_id_fkey(id, category_name)",
   "field:farm_fields!tasks_field_id_fkey(id, field_name)",
@@ -74,6 +75,8 @@ function serializeTask(task) {
     status_label: task.task_status?.status_name || "",
     description: task.description || task.task_name || null,
     schedule,
+    is_overdue: ["pending", "in_progress"].includes(task.task_status?.code) && Boolean(schedule?.schedule_date) &&
+      schedule.schedule_date < new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()),
     schedule_start: schedule
       ? `${schedule.schedule_date}T${String(schedule.start_time).slice(0, 8)}+08:00`
       : task.created_at,
@@ -172,7 +175,8 @@ router.get("/inventory-options", async (req, res, next) => {
 
 router.get("/:id", async (req, res, next) => {
   try {
-    const { data, error } = await getSupabase().from("tasks").select(taskSelect)
+    const db = getSupabase();
+    const { data, error } = await db.from("tasks").select(taskSelect)
       .eq("id", readTaskId(req.params.id)).eq("assigned_worker_id", req.user.id).maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(404, "Assigned task was not found");
@@ -191,10 +195,17 @@ router.post("/:id/complete", async (req, res, next) => {
     if (completionNotes.length > 2000) throw httpError(400, "Insights must not exceed 2000 characters");
 
     const { data: existingTask, error: existingTaskError } = await getSupabase().from("tasks")
-      .select("id, field_id, activity_type, category:task_categories!tasks_category_id_fkey(category_name), field:farm_fields!tasks_field_id_fkey(field_name)")
+      .select("id, field_id, activity_type, delay_reason_submitted_at, schedules(schedule_date), category:task_categories!tasks_category_id_fkey(category_name), field:farm_fields!tasks_field_id_fkey(field_name)")
       .eq("id", taskId).eq("assigned_worker_id", req.user.id).maybeSingle();
     if (existingTaskError) throw existingTaskError;
     if (!existingTask) throw httpError(404, "Assigned task was not found");
+    const schedule = Array.isArray(existingTask.schedules) ? existingTask.schedules[0] : existingTask.schedules;
+    const todayManila = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const isOverdue = Boolean(schedule?.schedule_date && schedule.schedule_date < todayManila);
+    const delayNotes = String(req.body.delay_reason_notes || "").trim();
+    if (isOverdue && !existingTask.delay_reason_submitted_at && (delayNotes.length < 5 || delayNotes.length > 2000)) {
+      throw httpError(400, "Explain why this task is overdue in 5–2000 characters before submitting it for review.");
+    }
     const categoryName = existingTask.category?.category_name || "Crop";
     const fieldName = existingTask.field?.field_name || "Field A";
     const isHarvestingTask = categoryName === "Harvesting";
@@ -223,6 +234,7 @@ router.post("/:id/complete", async (req, res, next) => {
       status_id: statusIds.awaiting_approval,
       completed_at: completedAt.toISOString(),
       completion_notes: completionNotes || null,
+      ...(isOverdue && !existingTask.delay_reason_submitted_at ? { delay_reason_code: "other", delay_reason_notes: delayNotes, delay_reason_submitted_at: new Date().toISOString() } : {}),
       ...harvestCounts,
       ...(inspectionDetails ? { details: inspectionDetails } : {}),
       // Every task waits for admin review. A resubmission clears the last "sent back" reason.

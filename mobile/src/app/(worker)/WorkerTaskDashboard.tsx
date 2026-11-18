@@ -20,6 +20,7 @@ import { WorkerHeader } from '@/components/worker-header';
 import { useAuth } from '@/context/auth-context';
 import { apiRequest } from '@/lib/api';
 import { TASK_ICON_CONTAINER_STYLE, taskCategoryIconSource } from '@/lib/task-category-icons';
+import { useWorkerTaskRefresh } from '@/lib/use-worker-task-refresh';
 import { loadWeather, type WeatherSnapshot } from '@/lib/weather';
 
 type TaskStatus = 'pending' | 'in_progress' | 'awaiting_approval' | 'completed';
@@ -308,8 +309,11 @@ export default function WorkerTaskDashboardScreen() {
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [navbarBlurred, setNavbarBlurred] = useState(false);
 
-  const loadTasks = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
+  const loadTasks = useCallback(async (refresh = false, silent = false) => {
+    if (!silent) {
+      if (refresh) setRefreshing(true);
+      else setLoading(true);
+    }
     setError('');
     try {
       const response = await apiRequest<{ tasks: WorkerTask[]; summary: TaskSummary }>('/api/worker/tasks');
@@ -320,17 +324,18 @@ export default function WorkerTaskDashboardScreen() {
       setSummary({ pending: 0, active: 0, completed: 0, total: 0 });
       setError(caught instanceof Error ? caught.message : 'Could not load assigned tasks.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!silent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
+  useWorkerTaskRefresh(loadTasks, profile?.id);
+
   useEffect(() => {
-    if (profile) {
-      loadTasks();
-      loadWeather().then(setWeather);
-    }
-  }, [loadTasks, profile]);
+    if (profile) loadWeather().then(setWeather);
+  }, [profile]);
 
   const dashboard = summary;
   const pendingTasks = tasks.filter((t) => t.status === 'pending');

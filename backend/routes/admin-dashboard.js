@@ -240,8 +240,7 @@ router.get("/productivity", async (_req, res, next) => {
         .eq("status_id", completedStatus.id).gte("approved_at", period.previous_start).lt("approved_at", period.previous_end),
       supabase.from("tasks").select("id", { count: "exact", head: true })
         .eq("status_id", reviewStatus.id),
-      supabase.from("operation_incidents").select("id", { count: "exact", head: true })
-        .is("recovered_at", null).not("task_id", "is", null),
+      supabase.from("tasks").select("id,status_id,schedules(schedule_date)"),
     ]);
     for (const result of [workers, current, previous, awaitingReview, overdueTasks]) if (result.error) throw result.error;
     return res.json({
@@ -251,7 +250,10 @@ router.get("/productivity", async (_req, res, next) => {
       generated_at: new Date().toISOString(),
       ...summarizeProductivity(schedules, workers.count || 0, current.count || 0, previous.count || 0),
       today_schedule: todaySchedulePreview(schedules),
-      attention: { overdue_tasks: overdueTasks.count || 0, awaiting_review: awaitingReview.count || 0 },
+      attention: { overdue_tasks: (overdueTasks.data || []).filter((task) => {
+        const schedule = Array.isArray(task.schedules) ? task.schedules[0] : task.schedules;
+        return schedule?.schedule_date < period.date && statuses.some((status) => status.id === task.status_id && ["pending", "in_progress"].includes(status.code));
+      }).length, awaiting_review: awaitingReview.count || 0 },
     });
   } catch (error) {
     return next(error);
