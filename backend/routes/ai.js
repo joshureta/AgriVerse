@@ -260,6 +260,7 @@ EVIDENCE RULES:
 - If a disease cannot be identified confidently from this view, say that visual confirmation is insufficient and recommend the exact follow-up photo or field check needed.
 - Do not recommend a pesticide or fertilizer merely because it appears in the taxonomy. Recommendations must match the visible symptoms and image context.
 - Do not provide chemical rates. Advise users to follow the locally approved product label and consult an agricultural technician when treatment is needed.
+- Score each image factor separately from visible evidence: 100 for no visible problem, about 85 for mild, 60 for moderate, 30 for severe, and 10 for extensive symptoms. Use null when this photo cannot assess a factor; do not infer an unseen field, leaf, fruit, or pest condition.
 
 Perform a comprehensive visual pathology and entomological diagnosis using the following pineapple disease & pest taxonomy:
 
@@ -289,6 +290,12 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
   "diseaseStatus": "<'None' | 'Minor' | 'Detected'>",
   "pestStatus": "<'None' | 'Minor' | 'Detected'>",
   "nutrientStatus": "<'Normal' | 'Nitrogen Deficiency' | 'Phosphorus Deficiency' | 'Potassium Deficiency' | 'Multiple Deficiencies'>",
+  "factorScores": {
+    "cropCondition": <integer 0-100 for visible overall condition, or null if the view is insufficient>,
+    "disease": <integer 0-100; 100 means no visible disease symptoms, or null if the view is insufficient>,
+    "pest": <integer 0-100; 100 means no visible pest symptoms, or null if the view is insufficient>,
+    "nutrient": <integer 0-100; 100 means no visible deficiency symptoms, or null if the view is insufficient>
+  },
   "imageContext": "${imageContext}",
   "diseaseOrIssueName": "<Exact taxonomic name, e.g. 'Pineapple Mealybug Wilt (PMWD)', 'Phytophthora Heart Rot', 'Potassium Deficiency (Marginal Scorch)', 'Healthy Pineapple Stand'>",
   "healthStatus": "<'Healthy' | 'Pest Infested' | 'Fungal Disease' | 'Nutrient Deficient' | 'Environmental Stress' | 'Critical'>",
@@ -307,6 +314,12 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
 
     const diagnosis = await generateVisionJson(ai, finalMimeType, base64Data, promptText);
 
+    const imageFactors = ["cropCondition", "disease", "pest", "nutrient"];
+    const factorScores = Object.fromEntries(imageFactors.map((key) => {
+      const value = diagnosis.factorScores?.[key];
+      return [key, Number.isInteger(value) && value >= 0 && value <= 100 ? value : null];
+    }));
+
     const sanitizedDiagnosis = {
       score: typeof diagnosis.score === "number" ? Math.max(0, Math.min(100, Math.round(diagnosis.score))) : 80,
       pineappleHealth: diagnosis.pineappleHealth || (diagnosis.score >= 80 ? "Healthy" : diagnosis.score >= 60 ? "Moderate" : "At Risk"),
@@ -314,6 +327,7 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
       diseaseStatus: diagnosis.diseaseStatus || "None",
       pestStatus: diagnosis.pestStatus || "None",
       nutrientStatus: diagnosis.nutrientStatus || "Normal",
+      factorScores,
       imageContext: IMAGE_CONTEXTS.has(diagnosis.imageContext) ? diagnosis.imageContext : imageContext,
       diseaseOrIssueName: diagnosis.diseaseOrIssueName || "General Crop Inspection",
       healthStatus: diagnosis.healthStatus || (diagnosis.score >= 80 ? "Healthy" : "Attention Needed"),
@@ -339,6 +353,8 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
         visual_summary: sanitizedDiagnosis.visualSummary,
         identified_symptoms: sanitizedDiagnosis.issues,
         action_recommendations: sanitizedDiagnosis.recommendations,
+        factor_scores: sanitizedDiagnosis.factorScores,
+        assessment_source: "gemini-diagnosis",
         image_url: uploadRes?.imageUrl || null,
         image_storage_path: uploadRes?.storagePath || null,
         image_name: `${field || "Field"} diagnosis photo`,
@@ -347,11 +363,22 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
         analyzed_by: req.user?.id || null,
       };
 
-      const { data: dbData } = await supabase
+      let { data: dbData, error: saveError } = await supabase
         .from("crop_health_inspections")
         .insert(record)
         .select()
         .single();
+
+      // Keep existing image scanning usable while the new additive migration is pending.
+      if (saveError && ["PGRST204", "42703"].includes(saveError.code)) {
+        const { factor_scores, assessment_source, ...legacyRecord } = record;
+        ({ data: dbData, error: saveError } = await supabase
+          .from("crop_health_inspections")
+          .insert(legacyRecord)
+          .select()
+          .single());
+      }
+      if (saveError) throw saveError;
 
       if (dbData) savedRecord = dbData;
     } catch (saveErr) {

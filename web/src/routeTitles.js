@@ -16,6 +16,7 @@ export const routeTitles = {
   '/admin/records': 'Records',
   '/admin/monitoring/crop-health': 'Crop Health Monitoring',
   '/admin/monitoring/environmental': 'Environmental Monitoring',
+  '/admin/monitoring/crop-health-assessment': 'Crop Health Assessment',
   '/admin/messages': 'Messages',
   '/admin/settings': 'Settings',
 

@@ -66,3 +66,21 @@ moisture reading too low or recommend watering from that reading alone. Complete
 irrigation tasks for the same field and date are considered before suggesting
 another watering. Historical rainfall is not recorded, so the report never
 claims that rainfall caused a sensor change.
+
+The Crop Health Assessment page is under Monitoring. It combines field sensor
+readings with the latest Gemini crop diagnosis from the selected period. Apply
+`supabase/migrations/064_crop_health_factor_scores.sql` in the **main** project
+before expecting a complete weighted score; older inspections have no separate
+image factor scores. The page shows Environmental Suitability when all three
+sensor factors can be scored, and a Crop Health Score only when all seven
+factors are available. It never fills missing factors with sample values.
+Soil temperature is displayed and supplied to Gemini as context; it does not
+change the seven-factor score weights.
+
+For assessment soil scoring, extend each field's
+`ENVIRONMENTAL_SOIL_MOISTURE_TARGETS` entry with a farm-calibrated `dryBelow`
+value below `min`, for example `{"Field A":{"dryBelow":25,"min":35,"max":45}}`.
+The numbers here illustrate the configuration shape and must be replaced with
+validated field thresholds. Without `dryBelow`, soil moisture remains unscored.
+The Gemini recommendations use the available assessment evidence and can be
+regenerated from the page; they are guidance to verify in the field.

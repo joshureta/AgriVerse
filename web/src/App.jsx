@@ -11,6 +11,7 @@ import UserManagement from './pages/Admin/UserManagement.jsx'
 import AdminMessages from './pages/Admin/AdminMessages.jsx'
 import CropHealthMonitoring from './pages/Admin/CropHealthMonitoring.jsx'
 import EnvironmentalMonitoring from './pages/Admin/EnvironmentalMonitoring.jsx'
+import CropHealthAssessment from './pages/Admin/CropHealthAssessment.jsx'
 import Settings from './pages/Admin/Settings.jsx'
 import BuyerLanding from './pages/Buyer/BuyerLanding.jsx'
 import AboutUs from './pages/Buyer/AboutUs.jsx'
@@ -168,6 +169,14 @@ function App() {
     return (
       <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
         <EnvironmentalMonitoring />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/admin/monitoring/crop-health-assessment') {
+    return (
+      <ProtectedRoute allowedRoles={['admin']} loadingFallback={adminLoading}>
+        <CropHealthAssessment />
       </ProtectedRoute>
     )
   }

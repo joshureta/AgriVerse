@@ -148,7 +148,7 @@ export function AdminSidebar({ active }) {
     active === 'tasks' || active === 'inventory',
   )
   const [monitoringOpen, setMonitoringOpen] = useState(
-    active === 'crop-monitoring' || active === 'environmental-monitoring',
+    active === 'crop-monitoring' || active === 'environmental-monitoring' || active === 'crop-assessment',
   )
 
   function handleMonitoringToggle() {
@@ -262,6 +262,14 @@ export function AdminSidebar({ active }) {
                 alt=""
               />
               <span>Environmental Monitoring</span>
+            </a>
+            <a
+              className={active === 'crop-assessment' ? 'is-active' : ''}
+              href="/admin/monitoring/crop-health-assessment"
+              aria-current={active === 'crop-assessment' ? 'page' : undefined}
+            >
+              <img className="monitoring-submenu-image" src={cropHealthMonitoringIcon} alt="" />
+              <span>Crop Health Assessment</span>
             </a>
           </div>
         </div>
