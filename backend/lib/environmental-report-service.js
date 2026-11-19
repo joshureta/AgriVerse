@@ -2,6 +2,8 @@ const { getSensorSupabase } = require("./sensor-supabase");
 const { getSupabase } = require("../supabase");
 const { FIELDS, manilaToday, reportWindow, buildEnvironmentalReport } = require("./environmental-report");
 const { buildEnvironmentalSummary } = require("./environmental-summary");
+const { classifyEnvironment, soilMoistureBands } = require("./environmental-classification");
+const { generateEnvironmentalAssessment, AI_MODEL_PREFIX, RULES_MODEL } = require("./environmental-ai-report");
 
 const PAGE_SIZE = 500;
 const buildFallbackSummary = buildEnvironmentalSummary;
@@ -142,14 +144,23 @@ async function generateAndSave(field, date, { skipExistingFinal = false, allowPa
   }
   const existing = await getSavedReport(field, date);
   if (!existing.storageReady && !allowPartial) return { report, saved: null, storageReady: false };
-  if (skipExistingFinal && existing.saved?.status === "final" && existing.saved.model === "calculated-summary-v3") {
+  const currentModel = (model) => typeof model === "string" && (model.startsWith(AI_MODEL_PREFIX) || model === RULES_MODEL);
+  if (skipExistingFinal && existing.saved?.status === "final" && currentModel(existing.saved.model)) {
     return { report, saved: existing.saved, storageReady: true };
   }
   const target = soilMoistureTarget(field);
   const activities = await loadFieldActivities(field, date, report.cutoffAt);
   report.soilMoistureTarget = target;
   report.activityRecords = activities;
-  const generated = buildEnvironmentalSummary(report, { target, activities });
+  // Backend rules classify each parameter; the AI (or rule templates) explain them.
+  const classification = classifyEnvironment(report, { bands: soilMoistureBands(field) });
+  const { assessment, model } = await generateEnvironmentalAssessment(classification, report);
+  report.assessment = assessment;
+  const generated = {
+    summary: assessment.summary,
+    suggestedCheck: assessment.generalRecommendations[0] || "",
+    model,
+  };
   if (!existing.storageReady) {
     return {
       report,

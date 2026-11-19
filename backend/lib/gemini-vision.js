@@ -42,7 +42,16 @@ function isTransient(status) {
   return status === 408 || status === 429 || (status >= 500 && status <= 599);
 }
 
-async function generateVisionJson(ai, mimeType, base64Data, promptText, {
+async function generateVisionJson(ai, mimeType, base64Data, promptText, options = {}) {
+  return generateJson(ai, [{ inlineData: { mimeType, data: base64Data } }, promptText], options);
+}
+
+// Text-only prompts (environmental summaries) share the same retry and fallback rules.
+async function generateTextJson(ai, promptText, options = {}) {
+  return generateJson(ai, [promptText], { stage: "environmental summary", ...options });
+}
+
+async function generateJson(ai, contents, {
   models = visionModels(),
   stage = "image analysis",
   sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
@@ -59,10 +68,7 @@ async function generateVisionJson(ai, mimeType, base64Data, promptText, {
       try {
         const response = await ai.models.generateContent({
           model,
-          contents: [
-            { inlineData: { mimeType, data: base64Data } },
-            promptText,
-          ],
+          contents,
           config: { responseMimeType: "application/json" },
         });
         if (!response?.text) throw new Error("Gemini returned an empty image analysis.");
@@ -96,4 +102,4 @@ async function generateVisionJson(ai, mimeType, base64Data, promptText, {
   throw lastError || new Error("Failed to analyze the uploaded image.");
 }
 
-module.exports = { apiStatus, generateVisionJson, visionModels };
+module.exports = { apiStatus, generateTextJson, generateVisionJson, visionModels };

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import Pagination from '../../components/Pagination.jsx'
+import EnvironmentalAssessment from '../../components/EnvironmentalAssessment.jsx'
 import weatherSunnyImage from '../../assets/weather/mobile/weather-real-sunny.png'
 import weatherRainyImage from '../../assets/weather/mobile/weather-real-rainy.png'
 import weatherCloudyImage from '../../assets/weather/mobile/weather-real-cloudy.png'
@@ -873,9 +874,16 @@ export default function EnvironmentalMonitoring() {
                       </button>
                     )}
                   </div>
-                  {savedSummary?.summary ? (
+                  {savedSummary?.metrics?.assessment ? (
+                    <>
+                      <EnvironmentalAssessment assessment={savedSummary.metrics.assessment} />
+                      <small>Generated {new Date(savedSummary.generated_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })}</small>
+                      {savedSummary.ephemeral && <p>This summary is temporary and may be lost when you leave this page.</p>}
+                    </>
+                  ) : savedSummary?.summary ? (
                     <>
                       <p>{savedSummary.summary}</p>
+                      <p>This summary was saved before parameter assessments were added. Refresh it to see each parameter&apos;s status and recommendations.</p>
                       <small>Generated {new Date(savedSummary.generated_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })}</small>
                       {savedSummary.ephemeral && <p>This summary is temporary and may be lost when you leave this page.</p>}
                     </>

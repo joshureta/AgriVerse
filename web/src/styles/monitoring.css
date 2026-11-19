@@ -281,3 +281,50 @@
 .crop-rule-checklist p, .crop-rule-checklist small { margin: 0; color: #667568; font-size: 12px; line-height: 1.5; }
 .crop-rule-checklist label { display: grid; gap: 5px; color: #1d3523; font-size: 12px; font-weight: 700; }
 .crop-rule-checklist select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #c9d8c5; border-radius: 7px; color: #243629; background: #fff; font: inherit; font-weight: 400; }
+
+/* Environmental monitoring assessment (rule-based statuses, AI-written explanations). */
+.env-assess { display: flex; flex-direction: column; gap: 18px; margin-top: 14px; }
+.env-assess-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.env-assess-section-title h4 { display: flex; align-items: center; gap: 7px; margin: 0; color: #183f25; font-size: 13px; font-weight: 800; }
+.env-assess-section-title h4 svg { width: 15px; height: 15px; color: #19743a; }
+.environment-report-summary .env-assess-summary p { margin: 0; border-left: 3px solid #19743a; border-radius: 0 8px 8px 0; padding: 12px 14px; color: #2f4b37; background: #f4f9f4; }
+.env-assess-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.env-assess-param { display: flex; flex-direction: column; gap: 10px; border: 1px solid #e1e9df; border-top: 3px solid #9fc9a9; border-radius: 8px; padding: 14px 16px; background: #fbfdfb; }
+.env-assess-param.is-watch { border-top-color: #e3a92c; }
+.env-assess-param.is-critical { border-top-color: #c9473a; }
+.env-assess-param.is-muted { border-top-color: #b8c2ba; }
+.env-assess-param header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.env-assess-param-name { display: flex; align-items: center; gap: 7px; color: #284a32; font-size: 12px; font-weight: 800; }
+.env-assess-param-name svg { width: 16px; height: 16px; color: #19743a; }
+.env-assess-reading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.env-assess-reading strong { color: #173d23; font-size: 22px; line-height: 1.1; }
+.env-assess-reading span { color: #6a7d6e; font-size: 11px; }
+.env-assess-param dl { margin: 0; }
+.env-assess-param dt { margin-top: 8px; color: #5d7563; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.env-assess-param dd { margin: 3px 0 0; color: #3c5743; font-size: 12px; line-height: 1.5; }
+.env-assess-param ul, .env-assess-limitations ul { margin: 0; padding-left: 17px; }
+.env-assess-param li { margin-top: 2px; }
+.env-assess-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 9px; font-size: 10px; font-weight: 800; letter-spacing: .03em; white-space: nowrap; }
+.env-assess-pill.is-normal { color: #17633a; background: #e2f2e6; }
+.env-assess-pill.is-watch { color: #8a5400; background: #fdf0d2; }
+.env-assess-pill.is-critical { color: #a82d22; background: #fbe4e1; }
+.env-assess-pill.is-muted { color: #56645a; background: #eaeeea; }
+.env-assess-columns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.env-assess-panel { border: 1px solid #e1e9df; border-radius: 8px; padding: 14px 16px; background: #fff; }
+.env-assess-concerns, .env-assess-recommendations { margin: 0; padding: 0; list-style: none; counter-reset: env-item; }
+.env-assess-concerns li { border-left: 3px solid #b8c2ba; padding: 4px 0 4px 10px; }
+.env-assess-concerns li + li { margin-top: 10px; }
+.env-assess-concerns li.is-critical { border-left-color: #c9473a; }
+.env-assess-concerns li.is-watch { border-left-color: #e3a92c; }
+.env-assess-concerns li div { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #213f2a; font-size: 12px; }
+.environment-report-summary .env-assess-concerns p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; }
+.env-assess-recommendations li { position: relative; padding-left: 28px; color: #3c5743; font-size: 12px; line-height: 1.5; counter-increment: env-item; }
+.env-assess-recommendations li + li { margin-top: 9px; }
+.env-assess-recommendations li::before { content: counter(env-item); position: absolute; top: 0; left: 0; display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; color: #fff; background: #19743a; font-size: 10px; font-weight: 800; }
+.environment-report-summary .env-assess-ok { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: #17633a; font-size: 12px; }
+.env-assess-ok svg { width: 16px; height: 16px; flex: 0 0 16px; }
+.env-assess-limitations { border: 1px dashed #cfdbd1; border-radius: 8px; padding: 10px 14px; background: #fafcfa; }
+.env-assess-limitations summary { display: flex; align-items: center; gap: 7px; color: #4f6656; font-size: 12px; font-weight: 750; cursor: pointer; }
+.env-assess-limitations summary svg { width: 14px; height: 14px; }
+.env-assess-limitations ul { margin-top: 8px; color: #5d7262; font-size: 11.5px; line-height: 1.55; }
+@media (max-width: 900px) { .env-assess-grid, .env-assess-columns { grid-template-columns: 1fr; } }
