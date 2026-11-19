@@ -22,10 +22,9 @@ PASTE_VERIFIED_ROOT_CA_CERTIFICATE_HERE
 // Calibrate ADC values in dry and wet soil (often dry > wet, but varies).
 const int SOIL_DRY_ADC = 3000;
 const int SOIL_WET_ADC = 1300;
-const float DRY_ALERT_PERCENT = 20.0f;
 const unsigned long READ_INTERVAL_MS = 10000UL;
 const unsigned long SYNC_INTERVAL_MS = 1000UL;
-const unsigned long SMS_COOLDOWN_MS = 1800000UL;
+const unsigned long WIFI_OFFLINE_GRACE_MS = 30000UL;
 const unsigned long OFFLINE_SMS_INTERVAL_MS = 30000UL;
 
 #define DHT_PIN 4
@@ -46,11 +45,12 @@ Preferences prefs;
 const char* QUEUE_FILE = "/pending-v2.jsonl";
 uint32_t ackOffset = 0;
 uint64_t sequenceNo = 0;
-unsigned long lastRead = 0, lastSync = 0, lastSMS = 0;
+unsigned long lastRead = 0, lastSync = 0;
 unsigned long lastSensorPrint = 0;
 unsigned long lastOfflineSMS = 0;
+unsigned long wifiDisconnectedSince = 0;
 bool hasPrintedSensors = false;
-bool hasRead = false, hasSentSMS = false;
+bool hasRead = false;
 bool hasAttemptedOfflineSMS = false;
 bool clockReady = false;
 
@@ -203,12 +203,6 @@ void captureReading() {
     ",\"created_at\":\"" + timestamp + "\"}";
   if (!enqueue(line)) Serial.println("ERROR: queue write failed; check flash capacity.");
   else Serial.println("Saved locally: " + line);
-  if (moisture < DRY_ALERT_PERCENT &&
-      (!hasSentSMS || millis() - lastSMS >= SMS_COOLDOWN_MS)) {
-    lastSMS = millis(); hasSentSMS = true;
-    // Alert is best-effort; sensor data is always kept in LittleFS.
-    sendSMS(String("Soil moisture LOW at ") + FIELD_NAME + ": " + String(moisture, 1) + "%");
-  }
 }
 
 String modemRead(const String &expected, unsigned long timeoutMs) {
@@ -373,15 +367,17 @@ void loop() {
     syncPending();
   }
   if (WiFi.status() != WL_CONNECTED) {
-    if (millis() >= 12000UL &&
+    if (!wifiDisconnectedSince) wifiDisconnectedSince = millis();
+    if (millis() - wifiDisconnectedSince >= WIFI_OFFLINE_GRACE_MS &&
         (!hasAttemptedOfflineSMS ||
          millis() - lastOfflineSMS >= OFFLINE_SMS_INTERVAL_MS)) {
       hasAttemptedOfflineSMS = true;
-      Serial.println("Wi-Fi offline; sending sensor SMS");
+      Serial.printf("Wi-Fi disconnected for 30 seconds (status %d); sending sensor SMS\n", WiFi.status());
       sendSMS(buildOfflineSMS());
       lastOfflineSMS = millis();
     }
   } else {
+    wifiDisconnectedSince = 0;
     hasAttemptedOfflineSMS = false;
   }
   delay(100);
