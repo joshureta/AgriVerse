@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, CalendarDays, RefreshCw, Sparkles } from 'lucide-react'
+import { AlertCircle, CalendarDays, RefreshCw, ClipboardList } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
@@ -28,12 +28,35 @@ async function assessmentRequest(path, options = {}) {
 }
 
 function factorValue(factor) {
-  if (factor.score == null) return '—'
   return Number.isInteger(factor.score) ? factor.score : factor.score.toFixed(1)
 }
 
 function readingValue(value, unit) {
   return value == null ? '—' : `${value} ${unit}`
+}
+
+function factorResult(factor, legacyPhoto = false) {
+  if (factor.source === 'context') return factor.average == null ? 'No soil temperature reading' : 'Waiting for the updated scoring service'
+  if (factor.score == null) return factor.source === 'image' ? `Cannot assess from ${legacyPhoto ? 'photo' : 'inspection'}` : 'No valid readings'
+  if (factor.source === 'image') {
+    if (factor.count > 1) return `Average of ${factor.count} ${legacyPhoto ? 'photo analyses' : 'inspections'}`
+    const severity = factor.rating?.severity
+    if (severity === 'none') return 'No visible signs'
+    if (['mild', 'moderate', 'severe', 'extensive'].includes(severity)) {
+      return `${severity[0].toUpperCase()}${severity.slice(1)} visible signs`
+    }
+    return 'Scored photo finding'
+  }
+  if (factor.score >= 85) return 'Mostly favorable readings'
+  if (factor.score >= 70) return 'Mixed readings'
+  if (factor.score >= 50) return 'Readings need attention'
+  return 'Unfavorable readings'
+}
+
+function imageTime(value) {
+  return new Date(value).toLocaleTimeString('en-PH', {
+    timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit',
+  })
 }
 
 export default function CropHealthAssessment() {
@@ -63,12 +86,12 @@ export default function CropHealthAssessment() {
   useEffect(() => {
     let active = true
     setGuidanceError('')
-    const saved = assessment?.image?.recommendations || []
+    const saved = assessment?.inspectionSource === 'gemini-diagnosis' ? [] : assessment?.image?.recommendations || []
     setRecommendations(saved)
-    setGuidanceSource(saved.length ? 'Saved image analysis' : '')
+    setGuidanceSource(saved.length ? 'Saved inspection rules' : '')
     const hasEvidence = assessment?.image || assessment?.factors?.some((factor) => factor.count > 0)
       || assessment?.context?.soilTemperature?.count > 0
-    if (!hasEvidence || guidanceVersion === 0) {
+    if (!hasEvidence) {
       setGuidanceLoading(false)
       return () => { active = false }
     }
@@ -79,13 +102,11 @@ export default function CropHealthAssessment() {
       .then((result) => {
         if (!active) return
         setRecommendations(result.recommendations || [])
-        setGuidanceSource('Field guidance')
+        setGuidanceSource('Rule-based field guidance')
       })
       .catch((caught) => {
         if (!active) return
-        setGuidanceError(/quota|RESOURCE_EXHAUSTED|rate.limit|429/i.test(caught.message)
-          ? 'Gemini request limit reached. Try again later.'
-          : caught.message.length > 180 ? 'Gemini guidance is temporarily unavailable.' : caught.message)
+        setGuidanceError(caught.message.length > 180 ? 'Field guidance is unavailable.' : caught.message)
       })
       .finally(() => { if (active) setGuidanceLoading(false) })
     return () => { active = false }
@@ -94,12 +115,24 @@ export default function CropHealthAssessment() {
   const hasEvidence = assessment?.image || assessment?.factors?.some((factor) => factor.count > 0)
     || assessment?.context?.soilTemperature?.count > 0
   const score = assessment?.cropHealthScore
-  const missingImage = assessment?.factors?.some((factor) => factor.source === 'image' && factor.score == null)
+  const legacyPhoto = assessment?.inspectionSource === 'gemini-diagnosis'
+  const imageScore = assessment?.visualScore
+  const missingImageFactors = assessment?.factors?.filter((factor) => factor.source === 'image' && factor.score == null) || []
   const missingReadings = assessment?.factors?.some((factor) => factor.source === 'sensor' && factor.count === 0)
   const moistureFactor = assessment?.factors?.find((factor) => factor.key === 'moisture')
-  const soilTemperature = assessment?.context?.soilTemperature
+  const hasScoredSoilTemperature = assessment?.factors?.some((factor) => factor.key === 'soilTemperature')
+  const displayFactors = assessment ? [
+    ...assessment.factors,
+    ...(!hasScoredSoilTemperature ? [{
+      key: 'soilTemperature', label: 'Soil temperature', source: 'context', score: null,
+      average: assessment.context?.soilTemperature?.average ?? null,
+      count: assessment.context?.soilTemperature?.count ?? 0,
+    }] : []),
+  ] : []
   const missingDetails = [
-    missingImage && (assessment?.image ? 'Image scores incomplete' : 'Scored image missing'),
+    missingImageFactors.length > 0 && (assessment?.image
+      ? `${missingImageFactors.map((factor) => factor.label).join(', ')} inspection score missing`
+      : 'No scored inspection or photo analysis saved for this field and date'),
     missingReadings && 'Sensor readings missing',
     moistureFactor?.average != null && moistureFactor.score == null && 'Soil moisture limits missing',
   ].filter(Boolean)
@@ -158,57 +191,81 @@ export default function CropHealthAssessment() {
               <div className="crop-assessment-score-row">
                 <div className="crop-assessment-score">{loading ? '…' : score == null ? '—' : score}<small> / 100</small></div>
                 <div className={`crop-assessment-classification${score == null ? ' is-pending' : ''}`}>
-                  {score == null ? 'Incomplete' : assessment.classification}
+                  {score == null ? 'Incomplete' : `${assessment.classification}${assessment.isPartial ? ' · Partial' : ''}`}
                 </div>
               </div>
               <div className="crop-assessment-track is-overall"><span style={{ width: `${score || 0}%` }} /></div>
-              {score == null && !loading && assessment && <p className="crop-assessment-missing">
-                {missingDetails.join(' · ') || 'No assessment data for this date'}
+              {!loading && assessment && !hasScoredSoilTemperature && <p className="crop-assessment-missing" role="status">
+                Soil temperature is shown below in °C, but this assessment response does not include its /100 score. The scoring service needs the soil temperature update.
               </p>}
-              {assessment?.image && <p className="crop-assessment-image-source">
-                Image analysis: {new Date(assessment.image.analyzedAt).toLocaleTimeString('en-PH', {
-                  timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit',
-                })}
+              {legacyPhoto && <p className="crop-assessment-scope" role="status">
+                Showing saved AI photo findings for this date. Visual ratings came from AI; score calculations and field guidance follow fixed rules.
               </p>}
-              {assessment?.image?.healthScore != null && (
-                <div className="crop-assessment-image-source">
-                  <strong>Visible crop image score: {assessment.image.healthScore} / 100</strong>
-                  {assessment.image.scoringMethod === 'visible-crop-area-v3' && <span> (assessable crop in the photo only)</span>}
-                  {assessment.image.regions?.length > 0 && (
-                    <ul>
-                      {assessment.image.regions.map((region, index) => (
-                        <li key={index}>{region.sharePercent}% {region.severity} — {region.evidence}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+              {assessment?.isPartial && <p className="crop-assessment-scope">
+                Combined visual inspection and sensor score based on {assessment.scoreCoverage}% of the weighted factors.
+              </p>}
+              {(score == null || assessment?.isPartial) && !loading && assessment && <p className="crop-assessment-missing">
+                {missingDetails.length ? `Not scored: ${missingDetails.join(' · ')}` : 'No combined image and sensor score for this date'}
+              </p>}
+              {!loading && assessment && !assessment.image && missingImageFactors.length === 4 && (
+                <p className="crop-assessment-missing">
+                  {date === manilaToday()
+                    ? <>Check the selected field, or <a href="/admin/monitoring/crop-health">record today’s checklist in Crop Health Monitoring</a>. </>
+                    : <>Choose a date with a saved inspection or scored photo analysis. </>}
+                </p>
               )}
-              <div className="crop-assessment-factors">
-                {(assessment?.factors || []).map((factor) => (
-                  <div className="crop-assessment-factor" key={factor.key}>
-                    <div className="crop-assessment-factor-label">
-                      <span>{factor.label} ({Math.round(factor.weight * 100)}%)</span>
-                      <span className="crop-assessment-factor-measure">
-                        {factor.average != null && <small>{readingValue(factor.average, factor.key === 'temperature' ? '°C' : '%')}</small>}
-                        <strong>{factorValue(factor)}</strong>
-                      </span>
-                    </div>
-                    <div className="crop-assessment-track"><span style={{ width: `${factor.score || 0}%` }} /></div>
-                    {factor.key === 'pest' && assessment?.image?.pestRating?.severity && (
-                      <small>Image finding: {assessment.image.pestRating.severity}</small>
+              {assessment && <details className="crop-assessment-details" key={`${field}-${date}`}>
+                <summary>View score details</summary>
+                {assessment?.image && <p className="crop-assessment-image-source">
+                  Latest {legacyPhoto ? 'photo analysis' : 'visual inspection'}: {imageTime(assessment.image.analyzedAt)}
+                  {assessment.image.analysisCount > 1 && ` · ${assessment.image.analysisCount} ${legacyPhoto ? 'photo analyses' : 'inspections'} on this date`}
+                </p>}
+                {imageScore != null && (
+                  <div className="crop-assessment-image-source">
+                    <strong>Daily visual {legacyPhoto ? 'photo analysis' : 'inspection'} score: {imageScore} / 100</strong>
+                    {assessment.image.scoringMethod === 'visible-crop-area-v3' && <span> (assessable crop in the photo only)</span>}
+                    {assessment.image.regions?.length > 0 && (
+                      <ul>
+                        {assessment.image.regions.map((region, index) => (
+                          <li key={index}>{region.severity} severity across {region.sharePercent}% of assessable crop area — {region.evidence}</li>
+                        ))}
+                      </ul>
                     )}
                   </div>
-                ))}
-                {loading && <p className="crop-assessment-empty">Loading…</p>}
-              </div>
-              <div className="crop-assessment-context">
-                <span>Soil temperature <small>(context)</small></span>
-                <strong>{readingValue(soilTemperature?.average, '°C')}</strong>
-              </div>
+                )}
+                <p className="crop-assessment-score-explanation">
+                  Each visual factor averages all valid {legacyPhoto ? 'saved photo analyses' : 'rule-based inspections'} on this date. Each available sensor reading is scored first; then its scores are averaged. The displayed measurement average is separate from that score. Each scored factor's weight is its share of the combined score.
+                </p>
+                <div className="crop-assessment-factors">
+                  {displayFactors.map((factor) => (
+                    <div className="crop-assessment-factor" key={factor.key}>
+                      <div className="crop-assessment-factor-label">
+                        <span>{factor.label} <small>{factor.source === 'context' ? 'Score unavailable' : `Weight: ${Math.round(factor.weight * 100)}%`}</small></span>
+                        <span className="crop-assessment-factor-measure">
+                          {factor.average != null && <small>Avg: {readingValue(factor.average, ['temperature', 'soilTemperature'].includes(factor.key) ? '°C' : '%')}</small>}
+                          <strong>{factor.source === 'context' ? readingValue(factor.average, '°C') : factor.score == null ? 'No score' : `${factorValue(factor)} / 100`}</strong>
+                        </span>
+                      </div>
+                      {factor.source !== 'context' && <div className="crop-assessment-track" role="progressbar" aria-label={`${factor.label} score`}
+                        aria-valuemin="0" aria-valuemax="100" aria-valuenow={factor.score ?? undefined}
+                        aria-valuetext={factor.score == null ? 'No score available' : `${factorValue(factor)} out of 100`}>
+                        <span style={{ width: `${factor.score || 0}%` }} />
+                      </div>}
+                      <small className="crop-assessment-factor-result">Result: {factorResult(factor, legacyPhoto)}{factor.source === 'sensor' && factor.count > 0 ? ` · ${factor.count} reading${factor.count === 1 ? '' : 's'}` : ''}</small>
+                      {factor.source === 'image' && (factor.rating?.evidence || (factor.key === 'nutrient' && factor.score == null && assessment?.image?.nutrientRating?.evidence)) && (
+                        <small>{factor.count > 1 ? 'Latest recorded description: ' : ''}{factor.rating?.evidence || assessment.image.nutrientRating.evidence}</small>
+                      )}
+                      {factor.analyzedAt && factor.analyzedAt !== assessment?.image?.analyzedAt && (
+                        <small>Latest valid description from an earlier {legacyPhoto ? 'photo analysis' : 'inspection'} at {imageTime(factor.analyzedAt)}</small>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </details>}
             </section>
 
-              <section className="crop-assessment-card crop-assessment-guidance" aria-label="Gemini recommendations">
-                <h2><Sparkles size={18} aria-hidden="true" /> Gemini Recommendations</h2>
+              <section className="crop-assessment-card crop-assessment-guidance" aria-label="Rule-based recommendations">
+                <h2><ClipboardList size={18} aria-hidden="true" /> Rule-Based Recommendations</h2>
                 {guidanceSource && <p className="crop-assessment-guidance-source">{guidanceSource}</p>}
                 {guidanceLoading && <p className="crop-assessment-empty">Generating…</p>}
                 {!guidanceLoading && guidanceError && <p className="crop-assessment-guidance-error" role="alert">{guidanceError}</p>}
@@ -219,7 +276,7 @@ export default function CropHealthAssessment() {
                 )}
                 {!guidanceLoading && !guidanceError && !hasEvidence && <p className="crop-assessment-empty">No field data for this date.</p>}
                 <button type="button" className="crop-assessment-regenerate" disabled={guidanceLoading || loading || !hasEvidence} onClick={() => setGuidanceVersion((version) => version + 1)}>
-                  <RefreshCw size={15} aria-hidden="true" /> {recommendations.length ? 'Update guidance' : 'Generate guidance'}
+                  <RefreshCw size={15} aria-hidden="true" /> {recommendations.length ? 'Refresh guidance' : 'Show guidance'}
                 </button>
                 {recommendations.length > 0 && <small>Confirm in the field before treatment.</small>}
               </section>

@@ -43,23 +43,40 @@ async function loadRows(client, table, field, from, to, unassigned = false) {
   return rows;
 }
 
+async function loadInspections(field, from, to, source) {
+  const rows = [];
+  for (let offset = 0; ;) {
+    const { data, error } = await getSupabase().from("crop_health_inspections")
+      .select("*")
+      .eq("field_name", field)
+      .eq("assessment_source", source)
+      .not("factor_scores", "is", null)
+      .gte("created_at", new Date(from).toISOString())
+      .lt("created_at", new Date(to).toISOString())
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1);
+    // The additive migration may still be pending; sensor-only assessment remains available.
+    if (error && ["PGRST204", "42703"].includes(error.code)) return [];
+    if (error) throw error;
+    if (!data?.length) break;
+    rows.push(...data);
+    offset += data.length;
+  }
+  return rows;
+}
+
+async function loadScoredInspections(field, from, to, load = loadInspections) {
+  const ruleInspections = await load(field, from, to, "rule-inspection");
+  if (ruleInspections.length) return { inspections: ruleInspections, inspectionSource: "rule-inspection" };
+  const photoAnalyses = await load(field, from, to, "gemini-diagnosis");
+  return { inspections: photoAnalyses, inspectionSource: photoAnalyses.length ? "gemini-diagnosis" : null };
+}
+
 async function loadAssessment(field, dateOrHours, now = Date.now()) {
   const window = assessmentWindow(field, dateOrHours, now);
-  const { data: inspection, error: inspectionError } = await getSupabase()
-    .from("crop_health_inspections")
-    .select("*")
-    .eq("field_name", field)
-    .eq("assessment_source", "gemini-diagnosis")
-    .not("factor_scores", "is", null)
-    .gte("created_at", new Date(window.from).toISOString())
-    .lt("created_at", new Date(window.to).toISOString())
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  // The additive migration may still be pending; sensor-only assessment remains available.
-  if (inspectionError && !["PGRST204", "42703"].includes(inspectionError.code)) throw inspectionError;
-  // Task proof photos and older single-score diagnoses are never used as image scores.
-  const scoredInspection = inspection?.factor_scores && typeof inspection.factor_scores === "object" ? inspection : null;
+  // Prefer rule-based checklists; preserve earlier photo results until a checklist is recorded.
+  const { inspections, inspectionSource } = await loadScoredInspections(field, window.from, window.to);
 
   let climateRows = [];
   let soilRows = [];
@@ -86,12 +103,13 @@ async function loadAssessment(field, dateOrHours, now = Date.now()) {
       to: window.to,
       climateRows,
       soilRows,
-      inspection: scoredInspection,
+      inspections,
       soilBands: soilBandsFor(field),
     }),
     date: window.date || null,
+    inspectionSource,
     sensorError,
   };
 }
 
-module.exports = { assessmentWindow, loadAssessment };
+module.exports = { assessmentWindow, loadAssessment, loadScoredInspections };

@@ -1,10 +1,11 @@
 const express = require("express");
 const { getGeminiClient } = require("../lib/gemini");
 const { getSupabase } = require("../supabase");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth, requireRole } = require("../middleware/auth");
 const { uploadImage } = require("../lib/storage");
 const { classifyScore, scoreImageDiagnosis, scoreVisibleRegions } = require("../lib/crop-image-score");
 const { generateVisionJson, visionModels } = require("../lib/gemini-vision");
+const { publicRules, scoreInspection } = require("../lib/crop-rule-inspection");
 
 const router = express.Router();
 
@@ -186,8 +187,82 @@ router.delete("/crop-inspections/:id", requireAuth, async (req, res) => {
   }
 });
 
-// POST AI Diagnosis
+// Rule-based visual inspection: descriptions and scores are defined on the server.
+router.get("/crop-inspection-rules", requireAuth, requireRole("admin"), (req, res) => {
+  res.json({ factors: publicRules() });
+});
+
+router.post("/crop-rule-inspection", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const { field, selections, image, imageName } = req.body || {};
+    if (!["Field A", "Field B", "Field C", "Field D"].includes(field)) {
+      return res.status(400).json({ error: "Choose a valid field." });
+    }
+    let result;
+    try { result = scoreInspection(selections); }
+    catch (error) { return res.status(400).json({ error: error.message }); }
+
+    let imageUrl = null;
+    let imageStoragePath = null;
+    let imageMime = null;
+    if (image != null) {
+      const match = typeof image === "string" && image.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+      if (!match || Buffer.byteLength(match[2], "base64") > 10 * 1024 * 1024) {
+        return res.status(400).json({ error: "Use a JPEG, PNG, or WebP photo no larger than 10 MB." });
+      }
+      imageMime = match[1];
+      const uploaded = await uploadImage("crop-inspections", match[2], imageMime, field);
+      if (!uploaded) return res.status(503).json({ error: "Could not save the inspection photo. Please retry." });
+      imageUrl = uploaded.imageUrl;
+      imageStoragePath = uploaded.storagePath;
+    }
+
+    const diagnosis = {
+      score: result.score,
+      factorScores: result.factorScores,
+      factorRatings: result.ratings,
+      visibleCropRegions: [],
+      scoringMethod: "manual-description-rules-v1",
+      coverage: result.coverage,
+      isPartial: result.isPartial,
+      healthStatus: result.healthStatus,
+      diseaseOrIssueName: "Rule-based visual inspection",
+      issues: result.findings,
+      recommendations: result.recommendations,
+      visualSummary: result.summary,
+    };
+    const record = {
+      field_name: field,
+      crop_type: "Pineapple",
+      health_score: result.score,
+      health_status: result.healthStatus,
+      disease_or_issue_name: diagnosis.diseaseOrIssueName,
+      visual_summary: result.summary,
+      identified_symptoms: result.findings,
+      action_recommendations: result.recommendations,
+      factor_scores: { ...result.factorScores, ratings: result.ratings, method: diagnosis.scoringMethod, coverage: result.coverage },
+      assessment_source: "rule-inspection",
+      ai_model: null,
+      image_url: imageUrl,
+      image_storage_path: imageStoragePath,
+      image_name: typeof imageName === "string" ? imageName.slice(0, 120) : null,
+      image_mime_type: imageMime,
+      status: "COMPLETED",
+      analyzed_by: req.user?.id || null,
+    };
+    const { data, error } = await getSupabase().from("crop_health_inspections").insert(record).select().single();
+    if (error) return res.status(500).json({ error: "Failed to save the rule-based inspection." });
+    return res.json({ success: true, diagnosis, savedRecord: data });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || "Failed to record the inspection." });
+  }
+});
+
+// Retained for historical clients only when explicitly enabled.
 router.post("/crop-diagnosis", requireAuth, async (req, res) => {
+  if (process.env.ENABLE_LEGACY_AI_CROP_DIAGNOSIS !== "true") {
+    return res.status(410).json({ error: "AI crop diagnosis is disabled. Use the rule-based inspection checklist." });
+  }
   try {
     const { image, mimeType, field, cropType } = req.body;
 
@@ -224,6 +299,7 @@ EVIDENCE RULES:
 - For every rating other than unknown, give a short description of the visible evidence. Use unknown if the view cannot assess that factor or the visual evidence is insufficient. Never use none to mean "not visible".
 - In factorRatings, describe pests, nutrient signs, disease signs, and crop condition separately. Pinpoint the affected visible plant part or area in each evidence field, and name a specific cause only when the photo supports it.
 - If the crop is damaged but its cause is unclear, do not call the pest, disease, or nutrient categories healthy merely because a cause is not directly visible. Use unknown unless the photo provides evidence to assess that category. Pest damage may remain after the pest has left.
+- For nutrient status, inspect the visible leaf or canopy color and deficiency patterns separately from a localized disease lesion. If enough unaffected leaf tissue is clearly visible and shows normal, uniform color without nutrient-pattern symptoms, rate nutrient as none and describe that visible evidence. If the photo shows too little unaffected tissue to assess nutrition, rate unknown and say which wider view is needed.
 - Name a specific disease or nutrient deficiency only when the photo supports that identification; otherwise use a neutral finding such as "Visible crop damage; cause undetermined".
 - Do not calculate or return an overall crop health score. The application calculates it from visible crop regions.
 - If a factor is unknown, explain which required plant part or visual evidence is missing so the user knows what follow-up photo is needed.

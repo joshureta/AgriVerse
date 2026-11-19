@@ -67,21 +67,26 @@ irrigation tasks for the same field and date are considered before suggesting
 another watering. Historical rainfall is not recorded, so the report never
 claims that rainfall caused a sensor change.
 
-The Crop Health Assessment page is under Monitoring. It combines field sensor
-readings with the latest Gemini crop diagnosis from the selected period. Apply
+The Crop Health Assessment page is under Monitoring. For the selected Manila
+date, it combines that day's field sensor readings with the latest valid score
+for each image factor from that day's saved Gemini diagnosis history. It never
+uses an image factor from another date. Apply
 `supabase/migrations/064_crop_health_factor_scores.sql` in the **main** project
 before expecting a complete weighted score; older inspections have no separate
 image factor scores. The page shows Environmental Suitability when all three
-sensor factors can be scored, and a Crop Health Score only when all seven
-factors are available. It never fills missing factors with sample values.
+sensor factors can be scored. The Crop Health Score requires at least one image
+factor and one sensor factor. It divides the weighted sum of available factor
+scores by their total available weight and labels scores below 100% weight
+coverage as partial. It never fills missing factors with sample values.
 Soil temperature is displayed and supplied to Gemini as context; it does not
 change the seven-factor score weights.
 
-For assessment soil scoring, extend each field's
-`ENVIRONMENTAL_SOIL_MOISTURE_TARGETS` entry with a farm-calibrated `dryBelow`
-value below `min`, for example `{"Field A":{"dryBelow":25,"min":35,"max":45}}`.
-The numbers here illustrate the configuration shape and must be replaced with
-validated field thresholds. Without `dryBelow`, soil moisture remains unscored.
+Assessment soil scoring uses the existing live monitoring boundaries as
+provisional defaults: below 25% is dry, 25-30% is below the healthy range,
+30-70% is within range, and above 70% is wet. These are sensor-relative app
+rules, not farm-calibrated irrigation targets. A field-specific
+`ENVIRONMENTAL_SOIL_MOISTURE_TARGETS` entry with `dryBelow`, `min`, and `max`
+overrides the defaults when validated limits are available.
 The Gemini recommendations use the available assessment evidence and can be
 regenerated from the page; they are guidance to verify in the field.
 

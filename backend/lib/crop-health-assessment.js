@@ -3,10 +3,12 @@ const FACTORS = [
   { key: "disease", label: "Disease status", weight: 0.20, source: "image" },
   { key: "pest", label: "Pest status", weight: 0.15, source: "image" },
   { key: "nutrient", label: "Nutrient status", weight: 0.15, source: "image" },
-  { key: "temperature", label: "Air temperature", weight: 0.10, source: "sensor" },
+  { key: "temperature", label: "Air temperature", weight: 0.05, source: "sensor" },
   { key: "humidity", label: "Relative humidity", weight: 0.10, source: "sensor" },
   { key: "moisture", label: "Soil moisture", weight: 0.15, source: "sensor" },
+  { key: "soilTemperature", label: "Soil temperature", weight: 0.05, source: "sensor" },
 ];
+const DEFAULT_SOIL_BANDS = Object.freeze({ dryBelow: 25, min: 30, max: 70 });
 
 const roundOne = (value) => Math.round(value * 10) / 10;
 const validScore = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
@@ -34,19 +36,26 @@ function scoreHumidity(value) {
   return 50;
 }
 
+function scoreSoilTemperature(value) {
+  if (value >= 24 && value <= 30) return 100;
+  if ((value >= 20 && value < 24) || (value > 30 && value <= 33)) return 75;
+  if ((value >= 17 && value < 20) || (value > 33 && value <= 36)) return 40;
+  return 10;
+}
+
 function soilBandsFor(field, raw = process.env.ENVIRONMENTAL_SOIL_MOISTURE_TARGETS) {
-  if (!raw) return null;
+  if (!raw) return DEFAULT_SOIL_BANDS;
   try {
     const config = JSON.parse(raw)[field];
-    if (config?.dryBelow == null || config?.min == null || config?.max == null) return null;
+    if (config?.dryBelow == null || config?.min == null || config?.max == null) return DEFAULT_SOIL_BANDS;
     const dryBelow = Number(config?.dryBelow);
     const min = Number(config?.min);
     const max = Number(config?.max);
     return Number.isFinite(dryBelow) && Number.isFinite(min) && Number.isFinite(max)
       && dryBelow >= 0 && dryBelow < min && min < max && max <= 100
-      ? { dryBelow, min, max } : null;
+      ? { dryBelow, min, max } : DEFAULT_SOIL_BANDS;
   } catch {
-    return null;
+    return DEFAULT_SOIL_BANDS;
   }
 }
 
@@ -82,42 +91,69 @@ function classify(score) {
   return "Critical";
 }
 
-function buildAssessment({ field, from, to, climateRows = [], soilRows = [], inspection = null, soilBands = null }) {
+function buildAssessment({ field, from, to, climateRows = [], soilRows = [], inspection = null, inspections = [], soilBands = null }) {
   const temperature = summarize(climateRows, "temperature_c", from, to,
     (value) => value >= -50 && value <= 80, scoreTemperature);
   const soilTemperature = summarize(climateRows, "soil_temperature_c", from, to,
-    (value) => value >= -50 && value <= 80, () => null);
+    (value) => value >= -50 && value <= 80, scoreSoilTemperature);
   const humidity = summarize(climateRows, "humidity_percent", from, to,
     (value) => value >= 0 && value <= 100, scoreHumidity);
   const moistureRows = soilRows.some((row) => row.moisture_percent != null) ? soilRows : climateRows;
   const moistureKey = moistureRows === soilRows ? "moisture_percent" : "soil_moisture";
   const moisture = summarize(moistureRows, moistureKey, from, to,
     (value) => value >= 0 && value <= 100, (value) => scoreMoisture(value, soilBands));
-  const image = inspection?.factor_scores || {};
-  const imageScores = {
-    cropCondition: validScore(image.cropCondition) ? image.cropCondition : null,
-    disease: validScore(image.disease) ? image.disease : null,
-    pest: validScore(image.pest) ? image.pest : null,
-    nutrient: validScore(image.nutrient) ? image.nutrient : null,
-  };
-  const sensorScores = { temperature: temperature.score, humidity: humidity.score, moisture: moisture.score };
+  const imageHistory = (inspections.length
+    ? inspections.filter((row) => {
+      const time = Date.parse(row?.created_at);
+      return Number.isFinite(time) && time >= from && time < to;
+    })
+    : inspection ? [inspection] : [])
+    .filter((row) => row?.factor_scores && typeof row.factor_scores === "object")
+    .sort((left, right) => (Date.parse(right.created_at) || 0) - (Date.parse(left.created_at) || 0));
+  const latestInspection = imageHistory[0] || null;
+  const imageSources = Object.fromEntries(["cropCondition", "disease", "pest", "nutrient"]
+    .map((key) => [key, imageHistory.filter((row) => validScore(row.factor_scores[key]))]));
+  const imageScores = Object.fromEntries(Object.entries(imageSources)
+    .map(([key, sources]) => [key, sources.length
+      ? roundOne(sources.reduce((sum, row) => sum + row.factor_scores[key], 0) / sources.length)
+      : null]));
+  const sensorScores = { temperature: temperature.score, humidity: humidity.score, moisture: moisture.score,
+    soilTemperature: soilTemperature.score };
   const scores = { ...imageScores, ...sensorScores };
   const factors = FACTORS.map((factor) => ({
     ...factor,
     score: scores[factor.key],
+    rating: factor.source === "image"
+      ? (imageSources[factor.key][0] || latestInspection)?.factor_scores?.ratings?.[factor.key] || null
+      : null,
+    analyzedAt: factor.source === "image" ? imageSources[factor.key][0]?.created_at || null : null,
     average: factor.key === "temperature" ? temperature.average
+      : factor.key === "soilTemperature" ? soilTemperature.average
       : factor.key === "humidity" ? humidity.average
         : factor.key === "moisture" ? moisture.average : null,
-    count: factor.key === "temperature" ? temperature.count
+    count: factor.source === "image" ? imageSources[factor.key].length
+      : factor.key === "temperature" ? temperature.count
+      : factor.key === "soilTemperature" ? soilTemperature.count
       : factor.key === "humidity" ? humidity.count
         : factor.key === "moisture" ? moisture.count : null,
   }));
-  const environmentalScore = ["temperature", "humidity", "moisture"].every((key) => validScore(scores[key]))
-    ? roundOne((0.10 * scores.temperature + 0.10 * scores.humidity + 0.15 * scores.moisture) / 0.35)
+  const environmentalScore = ["temperature", "humidity", "moisture", "soilTemperature"].every((key) => validScore(scores[key]))
+    ? roundOne((0.05 * scores.temperature + 0.10 * scores.humidity + 0.15 * scores.moisture
+      + 0.05 * scores.soilTemperature) / 0.35)
     : null;
-  const cropHealthScore = factors.every((factor) => validScore(factor.score))
-    ? roundOne(factors.reduce((total, factor) => total + factor.weight * factor.score, 0))
+  const visualFactors = factors.filter((factor) => factor.source === "image" && validScore(factor.score));
+  const visualWeight = visualFactors.reduce((sum, factor) => sum + factor.weight, 0);
+  const visualScore = visualWeight > 0
+    ? roundOne(visualFactors.reduce((sum, factor) => sum + factor.weight * factor.score, 0) / visualWeight)
     : null;
+  const scoredFactors = factors.filter((factor) => validScore(factor.score));
+  const scoreWeight = scoredFactors.reduce((total, factor) => total + factor.weight, 0);
+  const hasImageScore = scoredFactors.some((factor) => factor.source === "image");
+  const hasSensorScore = scoredFactors.some((factor) => factor.source === "sensor");
+  const cropHealthScore = hasImageScore && hasSensorScore
+    ? roundOne(scoredFactors.reduce((total, factor) => total + factor.weight * factor.score, 0) / scoreWeight)
+    : null;
+  const scoreCoverage = roundOne(scoreWeight * 100);
   const latestSensorAt = [temperature, soilTemperature, humidity, moisture]
     .map((item) => item.latestAt).filter(Boolean).sort().at(-1) || null;
   return {
@@ -126,25 +162,32 @@ function buildAssessment({ field, from, to, climateRows = [], soilRows = [], ins
     factors,
     context: { soilTemperature: { average: soilTemperature.average, count: soilTemperature.count, latestAt: soilTemperature.latestAt } },
     environmentalScore,
+    visualScore,
     cropHealthScore,
+    scoreCoverage,
+    isPartial: cropHealthScore != null && scoreCoverage < 100,
     classification: cropHealthScore == null ? null : classify(cropHealthScore),
     latestSensorAt,
-    image: inspection ? {
-      id: inspection.id,
-      analyzedAt: inspection.created_at,
-      healthScore: inspection.health_score,
-      scoringMethod: inspection.factor_scores?.method || null,
-      regions: inspection.factor_scores?.regions || [],
-      issue: inspection.disease_or_issue_name,
-      summary: inspection.visual_summary,
-      symptoms: inspection.identified_symptoms,
-      pestRating: inspection.factor_scores?.ratings?.pest || null,
-      recommendations: Array.isArray(inspection.action_recommendations)
-        ? inspection.action_recommendations.filter((item) => typeof item === "string" && item.trim()).slice(0, 3)
+    image: latestInspection ? {
+      id: latestInspection.id,
+      analyzedAt: latestInspection.created_at,
+      healthScore: latestInspection.health_score,
+      scoringMethod: latestInspection.factor_scores?.method || null,
+      regions: latestInspection.factor_scores?.regions || [],
+      issue: latestInspection.disease_or_issue_name,
+      summary: latestInspection.visual_summary,
+      symptoms: latestInspection.identified_symptoms,
+      pestRating: imageSources.pest[0]?.factor_scores?.ratings?.pest || null,
+      nutrientRating: imageSources.nutrient[0]?.factor_scores?.ratings?.nutrient
+        || latestInspection.factor_scores?.ratings?.nutrient || null,
+      recommendations: Array.isArray(latestInspection.action_recommendations)
+        ? latestInspection.action_recommendations.filter((item) => typeof item === "string" && item.trim()).slice(0, 3)
         : [],
+      analysisCount: imageHistory.length,
     } : null,
     missing: factors.filter((factor) => factor.score == null).map((factor) => factor.label),
   };
 }
 
-module.exports = { FACTORS, buildAssessment, classify, scoreTemperature, scoreHumidity, scoreMoisture, soilBandsFor };
+module.exports = { FACTORS, DEFAULT_SOIL_BANDS, buildAssessment, classify, scoreTemperature, scoreSoilTemperature,
+  scoreHumidity, scoreMoisture, soilBandsFor };

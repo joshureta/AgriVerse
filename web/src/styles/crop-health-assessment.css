@@ -22,14 +22,25 @@
 .crop-assessment-track { height: 8px; overflow: hidden; border-radius: 999px; background: #e9ece6; }
 .crop-assessment-track span { height: 100%; display: block; border-radius: inherit; background: linear-gradient(90deg, #73ac24, #89b630); }
 .crop-assessment-track.is-overall { height: 10px; }
+.crop-assessment-track.is-temperature span { background: linear-gradient(90deg, #5ca7b1, #357f91); }
+.crop-assessment-temperature-scale { display: flex; justify-content: space-between; margin-top: 3px; color: #79867c; font-size: 10px; }
+.crop-assessment-scope { margin: 9px 0 0; color: #536b57; font-size: 11px; }
 .crop-assessment-missing { margin: 9px 0 0; color: #8a6728; font-size: 11px; }
+.crop-assessment-missing a { color: #17642f; font-weight: 700; text-decoration: underline; }
+.crop-assessment-details { margin-top: 16px; border-top: 1px solid #e8eee6; padding-top: 12px; }
+.crop-assessment-details summary { width: fit-content; color: #196c35; font-size: 11px; font-weight: 750; cursor: pointer; }
+.crop-assessment-details summary:focus-visible { outline: 3px solid #a9d6a4; outline-offset: 3px; }
 .crop-assessment-image-source { margin: 9px 0 0; color: #68796e; font-size: 11px; }
-.crop-assessment-factors { display: grid; gap: 13px; margin-top: 20px; }
-.crop-assessment-factor-label { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 6px; color: #24402b; font-size: 12px; font-weight: 750; }
+.crop-assessment-score-explanation { margin: 20px 0 0; color: #68796e; font-size: 11px; }
+.crop-assessment-factors { display: grid; gap: 13px; margin-top: 12px; }
+.crop-assessment-factor-label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 14px; margin-bottom: 6px; color: #24402b; font-size: 12px; font-weight: 750; }
+.crop-assessment-factor-label > span > small { margin-left: 4px; color: #68796e; font-size: 11px; font-weight: 550; }
 .crop-assessment-factor-label strong { color: #173d26; font-size: 12px; }
 .crop-assessment-factor-measure { display: inline-flex; align-items: baseline; gap: 12px; white-space: nowrap; }
 .crop-assessment-factor-measure small { color: #68796e; font-size: 11px; font-weight: 550; }
 .crop-assessment-factor > small { display: block; margin-top: 4px; color: #79867c; font-size: 10px; }
+.crop-assessment-factor > .crop-assessment-factor-result { color: #315b39; font-size: 11px; font-weight: 700; }
+.crop-assessment-factor.is-context { border-top: 1px solid #e8eee6; padding-top: 14px; }
 .crop-assessment-context { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 18px; border-top: 1px solid #e8eee6; padding-top: 12px; color: #24402b; font-size: 12px; font-weight: 750; }
 .crop-assessment-context small { color: #879288; font-size: 11px; font-weight: 500; }
 .crop-assessment-context strong { color: #173d26; font-size: 14px; }

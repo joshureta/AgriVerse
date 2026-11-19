@@ -8,7 +8,6 @@ import {
   Image as ImageIcon,
   ImageUp,
   RefreshCw,
-  Sparkles,
   Trash2,
   UploadCloud,
   X,
@@ -42,7 +41,7 @@ function VisualFindings({ factorRatings, issues }) {
           const rating = factorRatings?.[key]
           const severity = rating?.severity === 'none' ? 'No visible signs'
             : rating?.severity && rating.severity !== 'unknown' ? `${rating.severity[0].toUpperCase()}${rating.severity.slice(1)} signs detected`
-              : hasRatings ? 'Cannot identify from this image' : 'Not recorded'
+              : hasRatings ? 'Cannot assess from this inspection' : 'Not recorded'
           return <li key={key} style={{ marginBottom: '4px' }}><strong>{label}:</strong> {severity}{rating?.evidence && <> — {rating.evidence}</>}</li>
         })}
       </ul>
@@ -63,6 +62,8 @@ export default function CropHealthMonitoring() {
   const uploadInput = useRef(null)
   const [activeField, setActiveField] = useState('Field A')
   const [analyzing, setAnalyzing] = useState(false)
+  const [inspectionRules, setInspectionRules] = useState([])
+  const [inspectionSelections, setInspectionSelections] = useState({})
   const [loadingDB, setLoadingDB] = useState(true)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -73,6 +74,12 @@ export default function CropHealthMonitoring() {
   const [activities, setActivities] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
+
+  useEffect(() => {
+    inspectionApi.rules()
+      .then((body) => setInspectionRules(body.factors || []))
+      .catch((caught) => setError(caught.message || 'Could not load inspection rules.'))
+  }, [])
 
   // Persistent field state
   const [reports, setReports] = useState(() => {
@@ -187,7 +194,7 @@ export default function CropHealthMonitoring() {
           ...CropInspection.withImage(current[activeField], file, base64Data),
         },
       }))
-      setSuccessMessage(`Photo uploaded for ${activeField}. Click "Analyze ${activeField} Image" to run Gemini Vision AI!`)
+      setSuccessMessage(`Photo uploaded for ${activeField}. Select the observed descriptions and record the inspection.`)
     }
     reader.onerror = () => {
       setError('Failed to read the selected image file.')
@@ -227,10 +234,11 @@ export default function CropHealthMonitoring() {
     }
   }
 
-  // Analyzes the crop photo and saves the diagnosis.
+  // Scores selected observations with fixed rules and saves the inspection.
   async function handleAnalyze() {
-    if (!currentFieldReport.image) {
-      setError(`Please upload a crop photo for ${activeField} first.`)
+    const selections = inspectionSelections[activeField] || {}
+    if (!inspectionRules.length || inspectionRules.some((factor) => !selections[factor.key])) {
+      setError('Choose one description for each inspection factor.')
       return
     }
 
@@ -239,12 +247,12 @@ export default function CropHealthMonitoring() {
     setSuccessMessage('')
 
     try {
-      const { base64: payloadBase64, mime: payloadMime } = await convertAssetToBase64(currentFieldReport.image)
-      const result = await inspectionApi.analyze({
-        image: payloadBase64,
-        mimeType: payloadMime,
+      const photo = currentFieldReport.image ? await convertAssetToBase64(currentFieldReport.image) : null
+      const result = await inspectionApi.inspect({
+        image: photo?.base64 || null,
+        imageName: currentFieldReport.imageName,
         field: activeField,
-        cropType: 'Pineapple',
+        selections,
       })
 
       const diagnosis = result.diagnosis
@@ -267,8 +275,7 @@ export default function CropHealthMonitoring() {
 
       setActivities((current) => [newActivity, ...current])
       setIsPoorHealthNotice(diagnosis.score == null || diagnosis.score <= 60)
-      setSuccessMessage(`${activeField}: image analysis complete. Review the visible findings below.`)
-      if (result.saveWarning) setError(result.saveWarning)
+      setSuccessMessage(`${activeField}: rule-based inspection saved. Review the findings below.`)
     } catch (caught) {
       console.error('Analysis failed:', caught)
       setError(caught instanceof Error ? caught.message : 'Crop diagnosis failed.')
@@ -321,7 +328,7 @@ export default function CropHealthMonitoring() {
                 Crop Health Monitoring
               </h1>
               <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
-                AI-assisted pineapple pathology, visual disease detection, and field treatment plans
+                 Rule-based visual inspection and environmental assessment
               </p>
             </div>
           </header>
@@ -350,7 +357,7 @@ export default function CropHealthMonitoring() {
           {/* ========================================================================= */}
           {/* COMBINED UNIFIED CARD: TOP FIELD TABS + PHOTO PREVIEW + ASSESSMENT & PLAN */}
           {/* ========================================================================= */}
-          {/* Field selection and crop photo analysis. */}
+          {/* Field selection and observation checklist. */}
           <section className="tasks-panel" style={{ marginBottom: '28px', border: '1px solid #dce5d8', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 12px 28px rgba(42,76,38,.05)', background: '#fff' }}>
             
             {/* 1. Field Selection Top Tabs */}
@@ -383,7 +390,7 @@ export default function CropHealthMonitoring() {
 
             {/* 2. Action Toolbar & Image Preview Zone */}
             <div style={{ padding: '18px 22px 20px', background: '#fff', borderBottom: '1px solid #edf1eb' }}>
-              {/* Action Buttons Toolbar (Both Aligned to Right) */}
+              {/* Inspection actions */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
                 <button
                   className="admin-btn-secondary"
@@ -400,17 +407,19 @@ export default function CropHealthMonitoring() {
                   className="admin-btn-primary"
                   type="button"
                   onClick={handleAnalyze}
-                  disabled={analyzing || !currentFieldReport.image}
+                  disabled={analyzing || !inspectionRules.length
+                    || inspectionRules.some((factor) => !inspectionSelections[activeField]?.[factor.key])
+                    || inspectionRules.every((factor) => inspectionSelections[activeField]?.[factor.key] === 'unknown')}
                 >
                   {analyzing ? (
                     <>
                       <RefreshCw className="spin" size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                      <span>Analyzing Image…</span>
+                       <span>Saving Inspection…</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles size={14} />
-                      <span>Analyze Image</span>
+                       <ClipboardList size={14} />
+                       <span>Score Inspection</span>
                     </>
                   )}
                 </button>
@@ -473,7 +482,7 @@ export default function CropHealthMonitoring() {
                     No Crop Photo Uploaded for {activeField}
                   </h3>
                   <p style={{ margin: '0 auto 16px', color: '#657868', fontSize: '12px', maxWidth: '420px', lineHeight: 1.5, fontFamily: 'var(--sans)' }}>
-                    Click here to upload a high-resolution drone photo or crop leaf snapshot to perform AI disease and pest diagnosis.
+                     Add a crop photo as optional evidence. A person records the observations below; the photo is not analyzed automatically.
                   </p>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', backgroundColor: '#e6f0e4', color: '#1a5c2e', fontSize: '11px', fontWeight: 700 }}>
                     <UploadCloud size={14} />
@@ -483,7 +492,28 @@ export default function CropHealthMonitoring() {
               )}
             </div>
 
-            {/* 3. Diagnostic Results & Agronomic Action Plan */}
+             <div className="crop-rule-checklist">
+               <h2>Visual inspection descriptions</h2>
+               <p>Choose what you can actually observe. Select “cannot assess” when the relevant plant part is unclear. A photo is optional evidence.</p>
+               {inspectionRules.map((factor) => (
+                 <label key={factor.key}>
+                   <span>{factor.label}</span>
+                   <select value={inspectionSelections[activeField]?.[factor.key] || ''}
+                     onChange={(event) => setInspectionSelections((current) => ({
+                       ...current,
+                       [activeField]: { ...current[activeField], [factor.key]: event.target.value },
+                     }))}>
+                     <option value="">Select a description</option>
+                     {factor.options.map((option) => (
+                       <option key={option.value} value={option.value}>{option.description}</option>
+                     ))}
+                   </select>
+                 </label>
+               ))}
+               <small>Scores: none 100 · mild 85 · moderate 60 · severe 30 · extensive 10 · cannot assess: excluded.</small>
+             </div>
+
+             {/* 3. Diagnostic Results & Agronomic Action Plan */}
             <div style={{ padding: '16px 22px 14px', background: '#f9fbf8', borderBottom: '1px solid #edf1eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Activity style={{ color: 'var(--admin-green)' }} size={18} />
@@ -494,12 +524,16 @@ export default function CropHealthMonitoring() {
               <span style={{ fontSize: '11px', color: '#667568', fontWeight: 600 }}>{currentFieldReport.lastUpdated}</span>
             </div>
 
+            {currentFieldReport.hasDiagnosis && <p style={{ margin: '12px 22px 0', fontSize: '12px', color: '#536257' }}>
+              Source: {currentFieldReport.assessmentSource === 'rule-inspection' ? 'Rule-based checklist' : 'Legacy AI or other inspection'}
+            </p>}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '0', background: '#fff' }}>
               {/* Left Column: Diagnostic Results */}
               <div style={{ padding: '22px 24px', borderRight: '1px solid #edf1eb' }}>
                 {currentFieldReport.hasDiagnosis && (
                   <p style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'baseline', margin: '0 0 14px', fontSize: '12px', color: '#334737' }}>
-                    <span style={{ fontWeight: 700 }}>Detected Disease / Issue:</span>
+                     <span style={{ fontWeight: 700 }}>Recorded issue / method:</span>
                     <strong style={{ color: '#1d3523' }}>
                       {currentFieldReport.diseaseOrIssueName || 'Not identified'}
                     </strong>
@@ -574,7 +608,7 @@ export default function CropHealthMonitoring() {
                   </div>
                 ) : (
                   <p style={{ margin: 0, color: '#68786b', fontSize: '12px', fontStyle: 'italic' }}>
-                    Action steps will be dynamically generated once an AI diagnosis is completed for this field.
+                     Action steps appear after the rule-based inspection is saved.
                   </p>
                 )}
               </div>
@@ -635,7 +669,7 @@ export default function CropHealthMonitoring() {
                             </ul>
                           ) : (
                             <span style={{ color: '#6d7c71', fontSize: '12px', fontStyle: 'italic', paddingLeft: '20px' }}>
-                              No critical issues detected
+                               No visible issues recorded
                             </span>
                           )}
                         </td>
@@ -700,7 +734,7 @@ export default function CropHealthMonitoring() {
                           No Inspection Logs Recorded for {activeField}
                         </h3>
                         <p style={{ margin: '0 auto 20px', color: '#657868', fontSize: '13px', maxWidth: '440px', lineHeight: 1.5, fontFamily: 'var(--sans)' }}>
-                          Upload a crop photo above and click <strong>"Analyze {activeField} Image"</strong> to run your first real AI diagnosis and store it in Supabase.
+                           Select the visual descriptions above and click <strong>Score Inspection</strong> to save a rule-based record.
                         </p>
                         <button
                           type="button"
@@ -722,7 +756,7 @@ export default function CropHealthMonitoring() {
                           }}
                         >
                           <ImageUp size={16} />
-                          <span>Upload &amp; Scan Crop Photo Now</span>
+                           <span>Attach Optional Photo</span>
                         </button>
                       </td>
                     </tr>
@@ -833,7 +867,7 @@ export default function CropHealthMonitoring() {
                     <strong>{selectedActivity.field || 'Field Sector'}</strong>
                   </div>
                   <div className="task-view-item" style={{ minHeight: 'auto', padding: '8px 0' }}>
-                    <span>Diagnosed Condition</span>
+                     <span>Recorded issue / method</span>
                     <strong>{selectedActivity.disease || 'General Inspection'}</strong>
                   </div>
                 </div>
@@ -843,6 +877,10 @@ export default function CropHealthMonitoring() {
                     <span>Date &amp; Time</span>
                     <strong>{selectedActivity.date} at {selectedActivity.time}</strong>
                   </div>
+                   <div className="task-view-item" style={{ minHeight: 'auto', padding: '8px 0' }}>
+                     <span>Source</span>
+                     <strong>{selectedActivity.assessmentSource === 'rule-inspection' ? 'Rule-based checklist' : 'Legacy AI or other inspection'}</strong>
+                   </div>
                 </div>
               </div>
 

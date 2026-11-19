@@ -28,8 +28,12 @@ export class CropInspectionApi {
     return this.request('/api/ai/crop-inspections')
   }
 
-  analyze(payload) {
-    return this.request('/api/ai/crop-diagnosis', {
+  rules() {
+    return this.request('/api/ai/crop-inspection-rules')
+  }
+
+  inspect(payload) {
+    return this.request('/api/ai/crop-rule-inspection', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
