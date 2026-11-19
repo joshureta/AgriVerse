@@ -84,3 +84,33 @@ The numbers here illustrate the configuration shape and must be replaced with
 validated field thresholds. Without `dryBelow`, soil moisture remains unscored.
 The Gemini recommendations use the available assessment evidence and can be
 regenerated from the page; they are guidance to verify in the field.
+
+## Crop Health Monitoring image score
+
+The photo diagnosis uses Gemini to identify visible evidence and rate crop
+condition, disease, pests, and nutrients as none, mild, moderate, severe,
+extensive, or unknown. The backend maps these ratings to 100, 85, 60, 30,
+and 10 points. It calculates the image Crop Health Index as the sum of available
+weighted scores divided by the sum of available weights, then rounds to a whole
+number. Weights are crop condition 30%, disease 40%, pests 20%, and nutrients
+10%. Unknown factors are excluded from both sums. When none can be assessed,
+the Index has no number. Otherwise the page shows assessment coverage (sum of
+available weights as a percent) and labels any result below 100% coverage as
+partial. Coverage is not AI diagnostic confidence. The score estimates only
+the visible photo, not the health of an entire field.
+
+The existing monitoring view shows the Index, classification, partial
+coverage when applicable, and visual findings for assessed and unassessed
+categories. Ratings, evidence, weights, and method remain in the saved result.
+Older incomplete equal-weight results with saved factor scores
+are recalculated for display; older complete scores retain their original value.
+Rounded Index classifications are 81-100
+Excellent, 61-80 Good, 41-60 Fair, 21-40 Poor, and 0-20 Critical. These fixed
+weights make the arithmetic reproducible, but expert-labeled pineapple photos
+are still needed to validate accuracy and whether condition and disease ratings
+overlap for a given photo.
+
+Apply `supabase/migrations/064_crop_health_factor_scores.sql` followed by
+`supabase/migrations/065_nullable_crop_health_score.sql` in the **main** project
+before using the new diagnosis flow. The latter permits a diagnosis with no
+assessable image factors to be stored without inventing a numeric score.

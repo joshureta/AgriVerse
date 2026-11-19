@@ -1,19 +1,25 @@
 const { getSensorSupabase } = require("./sensor-supabase");
 const { getSupabase } = require("../supabase");
 const { buildAssessment, soilBandsFor } = require("./crop-health-assessment");
+const { manilaToday, reportWindow } = require("./environmental-report");
 
 const FIELDS = new Set(["Field A", "Field B", "Field C", "Field D"]);
 const PERIOD_HOURS = new Set([24, 168]);
 const PAGE_SIZE = 500;
 
-function assessmentWindow(field, hours, now = Date.now()) {
-  const periodHours = Number(hours);
-  if (!FIELDS.has(field) || !PERIOD_HOURS.has(periodHours)) {
-    const error = new Error("Choose a valid field and period");
-    error.status = 400;
-    throw error;
+function assessmentWindow(field, dateOrHours, now = Date.now()) {
+  const day = typeof dateOrHours === "string" ? reportWindow(dateOrHours) : null;
+  if (day && FIELDS.has(field) && dateOrHours <= manilaToday(now)) {
+    return { from: day.start, to: Math.min(day.end - 1, now), date: dateOrHours };
   }
-  return { from: now - periodHours * 60 * 60 * 1000, to: now, hours: periodHours };
+  // Retain the existing numeric API for callers that still request a rolling period.
+  const periodHours = typeof dateOrHours === "number" ? dateOrHours : NaN;
+  if (FIELDS.has(field) && PERIOD_HOURS.has(periodHours)) {
+    return { from: now - periodHours * 60 * 60 * 1000, to: now, hours: periodHours };
+  }
+  const error = new Error("Choose a valid field and a current or past date");
+  error.status = 400;
+  throw error;
 }
 
 async function loadRows(client, table, field, from, to, unassigned = false) {
@@ -37,8 +43,8 @@ async function loadRows(client, table, field, from, to, unassigned = false) {
   return rows;
 }
 
-async function loadAssessment(field, hours, now = Date.now()) {
-  const window = assessmentWindow(field, hours, now);
+async function loadAssessment(field, dateOrHours, now = Date.now()) {
+  const window = assessmentWindow(field, dateOrHours, now);
   const { data: inspection, error: inspectionError } = await getSupabase()
     .from("crop_health_inspections")
     .select("*")
@@ -82,6 +88,7 @@ async function loadAssessment(field, hours, now = Date.now()) {
       inspection: scoredInspection,
       soilBands: soilBandsFor(field),
     }),
+    date: window.date || null,
     sensorError,
   };
 }
