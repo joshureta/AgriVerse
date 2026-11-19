@@ -57,7 +57,9 @@
           "defaultChannel": "agriverse-updates",
           "enableRemoteNotifications": false
         }
-      ]
+      ],
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

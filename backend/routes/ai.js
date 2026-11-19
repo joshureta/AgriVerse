@@ -3,7 +3,8 @@ const { getGeminiClient } = require("../lib/gemini");
 const { getSupabase } = require("../supabase");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { uploadImage } = require("../lib/storage");
-const { classifyScore, scoreImageDiagnosis, scoreVisibleRegions } = require("../lib/crop-image-score");
+const { classifyScore } = require("../lib/crop-image-score");
+const { buildAssessment, buildAssessmentPrompt } = require("../lib/pineapple-assessment");
 const { generateVisionJson, visionModels } = require("../lib/gemini-vision");
 const { publicRules, scoreInspection } = require("../lib/crop-rule-inspection");
 
@@ -258,11 +259,8 @@ router.post("/crop-rule-inspection", requireAuth, requireRole("admin"), async (r
   }
 });
 
-// Retained for historical clients only when explicitly enabled.
+// AI photo assessment: four visible dimensions, then the fixed decision tree sets the overall status.
 router.post("/crop-diagnosis", requireAuth, async (req, res) => {
-  if (process.env.ENABLE_LEGACY_AI_CROP_DIAGNOSIS !== "true") {
-    return res.status(410).json({ error: "AI crop diagnosis is disabled. Use the rule-based inspection checklist." });
-  }
   try {
     const { image, mimeType, field, cropType } = req.body;
 
@@ -277,119 +275,34 @@ router.post("/crop-diagnosis", requireAuth, async (req, res) => {
     // This scan happens before diagnosis, storage, and database insertion.
     const { imageContext, model: validationModel } = await validatePineappleImage(ai, finalMimeType, base64Data);
 
-    const promptText = `
-You are a senior tropical crop pathologist and pineapple agronomy specialist for AgriVerse.
-Analyze the attached crop photo taken from ${field || "the farm"} (Crop: ${cropType || "Pineapple / Ananas comosus"}).
-The image was classified as: ${imageContext}.
-
-IMAGE-SPECIFIC RULES:
-- field: assess only visible stand patterns such as uneven vigor, canopy color, affected areas, water stress, drainage clues, weed pressure, or pest/disease spread. Give field-scale scouting and management recommendations.
-- leaf-close-up: assess only visible leaf color, lesions, margins, spotting, necrosis, pests, scale, mealybugs, or mite damage. Give close-up symptom confirmation and targeted scouting/treatment recommendations.
-- fruit-close-up: assess only visible fruit color, rot, lesions, cracks, deformity, sunburn, crown condition, or pest damage. Give fruit handling, sanitation, harvest, and targeted treatment recommendations.
-- whole-plant: assess only visible plant vigor, leaf arrangement, crown/heart condition, wilt, and canopy color. Give plant-level management recommendations.
-- mixed: use evidence from each visible subject, but state which evidence belongs to the field, leaf, fruit, or plant.
-
-EVIDENCE RULES:
-- Report only symptoms that are visible in this photo. Do not invent root, soil, fruit, leaf, pest, or field symptoms that the image cannot show.
-- If a disease cannot be identified confidently from this view, say that visual confirmation is insufficient and recommend the exact follow-up photo or field check needed.
-- Do not recommend a pesticide or fertilizer merely because it appears in the taxonomy. Recommendations must match the visible symptoms and image context.
-- Do not provide chemical rates. Advise users to follow the locally approved product label and consult an agricultural technician when treatment is needed.
-- Rate each image factor as none, mild, moderate, severe, extensive, or unknown. Rate the visible subject only; do not infer an unseen field, leaf, fruit, or pest condition.
-- Use these visual anchors consistently: none = a clear relevant view with no visible symptoms; mild = small localized symptoms with most visible tissue normal; moderate = several clear affected areas while much visible tissue remains normal; severe = widespread or strong symptoms; extensive = most visible tissue affected; unknown = the relevant condition cannot be judged from this view.
-- For every rating other than unknown, give a short description of the visible evidence. Use unknown if the view cannot assess that factor or the visual evidence is insufficient. Never use none to mean "not visible".
-- In factorRatings, describe pests, nutrient signs, disease signs, and crop condition separately. Pinpoint the affected visible plant part or area in each evidence field, and name a specific cause only when the photo supports it.
-- If the crop is damaged but its cause is unclear, do not call the pest, disease, or nutrient categories healthy merely because a cause is not directly visible. Use unknown unless the photo provides evidence to assess that category. Pest damage may remain after the pest has left.
-- For nutrient status, inspect the visible leaf or canopy color and deficiency patterns separately from a localized disease lesion. If enough unaffected leaf tissue is clearly visible and shows normal, uniform color without nutrient-pattern symptoms, rate nutrient as none and describe that visible evidence. If the photo shows too little unaffected tissue to assess nutrition, rate unknown and say which wider view is needed.
-- Name a specific disease or nutrient deficiency only when the photo supports that identification; otherwise use a neutral finding such as "Visible crop damage; cause undetermined".
-- Do not calculate or return an overall crop health score. The application calculates it from visible crop regions.
-- If a factor is unknown, explain which required plant part or visual evidence is missing so the user knows what follow-up photo is needed.
-- Split only the assessable visible pineapple crop into non-overlapping regions of similar condition. Return each region's percentage share of that assessable crop, severity, and visible evidence. Shares must total 100. Include a healthy region when healthy crop is visible. If the crop cannot be assessed reliably, return an empty array. Do not estimate the percentage of the whole field from a partial photo.
-- The region severity measures visible crop health, including an identifiable pest or disease before obvious damage. Record the same damage in only one region; disease, pest, and nutrient labels explain it and are not extra deductions.
-
-Perform a comprehensive visual pathology and entomological diagnosis using the following pineapple disease & pest taxonomy:
-
-1. PINEAPPLE PATHOLOGY TAXONOMY:
-   - Pineapple Mealybug Wilt Disease (PMWD) / Pink Mealybugs (Dysmicoccus brevipes): Red/bronze leaf discoloration, reflexed/curling downward leaf tips, flaccid foliage, white cottony mealybug colonies at lower leaf bases.
-   - Phytophthora Heart Rot / Root Rot (Phytophthora nicotianae / cinnamomi): Pale yellow-green central heart leaves, water-soaked brown rotting at basal leaf attachments, easily detachable central whorl.
-   - Black Rot / Butt Rot (Thielaviopsis paradoxa / Ceratocystis paradoxa): Soft, watery dark-brown to black decay on peduncle, base, or fruit tissue.
-   - Fusariosis / Fruit Collapse (Fusarium guttiforme / Erwinia chrysanthemi): Curvature or deformation of fruit/crown, resinous exudate (gumming), localized soft tissue breakdown.
-   - Pineapple Scale Insects (Diaspis boisduvalii) & Mites (Dolichotetranychus floridanus): Clustered yellowish spotting, waxy scale crusts along leaf lamina.
-
-2. NUTRIENT DEFICIENCIES (N-P-K):
-   - Nitrogen (N) Deficiency: Generalized pale yellow chlorosis starting on older/middle leaves, stunted vegetative vigor.
-   - Phosphorus (P) Deficiency: Characteristic dark reddish-purple discoloration along margins and leaf underside.
-   - Potassium (K) Deficiency: Marginal leaf scorch, yellow spotting on tips turning into dry brown necrotic margins.
-   - Normal / Balanced Nutrition: Deep green, uniform color throughout canopy.
-
-3. VEGETATIVE & FRUIT VIGOR:
-   - Evaluate leaf color (Green, Slight Yellow, Pale Yellow, Yellow, Red/Purple, Necrotic).
-   - Evaluate leaf shape (Upright, Turgid, Curled, Wilted).
-   - Evaluate fruit appearance (Uniform, Deformed, Rotting, Normal).
-
-Respond in STRICT JSON format (without markdown code blocks) matching this schema:
-{
-  "nutrientStatus": "<'Normal' | 'Nitrogen Deficiency' | 'Phosphorus Deficiency' | 'Potassium Deficiency' | 'Multiple Deficiencies' | 'Unknown'>",
-  "factorRatings": {
-    "cropCondition": { "severity": "<none | mild | moderate | severe | extensive | unknown>", "evidence": "<visible condition or why unknown>" },
-    "disease": { "severity": "<none | mild | moderate | severe | extensive | unknown>", "evidence": "<visible disease evidence or why unknown>" },
-    "pest": { "severity": "<none | mild | moderate | severe | extensive | unknown>", "evidence": "<visible pest evidence or why unknown>" },
-    "nutrient": { "severity": "<none | mild | moderate | severe | extensive | unknown>", "evidence": "<visible nutrient evidence or why unknown>" }
-  },
-  "visibleCropRegions": [
-    { "sharePercent": "<number from 1 to 100; all shares total 100>", "severity": "<none | mild | moderate | severe | extensive>", "evidence": "<visible condition and location>" }
-  ],
-  "imageContext": "${imageContext}",
-  "diseaseOrIssueName": "<Exact taxonomic name, e.g. 'Pineapple Mealybug Wilt (PMWD)', 'Phytophthora Heart Rot', 'Potassium Deficiency (Marginal Scorch)', 'Healthy Pineapple Stand'>",
-  "issues": [
-    "<Only a visible symptom, including exact location in the photo>",
-    "<Another visible symptom, or an evidence limitation if no second symptom is visible>"
-  ],
-  "recommendations": [
-    "<Context-specific immediate next step based on visible evidence>",
-    "<Context-specific inspection, sanitation, irrigation, nutrition, or treatment step>",
-    "<Appropriate follow-up monitoring or photo/check recommendation>"
-  ],
-  "visualSummary": "<Concise 1-2 sentence agronomic summary of the plant's visible pathology and vigor>"
-}
-`;
+    const promptText = buildAssessmentPrompt({ field, cropType, imageContext });
 
     let diagnosisModel = null;
-    const diagnosis = await generateVisionJson(ai, finalMimeType, base64Data, promptText, {
+    const raw = await generateVisionJson(ai, finalMimeType, base64Data, promptText, {
       stage: "crop diagnosis",
       models: visionModels(validationModel),
       onModelSuccess: (model) => { diagnosisModel = model; },
     });
-    if (!diagnosis || typeof diagnosis !== "object" || Array.isArray(diagnosis)) {
-      throw new Error("Gemini did not return a valid crop diagnosis.");
-    }
+    const assessment = buildAssessment(raw);
 
-    const factors = scoreImageDiagnosis(diagnosis.factorRatings);
-    const scored = scoreVisibleRegions(diagnosis.visibleCropRegions);
-    const findingStatus = (rating) => rating === "unknown" ? "Unknown" : rating === "none" ? "None" : rating === "mild" ? "Minor" : "Detected";
-
+    // No overall numeric score: the decision tree status is the result.
     const sanitizedDiagnosis = {
-      score: scored.score,
-      pineappleHealth: scored.healthStatus,
-      cropCondition: factors.factorRatings.cropCondition.severity,
-      diseaseStatus: findingStatus(factors.factorRatings.disease.severity),
-      pestStatus: findingStatus(factors.factorRatings.pest.severity),
-      nutrientStatus: factors.factorRatings.nutrient.severity === "unknown" ? "Unknown"
-        : factors.factorRatings.nutrient.severity === "none" ? "Normal"
-          : diagnosis.nutrientStatus || "Possible Deficiency",
-      factorScores: factors.factorScores,
-      factorRatings: factors.factorRatings,
-      visibleCropRegions: scored.regions,
+      score: null,
+      overallStatus: assessment.overall.status,
+      healthStatus: assessment.overall.label,
+      overall: assessment.overall,
+      factorRatings: assessment.dimensions,
+      factorScores: assessment.factorScores,
+      visibleCropRegions: [],
       coverage: null,
       isPartial: false,
-      scoringMethod: "visible-crop-area-v3",
-      imageContext: IMAGE_CONTEXTS.has(diagnosis.imageContext) ? diagnosis.imageContext : imageContext,
-      diseaseOrIssueName: diagnosis.diseaseOrIssueName || "General Crop Inspection",
-      healthStatus: scored.healthStatus,
-      issues: Array.isArray(diagnosis.issues) && diagnosis.issues.length ? diagnosis.issues : ["No symptom description was returned; check the photo in the field."],
-      recommendations: Array.isArray(diagnosis.recommendations) && diagnosis.recommendations.length
-        ? diagnosis.recommendations
-        : ["Inspect the crop in the field and repeat the photo if symptoms are unclear."],
-      visualSummary: diagnosis.visualSummary || "Visual diagnosis is limited; review the visible factor evidence below.",
+      scoringMethod: assessment.method,
+      imageContext,
+      diseaseOrIssueName: assessment.headline,
+      issues: assessment.symptoms,
+      recommendations: assessment.recommendations,
+      limitations: assessment.limitations,
+      visualSummary: assessment.overall.summary,
     };
 
     // Auto-save to Supabase
@@ -402,7 +315,7 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
       const record = {
         field_name: field || "Field A",
         crop_type: cropType || "Pineapple",
-        health_score: sanitizedDiagnosis.score,
+        health_score: null,
         health_status: sanitizedDiagnosis.healthStatus,
         disease_or_issue_name: sanitizedDiagnosis.diseaseOrIssueName,
         visual_summary: sanitizedDiagnosis.visualSummary,
@@ -411,8 +324,8 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
         factor_scores: {
           ...sanitizedDiagnosis.factorScores,
           ratings: sanitizedDiagnosis.factorRatings,
-          regions: sanitizedDiagnosis.visibleCropRegions,
-          coverage: sanitizedDiagnosis.coverage,
+          overall: sanitizedDiagnosis.overall,
+          limitations: sanitizedDiagnosis.limitations,
           method: sanitizedDiagnosis.scoringMethod,
         },
         assessment_source: "gemini-diagnosis",

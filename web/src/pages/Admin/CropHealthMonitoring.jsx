@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
   ImageUp,
   RefreshCw,
+  ScanSearch,
   Trash2,
   UploadCloud,
   X,
@@ -26,16 +27,115 @@ const STORAGE_REPORTS_KEY = 'agriverse_crop_health_reports_v8'
 const inspectionApi = new CropInspectionApi(API_URL)
 
 const IMAGE_FACTORS = [
-  ['pest', 'Pests'],
-  ['nutrient', 'Nutrients'],
-  ['disease', 'Diseases'],
-  ['cropCondition', 'Crop condition'],
+  ['cropCondition', 'Crop Condition'],
+  ['pest', 'Pest Infestation'],
+  ['nutrient', 'Nutrient Deficiency'],
+  ['disease', 'Plant Diseases'],
 ]
 
-function VisualFindings({ factorRatings, issues }) {
+const OVERALL_COLOR = { HEALTHY: '#15803d', 'NEEDS ATTENTION': '#a15c07', CRITICAL: '#b42318', INCONCLUSIVE: '#475467' }
+const SEVERITY_COLOR = { LOW: '#15803d', MODERATE: '#a15c07', HIGH: '#b42318' }
+
+// Decision-tree assessments (pineapple-decision-tree-v1) carry a detection status per dimension.
+function isDecisionTree(factorRatings) {
+  return Boolean(factorRatings && IMAGE_FACTORS.some(([key]) => factorRatings[key]?.status))
+}
+
+// Overall status value (prompt Part 6 B), colored by status.
+function OverallStatus({ status }) {
+  return <strong style={{ color: OVERALL_COLOR[status] || '#475467' }}>{status}</strong>
+}
+
+// Records saved before mainFindings existed only have the joined text; split it back into entries.
+function mainFindingsOf(overall) {
+  if (Array.isArray(overall?.mainFindings)) return overall.mainFindings
+  if (!overall?.mainFinding) return []
+  return overall.mainFinding.split('; ').map((part) => {
+    const match = part.match(/^(.+?): (.*) \((issue detected|issue suspected), (\w+) severity\)$/i)
+    if (match) return { dimension: match[1], condition: match[2], status: match[3].toUpperCase(), severity: match[4].toUpperCase() }
+    const [dimension, ...rest] = part.split(': ')
+    return rest.length ? { dimension, condition: rest.join(': ') } : { condition: part }
+  })
+}
+
+const STATUS_TEXT = { 'ISSUE DETECTED': 'Issue detected', 'ISSUE SUSPECTED': 'Issue suspected', INCONCLUSIVE: 'Inconclusive' }
+
+// Summary and main finding (prompt Part 6 B), shown inside the existing summary box.
+function OverallSummary({ overall, summary }) {
+  if (!overall) return summary || null
+  const findings = mainFindingsOf(overall)
+  return (
+    <>
+      {(overall.summary || summary) && <><strong>Summary:</strong> {overall.summary || summary}</>}
+      {findings.length > 0 && (
+        <span style={{ display: 'block', marginTop: '8px' }}>
+          <strong>Main finding:</strong>
+          {findings.map((finding, index) => (
+            <span key={index} style={{ display: 'block', marginTop: '4px', paddingLeft: '10px' }}>
+              {finding.dimension && <strong style={{ color: '#1d3523' }}>{finding.dimension}</strong>}
+              {['LOW', 'MODERATE', 'HIGH'].includes(finding.severity) && (
+                <> · <strong style={{ color: SEVERITY_COLOR[finding.severity] }}>{finding.severity} severity</strong></>
+              )}
+              {STATUS_TEXT[finding.status] && <> · {STATUS_TEXT[finding.status]}</>}
+              <span style={{ display: 'block' }}>{finding.condition}</span>
+            </span>
+          ))}
+        </span>
+      )}
+    </>
+  )
+}
+
+// Individual Crop Health Assessment (Part 6 A) and Assessment Limitations (Part 6 D).
+function DecisionTreeFindings({ factorRatings, limitations }) {
+  return (
+    <div style={{ color: '#27382c', fontSize: '12px', lineHeight: 1.7 }}>
+      <ul style={{ margin: 0, paddingLeft: '18px' }}>
+        {IMAGE_FACTORS.map(([key, label]) => {
+          const rating = factorRatings?.[key]
+          if (!rating) return <li key={key} style={{ marginBottom: '4px' }}><strong>{label}:</strong> Not recorded</li>
+          return (
+            <li key={key} style={{ marginBottom: '8px' }}>
+              <strong>{label}:</strong> {rating.status}
+              <div><strong>Identified or suspected condition:</strong> {rating.condition}</div>
+              <div>
+                <strong>Observed symptoms:</strong>{' '}
+                {rating.symptoms?.length ? rating.symptoms.join('; ')
+                  : rating.status === 'NO ISSUE DETECTED' ? 'No significant visible symptoms were observed.' : 'None observed.'}
+              </div>
+              <div>
+                <strong>Severity level:</strong>{' '}
+                <strong style={{ color: SEVERITY_COLOR[rating.severity] || '#475467' }}>{rating.severity}</strong>
+              </div>
+              {rating.severityExplanation && <div><strong>Explanation:</strong> {rating.severityExplanation}</div>}
+            </li>
+          )
+        })}
+      </ul>
+      {limitations?.length > 0 && (
+        <div style={{ marginTop: '8px' }}>
+          <strong>Assessment limitations:</strong>
+          <ul style={{ margin: '4px 0 0', paddingLeft: '18px' }}>
+            {limitations.map((item, index) => <li key={index}>{item}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VisualFindings({ factorRatings, issues, limitations }) {
+  if (isDecisionTree(factorRatings)) {
+    return <DecisionTreeFindings factorRatings={factorRatings} limitations={limitations} />
+  }
   const hasRatings = factorRatings && IMAGE_FACTORS.some(([key]) => factorRatings[key])
   return (
     <div style={{ color: '#27382c', fontSize: '12px', lineHeight: 1.7 }}>
+      {hasRatings && (
+        <p style={{ margin: '0 0 8px', color: '#a15c07' }}>
+          This record was saved before the four-dimension assessment. Analyze the photo again to get the detection status, severity level, and overall status.
+        </p>
+      )}
       <ul style={{ margin: 0, paddingLeft: '18px' }}>
         {IMAGE_FACTORS.map(([key, label]) => {
           const rating = factorRatings?.[key]
@@ -62,8 +162,6 @@ export default function CropHealthMonitoring() {
   const uploadInput = useRef(null)
   const [activeField, setActiveField] = useState('Field A')
   const [analyzing, setAnalyzing] = useState(false)
-  const [inspectionRules, setInspectionRules] = useState([])
-  const [inspectionSelections, setInspectionSelections] = useState({})
   const [loadingDB, setLoadingDB] = useState(true)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -74,12 +172,6 @@ export default function CropHealthMonitoring() {
   const [activities, setActivities] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
-
-  useEffect(() => {
-    inspectionApi.rules()
-      .then((body) => setInspectionRules(body.factors || []))
-      .catch((caught) => setError(caught.message || 'Could not load inspection rules.'))
-  }, [])
 
   // Persistent field state
   const [reports, setReports] = useState(() => {
@@ -194,7 +286,7 @@ export default function CropHealthMonitoring() {
           ...CropInspection.withImage(current[activeField], file, base64Data),
         },
       }))
-      setSuccessMessage(`Photo uploaded for ${activeField}. Select the observed descriptions and record the inspection.`)
+      setSuccessMessage(`Photo uploaded for ${activeField}. Click Analyze Photo to assess it.`)
     }
     reader.onerror = () => {
       setError('Failed to read the selected image file.')
@@ -234,11 +326,10 @@ export default function CropHealthMonitoring() {
     }
   }
 
-  // Scores selected observations with fixed rules and saves the inspection.
+  // The AI assesses four visible dimensions; the server decision tree sets the overall status.
   async function handleAnalyze() {
-    const selections = inspectionSelections[activeField] || {}
-    if (!inspectionRules.length || inspectionRules.some((factor) => !selections[factor.key])) {
-      setError('Choose one description for each inspection factor.')
+    if (!currentFieldReport.image) {
+      setError('Upload a crop photo first.')
       return
     }
 
@@ -247,12 +338,12 @@ export default function CropHealthMonitoring() {
     setSuccessMessage('')
 
     try {
-      const photo = currentFieldReport.image ? await convertAssetToBase64(currentFieldReport.image) : null
-      const result = await inspectionApi.inspect({
-        image: photo?.base64 || null,
-        imageName: currentFieldReport.imageName,
+      const photo = await convertAssetToBase64(currentFieldReport.image)
+      const result = await inspectionApi.diagnose({
+        image: photo.base64,
+        mimeType: photo.mime,
         field: activeField,
-        selections,
+        cropType: 'Pineapple',
       })
 
       const diagnosis = result.diagnosis
@@ -274,8 +365,9 @@ export default function CropHealthMonitoring() {
       })
 
       setActivities((current) => [newActivity, ...current])
-      setIsPoorHealthNotice(diagnosis.score == null || diagnosis.score <= 60)
-      setSuccessMessage(`${activeField}: rule-based inspection saved. Review the findings below.`)
+      setIsPoorHealthNotice(diagnosis.overallStatus !== 'HEALTHY')
+      if (result.saveWarning) setError(result.saveWarning)
+      else setSuccessMessage(`${activeField}: ${diagnosis.overallStatus || 'photo analysis'} — assessment saved. Review the findings below.`)
     } catch (caught) {
       console.error('Analysis failed:', caught)
       setError(caught instanceof Error ? caught.message : 'Crop diagnosis failed.')
@@ -328,7 +420,7 @@ export default function CropHealthMonitoring() {
                 Crop Health Monitoring
               </h1>
               <p style={{ margin: '3px 0 0', color: '#667568', fontSize: '13px', fontFamily: 'var(--sans)' }}>
-                 Rule-based visual inspection and environmental assessment
+                 Upload a pineapple photo to check crop condition, pests, nutrients, and diseases
               </p>
             </div>
           </header>
@@ -357,7 +449,7 @@ export default function CropHealthMonitoring() {
           {/* ========================================================================= */}
           {/* COMBINED UNIFIED CARD: TOP FIELD TABS + PHOTO PREVIEW + ASSESSMENT & PLAN */}
           {/* ========================================================================= */}
-          {/* Field selection and observation checklist. */}
+          {/* Field selection and photo analysis. */}
           <section className="tasks-panel" style={{ marginBottom: '28px', border: '1px solid #dce5d8', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 12px 28px rgba(42,76,38,.05)', background: '#fff' }}>
             
             {/* 1. Field Selection Top Tabs */}
@@ -407,19 +499,17 @@ export default function CropHealthMonitoring() {
                   className="admin-btn-primary"
                   type="button"
                   onClick={handleAnalyze}
-                  disabled={analyzing || !inspectionRules.length
-                    || inspectionRules.some((factor) => !inspectionSelections[activeField]?.[factor.key])
-                    || inspectionRules.every((factor) => inspectionSelections[activeField]?.[factor.key] === 'unknown')}
+                  disabled={analyzing || !currentFieldReport.image}
                 >
                   {analyzing ? (
                     <>
                       <RefreshCw className="spin" size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                       <span>Saving Inspection…</span>
+                       <span>Analyzing Photo…</span>
                     </>
                   ) : (
                     <>
-                       <ClipboardList size={14} />
-                       <span>Score Inspection</span>
+                       <ScanSearch size={14} />
+                       <span>Analyze Photo</span>
                     </>
                   )}
                 </button>
@@ -482,7 +572,7 @@ export default function CropHealthMonitoring() {
                     No Crop Photo Uploaded for {activeField}
                   </h3>
                   <p style={{ margin: '0 auto 16px', color: '#657868', fontSize: '12px', maxWidth: '420px', lineHeight: 1.5, fontFamily: 'var(--sans)' }}>
-                     Add a crop photo as optional evidence. A person records the observations below; the photo is not analyzed automatically.
+                     Upload a clear pineapple photo, then click Analyze Photo. The AI assesses what it sees, and a fixed decision tree sets the overall status.
                   </p>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', backgroundColor: '#e6f0e4', color: '#1a5c2e', fontSize: '11px', fontWeight: 700 }}>
                     <UploadCloud size={14} />
@@ -491,27 +581,6 @@ export default function CropHealthMonitoring() {
                 </div>
               )}
             </div>
-
-             <div className="crop-rule-checklist">
-               <h2>Visual inspection descriptions</h2>
-               <p>Choose what you can actually observe. Select “cannot assess” when the relevant plant part is unclear. A photo is optional evidence.</p>
-               {inspectionRules.map((factor) => (
-                 <label key={factor.key}>
-                   <span>{factor.label}</span>
-                   <select value={inspectionSelections[activeField]?.[factor.key] || ''}
-                     onChange={(event) => setInspectionSelections((current) => ({
-                       ...current,
-                       [activeField]: { ...current[activeField], [factor.key]: event.target.value },
-                     }))}>
-                     <option value="">Select a description</option>
-                     {factor.options.map((option) => (
-                       <option key={option.value} value={option.value}>{option.description}</option>
-                     ))}
-                   </select>
-                 </label>
-               ))}
-               <small>Scores: none 100 · mild 85 · moderate 60 · severe 30 · extensive 10 · cannot assess: excluded.</small>
-             </div>
 
              {/* 3. Diagnostic Results & Agronomic Action Plan */}
             <div style={{ padding: '16px 22px 14px', background: '#f9fbf8', borderBottom: '1px solid #edf1eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
@@ -524,13 +593,16 @@ export default function CropHealthMonitoring() {
               <span style={{ fontSize: '11px', color: '#667568', fontWeight: 600 }}>{currentFieldReport.lastUpdated}</span>
             </div>
 
-            {currentFieldReport.hasDiagnosis && <p style={{ margin: '12px 22px 0', fontSize: '12px', color: '#536257' }}>
-              Source: {currentFieldReport.assessmentSource === 'rule-inspection' ? 'Rule-based checklist' : 'Legacy AI or other inspection'}
-            </p>}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '0', background: '#fff' }}>
               {/* Left Column: Diagnostic Results */}
               <div style={{ padding: '22px 24px', borderRight: '1px solid #edf1eb' }}>
+                {currentFieldReport.hasDiagnosis && currentFieldReport.overall && (
+                  <p style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'baseline', margin: '0 0 8px', fontSize: '12px', color: '#334737' }}>
+                    <span style={{ fontWeight: 700 }}>Overall status:</span>
+                    <OverallStatus status={currentFieldReport.overall.status} />
+                  </p>
+                )}
                 {currentFieldReport.hasDiagnosis && (
                   <p style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'baseline', margin: '0 0 14px', fontSize: '12px', color: '#334737' }}>
                      <span style={{ fontWeight: 700 }}>Recorded issue / method:</span>
@@ -541,13 +613,13 @@ export default function CropHealthMonitoring() {
                 )}
 
                 <p style={{ fontSize: '12px', color: '#455648', margin: '0 0 16px', lineHeight: 1.6, background: '#f8faf6', padding: '12px 14px', borderRadius: '8px', borderLeft: '3px solid var(--admin-green)' }}>
-                  {currentFieldReport.visualSummary}
+                  <OverallSummary overall={currentFieldReport.overall} summary={currentFieldReport.visualSummary} />
                 </p>
 
                 <h3 style={{ fontSize: '11px', fontWeight: 800, color: '#1d3523', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 10px' }}>
                   {activeField} Visual Findings:
                 </h3>
-                <VisualFindings factorRatings={currentFieldReport.factorRatings} issues={currentFieldReport.issues} />
+                <VisualFindings factorRatings={currentFieldReport.factorRatings} issues={currentFieldReport.issues} limitations={currentFieldReport.limitations} />
               </div>
 
               {/* Right Column: Agronomic Action Plan */}
@@ -608,7 +680,7 @@ export default function CropHealthMonitoring() {
                   </div>
                 ) : (
                   <p style={{ margin: 0, color: '#68786b', fontSize: '12px', fontStyle: 'italic' }}>
-                     Action steps appear after the rule-based inspection is saved.
+                     Action steps appear after the photo is analyzed.
                   </p>
                 )}
               </div>
@@ -734,7 +806,7 @@ export default function CropHealthMonitoring() {
                           No Inspection Logs Recorded for {activeField}
                         </h3>
                         <p style={{ margin: '0 auto 20px', color: '#657868', fontSize: '13px', maxWidth: '440px', lineHeight: 1.5, fontFamily: 'var(--sans)' }}>
-                           Select the visual descriptions above and click <strong>Score Inspection</strong> to save a rule-based record.
+                           Upload a crop photo above and click <strong>Analyze Photo</strong> to save a record.
                         </p>
                         <button
                           type="button"
@@ -870,6 +942,12 @@ export default function CropHealthMonitoring() {
                      <span>Recorded issue / method</span>
                     <strong>{selectedActivity.disease || 'General Inspection'}</strong>
                   </div>
+                  {selectedActivity.overall && (
+                    <div className="task-view-item" style={{ minHeight: 'auto', padding: '8px 0' }}>
+                      <span>Overall status</span>
+                      <OverallStatus status={selectedActivity.overall.status} />
+                    </div>
+                  )}
                 </div>
 
                 <div className="task-dialog-side task-view-section">
@@ -877,32 +955,28 @@ export default function CropHealthMonitoring() {
                     <span>Date &amp; Time</span>
                     <strong>{selectedActivity.date} at {selectedActivity.time}</strong>
                   </div>
-                   <div className="task-view-item" style={{ minHeight: 'auto', padding: '8px 0' }}>
-                     <span>Source</span>
-                     <strong>{selectedActivity.assessmentSource === 'rule-inspection' ? 'Rule-based checklist' : 'Legacy AI or other inspection'}</strong>
-                   </div>
                 </div>
               </div>
 
-              {selectedActivity.summary && (
+              {(selectedActivity.summary || selectedActivity.overall) && (
                 <section className="task-view-description" style={{ marginBottom: '14px' }}>
                   <span>Agronomic Summary</span>
-                  <p>{selectedActivity.summary}</p>
+                  <p><OverallSummary overall={selectedActivity.overall} summary={selectedActivity.summary} /></p>
                 </section>
               )}
 
               <section className="task-view-description" style={{ marginBottom: '14px' }}>
                 <span>Visual Findings</span>
-                <VisualFindings factorRatings={selectedActivity.factorRatings} issues={selectedActivity.issues} />
+                <VisualFindings factorRatings={selectedActivity.factorRatings} issues={selectedActivity.issues} limitations={selectedActivity.limitations} />
               </section>
 
               <section className="task-view-description" style={{ marginBottom: '20px' }}>
                 <span>Action Recommendations</span>
-                <ul style={{ margin: '6px 0 0', paddingLeft: '18px', color: '#26342a', fontSize: '12px', lineHeight: 1.6 }}>
+                <ol style={{ margin: '6px 0 0', paddingLeft: '18px', color: '#26342a', fontSize: '12px', lineHeight: 1.6 }}>
                   {(selectedActivity.recommendations || []).map((rec, idx) => (
                     <li key={idx}>{rec}</li>
                   ))}
-                </ul>
+                </ol>
               </section>
 
               <footer style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>

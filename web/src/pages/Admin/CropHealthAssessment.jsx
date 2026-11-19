@@ -41,6 +41,11 @@ function factorResult(factor, legacyPhoto = false) {
   if (factor.source === 'image') {
     if (factor.count > 1) return `Average of ${factor.count} ${legacyPhoto ? 'photo analyses' : 'inspections'}`
     const severity = factor.rating?.severity
+    if (severity === 'NOT APPLICABLE') return 'No issue detected'
+    if (['LOW', 'MODERATE', 'HIGH'].includes(severity)) {
+      const kind = factor.rating.status === 'ISSUE SUSPECTED' ? 'suspected issue' : 'issue detected'
+      return `${severity[0]}${severity.slice(1).toLowerCase()} severity, ${kind}`
+    }
     if (severity === 'none') return 'No visible signs'
     if (['mild', 'moderate', 'severe', 'extensive'].includes(severity)) {
       return `${severity[0].toUpperCase()}${severity.slice(1)} visible signs`
@@ -210,7 +215,7 @@ export default function CropHealthAssessment() {
               {!loading && assessment && !assessment.image && missingImageFactors.length === 4 && (
                 <p className="crop-assessment-missing">
                   {date === manilaToday()
-                    ? <>Check the selected field, or <a href="/admin/monitoring/crop-health">record today’s checklist in Crop Health Monitoring</a>. </>
+                    ? <>Check the selected field, or <a href="/admin/monitoring/crop-health">analyze a photo in Crop Health Monitoring</a>. </>
                     : <>Choose a date with a saved inspection or scored photo analysis. </>}
                 </p>
               )}
