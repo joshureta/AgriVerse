@@ -2,10 +2,19 @@ const PAGE_WIDTH = 210
 const PAGE_HEIGHT = 297
 const MARGIN = 16
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2
+const HEADER_HEIGHT = 60
+const CONTENT_START = HEADER_HEIGHT + 10
 const GREEN = [25, 108, 53]
 const DARK = [21, 61, 37]
 const MUTED = [91, 108, 94]
 const PALE = [239, 247, 232]
+const LOGO_URL = new URL('../assets/Jtoledologo.png', import.meta.url)
+
+async function loadLogo() {
+  const response = await fetch(LOGO_URL)
+  if (!response.ok) throw new Error('Unable to load the JToledo Trading logo.')
+  return new Uint8Array(await response.arrayBuffer())
+}
 
 function displayDate(date) {
   return new Intl.DateTimeFormat('en-PH', {
@@ -19,31 +28,31 @@ function displayTimestamp(value) {
   }).format(new Date(value))
 }
 
-function writeHeader(doc, report) {
+function writeHeader(doc, report, logo) {
   doc.setFillColor(...GREEN)
-  doc.rect(0, 0, PAGE_WIDTH, 35, 'F')
+  doc.rect(0, 0, PAGE_WIDTH, HEADER_HEIGHT, 'F')
+  doc.addImage(logo, 'PNG', (PAGE_WIDTH - 55) / 2, 0, 55, 55)
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(17)
-  doc.text('AgriVerse', MARGIN, 15)
-  doc.setFontSize(11)
-  doc.text(report.title, MARGIN, 25)
+  doc.setFontSize(14)
+  doc.text(report.title, PAGE_WIDTH / 2, 53, { align: 'center' })
   doc.setTextColor(...DARK)
 }
 
-export async function buildDashboardReportPdf(report) {
+export async function buildDashboardReportPdf(report, logoBytes = null) {
   const { jsPDF } = await import('jspdf')
+  const logo = logoBytes || await loadLogo()
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  let y = 45
+  let y = CONTENT_START
 
   function nextPage(requiredHeight) {
     if (y + requiredHeight <= PAGE_HEIGHT - 22) return
     doc.addPage()
-    writeHeader(doc, report)
-    y = 45
+    writeHeader(doc, report, logo)
+    y = CONTENT_START
   }
 
-  writeHeader(doc, report)
+  writeHeader(doc, report, logo)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.setTextColor(...MUTED)
@@ -119,8 +128,8 @@ export async function buildDashboardReportPdf(report) {
       const height = Math.max(9, ...cells.map((lines) => lines.length * 4 + 4))
       if (y + height > PAGE_HEIGHT - 22) {
         doc.addPage()
-        writeHeader(doc, report)
-        y = 45
+        writeHeader(doc, report, logo)
+        y = CONTENT_START
         drawTableHeader()
       }
       doc.setFillColor(...(rowIndex % 2 ? [255, 255, 255] : [247, 250, 245]))

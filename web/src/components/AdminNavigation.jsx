@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChevronDown, LogOut, MessageCircle, Settings } from 'lucide-react'
 import dateIcon from '../assets/admin-date-icon.png'
 import cropHealthMonitoringIcon from '../assets/crop-health-monitoring-icon.png'
+import cropHealthAssessmentIcon from '../assets/crop-health-assessment-icon.svg'
 import environmentalMonitoringIcon from '../assets/environmental-monitoring-icon.png'
 import inventoryIcon from '../assets/inventory-icon.png'
 import notificationIcon from '../assets/admin-notification-icon.png'
@@ -268,7 +269,7 @@ export function AdminSidebar({ active }) {
               href="/admin/monitoring/crop-health-assessment"
               aria-current={active === 'crop-assessment' ? 'page' : undefined}
             >
-              <img className="monitoring-submenu-image" src={cropHealthMonitoringIcon} alt="" />
+              <img className="monitoring-submenu-image" src={cropHealthAssessmentIcon} alt="" />
               <span>Crop Health Assessment</span>
             </a>
           </div>

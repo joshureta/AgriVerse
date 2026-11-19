@@ -1,6 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { classifyScore, scoreImageDiagnosis } = require("../lib/crop-image-score");
+const { classifyScore, scoreImageDiagnosis, scoreVisibleRegions } = require("../lib/crop-image-score");
+
+test("visible crop score counts each region once, regardless of its diagnosis", () => {
+  const result = scoreVisibleRegions([
+    { sharePercent: 70, severity: "none", evidence: "Healthy visible canopy" },
+    { sharePercent: 30, severity: "severe", evidence: "Wilted patch with disease signs" },
+  ]);
+  assert.equal(result.score, 79);
+  assert.equal(result.healthStatus, "Good");
+});
+
+test("unreliable region shares produce no score", () => {
+  assert.equal(scoreVisibleRegions([]).score, null);
+  assert.equal(scoreVisibleRegions([{ sharePercent: 70, severity: "none", evidence: "Healthy canopy" }]).score, null);
+  assert.equal(scoreVisibleRegions([{ sharePercent: 100, severity: "unknown", evidence: "Blurred crop" }]).score, null);
+});
 
 test("the index is the rounded weighted score of four visible factors", () => {
   const result = scoreImageDiagnosis({

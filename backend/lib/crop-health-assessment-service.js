@@ -10,12 +10,12 @@ const PAGE_SIZE = 500;
 function assessmentWindow(field, dateOrHours, now = Date.now()) {
   const day = typeof dateOrHours === "string" ? reportWindow(dateOrHours) : null;
   if (day && FIELDS.has(field) && dateOrHours <= manilaToday(now)) {
-    return { from: day.start, to: Math.min(day.end - 1, now), date: dateOrHours };
+    return { from: day.start, to: Math.min(day.end, now + 1), date: dateOrHours };
   }
   // Retain the existing numeric API for callers that still request a rolling period.
   const periodHours = typeof dateOrHours === "number" ? dateOrHours : NaN;
   if (FIELDS.has(field) && PERIOD_HOURS.has(periodHours)) {
-    return { from: now - periodHours * 60 * 60 * 1000, to: now, hours: periodHours };
+    return { from: now - periodHours * 60 * 60 * 1000, to: now + 1, hours: periodHours };
   }
   const error = new Error("Choose a valid field and a current or past date");
   error.status = 400;
@@ -27,7 +27,7 @@ async function loadRows(client, table, field, from, to, unassigned = false) {
   for (let offset = 0; ;) {
     let query = client.from(table).select("*")
       .gte("created_at", new Date(from).toISOString())
-      .lte("created_at", new Date(to).toISOString())
+      .lt("created_at", new Date(to).toISOString())
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
@@ -50,8 +50,9 @@ async function loadAssessment(field, dateOrHours, now = Date.now()) {
     .select("*")
     .eq("field_name", field)
     .eq("assessment_source", "gemini-diagnosis")
+    .not("factor_scores", "is", null)
     .gte("created_at", new Date(window.from).toISOString())
-    .lte("created_at", new Date(window.to).toISOString())
+    .lt("created_at", new Date(window.to).toISOString())
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

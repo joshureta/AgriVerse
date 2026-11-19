@@ -26,47 +26,36 @@ const STORAGE_REPORTS_KEY = 'agriverse_crop_health_reports_v8'
 
 const inspectionApi = new CropInspectionApi(API_URL)
 
-function scoreTone(score) {
-  if (score == null) return { color: '#68756c', background: '#f0f2ee' }
-  if (score >= 81) return { color: '#1b5e20', background: '#eaf5e6' }
-  if (score >= 61) return { color: '#28733d', background: '#eaf5e6' }
-  if (score >= 41) return { color: '#946508', background: '#fff3d4' }
-  if (score >= 21) return { color: '#e65100', background: '#fff0df' }
-  return { color: '#ad4439', background: '#feeae6' }
-}
-
 const IMAGE_FACTORS = [
-  ['cropCondition', 'Crop condition'],
-  ['disease', 'Disease'],
   ['pest', 'Pests'],
   ['nutrient', 'Nutrients'],
+  ['disease', 'Diseases'],
+  ['cropCondition', 'Crop condition'],
 ]
 
-function VisualFindings({ factorScores, factorRatings, issues }) {
+function VisualFindings({ factorRatings, issues }) {
   const hasRatings = factorRatings && IMAGE_FACTORS.some(([key]) => factorRatings[key])
-  if (hasRatings) {
-    return (
-      <ul style={{ margin: 0, paddingLeft: '18px', color: '#27382c', fontSize: '12px', lineHeight: 1.7 }}>
+  return (
+    <div style={{ color: '#27382c', fontSize: '12px', lineHeight: 1.7 }}>
+      <ul style={{ margin: 0, paddingLeft: '18px' }}>
         {IMAGE_FACTORS.map(([key, label]) => {
-          const rating = factorRatings[key]
-          const assessed = Number.isFinite(factorScores?.[key])
-          const severity = rating?.severity === 'none' ? (key === 'cropCondition' ? 'Healthy' : 'None')
-            : rating?.severity ? `${rating.severity[0].toUpperCase()}${rating.severity.slice(1)}` : 'Assessed'
-          return (
-            <li key={key} style={{ marginBottom: '4px' }}>
-              <strong>{label}:</strong> {assessed ? severity : 'Not assessed'}
-              {rating?.evidence && <> — {rating.evidence}</>}
-            </li>
-          )
+          const rating = factorRatings?.[key]
+          const severity = rating?.severity === 'none' ? 'No visible signs'
+            : rating?.severity && rating.severity !== 'unknown' ? `${rating.severity[0].toUpperCase()}${rating.severity.slice(1)} signs detected`
+              : hasRatings ? 'Cannot identify from this image' : 'Not recorded'
+          return <li key={key} style={{ marginBottom: '4px' }}><strong>{label}:</strong> {severity}{rating?.evidence && <> — {rating.evidence}</>}</li>
         })}
       </ul>
-    )
-  }
-  return issues?.length ? (
-    <ul style={{ margin: 0, paddingLeft: '18px', color: '#27382c', fontSize: '12px', lineHeight: 1.7 }}>
-      {issues.map((issue, index) => <li key={index} style={{ marginBottom: '4px' }}>{issue}</li>)}
-    </ul>
-  ) : <p style={{ margin: 0, color: '#68786b', fontSize: '12px', fontStyle: 'italic' }}>No visual findings recorded.</p>
+      {!hasRatings && issues?.length > 0 && (
+        <div style={{ marginTop: '8px' }}>
+          <strong>Recorded symptoms:</strong>
+          <ul style={{ margin: '4px 0 0', paddingLeft: '18px' }}>
+            {issues.map((issue, index) => <li key={index}>{issue}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Displays crop inspections and field health reports.
@@ -154,7 +143,6 @@ export default function CropHealthMonitoring() {
   }, [selectedActivity])
 
   const currentFieldReport = reports[activeField] || CropInspection.createDefaultReport()
-  const currentScoreTone = scoreTone(currentFieldReport.score)
 
   // Selects inspection history for the active field.
   const fieldActivities = useMemo(
@@ -278,9 +266,8 @@ export default function CropHealthMonitoring() {
       })
 
       setActivities((current) => [newActivity, ...current])
-      const healthStatus = diagnosis.healthStatus || CropInspection.healthStatusFor(diagnosis.score)
       setIsPoorHealthNotice(diagnosis.score == null || diagnosis.score <= 60)
-      setSuccessMessage(`${activeField}: ${diagnosis.score == null ? 'Insufficient evidence' : `${diagnosis.score}/100 · ${healthStatus}${diagnosis.isPartial ? ` · Partial (${diagnosis.coverage}% assessed)` : ''}`}.`)
+      setSuccessMessage(`${activeField}: image analysis complete. Review the visible findings below.`)
       if (result.saveWarning) setError(result.saveWarning)
     } catch (caught) {
       console.error('Analysis failed:', caught)
@@ -510,30 +497,6 @@ export default function CropHealthMonitoring() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '0', background: '#fff' }}>
               {/* Left Column: Diagnostic Results */}
               <div style={{ padding: '22px 24px', borderRight: '1px solid #edf1eb' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '14px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#334737' }}>Crop Health Index:</span>
-                  <strong style={{ fontSize: currentFieldReport.score == null && currentFieldReport.hasDiagnosis ? '18px' : '26px', fontFamily: 'var(--display)', color: currentScoreTone.color }}>
-                    {currentFieldReport.score != null ? `${currentFieldReport.score}/100` : currentFieldReport.hasDiagnosis ? 'Insufficient evidence' : '—'}
-                  </strong>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      backgroundColor: currentScoreTone.background,
-                      color: currentScoreTone.color,
-                    }}
-                  >
-                    {currentFieldReport.healthStatus}
-                  </span>
-                  {currentFieldReport.isPartial && (
-                    <span style={{ fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', backgroundColor: '#eef2ef', color: '#536257' }}>
-                      Partial ({currentFieldReport.coverage}% assessed)
-                    </span>
-                  )}
-                </div>
-
                 {currentFieldReport.hasDiagnosis && (
                   <p style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'baseline', margin: '0 0 14px', fontSize: '12px', color: '#334737' }}>
                     <span style={{ fontWeight: 700 }}>Detected Disease / Issue:</span>
@@ -550,7 +513,7 @@ export default function CropHealthMonitoring() {
                 <h3 style={{ fontSize: '11px', fontWeight: 800, color: '#1d3523', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 10px' }}>
                   {activeField} Visual Findings:
                 </h3>
-                <VisualFindings factorScores={currentFieldReport.factorScores} factorRatings={currentFieldReport.factorRatings} issues={currentFieldReport.issues} />
+                <VisualFindings factorRatings={currentFieldReport.factorRatings} issues={currentFieldReport.issues} />
               </div>
 
               {/* Right Column: Agronomic Action Plan */}
@@ -628,16 +591,13 @@ export default function CropHealthMonitoring() {
               <table className="tasks-table" aria-label={`${activeField} inspection history`} style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#196c35' }}>
-                    <th style={{ width: '22%', padding: '16px 20px', color: '#fff', fontSize: '11px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.04em' }}>
+                    <th style={{ width: '25%', padding: '16px 20px', color: '#fff', fontSize: '11px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.04em' }}>
                       DATE &amp; TIME
                     </th>
-                    <th style={{ width: '18%', padding: '16px 20px', color: '#fff', fontSize: '11px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.04em' }}>
-                      HEALTH SCORE
-                    </th>
-                    <th style={{ width: '42%', padding: '16px 20px', color: '#fff', fontSize: '11px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.04em' }}>
+                    <th style={{ width: '55%', padding: '16px 20px', color: '#fff', fontSize: '11px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.04em' }}>
                       DETECTED ISSUES
                     </th>
-                    <th style={{ width: '18%', padding: '16px 20px', color: '#fff', fontSize: '11px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.04em' }}>
+                    <th style={{ width: '20%', padding: '16px 20px', color: '#fff', fontSize: '11px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.04em' }}>
                       ACTIONS
                     </th>
                   </tr>
@@ -645,7 +605,7 @@ export default function CropHealthMonitoring() {
                 <tbody>
                   {loadingDB ? (
                     <tr>
-                      <td colSpan={4} style={{ padding: '48px 20px', textAlign: 'center', color: '#657168' }}>
+                      <td colSpan={3} style={{ padding: '48px 20px', textAlign: 'center', color: '#657168' }}>
                         <RefreshCw className="spin" size={24} style={{ margin: '0 auto 10px', animation: 'spin 1s linear infinite', color: '#196c35' }} />
                         <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>Loading inspection history…</p>
                       </td>
@@ -663,14 +623,7 @@ export default function CropHealthMonitoring() {
                           </span>
                         </td>
 
-                        {/* 2. Health Score */}
-                        <td style={{ padding: '18px 20px', textAlign: 'center', verticalAlign: 'middle' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#203324' }}>
-                            {act.score == null ? 'Insufficient evidence' : `${act.score}/100${act.isPartial ? ` · Partial (${act.coverage}%)` : ''}`}
-                          </span>
-                        </td>
-
-                        {/* 3. Detected Issues (Bulleted List) */}
+                        {/* Detected Issues (Bulleted List) */}
                         <td style={{ padding: '18px 20px', textAlign: 'left', verticalAlign: 'middle' }}>
                           {act.issues && act.issues.length > 0 ? (
                             <ul style={{ margin: 0, paddingLeft: '24px', listStyleType: 'disc', color: '#203324', fontSize: '12px', lineHeight: 1.7 }}>
@@ -687,7 +640,7 @@ export default function CropHealthMonitoring() {
                           )}
                         </td>
 
-                        {/* 4. Action Button (Green View Button + Delete) */}
+                        {/* Action Button (Green View Button + Delete) */}
                         <td style={{ padding: '18px 20px', textAlign: 'center', verticalAlign: 'middle' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                             <button
@@ -739,7 +692,7 @@ export default function CropHealthMonitoring() {
                     /* BEAUTIFUL EMPTY STATE DESIGN (WHEN NO DATA IN DATABASE)   */
                     /* ========================================================= */
                     <tr>
-                      <td colSpan={4} style={{ padding: '56px 24px', textAlign: 'center', background: '#fafcf9' }}>
+                      <td colSpan={3} style={{ padding: '56px 24px', textAlign: 'center', background: '#fafcf9' }}>
                         <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#eaf4e7', color: '#196c35', display: 'grid', placeItems: 'center', margin: '0 auto 16px', border: '1px solid #cfe0cb' }}>
                           <FileClock size={28} />
                         </div>
@@ -887,12 +840,6 @@ export default function CropHealthMonitoring() {
 
                 <div className="task-dialog-side task-view-section">
                   <div className="task-view-item" style={{ minHeight: 'auto', padding: '8px 0' }}>
-                    <span>Health Score</span>
-                    <strong style={{ color: scoreTone(selectedActivity.score).color, fontSize: '18px' }}>
-                      {selectedActivity.score == null ? 'Insufficient evidence' : `${selectedActivity.score}/100${selectedActivity.isPartial ? ` · Partial (${selectedActivity.coverage}%)` : ''}`}
-                    </strong>
-                  </div>
-                  <div className="task-view-item" style={{ minHeight: 'auto', padding: '8px 0' }}>
                     <span>Date &amp; Time</span>
                     <strong>{selectedActivity.date} at {selectedActivity.time}</strong>
                   </div>
@@ -908,7 +855,7 @@ export default function CropHealthMonitoring() {
 
               <section className="task-view-description" style={{ marginBottom: '14px' }}>
                 <span>Visual Findings</span>
-                <VisualFindings factorScores={selectedActivity.factorScores} factorRatings={selectedActivity.factorRatings} issues={selectedActivity.issues} />
+                <VisualFindings factorRatings={selectedActivity.factorRatings} issues={selectedActivity.issues} />
               </section>
 
               <section className="task-view-description" style={{ marginBottom: '20px' }}>

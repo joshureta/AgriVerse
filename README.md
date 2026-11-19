@@ -87,6 +87,19 @@ regenerated from the page; they are guidance to verify in the field.
 
 ## Crop Health Monitoring image score
 
+New photo diagnoses use the `visible-crop-area-v3` method. Gemini describes
+non-overlapping regions of the assessable crop visible in the photo, giving each
+region a share of that visible crop and a severity. The backend maps none,
+mild, moderate, severe, and extensive to 100, 85, 60, 30, and 10, then
+calculates the area-weighted average. The shares must total approximately 100%;
+otherwise no score is shown. A healthy region retains 100 points, while visible
+damage lowers the score according to its extent and severity. Disease, pest,
+and nutrient findings explain the evidence without adding another deduction.
+The score describes only assessable crop in the photo, not the whole field.
+Older saved diagnoses continue to display their original score and method.
+
+The following weighted-factor method describes those older diagnoses:
+
 The photo diagnosis uses Gemini to identify visible evidence and rate crop
 condition, disease, pests, and nutrients as none, mild, moderate, severe,
 extensive, or unknown. The backend maps these ratings to 100, 85, 60, 30,

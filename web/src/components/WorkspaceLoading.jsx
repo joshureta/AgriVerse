@@ -34,7 +34,7 @@ function pageFor(path, seller) {
     '/admin/users/edit': ['edit-user', 'Edit User Information'],
     '/admin/tasks': ['tasks', 'Task Assignment & Scheduling'],
     '/admin/inventory': ['inventory', 'Inventory Management'],
-    '/admin/records': ['records', 'Farm records'],
+    '/admin/records': ['records', 'Farm Records'],
     '/admin/monitoring/crop-health': ['crop-health', 'Crop Health Monitoring'],
     '/admin/monitoring/environmental': ['environmental', 'Real-Time Environmental Monitoring'],
     '/admin/messages': ['messages', 'Messages'],

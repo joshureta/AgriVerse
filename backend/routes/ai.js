@@ -3,7 +3,7 @@ const { getGeminiClient } = require("../lib/gemini");
 const { getSupabase } = require("../supabase");
 const { requireAuth } = require("../middleware/auth");
 const { uploadImage } = require("../lib/storage");
-const { classifyScore, scoreImageDiagnosis } = require("../lib/crop-image-score");
+const { classifyScore, scoreImageDiagnosis, scoreVisibleRegions } = require("../lib/crop-image-score");
 const { generateVisionJson, visionModels } = require("../lib/gemini-vision");
 
 const router = express.Router();
@@ -222,8 +222,13 @@ EVIDENCE RULES:
 - Rate each image factor as none, mild, moderate, severe, extensive, or unknown. Rate the visible subject only; do not infer an unseen field, leaf, fruit, or pest condition.
 - Use these visual anchors consistently: none = a clear relevant view with no visible symptoms; mild = small localized symptoms with most visible tissue normal; moderate = several clear affected areas while much visible tissue remains normal; severe = widespread or strong symptoms; extensive = most visible tissue affected; unknown = the relevant condition cannot be judged from this view.
 - For every rating other than unknown, give a short description of the visible evidence. Use unknown if the view cannot assess that factor or the visual evidence is insufficient. Never use none to mean "not visible".
-- Do not calculate or return an overall crop health score. The application calculates it from these ratings.
+- In factorRatings, describe pests, nutrient signs, disease signs, and crop condition separately. Pinpoint the affected visible plant part or area in each evidence field, and name a specific cause only when the photo supports it.
+- If the crop is damaged but its cause is unclear, do not call the pest, disease, or nutrient categories healthy merely because a cause is not directly visible. Use unknown unless the photo provides evidence to assess that category. Pest damage may remain after the pest has left.
+- Name a specific disease or nutrient deficiency only when the photo supports that identification; otherwise use a neutral finding such as "Visible crop damage; cause undetermined".
+- Do not calculate or return an overall crop health score. The application calculates it from visible crop regions.
 - If a factor is unknown, explain which required plant part or visual evidence is missing so the user knows what follow-up photo is needed.
+- Split only the assessable visible pineapple crop into non-overlapping regions of similar condition. Return each region's percentage share of that assessable crop, severity, and visible evidence. Shares must total 100. Include a healthy region when healthy crop is visible. If the crop cannot be assessed reliably, return an empty array. Do not estimate the percentage of the whole field from a partial photo.
+- The region severity measures visible crop health, including an identifiable pest or disease before obvious damage. Record the same damage in only one region; disease, pest, and nutrient labels explain it and are not extra deductions.
 
 Perform a comprehensive visual pathology and entomological diagnosis using the following pineapple disease & pest taxonomy:
 
@@ -254,6 +259,9 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
     "pest": { "severity": "<none | mild | moderate | severe | extensive | unknown>", "evidence": "<visible pest evidence or why unknown>" },
     "nutrient": { "severity": "<none | mild | moderate | severe | extensive | unknown>", "evidence": "<visible nutrient evidence or why unknown>" }
   },
+  "visibleCropRegions": [
+    { "sharePercent": "<number from 1 to 100; all shares total 100>", "severity": "<none | mild | moderate | severe | extensive>", "evidence": "<visible condition and location>" }
+  ],
   "imageContext": "${imageContext}",
   "diseaseOrIssueName": "<Exact taxonomic name, e.g. 'Pineapple Mealybug Wilt (PMWD)', 'Phytophthora Heart Rot', 'Potassium Deficiency (Marginal Scorch)', 'Healthy Pineapple Stand'>",
   "issues": [
@@ -279,23 +287,25 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
       throw new Error("Gemini did not return a valid crop diagnosis.");
     }
 
-    const scored = scoreImageDiagnosis(diagnosis.factorRatings);
+    const factors = scoreImageDiagnosis(diagnosis.factorRatings);
+    const scored = scoreVisibleRegions(diagnosis.visibleCropRegions);
     const findingStatus = (rating) => rating === "unknown" ? "Unknown" : rating === "none" ? "None" : rating === "mild" ? "Minor" : "Detected";
 
     const sanitizedDiagnosis = {
       score: scored.score,
       pineappleHealth: scored.healthStatus,
-      cropCondition: scored.factorRatings.cropCondition.severity,
-      diseaseStatus: findingStatus(scored.factorRatings.disease.severity),
-      pestStatus: findingStatus(scored.factorRatings.pest.severity),
-      nutrientStatus: scored.factorRatings.nutrient.severity === "unknown" ? "Unknown"
-        : scored.factorRatings.nutrient.severity === "none" ? "Normal"
+      cropCondition: factors.factorRatings.cropCondition.severity,
+      diseaseStatus: findingStatus(factors.factorRatings.disease.severity),
+      pestStatus: findingStatus(factors.factorRatings.pest.severity),
+      nutrientStatus: factors.factorRatings.nutrient.severity === "unknown" ? "Unknown"
+        : factors.factorRatings.nutrient.severity === "none" ? "Normal"
           : diagnosis.nutrientStatus || "Possible Deficiency",
-      factorScores: scored.factorScores,
-      factorRatings: scored.factorRatings,
-      coverage: scored.coverage,
-      isPartial: scored.isPartial,
-      scoringMethod: "available-weight-severity-v2",
+      factorScores: factors.factorScores,
+      factorRatings: factors.factorRatings,
+      visibleCropRegions: scored.regions,
+      coverage: null,
+      isPartial: false,
+      scoringMethod: "visible-crop-area-v3",
       imageContext: IMAGE_CONTEXTS.has(diagnosis.imageContext) ? diagnosis.imageContext : imageContext,
       diseaseOrIssueName: diagnosis.diseaseOrIssueName || "General Crop Inspection",
       healthStatus: scored.healthStatus,
@@ -325,6 +335,7 @@ Respond in STRICT JSON format (without markdown code blocks) matching this schem
         factor_scores: {
           ...sanitizedDiagnosis.factorScores,
           ratings: sanitizedDiagnosis.factorRatings,
+          regions: sanitizedDiagnosis.visibleCropRegions,
           coverage: sanitizedDiagnosis.coverage,
           method: sanitizedDiagnosis.scoringMethod,
         },

@@ -61,7 +61,7 @@ function scoreMoisture(value, bands) {
 function summarize(rows, key, from, to, valid, scoreValue) {
   const readings = rows.map((row) => ({ value: Number(row[key]), time: readingTime(row) }))
     .filter((reading, index) => rows[index][key] != null && Number.isFinite(reading.time)
-      && reading.time >= from && reading.time <= to && valid(reading.value))
+      && reading.time >= from && reading.time < to && valid(reading.value))
     .sort((left, right) => left.time - right.time);
   if (!readings.length) return { score: null, average: null, count: 0, latestAt: null };
   const values = readings.map((reading) => reading.value);
@@ -132,9 +132,16 @@ function buildAssessment({ field, from, to, climateRows = [], soilRows = [], ins
     image: inspection ? {
       id: inspection.id,
       analyzedAt: inspection.created_at,
+      healthScore: inspection.health_score,
+      scoringMethod: inspection.factor_scores?.method || null,
+      regions: inspection.factor_scores?.regions || [],
       issue: inspection.disease_or_issue_name,
       summary: inspection.visual_summary,
       symptoms: inspection.identified_symptoms,
+      pestRating: inspection.factor_scores?.ratings?.pest || null,
+      recommendations: Array.isArray(inspection.action_recommendations)
+        ? inspection.action_recommendations.filter((item) => typeof item === "string" && item.trim()).slice(0, 3)
+        : [],
     } : null,
     missing: factors.filter((factor) => factor.score == null).map((factor) => factor.label),
   };

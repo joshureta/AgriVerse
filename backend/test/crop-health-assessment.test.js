@@ -81,3 +81,37 @@ test("assessment accepts only supported fields and periods", () => {
   assert.throws(() => assessmentWindow("Field Z", 24, now));
   assert.throws(() => assessmentWindow("Field A", 1, now));
 });
+
+test("selected dates use Manila calendar boundaries and reject future dates", () => {
+  const historical = assessmentWindow("Field B", "2026-11-18", now);
+  assert.equal(new Date(historical.from).toISOString(), "2026-11-17T16:00:00.000Z");
+  assert.equal(new Date(historical.to).toISOString(), "2026-11-18T16:00:00.000Z");
+  assert.equal(historical.date, "2026-11-18");
+  const today = assessmentWindow("Field B", "2026-11-19", now);
+  assert.equal(today.to, now + 1);
+  assert.throws(() => assessmentWindow("Field B", "2026-11-20", now));
+  assert.throws(() => assessmentWindow("Field B", "2026-02-30", now));
+});
+
+test("pest score uses the saved image rating, and missing image remains incomplete", () => {
+  const data = {
+    field: "Field C", from: now - 86_400_000, to: now, soilBands: bands,
+    climateRows: [{ created_at: at, temperature_c: 28, soil_temperature_c: 26, humidity_percent: 70 }],
+    soilRows: [{ created_at: at, moisture_percent: 40 }],
+  };
+  const withoutImage = buildAssessment(data);
+  assert.equal(withoutImage.factors.find((factor) => factor.key === "pest").score, null);
+  assert.equal(withoutImage.cropHealthScore, null);
+  const withImage = buildAssessment({ ...data, inspection: {
+    id: "saved-image", created_at: at,
+    action_recommendations: ["Inspect affected plants", "Check leaf undersides"],
+    factor_scores: {
+      cropCondition: 100, disease: 100, pest: 60, nutrient: 100,
+      ratings: { pest: { severity: "moderate", evidence: "Visible pest damage" } },
+    },
+  } });
+  assert.equal(withImage.factors.find((factor) => factor.key === "pest").score, 60);
+  assert.equal(withImage.image.pestRating.evidence, "Visible pest damage");
+  assert.deepEqual(withImage.image.recommendations, ["Inspect affected plants", "Check leaf undersides"]);
+  assert.equal(withImage.cropHealthScore, 94);
+});

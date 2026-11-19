@@ -53,4 +53,27 @@ function scoreImageDiagnosis(ratings) {
   };
 }
 
-module.exports = { FACTORS, SEVERITY_POINTS, classifyScore, scoreImageDiagnosis };
+function scoreVisibleRegions(input) {
+  if (!Array.isArray(input) || input.length === 0 || input.length > 12) {
+    return { score: null, healthStatus: classifyScore(null), regions: [] };
+  }
+
+  const regions = input.map((region) => {
+    const severity = typeof region?.severity === "string" ? region.severity.trim().toLowerCase() : "";
+    const sharePercent = Number(region?.sharePercent);
+    const evidence = typeof region?.evidence === "string" ? region.evidence.trim() : "";
+    if (!Object.hasOwn(SEVERITY_POINTS, severity) || !Number.isFinite(sharePercent)
+      || sharePercent <= 0 || sharePercent > 100 || !evidence) return null;
+    return { sharePercent, severity, evidence };
+  });
+  if (regions.includes(null)) return { score: null, healthStatus: classifyScore(null), regions: [] };
+
+  const total = regions.reduce((sum, region) => sum + region.sharePercent, 0);
+  // Shares describe the assessable visible crop, not the whole field.
+  if (Math.abs(total - 100) > 1) return { score: null, healthStatus: classifyScore(null), regions: [] };
+  const score = Math.round(regions.reduce((sum, region) =>
+    sum + region.sharePercent * SEVERITY_POINTS[region.severity], 0) / total);
+  return { score, healthStatus: classifyScore(score), regions };
+}
+
+module.exports = { FACTORS, SEVERITY_POINTS, classifyScore, scoreImageDiagnosis, scoreVisibleRegions };
