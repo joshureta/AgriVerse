@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Download, Eye, Search, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, Eye, FileDown, FileText, Search, X } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import Pagination from '../../components/Pagination.jsx'
 import { supabase } from '../../lib/supabase.js'
+import { downloadDashboardReportPdf } from '../../lib/dashboardReportPdf.js'
+import { buildFarmRecordsReport } from '../../lib/farmRecordsReport.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/task-schedule-management.css'
 import '../../styles/records-management.css'
@@ -59,7 +61,7 @@ function recordsPath({ categoryId, search, page, pageSize, activity }) {
   return `/api/admin/tasks/records?${params}`
 }
 
-// Export CSV needs every matching record, not just the visible page, so walk all pages.
+// A report needs every matching record, not just the visible page, so walk all pages.
 async function loadAllRecordTasks(categoryId, search, activity) {
   const tasks = []
   let page = 1
@@ -94,26 +96,6 @@ function insightText(value, empty = '—') {
   return String(value ?? '').trim() || empty
 }
 
-// Escapes one value for a CSV file.
-function csvCell(value) {
-  const text = String(value ?? '')
-  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
-}
-
-// Downloads the supplied rows as a CSV file.
-function downloadCsv(filename, rows) {
-  const csv = rows.map((row) => row.map(csvCell).join(',')).join('\r\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
-}
-
 // Displays a link to a record's proof photo.
 function ProofPhoto({ url, alt }) {
   if (!url) return <p>No photo proof was attached.</p>
@@ -125,7 +107,7 @@ function ProofPhoto({ url, alt }) {
 }
 
 // Displays the heading and close button for a record dialog.
-function TaskModalHeader({ title, onClose, tag = 'Farm records' }) {
+function TaskModalHeader({ title, onClose, tag = 'Farm Records' }) {
   return (
     <header className="task-dialog-header">
       <div>
@@ -176,7 +158,7 @@ function categoryKind(categoryName, activityType) {
   return 'generic'
 }
 
-// Builds a CSV row from a completed task.
+// Builds a table row from a completed task.
 function recordRow(task, kind) {
   const worker = task.assigned_worker?.full_name || 'Unassigned worker'
   const date = formatDate(task.completed_at)
@@ -202,6 +184,66 @@ const RECORD_COLUMNS = {
   generic: ['FIELD', 'FARM WORKER', 'DATE STARTED', 'DATE COMPLETED', 'INSIGHTS', 'ACTIONS'],
 }
 
+// Generates a PDF for the selected records tab, using the same report layout as the dashboard.
+function RecordsReportMenu({ category, categoryId, kind, activity, search, orders, disabled }) {
+  const menuRef = useRef(null)
+  const [open, setOpen] = useState(false)
+  const [period, setPeriod] = useState('month')
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!open) return undefined
+    const closeOutside = (event) => { if (!menuRef.current?.contains(event.target)) setOpen(false) }
+    const closeEscape = (event) => { if (event.key === 'Escape') setOpen(false) }
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('keydown', closeEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('keydown', closeEscape)
+    }
+  }, [open])
+
+  async function generate(event) {
+    event.preventDefault()
+    setGenerating(true)
+    setError('')
+    try {
+      const tasks = kind === 'delivery' ? [] : await loadAllRecordTasks(categoryId, search.trim(), activity)
+      const report = buildFarmRecordsReport({ tasks, orders, category, kind, period, search: search.trim() })
+      await downloadDashboardReportPdf(report)
+      setOpen(false)
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to generate the PDF report.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  return <div className="dashboard-report-menu records-report-menu" ref={menuRef}>
+    <button type="button" className="dashboard-report-trigger" disabled={disabled || generating}
+      aria-haspopup="dialog" aria-expanded={open} aria-controls="records-report-popover"
+      onClick={() => { setOpen((value) => !value); setError('') }}>
+      <span className="dashboard-report-trigger-main"><FileText size={17} aria-hidden="true" /> Generate Report</span>
+      <ChevronDown size={16} aria-hidden="true" />
+    </button>
+    {open && <section className="dashboard-report-popover" id="records-report-popover" role="dialog" aria-label={`Generate ${category} report`}>
+      <form onSubmit={generate}>
+        <select id="records-report-period" aria-label="Date range" value={period} onChange={(event) => setPeriod(event.target.value)}>
+          <option value="week">This week</option>
+          <option value="month">This month</option>
+          <option value="year">This year</option>
+          <option value="all">All time</option>
+        </select>
+        {error && <p className="dashboard-report-error" role="alert">{error}</p>}
+        <button className="dashboard-report-submit" type="submit" disabled={generating}>
+          <FileDown size={16} aria-hidden="true" /> {generating ? 'Generating…' : 'Generate PDF'}
+        </button>
+      </form>
+    </section>}
+  </div>
+}
+
 // Displays completed task and delivery records.
 export default function RecordsManagement() {
   const [categories, setCategories] = useState([])
@@ -215,8 +257,6 @@ export default function RecordsManagement() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [exporting, setExporting] = useState(false)
-  const [exportError, setExportError] = useState('')
   const [modal, setModal] = useState(null)
 
   const isDeliveryTab = activeCategory === 'delivery'
@@ -287,14 +327,12 @@ export default function RecordsManagement() {
   function selectCategory(id) {
     setActiveCategory(id)
     setPage(1)
-    setExportError('')
   }
 
   // Switches the activity type and resets the page.
   function selectActivity(value) {
     setActivityTab(value)
     setPage(1)
-    setExportError('')
   }
 
   // Updates the search text and returns to the first page.
@@ -305,7 +343,7 @@ export default function RecordsManagement() {
 
   const taskLoading = activeCategory === '' ? !optionsState.loaded : result.key !== requestKey
   const loading = isDeliveryTab ? deliveryLoading : taskLoading
-  const error = isDeliveryTab ? deliveryError : (optionsState.error || (taskLoading ? '' : result.error) || exportError)
+  const error = isDeliveryTab ? deliveryError : (optionsState.error || (taskLoading ? '' : result.error))
 
   // Filters and sorts delivery records for the current view.
   const filteredDeliveries = useMemo(() => {
@@ -325,35 +363,6 @@ export default function RecordsManagement() {
   const firstVisibleRecord = recordCount ? (page - 1) * PAGE_SIZE + 1 : 0
   const lastVisibleRecord = Math.min(page * PAGE_SIZE, recordCount)
 
-  // Exports the current record selection to CSV.
-  async function generateReport() {
-    if (isDeliveryTab) {
-      downloadCsv('delivery-records.csv', [
-        ['Driver', 'Order Number', 'Customer', 'Delivery Address', 'Delivery Window', 'Status', 'Insights'],
-        ...filteredDeliveries.map((order) => [
-          order.assigned_driver?.full_name || 'Unassigned driver',
-          order.order_number,
-          order.delivery_full_name || '',
-          [order.delivery_barangay, order.delivery_city_municipality, order.delivery_province, order.delivery_region].filter(Boolean).join(', '),
-          formatDeliveryWindow(order.delivery_scheduled_at, order.delivery_window_end_at),
-          (order.delivery_assignment_status || 'assigned').replaceAll('_', ' '),
-          insightText(order.delivery_proof_notes),
-        ]),
-      ])
-      return
-    }
-    setExporting(true)
-    setExportError('')
-    try {
-      const exportTasks = await loadAllRecordTasks(activeCategory, search.trim(), activityFilter)
-      downloadCsv('farm-records.csv', [columns.slice(0, -1), ...exportTasks.map((task) => recordRow(task, kind))])
-    } catch (requestError) {
-      setExportError(requestError.message)
-    } finally {
-      setExporting(false)
-    }
-  }
-
   return (
     <main className="admin-dashboard task-schedule-page records-page">
       {/* Admin navigation and page header. */}
@@ -361,15 +370,16 @@ export default function RecordsManagement() {
       <section className="admin-workspace">
         <AdminTopbar />
         <div className="task-schedule-content records-content">
-          {/* Page title and export action. */}
+          {/* Page title and report action. */}
           <header className="task-page-heading records-page-heading">
             <div>
-              <h1>Farm records</h1>
+              <h1>Farm Records</h1>
               <p>Review farm activities and delivery history in one place.</p>
             </div>
-            <button type="button" onClick={generateReport} disabled={loading || exporting || !recordCount}>
-              <Download aria-hidden="true" size={16} /> {exporting ? 'Exporting…' : 'Export CSV'}
-            </button>
+            <RecordsReportMenu key={`${activeCategory}-${activityFilter}`}
+              category={isDeliveryTab ? 'Delivery' : isPestAndDiseaseTab ? `Pest & Disease ${activityTab === 'action' ? 'Action' : 'Inspection'}` : activeCategoryName || 'Farm Records'}
+              categoryId={activeCategory} kind={isDeliveryTab ? 'delivery' : kind} activity={activityFilter}
+              search={search} orders={filteredDeliveries} disabled={loading || Boolean(error)} />
           </header>
 
           {/* Category tabs, search, and record table. */}

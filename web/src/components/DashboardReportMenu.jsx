@@ -118,7 +118,6 @@ export default function DashboardReportMenu() {
         <button type="submit" className="dashboard-report-submit" disabled={generating}>
           <FileDown size={16} aria-hidden="true" /> {generating ? 'Generating…' : 'Generate PDF'}
         </button>
-        <small className="dashboard-report-help">Uses recorded AgriVerse data.</small>
       </form>
     </section>}
   </div>
