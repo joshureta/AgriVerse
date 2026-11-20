@@ -176,7 +176,9 @@ export default function CropHealthAssessment() {
   const weekly = period === 'weekly'
   const overview = summary?.overview || report?.overview
   const combinedText = summary?.combinedExplanation || report?.combined.explanation
-  const summarySource = summary?.source === 'ai' ? 'Written by AI from the rule-based findings' : 'Rule-based summary'
+  const summarySource = summary?.source === 'ai'
+    ? 'AI-generated summary based on rule-based assessment findings'
+    : 'Summary generated from rule-based assessment findings'
 
   return (
     <main className="admin-dashboard crop-assessment-page">
@@ -241,7 +243,7 @@ export default function CropHealthAssessment() {
                   </div>
                   <p className="cha-overview-text">{overview}</p>
                   <div className="cha-overview-foot">
-                    <small><Sparkles size={13} aria-hidden="true" /> {summaryLoading ? 'Writing the AI summary…' : summarySource}{report.info.isCurrent ? ` · as of ${formatTime(report.info.end)}` : ''}</small>
+                    <small><Sparkles size={13} aria-hidden="true" /> {summaryLoading ? 'Generating AI summary…' : `${summarySource}${report.info.isCurrent ? ` as of ${formatTime(report.info.end)}` : ''}`}</small>
                     <button type="button" className="crop-assessment-regenerate" disabled={summaryLoading || !hasRecords}
                       onClick={() => setSummaryVersion((version) => version + 1)}>
                       <RefreshCw size={15} aria-hidden="true" /> Refresh summary
