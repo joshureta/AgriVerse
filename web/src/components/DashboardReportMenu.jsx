@@ -4,8 +4,6 @@ import { downloadDashboardReportPdf } from '../lib/dashboardReportPdf.js'
 import { loadDashboardReport, loadReportFields } from '../services/adminDashboard.js'
 
 const reportTypes = [
-  { value: 'operations', label: 'Farm Operations', fields: true },
-  { value: 'productivity', label: 'Worker Productivity', fields: true },
   { value: 'harvest', label: 'Harvest & Yield', fields: true },
   { value: 'sales', label: 'Sales & Orders' },
   { value: 'inventory', label: 'Inventory & Stock' },
@@ -17,7 +15,7 @@ const reportTypes = [
 export default function DashboardReportMenu() {
   const menuRef = useRef(null)
   const [open, setOpen] = useState(false)
-  const [type, setType] = useState('operations')
+  const [type, setType] = useState('harvest')
   const [period, setPeriod] = useState('month')
   const [field, setField] = useState('all')
   const [fields, setFields] = useState([])

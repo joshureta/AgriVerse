@@ -8,7 +8,8 @@ const GREEN = [25, 108, 53]
 const DARK = [21, 61, 37]
 const MUTED = [91, 108, 94]
 const PALE = [239, 247, 232]
-const LOGO_URL = new URL('../assets/Jtoledologo.png', import.meta.url)
+// The report logo is flattened onto the header green so PDF viewers never paint transparent pixels black.
+const LOGO_URL = new URL('../assets/jtoledo-report-logo.jpg', import.meta.url)
 
 async function loadLogo() {
   const response = await fetch(LOGO_URL)
@@ -30,12 +31,14 @@ function displayTimestamp(value) {
 
 function writeHeader(doc, report, logo) {
   doc.setFillColor(...GREEN)
-  doc.rect(0, 0, PAGE_WIDTH, HEADER_HEIGHT, 'F')
-  doc.addImage(logo, 'PNG', (PAGE_WIDTH - 55) / 2, 0, 55, 55)
+  doc.rect(0, 0, PAGE_WIDTH, 43, 'F')
+  doc.addImage(logo, 'JPEG', (PAGE_WIDTH - 55) / 2, 1, 55, 41)
+  doc.setFillColor(...GREEN)
+  doc.rect(0, 43, PAGE_WIDTH, HEADER_HEIGHT - 43, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
-  doc.text(report.title, PAGE_WIDTH / 2, 53, { align: 'center' })
+  doc.text(report.title, PAGE_WIDTH / 2, 54, { align: 'center' })
   doc.setTextColor(...DARK)
 }
 
