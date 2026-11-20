@@ -185,7 +185,14 @@ function classifyEnvironment(report, { bands = soilMoistureBands(report.field) }
   };
 }
 
+// Classifies one reading with the same configured bands used for the daily report.
+function classifyValue(key, value, bands) {
+  if (key === "soilMoisture") return classifySoilMoisture(value, bands);
+  return PARAMETERS.find((param) => param.key === key).classify(value);
+}
+
 module.exports = {
+  PARAMETERS, classifyValue,
   METHOD, STATUS, QUALITY, CRITICAL_STATUSES, DEVIATION_STATUSES, DATA_ISSUE_STATUSES,
   DEFAULT_SOIL_MOISTURE, FRESHNESS_LIMIT_MS,
   classifyEnvironment, soilMoistureBands, priorityOf,

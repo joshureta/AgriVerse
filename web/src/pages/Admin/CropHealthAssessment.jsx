@@ -1,14 +1,33 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, CalendarDays, RefreshCw, ClipboardList } from 'lucide-react'
+import {
+  AlertCircle, AlertTriangle, Bug, CalendarDays, ClipboardList, Droplets, FlaskConical, Info, Link2,
+  ListChecks, Microscope, RefreshCw, Sparkles, Sprout, ThermometerSun, Waves, Wind,
+} from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
+import Pagination from '../../components/Pagination.jsx'
+import CropAssessmentSkeleton from '../../components/CropAssessmentSkeleton.jsx'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/crop-health-assessment.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const FIELDS = ['Field A', 'Field B', 'Field C', 'Field D']
+const PERIODS = [{ value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }]
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000
 const manilaToday = () => new Date(Date.now() + MANILA_OFFSET_MS).toISOString().slice(0, 10)
+
+const DIMENSION_ICONS = { cropCondition: Sprout, pest: Bug, nutrient: FlaskConical, disease: Microscope }
+const PARAMETER_ICONS = { airTemperature: ThermometerSun, soilTemperature: Waves, humidity: Wind, soilMoisture: Droplets }
+const CROP_TONE = { HEALTHY: 'normal', 'NEEDS ATTENTION': 'warning', CRITICAL: 'critical', INCONCLUSIVE: 'muted' }
+const ENV_TONE = { 'WITHIN RANGE': 'normal', 'OUT OF RANGE': 'warning', 'CRITICAL READING': 'critical', 'PARTIAL DATA': 'muted', 'NO DATA': 'muted' }
+const PRIORITY_TONE = { URGENT: 'critical', HIGH: 'warning', ROUTINE: 'normal' }
+const RECORDS_PER_PAGE = 10
+const DIMENSION_KEYS = [
+  { key: 'cropCondition', label: 'Crop Condition' },
+  { key: 'pest', label: 'Pest' },
+  { key: 'nutrient', label: 'Nutrient' },
+  { key: 'disease', label: 'Disease' },
+]
 
 async function assessmentRequest(path, options = {}) {
   const { data, error } = await supabase.auth.getSession()
@@ -23,144 +42,141 @@ async function assessmentRequest(path, options = {}) {
     },
   })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error || 'Assessment is unavailable.')
+  if (!response.ok) throw new Error(body.error || 'The monitoring report is unavailable.')
   return body
 }
 
-function factorValue(factor) {
-  return Number.isInteger(factor.score) ? factor.score : factor.score.toFixed(1)
+const formatDate = (value) => new Date(`${value}T00:00:00+08:00`).toLocaleDateString('en-PH', {
+  timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric',
+})
+const formatTime = (value, withDay) => new Date(value).toLocaleString('en-PH', {
+  timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', ...(withDay ? { month: 'short', day: 'numeric' } : {}),
+})
+const formatReading = (point, unit) => point ? `${point.value}${unit === '°C' ? '°C' : ` ${unit}`}` : '—'
+const severityText = (severity) => !severity ? null : severity === 'UNDETERMINED' ? 'Severity undetermined' : `${severity[0]}${severity.slice(1).toLowerCase()} severity`
+
+function Pill({ tone, children }) {
+  return <span className={`cha-pill is-${tone || 'muted'}`}>{children}</span>
 }
 
-function readingValue(value, unit) {
-  return value == null ? '—' : `${value} ${unit}`
+function dimensionTone(item) {
+  if (item.result === 'NO ISSUE DETECTED') return 'normal'
+  if (item.highestSeverity === 'HIGH') return 'critical'
+  if (item.issueCount) return 'warning'
+  return 'muted'
 }
 
-function factorResult(factor, legacyPhoto = false) {
-  if (factor.source === 'context') return factor.average == null ? 'No soil temperature reading' : 'Waiting for the updated scoring service'
-  if (factor.score == null) return factor.source === 'image' ? `Cannot assess from ${legacyPhoto ? 'photo' : 'inspection'}` : 'No valid readings'
-  if (factor.source === 'image') {
-    if (factor.count > 1) return `Average of ${factor.count} ${legacyPhoto ? 'photo analyses' : 'inspections'}`
-    const severity = factor.rating?.severity
-    if (severity === 'NOT APPLICABLE') return 'No issue detected'
-    if (['LOW', 'MODERATE', 'HIGH'].includes(severity)) {
-      const kind = factor.rating.status === 'ISSUE SUSPECTED' ? 'suspected issue' : 'issue detected'
-      return `${severity[0]}${severity.slice(1).toLowerCase()} severity, ${kind}`
-    }
-    if (severity === 'none') return 'No visible signs'
-    if (['mild', 'moderate', 'severe', 'extensive'].includes(severity)) {
-      return `${severity[0].toUpperCase()}${severity.slice(1)} visible signs`
-    }
-    return 'Scored photo finding'
-  }
-  if (factor.score >= 85) return 'Mostly favorable readings'
-  if (factor.score >= 70) return 'Mixed readings'
-  if (factor.score >= 50) return 'Readings need attention'
-  return 'Unfavorable readings'
+function DimensionRow({ item, weekly }) {
+  const Icon = DIMENSION_ICONS[item.key]
+  return (
+    <li className="cha-row">
+      <span className={`cha-row-icon is-${dimensionTone(item)}`}><Icon size={17} aria-hidden="true" /></span>
+      <div className="cha-row-body">
+        <div className="cha-row-head">
+          <strong>{item.label}</strong>
+          <Pill tone={dimensionTone(item)}>{item.issueCount ? severityText(item.highestSeverity) : item.result}</Pill>
+        </div>
+        {item.findings.length > 0 ? item.findings.map((finding) => (
+          <p key={finding.condition}>
+            {finding.condition}
+            <small> · {finding.status === 'ISSUE SUSPECTED' ? 'Suspected' : 'Detected'}, {severityText(finding.severity).toLowerCase()}</small>
+            {finding.symptoms.length > 0 && <span className="cha-symptoms">{finding.symptoms.join('; ')}</span>}
+          </p>
+        )) : <p className="is-quiet">{item.note}</p>}
+        {item.recordCount > 0 && (
+          <small className="cha-row-meta">
+            {item.issueCount
+              ? `Recorded in ${item.issueCount} of ${item.recordCount} assessment${item.recordCount === 1 ? '' : 's'}${weekly && item.issueDays.length > 1 ? ` on ${item.issueDays.length} separate days` : ''}${item.recurring ? ' · recurring finding' : ''}`
+              : `${item.assessedCount} of ${item.recordCount} assessment${item.recordCount === 1 ? '' : 's'} could assess this`}
+          </small>
+        )}
+      </div>
+    </li>
+  )
 }
 
-function imageTime(value) {
-  return new Date(value).toLocaleTimeString('en-PH', {
-    timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit',
-  })
+function ParameterRow({ item }) {
+  const Icon = PARAMETER_ICONS[item.key]
+  return (
+    <li className="cha-row">
+      <span className={`cha-row-icon is-${item.tone}`}><Icon size={17} aria-hidden="true" /></span>
+      <div className="cha-row-body">
+        <div className="cha-row-head">
+          <strong>{item.parameter}</strong>
+          <Pill tone={item.tone}>{item.descriptor}</Pill>
+        </div>
+        {item.count > 0 ? (
+          <dl className="cha-readings">
+            <div><dt>Latest</dt><dd>{formatReading(item.latest, item.unit)} <small>{item.latest.status} · {formatTime(item.latest.at, true)}</small></dd></div>
+            <div><dt>Min</dt><dd>{formatReading(item.min, item.unit)}</dd></div>
+            <div><dt>Max</dt><dd>{formatReading(item.max, item.unit)}</dd></div>
+            <div><dt>Readings</dt><dd>{item.count.toLocaleString()}</dd></div>
+          </dl>
+        ) : <p className="is-quiet">No valid readings in this period.</p>}
+        <small className="cha-row-meta">Configured range: {item.range}</small>
+        {item.notable.length > 0 && <ul className="cha-notable">{item.notable.map((note) => <li key={note}>{note}</li>)}</ul>}
+        {item.count > 0 && <p className="cha-implication">{item.implication}</p>}
+      </div>
+    </li>
+  )
+}
+
+function CombinedList({ title, items, icon: Icon }) {
+  if (!items.length) return null
+  return (
+    <div className="cha-combined-group">
+      <h4><Icon size={14} aria-hidden="true" /> {title}</h4>
+      <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul>
+    </div>
+  )
 }
 
 export default function CropHealthAssessment() {
   const [field, setField] = useState('Field A')
+  const [period, setPeriod] = useState('daily')
   const [date, setDate] = useState(manilaToday)
-  const [assessment, setAssessment] = useState(null)
+  const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [recommendations, setRecommendations] = useState([])
-  const [guidanceSource, setGuidanceSource] = useState('')
-  const [guidanceLoading, setGuidanceLoading] = useState(false)
-  const [guidanceError, setGuidanceError] = useState('')
-  const [guidanceVersion, setGuidanceVersion] = useState(0)
+  const [summary, setSummary] = useState(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryVersion, setSummaryVersion] = useState(0)
+  const [recordPage, setRecordPage] = useState(1)
 
   useEffect(() => {
     let active = true
     setLoading(true)
-    setAssessment(null)
+    setReport(null)
+    setSummary(null)
+    setRecordPage(1)
     setError('')
-    assessmentRequest(`?${new URLSearchParams({ field, date })}`)
-      .then((result) => { if (active) setAssessment(result) })
+    assessmentRequest(`?${new URLSearchParams({ field, period, date })}`)
+      .then((result) => { if (active) setReport(result) })
       .catch((caught) => { if (active) setError(caught.message) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [field, date])
+  }, [field, period, date])
+
+  const hasRecords = report && (report.info.cropRecords > 0 || report.info.environmentalReadings > 0)
 
   useEffect(() => {
+    if (!hasRecords) return undefined
     let active = true
-    setGuidanceError('')
-    const saved = assessment?.inspectionSource === 'gemini-diagnosis' ? [] : assessment?.image?.recommendations || []
-    setRecommendations(saved)
-    setGuidanceSource(saved.length ? 'Saved inspection rules' : '')
-    const hasEvidence = assessment?.image || assessment?.factors?.some((factor) => factor.count > 0)
-      || assessment?.context?.soilTemperature?.count > 0
-    if (!hasEvidence) {
-      setGuidanceLoading(false)
-      return () => { active = false }
-    }
-    setGuidanceLoading(true)
-    assessmentRequest('/recommendations', {
-      method: 'POST', body: JSON.stringify({ field, date }),
-    })
-      .then((result) => {
-        if (!active) return
-        setRecommendations(result.recommendations || [])
-        setGuidanceSource('Rule-based field guidance')
-      })
-      .catch((caught) => {
-        if (!active) return
-        setGuidanceError(caught.message.length > 180 ? 'Field guidance is unavailable.' : caught.message)
-      })
-      .finally(() => { if (active) setGuidanceLoading(false) })
+    setSummaryLoading(true)
+    assessmentRequest('/summary', { method: 'POST', body: JSON.stringify({ field, period, date }) })
+      .then((result) => { if (active) setSummary(result) })
+      .catch(() => { if (active) setSummary(null) })
+      .finally(() => { if (active) setSummaryLoading(false) })
     return () => { active = false }
-  }, [assessment, field, date, guidanceVersion])
+  }, [hasRecords, field, period, date, summaryVersion])
 
-  const hasEvidence = assessment?.image || assessment?.factors?.some((factor) => factor.count > 0)
-    || assessment?.context?.soilTemperature?.count > 0
-  const score = assessment?.cropHealthScore
-  const legacyPhoto = assessment?.inspectionSource === 'gemini-diagnosis'
-  const imageScore = assessment?.visualScore
-  const missingImageFactors = assessment?.factors?.filter((factor) => factor.source === 'image' && factor.score == null) || []
-  const missingReadings = assessment?.factors?.some((factor) => factor.source === 'sensor' && factor.count === 0)
-  const moistureFactor = assessment?.factors?.find((factor) => factor.key === 'moisture')
-  const hasScoredSoilTemperature = assessment?.factors?.some((factor) => factor.key === 'soilTemperature')
-  const displayFactors = assessment ? [
-    ...assessment.factors,
-    ...(!hasScoredSoilTemperature ? [{
-      key: 'soilTemperature', label: 'Soil temperature', source: 'context', score: null,
-      average: assessment.context?.soilTemperature?.average ?? null,
-      count: assessment.context?.soilTemperature?.count ?? 0,
-    }] : []),
-  ] : []
-  const missingDetails = [
-    missingImageFactors.length > 0 && (assessment?.image
-      ? `${missingImageFactors.map((factor) => factor.label).join(', ')} inspection score missing`
-      : 'No scored inspection or photo analysis saved for this field and date'),
-    missingReadings && 'Sensor readings missing',
-    moistureFactor?.average != null && moistureFactor.score == null && 'Soil moisture limits missing',
-  ].filter(Boolean)
-
-  function changeField(nextField) {
-    if (nextField === field) return
-    setAssessment(null)
-    setRecommendations([])
-    setGuidanceSource('')
-    setGuidanceVersion(0)
-    setLoading(true)
-    setField(nextField)
-  }
-
-  function changeDate(nextDate) {
-    if (!nextDate || nextDate === date) return
-    setAssessment(null)
-    setRecommendations([])
-    setGuidanceSource('')
-    setGuidanceVersion(0)
-    setLoading(true)
-    setDate(nextDate)
-  }
+  const records = report?.crop.records || []
+  const recordPages = Math.max(1, Math.ceil(records.length / RECORDS_PER_PAGE))
+  const pagedRecords = records.slice((recordPage - 1) * RECORDS_PER_PAGE, recordPage * RECORDS_PER_PAGE)
+  const weekly = period === 'weekly'
+  const overview = summary?.overview || report?.overview
+  const combinedText = summary?.combinedExplanation || report?.combined.explanation
+  const summarySource = summary?.source === 'ai' ? 'Written by AI from the rule-based findings' : 'Rule-based summary'
 
   return (
     <main className="admin-dashboard crop-assessment-page">
@@ -170,121 +186,199 @@ export default function CropHealthAssessment() {
         <div className="admin-content crop-assessment-content">
           <header className="crop-assessment-heading">
             <h1>Crop Health Assessment</h1>
+            <p>Combined crop health and environmental monitoring report for pineapple fields.</p>
           </header>
 
-          <section className="crop-assessment-field-panel" aria-label={`${field} assessment`}>
+          <section className="crop-assessment-field-panel" aria-label={`${field} monitoring report`}>
             <nav className="crop-assessment-field-tabs" aria-label="Select field">
               {FIELDS.map((item) => (
                 <button key={item} type="button" className={item === field ? 'is-active' : ''}
                   aria-current={item === field ? 'true' : undefined}
-                  onClick={() => changeField(item)}>{item}</button>
+                  onClick={() => setField(item)}>{item}</button>
               ))}
-              <label className="crop-assessment-date">
-                <span>Assessment date</span>
-                <span className="crop-assessment-date-input"><CalendarDays size={17} aria-hidden="true" />
-                  <input type="date" value={date} max={manilaToday()} onChange={(event) => changeDate(event.target.value)}
-                    aria-label="Assessment date" />
-                </span>
-              </label>
-            </nav>
-            <div className="crop-assessment-tab-content">
-              {error && <div className="crop-assessment-error" role="alert"><AlertCircle size={17} />{error}</div>}
-              {assessment?.sensorError && <div className="crop-assessment-error" role="status"><AlertCircle size={17} />{assessment.sensorError}</div>}
-
-            <section className="crop-assessment-card crop-assessment-main" aria-label="Crop health score and factors">
-              <div className="crop-assessment-card-heading">Calculated Crop Health Score</div>
-              <div className="crop-assessment-score-row">
-                <div className="crop-assessment-score">{loading ? '…' : score == null ? '—' : score}<small> / 100</small></div>
-                <div className={`crop-assessment-classification${score == null ? ' is-pending' : ''}`}>
-                  {score == null ? 'Incomplete' : `${assessment.classification}${assessment.isPartial ? ' · Partial' : ''}`}
-                </div>
-              </div>
-              <div className="crop-assessment-track is-overall"><span style={{ width: `${score || 0}%` }} /></div>
-              {!loading && assessment && !hasScoredSoilTemperature && <p className="crop-assessment-missing" role="status">
-                Soil temperature is shown below in °C, but this assessment response does not include its /100 score. The scoring service needs the soil temperature update.
-              </p>}
-              {legacyPhoto && <p className="crop-assessment-scope" role="status">
-                Showing saved AI photo findings for this date. Visual ratings came from AI; score calculations and field guidance follow fixed rules.
-              </p>}
-              {assessment?.isPartial && <p className="crop-assessment-scope">
-                Combined visual inspection and sensor score based on {assessment.scoreCoverage}% of the weighted factors.
-              </p>}
-              {(score == null || assessment?.isPartial) && !loading && assessment && <p className="crop-assessment-missing">
-                {missingDetails.length ? `Not scored: ${missingDetails.join(' · ')}` : 'No combined image and sensor score for this date'}
-              </p>}
-              {!loading && assessment && !assessment.image && missingImageFactors.length === 4 && (
-                <p className="crop-assessment-missing">
-                  {date === manilaToday()
-                    ? <>Check the selected field, or <a href="/admin/monitoring/crop-health">analyze a photo in Crop Health Monitoring</a>. </>
-                    : <>Choose a date with a saved inspection or scored photo analysis. </>}
-                </p>
-              )}
-              {assessment && <details className="crop-assessment-details" key={`${field}-${date}`}>
-                <summary>View score details</summary>
-                {assessment?.image && <p className="crop-assessment-image-source">
-                  Latest {legacyPhoto ? 'photo analysis' : 'visual inspection'}: {imageTime(assessment.image.analyzedAt)}
-                  {assessment.image.analysisCount > 1 && ` · ${assessment.image.analysisCount} ${legacyPhoto ? 'photo analyses' : 'inspections'} on this date`}
-                </p>}
-                {imageScore != null && (
-                  <div className="crop-assessment-image-source">
-                    <strong>Daily visual {legacyPhoto ? 'photo analysis' : 'inspection'} score: {imageScore} / 100</strong>
-                    {assessment.image.scoringMethod === 'visible-crop-area-v3' && <span> (assessable crop in the photo only)</span>}
-                    {assessment.image.regions?.length > 0 && (
-                      <ul>
-                        {assessment.image.regions.map((region, index) => (
-                          <li key={index}>{region.severity} severity across {region.sharePercent}% of assessable crop area — {region.evidence}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-                <p className="crop-assessment-score-explanation">
-                  Each visual factor averages all valid {legacyPhoto ? 'saved photo analyses' : 'rule-based inspections'} on this date. Each available sensor reading is scored first; then its scores are averaged. The displayed measurement average is separate from that score. Each scored factor's weight is its share of the combined score.
-                </p>
-                <div className="crop-assessment-factors">
-                  {displayFactors.map((factor) => (
-                    <div className="crop-assessment-factor" key={factor.key}>
-                      <div className="crop-assessment-factor-label">
-                        <span>{factor.label} <small>{factor.source === 'context' ? 'Score unavailable' : `Weight: ${Math.round(factor.weight * 100)}%`}</small></span>
-                        <span className="crop-assessment-factor-measure">
-                          {factor.average != null && <small>Avg: {readingValue(factor.average, ['temperature', 'soilTemperature'].includes(factor.key) ? '°C' : '%')}</small>}
-                          <strong>{factor.source === 'context' ? readingValue(factor.average, '°C') : factor.score == null ? 'No score' : `${factorValue(factor)} / 100`}</strong>
-                        </span>
-                      </div>
-                      {factor.source !== 'context' && <div className="crop-assessment-track" role="progressbar" aria-label={`${factor.label} score`}
-                        aria-valuemin="0" aria-valuemax="100" aria-valuenow={factor.score ?? undefined}
-                        aria-valuetext={factor.score == null ? 'No score available' : `${factorValue(factor)} out of 100`}>
-                        <span style={{ width: `${factor.score || 0}%` }} />
-                      </div>}
-                      <small className="crop-assessment-factor-result">Result: {factorResult(factor, legacyPhoto)}{factor.source === 'sensor' && factor.count > 0 ? ` · ${factor.count} reading${factor.count === 1 ? '' : 's'}` : ''}</small>
-                      {factor.source === 'image' && (factor.rating?.evidence || (factor.key === 'nutrient' && factor.score == null && assessment?.image?.nutrientRating?.evidence)) && (
-                        <small>{factor.count > 1 ? 'Latest recorded description: ' : ''}{factor.rating?.evidence || assessment.image.nutrientRating.evidence}</small>
-                      )}
-                      {factor.analyzedAt && factor.analyzedAt !== assessment?.image?.analyzedAt && (
-                        <small>Latest valid description from an earlier {legacyPhoto ? 'photo analysis' : 'inspection'} at {imageTime(factor.analyzedAt)}</small>
-                      )}
-                    </div>
+              <div className="cha-controls">
+                <div className="cha-segmented" role="group" aria-label="Reporting period">
+                  {PERIODS.map((item) => (
+                    <button key={item.value} type="button" className={period === item.value ? 'is-active' : ''}
+                      aria-pressed={period === item.value} onClick={() => setPeriod(item.value)}>{item.label}</button>
                   ))}
                 </div>
-              </details>}
-            </section>
+                <label className="crop-assessment-date">
+                  <span>{weekly ? 'Week ending' : 'Report date'}</span>
+                  <span className="crop-assessment-date-input"><CalendarDays size={17} aria-hidden="true" />
+                    <input type="date" value={date} max={manilaToday()} onChange={(event) => event.target.value && setDate(event.target.value)}
+                      aria-label={weekly ? 'Week ending date' : 'Report date'} />
+                  </span>
+                </label>
+              </div>
+            </nav>
 
-              <section className="crop-assessment-card crop-assessment-guidance" aria-label="Rule-based recommendations">
-                <h2><ClipboardList size={18} aria-hidden="true" /> Rule-Based Recommendations</h2>
-                {guidanceSource && <p className="crop-assessment-guidance-source">{guidanceSource}</p>}
-                {guidanceLoading && <p className="crop-assessment-empty">Generating…</p>}
-                {!guidanceLoading && guidanceError && <p className="crop-assessment-guidance-error" role="alert">{guidanceError}</p>}
-                {!guidanceLoading && recommendations.length > 0 && (
-                  <ol className="crop-assessment-recommendations">
-                    {recommendations.map((recommendation, index) => <li key={`${index}-${recommendation}`}>{recommendation}</li>)}
-                  </ol>
+            <div className="crop-assessment-tab-content">
+              {error && <div className="crop-assessment-error" role="alert"><AlertCircle size={17} />{error}</div>}
+              {report?.sensorError && <div className="crop-assessment-error" role="status"><AlertCircle size={17} />{report.sensorError}</div>}
+              {loading && <CropAssessmentSkeleton label={`Preparing the ${weekly ? 'weekly' : 'daily'} report for ${field}`} />}
+
+              {report && <>
+                {/* A. Report information */}
+                <section className="cha-info" aria-label="Report information">
+                  <div><span>Field</span><strong>{report.info.field}</strong></div>
+                  <div><span>Reporting period</span><strong>{report.info.period}</strong></div>
+                  <div><span>Period</span><strong>{report.info.startDate === report.info.endDate
+                    ? formatDate(report.info.endDate)
+                    : `${formatDate(report.info.startDate)} – ${formatDate(report.info.endDate)}`}</strong></div>
+                  <div><span>Crop health records</span><strong>{report.info.cropRecords}</strong></div>
+                  <div><span>Environmental records</span><strong>{report.info.environmentalRecords.toLocaleString()}</strong></div>
+                </section>
+
+                {/* B. Overall monitoring summary */}
+                <section className="crop-assessment-card cha-overview" aria-label="Overall monitoring summary">
+                  <div className="cha-card-title">
+                    <h2><ClipboardList size={18} aria-hidden="true" /> Overall Monitoring Summary</h2>
+                    <div className="cha-status-group">
+                      <div><small>Crop health</small><Pill tone={CROP_TONE[report.crop.status]}>{report.crop.status}</Pill></div>
+                      <div><small>Environment</small><Pill tone={ENV_TONE[report.environment.status]}>{report.environment.status}</Pill></div>
+                    </div>
+                  </div>
+                  <p className="cha-overview-text">{overview}</p>
+                  <div className="cha-overview-foot">
+                    <small><Sparkles size={13} aria-hidden="true" /> {summaryLoading ? 'Writing the AI summary…' : summarySource}{report.info.isCurrent ? ` · as of ${formatTime(report.info.end)}` : ''}</small>
+                    <button type="button" className="crop-assessment-regenerate" disabled={summaryLoading || !hasRecords}
+                      onClick={() => setSummaryVersion((version) => version + 1)}>
+                      <RefreshCw size={15} aria-hidden="true" /> Refresh summary
+                    </button>
+                  </div>
+                </section>
+
+                <div className="cha-grid">
+                  {/* C. Crop health summary */}
+                  <section className="crop-assessment-card" aria-label="Crop health summary">
+                    <div className="cha-card-title">
+                      <h2><Sprout size={18} aria-hidden="true" /> Crop Health Summary</h2>
+                      <Pill tone={CROP_TONE[report.crop.status]}>{report.crop.status}</Pill>
+                    </div>
+                    <p className="cha-card-sub">
+                      {report.crop.recordCount
+                        ? `${report.crop.recordCount} AI photo assessment${report.crop.recordCount === 1 ? '' : 's'} · severities as assigned by the validated classification`
+                        : <>No crop assessment recorded. <a href="/admin/monitoring/crop-health">Analyze a photo in Crop Health Monitoring</a>.</>}
+                    </p>
+                    <ul className="cha-rows">{report.crop.dimensions.map((item) => <DimensionRow key={item.key} item={item} weekly={weekly} />)}</ul>
+                  </section>
+
+                  {/* D. Environmental monitoring summary */}
+                  <section className="crop-assessment-card" aria-label="Environmental monitoring summary">
+                    <div className="cha-card-title">
+                      <h2><ThermometerSun size={18} aria-hidden="true" /> Environmental Monitoring</h2>
+                      <Pill tone={ENV_TONE[report.environment.status]}>{report.environment.status}</Pill>
+                    </div>
+                    <p className="cha-card-sub">{report.info.environmentalReadings
+                      ? `${report.info.environmentalReadings.toLocaleString()} valid readings · classified by configured AgriVerse ranges`
+                      : 'No environmental readings in this period.'}</p>
+                    <ul className="cha-rows">{report.environment.parameters.map((item) => <ParameterRow key={item.key} item={item} />)}</ul>
+                  </section>
+                </div>
+
+                {/* E. Combined findings */}
+                <section className="crop-assessment-card" aria-label="Combined findings">
+                  <div className="cha-card-title">
+                    <h2><Link2 size={18} aria-hidden="true" /> Combined Findings</h2>
+                    <span className="cha-scenario">{report.combined.title}</span>
+                  </div>
+                  <p className="cha-overview-text">{combinedText}</p>
+                  <div className="cha-combined">
+                    <CombinedList title="Direct observations" items={report.combined.direct} icon={ListChecks} />
+                    <CombinedList title="Potential environmental risk factors" items={report.combined.risks} icon={AlertTriangle} />
+                    <CombinedList title="Suspected relationships" items={report.combined.relationships} icon={Link2} />
+                    <CombinedList title="Needs field confirmation" items={report.combined.confirm} icon={Microscope} />
+                  </div>
+                </section>
+
+                <div className="cha-grid is-actions">
+                  {/* F. Priority concerns */}
+                  <section className="crop-assessment-card" aria-label="Priority concerns">
+                    <div className="cha-card-title"><h2><AlertTriangle size={18} aria-hidden="true" /> Priority Concerns</h2></div>
+                    {report.concerns.length ? (
+                      <ol className="cha-concerns">
+                        {report.concerns.map((item) => (
+                          <li key={`${item.related}-${item.concern}`}>
+                            <div><strong>{item.concern}</strong><Pill tone={PRIORITY_TONE[item.level]}>{item.level}</Pill></div>
+                            <small>{item.reason}</small>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : <p className="crop-assessment-empty">No crop health or environmental concern was recorded in this period.</p>}
+                  </section>
+
+                  {/* G. Recommended actions */}
+                  <section className="crop-assessment-card" aria-label="Recommended actions">
+                    <div className="cha-card-title"><h2><ListChecks size={18} aria-hidden="true" /> Recommended Actions</h2></div>
+                    <ol className="cha-actions">
+                      {report.recommendations.map((item) => (
+                        <li key={item.action} className={`is-${PRIORITY_TONE[item.priority]}`}>
+                          <div className="cha-action-head"><Pill tone={PRIORITY_TONE[item.priority]}>{item.priority}</Pill><small>{item.related}</small></div>
+                          <strong>{item.action}</strong>
+                          <small>Why: {item.reason}</small>
+                        </li>
+                      ))}
+                    </ol>
+                    <small className="cha-foot-note">Confirm findings in the field before any treatment. No chemical dosages or irrigation volumes are recommended without diagnostic and field data.</small>
+                  </section>
+                </div>
+
+                <section className="crop-assessment-card cha-records" aria-label="Assessment records">
+                  <div className="cha-card-title">
+                    <h2><ClipboardList size={18} aria-hidden="true" /> Assessment Records</h2>
+                  </div>
+                  <div className="cha-table-wrap">
+                    <table className="cha-table" aria-label={`${field} assessment records`}>
+                      <thead>
+                        <tr>
+                          <th scope="col">Date &amp; Time</th>
+                          <th scope="col">Status</th>
+                          <th scope="col">Main Finding</th>
+                          <th scope="col">Areas Flagged</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagedRecords.length ? pagedRecords.map((record) => {
+                          const flagged = DIMENSION_KEYS.filter(({ key }) => ['ISSUE SUSPECTED', 'ISSUE DETECTED'].includes(record.dimensions[key]?.status))
+                          return (
+                            <tr key={record.id}>
+                              <td className="cha-table-time">{formatTime(record.at, weekly)}</td>
+                              <td><Pill tone={CROP_TONE[record.status]}>{record.status}</Pill></td>
+                              <td className="cha-table-finding">{record.headline || record.summary || 'Crop assessment'}</td>
+                              <td>
+                                {flagged.length ? (
+                                  <div className="cha-chips">
+                                    {flagged.map(({ key, label }) => {
+                                      const severity = record.dimensions[key].severity
+                                      const tone = severity === 'HIGH' ? 'critical' : 'warning'
+                                      return <span key={key} className={`cha-chip is-${tone}`}>{label} · {severity === 'UNDETERMINED' ? 'Undetermined' : `${severity[0]}${severity.slice(1).toLowerCase()}`}</span>
+                                    })}
+                                  </div>
+                                ) : <span className="cha-table-none">None</span>}
+                              </td>
+                            </tr>
+                          )
+                        }) : (
+                          <tr><td colSpan={4} className="cha-table-empty">No crop assessments in this period.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <footer className="pagination-footer cha-records-footer">
+                    <span>{field}: {records.length} assessment record{records.length === 1 ? '' : 's'}</span>
+                    <Pagination page={recordPage} totalPages={recordPages} onChange={setRecordPage} hideOnSinglePage ariaLabel="Assessment record pages" />
+                  </footer>
+                </section>
+
+                {/* H. Assessment limitations */}
+                {report.limitations.length > 0 && (
+                  <section className="cha-limitations" aria-label="Assessment limitations">
+                    <h3><Info size={15} aria-hidden="true" /> Assessment Limitations</h3>
+                    <ul>{report.limitations.map((item) => <li key={item}>{item}</li>)}</ul>
+                  </section>
                 )}
-                {!guidanceLoading && !guidanceError && !hasEvidence && <p className="crop-assessment-empty">No field data for this date.</p>}
-                <button type="button" className="crop-assessment-regenerate" disabled={guidanceLoading || loading || !hasEvidence} onClick={() => setGuidanceVersion((version) => version + 1)}>
-                  <RefreshCw size={15} aria-hidden="true" /> {recommendations.length ? 'Refresh guidance' : 'Show guidance'}
-                </button>
-                {recommendations.length > 0 && <small>Confirm in the field before treatment.</small>}
-              </section>
+              </>}
             </div>
           </section>
         </div>

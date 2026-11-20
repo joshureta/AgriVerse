@@ -2,6 +2,7 @@ import agriverseWordmark from '../assets/agriverse-wordmark.png'
 import sellerHero from '../assets/seller-dashboard-pineapple-crates.png'
 import '../styles/admin-dashboard.css'
 import '../styles/workspace-loading.css'
+import CropAssessmentSkeleton from './CropAssessmentSkeleton.jsx'
 
 const adminLinks = [
   { label: 'Dashboard', path: '/admin' },
@@ -11,6 +12,7 @@ const adminLinks = [
   { label: 'Records', path: '/admin/records' },
   { label: 'Crop Health Monitoring', path: '/admin/monitoring/crop-health', nested: true },
   { label: 'Environmental Monitoring', path: '/admin/monitoring/environmental', nested: true },
+  { label: 'Crop Health Assessment', path: '/admin/monitoring/crop-health-assessment', nested: true },
   { label: 'Messages', path: '/admin/messages' },
   { label: 'Settings', path: '/admin/settings' },
 ]
@@ -37,6 +39,7 @@ function pageFor(path, seller) {
     '/admin/records': ['records', 'Farm Records'],
     '/admin/monitoring/crop-health': ['crop-health', 'Crop Health Monitoring'],
     '/admin/monitoring/environmental': ['environmental', 'Real-Time Environmental Monitoring'],
+    '/admin/monitoring/crop-health-assessment': ['crop-assessment', 'Crop Health Assessment'],
     '/admin/messages': ['messages', 'Messages'],
     '/admin/settings': ['settings', 'Settings'],
   }
@@ -90,6 +93,19 @@ function MonitoringPreview({ environmental }) {
   return <><div className="workspace-loading-two-column"><Panel className="workspace-loading-photo"><div /><Bar width="52%" height={20} /><Bar width="85%" /></Panel><Panel className="workspace-loading-form"><Bar width="48%" height={21} />{[1, 2, 3, 4].map((item) => <div key={item}><Bar width="35%" height={12} /><Bar height={36} /></div>)}</Panel></div><Table columns={5} rows={3} /></>
 }
 
+// Field tabs and period controls, then the same report skeleton the page shows while it fetches.
+function CropAssessmentPreview() {
+  return (
+    <div className="crop-assessment-field-panel" aria-hidden="true">
+      <div className="crop-assessment-field-tabs cha-sk-tabs">
+        {[1, 2, 3, 4].map((item) => <Bar key={item} width={64} height={16} />)}
+        <span className="cha-sk-tab-controls"><Bar width={150} height={32} className="cha-sk-bar is-button" /><Bar width={190} height={34} className="cha-sk-bar is-button" /></span>
+      </div>
+      <div className="crop-assessment-tab-content"><CropAssessmentSkeleton /></div>
+    </div>
+  )
+}
+
 function MessagesPreview() {
   return <Panel className="workspace-loading-messages"><div className="workspace-loading-conversations"><Bar width="62%" height={23} /><Bar height={35} />{[1, 2, 3, 4, 5].map((item) => <div key={item}><Circle size={42} /><span><Bar width="65%" /><Bar width="90%" height={11} /></span></div>)}</div><div className="workspace-loading-thread"><div><Circle size={40} /><Bar width={160} height={21} /></div><section><Bar width="48%" height={44} /><Bar width="56%" height={44} /><Bar width="40%" height={44} /></section><Bar height={42} /></div></Panel>
 }
@@ -106,6 +122,7 @@ function Content({ type, seller }) {
   if (type === 'dashboard') return <DashboardPreview seller={seller} />
   if (type === 'inventory') return <InventoryPreview />
   if (type === 'crop-health' || type === 'environmental') return <MonitoringPreview environmental={type === 'environmental'} />
+  if (type === 'crop-assessment') return <CropAssessmentPreview />
   if (type === 'messages') return <MessagesPreview />
   if (type === 'settings') return <SettingsPreview />
   if (type === 'edit-user') return <EditUserPreview />

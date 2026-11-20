@@ -1,28 +1,29 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
-const { loadAssessment } = require("../lib/crop-health-assessment-service");
 const { manilaToday } = require("../lib/environmental-report");
-const { recommendationsFor } = require("../lib/crop-rule-guidance");
+const { loadMonitoringReport } = require("../lib/monitoring-report-service");
+const { generateMonitoringSummary } = require("../lib/monitoring-ai-summary");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
 
+// Unified crop health + environmental monitoring report (rule-based).
 router.get("/", async (req, res, next) => {
   try {
-    res.json(await loadAssessment(req.query.field, req.query.date || manilaToday()));
+    res.json(await loadMonitoringReport(req.query.field, req.query.period || "daily", req.query.date || manilaToday()));
   } catch (error) {
     next(error);
   }
 });
 
-router.post("/recommendations", async (req, res, next) => {
+// AI wording of the overall summary and combined findings, built on the same rule-based report.
+router.post("/summary", async (req, res, next) => {
   try {
-    const assessment = await loadAssessment(req.body?.field, req.body?.date || manilaToday());
-    const available = assessment.factors.some((factor) => factor.score != null || factor.count > 0)
-      || assessment.context.soilTemperature.count > 0 || assessment.image;
-    if (!available) return res.status(422).json({ error: "No assessment data is available for this field and date" });
-
-    res.json({ recommendations: recommendationsFor(assessment), generatedAt: new Date().toISOString() });
+    const report = await loadMonitoringReport(req.body?.field, req.body?.period || "daily", req.body?.date || manilaToday());
+    if (!report.info.cropRecords && !report.info.environmentalReadings) {
+      return res.status(422).json({ error: "No crop health or environmental records are available for this period" });
+    }
+    res.json({ ...(await generateMonitoringSummary(report)), generatedAt: new Date().toISOString() });
   } catch (error) {
     next(error);
   }
