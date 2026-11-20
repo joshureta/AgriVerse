@@ -42,6 +42,8 @@ export type ProfileChanges = {
 
 type AuthContextValue = {
   loading: boolean;
+  restoreError: string | null;
+  restoreSession: () => Promise<void>;
   session: Session | null;
   profile: WorkerProfile | null;
   changeInitialPassword: (password: string) => Promise<WorkerProfile>;
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<WorkerProfile | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   const hydrate = useCallback(async (nextSession: Session | null) => {
     setSession(nextSession);
@@ -81,19 +84,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(await getWorkerProfile());
     } catch {
       setProfile(null);
+      setRestoreError('Could not reconnect to your account. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const loadSession = useCallback(() => (
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (error) throw error;
+        return hydrate(data.session);
+      })
+      .catch(() => {
+        setRestoreError('Could not restore your session. Check your connection and try again.');
+        setLoading(false);
+      })
+  ), [hydrate]);
+
+  const restoreSession = useCallback(async () => {
+    setLoading(true);
+    setRestoreError(null);
+    await loadSession();
+  }, [loadSession]);
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => hydrate(data.session));
+    void loadSession();
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
-      if (!nextSession) setProfile(null);
+      if (!nextSession) {
+        setProfile(null);
+        setRestoreError(null);
+      }
     });
     return () => data.subscription.unsubscribe();
-  }, [hydrate]);
+  }, [loadSession]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -192,6 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
+    setRestoreError(null);
   }, []);
 
   const value = useMemo(
@@ -202,6 +228,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updateBuyerProfile,
       updateProfile,
       loading,
+      restoreError,
+      restoreSession,
       session,
       profile,
       refreshProfile,
@@ -215,6 +243,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updateBuyerProfile,
       updateProfile,
       loading,
+      restoreError,
+      restoreSession,
       profile,
       refreshProfile,
       session,

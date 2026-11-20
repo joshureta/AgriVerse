@@ -22,7 +22,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth-context';
 import { postAuthenticationRoute } from '@/lib/mobile-routing';
-import { setRememberSession } from '@/lib/remember-session';
 import { supabase } from '@/lib/supabase';
 import {
   getCityMunicipalityBarangays,
@@ -315,7 +314,6 @@ export default function SignUpScreen({
     setError('');
     setMessage('');
     try {
-      if (Platform.OS !== 'web') await setRememberSession(true);
       const registrationEmail = email.trim();
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: registrationEmail,
@@ -360,7 +358,6 @@ export default function SignUpScreen({
     setMessage('');
     let verified = false;
     try {
-      if (Platform.OS !== 'web') await setRememberSession(true);
       const { data, error: verifyError } = await supabase.auth.verifyOtp({
         email: pendingEmail,
         token: verificationDigits.join(''),

@@ -185,13 +185,9 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   inputRowFocused: {
+    // Keep native stacking stable so Android does not detach the focused input.
     borderColor: '#18753a',
     backgroundColor: '#FFFFFF',
-    shadowColor: '#18753a',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    elevation: 1,
   },
   inputIcon: {
     marginRight: 8,
