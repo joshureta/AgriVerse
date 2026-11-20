@@ -5,6 +5,7 @@ const { apiStatus, generateVisionJson, visionModels } = require("../lib/gemini-v
 const busy = () => new Error(JSON.stringify({ error: { code: 503, status: "UNAVAILABLE" } }));
 
 test("configured model is tried once before unique fallback models", () => {
+  assert.equal(visionModels(null)[0], "gemini-3.5-flash-lite");
   const models = visionModels("gemini-3.6-flash");
   assert.equal(models[0], "gemini-3.6-flash");
   assert.equal(models.filter((model) => model === "gemini-3.6-flash").length, 1);
