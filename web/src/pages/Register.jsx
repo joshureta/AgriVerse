@@ -14,8 +14,10 @@ import AuthHero from '../components/AuthHero.jsx'
 import '../styles/register.css'
 
 const VERIFICATION_CODE_LENGTH = 6
+// Creates a blank set of email verification code inputs.
 const emptyVerificationDigits = () => Array(VERIFICATION_CODE_LENGTH).fill('')
 
+// Renders a registration input with optional password visibility control.
 function Field({
   autoComplete,
   disabled,
@@ -58,6 +60,7 @@ function Field({
   )
 }
 
+// Renders a required address selector from location options.
 function SelectField({
   disabled,
   label,
@@ -88,6 +91,7 @@ function SelectField({
   )
 }
 
+// Guides buyer signup through details, address selection, and email verification.
 export default function Register() {
   const { loading: sessionLoading, user } = useAuth()
   const formRef = useRef(null)
@@ -126,6 +130,7 @@ export default function Register() {
   const passwordScore = passwordChecks.filter((check) => check.met).length
   const registrationSteps = ['Personal info', 'Security', 'Location']
 
+  // Sends signed-in users to the marketplace.
   useEffect(() => {
     if (!sessionLoading && user) {
       window.sessionStorage.removeItem('agriverse-pending-signup-email')
@@ -133,12 +138,14 @@ export default function Register() {
     }
   }, [sessionLoading, user])
 
+  // Counts down until another verification code can be requested.
   useEffect(() => {
     if (resendSeconds <= 0) return undefined
     const timer = window.setTimeout(() => setResendSeconds((seconds) => seconds - 1), 1000)
     return () => window.clearTimeout(timer)
   }, [resendSeconds])
 
+  // Loads the available regions for the address form.
   useEffect(() => {
     let active = true
 
@@ -165,6 +172,7 @@ export default function Register() {
     }
   }, [])
 
+  // Resets dependent address fields and loads provinces for the region.
   useEffect(() => {
     let active = true
 
@@ -214,6 +222,7 @@ export default function Register() {
     }
   }, [regionCode])
 
+  // Loads cities and municipalities after a province is selected.
   useEffect(() => {
     let active = true
 
@@ -252,6 +261,7 @@ export default function Register() {
     }
   }, [provinceCode])
 
+  // Loads barangays for the selected city or municipality.
   useEffect(() => {
     let active = true
 
@@ -288,6 +298,7 @@ export default function Register() {
     }
   }, [cityMunicipalityCode])
 
+  // Checks visible fields and password rules before advancing the form.
   function validateCurrentStep() {
     setError('')
     const stepElement = formRef.current?.querySelector(
@@ -317,17 +328,20 @@ export default function Register() {
     return true
   }
 
+  // Advances to the next registration step when the current one is valid.
   function handleNextStep() {
     if (validateCurrentStep()) {
       setCurrentStep((step) => Math.min(step + 1, registrationSteps.length - 1))
     }
   }
 
+  // Returns to the previous registration step.
   function handlePreviousStep() {
     setError('')
     setCurrentStep((step) => Math.max(step - 1, 0))
   }
 
+  // Creates the account and starts email verification when needed.
   async function handleSubmit(event) {
     event.preventDefault()
     const formElement = event.currentTarget
@@ -409,6 +423,7 @@ export default function Register() {
     setSubmitting(false)
   }
 
+  // Confirms the emailed code and opens the buyer marketplace.
   async function handleVerifyEmail(event) {
     event.preventDefault()
     if (submitting || verificationDigits.some((digit) => !digit)) return
@@ -438,6 +453,7 @@ export default function Register() {
     }
   }
 
+  // Requests another signup code after the resend timer expires.
   async function handleResendCode() {
     if (submitting || resendSeconds > 0) return
 
@@ -468,6 +484,7 @@ export default function Register() {
     }
   }
 
+  // Clears pending verification so the buyer can use another email.
   function changeRegistrationEmail() {
     window.sessionStorage.removeItem('agriverse-pending-signup-email')
     setPendingEmail('')
@@ -477,6 +494,7 @@ export default function Register() {
     setMessage('')
   }
 
+  // Distributes typed digits across the code inputs and moves focus.
   function handleCodeDigitChange(index, value) {
     const digits = value.replace(/\D/g, '')
 
@@ -497,6 +515,7 @@ export default function Register() {
     }
   }
 
+  // Fills the verification inputs from a pasted code.
   function handleCodePaste(event) {
     const digits = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, VERIFICATION_CODE_LENGTH)
     if (!digits) return
@@ -506,6 +525,7 @@ export default function Register() {
     codeInputRefs.current[Math.min(digits.length, VERIFICATION_CODE_LENGTH - 1)]?.focus()
   }
 
+  // Moves between code inputs with Backspace and arrow keys.
   function handleCodeKeyDown(event, index) {
     if (event.key === 'Backspace' && !verificationDigits[index] && index > 0) {
       event.preventDefault()

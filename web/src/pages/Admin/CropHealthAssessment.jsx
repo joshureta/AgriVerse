@@ -14,6 +14,8 @@ const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replac
 const FIELDS = ['Field A', 'Field B', 'Field C', 'Field D']
 const PERIODS = [{ value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }]
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000
+// Gets today's date in Manila for the initial report filter.
+// Gets today's date in Manila for the initial report filter.
 const manilaToday = () => new Date(Date.now() + MANILA_OFFSET_MS).toISOString().slice(0, 10)
 
 const DIMENSION_ICONS = { cropCondition: Sprout, pest: Bug, nutrient: FlaskConical, disease: Microscope }
@@ -29,6 +31,8 @@ const DIMENSION_KEYS = [
   { key: 'disease', label: 'Disease' },
 ]
 
+// Sends an authenticated crop health assessment request.
+// Sends an authenticated crop health assessment request.
 async function assessmentRequest(path, options = {}) {
   const { data, error } = await supabase.auth.getSession()
   if (error) throw error
@@ -46,19 +50,31 @@ async function assessmentRequest(path, options = {}) {
   return body
 }
 
+// Formats a report date in Manila time.
+// Formats a report date in Manila time.
 const formatDate = (value) => new Date(`${value}T00:00:00+08:00`).toLocaleDateString('en-PH', {
   timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric',
 })
+// Formats a reading time, optionally including its day.
+// Formats a reading time, optionally including its day.
 const formatTime = (value, withDay) => new Date(value).toLocaleString('en-PH', {
   timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', ...(withDay ? { month: 'short', day: 'numeric' } : {}),
 })
+// Shows a measured value with its unit or a missing-value marker.
+// Shows a measured value with its unit or a missing-value marker.
 const formatReading = (point, unit) => point ? `${point.value}${unit === '°C' ? '°C' : ` ${unit}`}` : '—'
+// Converts a severity code into its display label.
+// Converts a severity code into its display label.
 const severityText = (severity) => !severity ? null : severity === 'UNDETERMINED' ? 'Severity undetermined' : `${severity[0]}${severity.slice(1).toLowerCase()} severity`
 
+// Renders a status label with the requested tone.
+// Renders a status label with the requested tone.
 function Pill({ tone, children }) {
   return <span className={`cha-pill is-${tone || 'muted'}`}>{children}</span>
 }
 
+// Chooses the status tone for a crop assessment dimension.
+// Chooses the status tone for a crop assessment dimension.
 function dimensionTone(item) {
   if (item.result === 'NO ISSUE DETECTED') return 'normal'
   if (item.highestSeverity === 'HIGH') return 'critical'
@@ -66,6 +82,8 @@ function dimensionTone(item) {
   return 'muted'
 }
 
+// Displays the findings for one crop health dimension.
+// Displays the findings for one crop health dimension.
 function DimensionRow({ item, weekly }) {
   const Icon = DIMENSION_ICONS[item.key]
   return (
@@ -95,6 +113,8 @@ function DimensionRow({ item, weekly }) {
   )
 }
 
+// Displays one environmental parameter and its readings.
+// Displays one environmental parameter and its readings.
 function ParameterRow({ item }) {
   const Icon = PARAMETER_ICONS[item.key]
   return (
@@ -121,6 +141,8 @@ function ParameterRow({ item }) {
   )
 }
 
+// Displays a group of combined findings when it has entries.
+// Displays a group of combined findings when it has entries.
 function CombinedList({ title, items, icon: Icon }) {
   if (!items.length) return null
   return (
@@ -131,6 +153,8 @@ function CombinedList({ title, items, icon: Icon }) {
   )
 }
 
+// Displays daily and weekly crop health assessment reports.
+// Displays daily and weekly crop health assessment reports.
 export default function CropHealthAssessment() {
   const [field, setField] = useState('Field A')
   const [period, setPeriod] = useState('daily')
@@ -143,6 +167,7 @@ export default function CropHealthAssessment() {
   const [summaryVersion, setSummaryVersion] = useState(0)
   const [recordPage, setRecordPage] = useState(1)
 
+  // Loads the assessment report whenever its field, period, or date changes.
   useEffect(() => {
     let active = true
     setLoading(true)
@@ -159,6 +184,7 @@ export default function CropHealthAssessment() {
 
   const hasRecords = report && (report.info.cropRecords > 0 || report.info.environmentalReadings > 0)
 
+  // Loads the combined summary when the report contains records.
   useEffect(() => {
     if (!hasRecords) return undefined
     let active = true

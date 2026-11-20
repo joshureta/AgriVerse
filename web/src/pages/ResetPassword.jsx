@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import RecoveryLayout from '../components/RecoveryLayout.jsx'
 import { initialAuthFragment, supabase } from '../lib/supabase.js'
 
+// Verifies a recovery link and lets the user set a new password.
 export default function ResetPassword() {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState('')
@@ -19,6 +20,7 @@ export default function ResetPassword() {
   ]
   const passwordScore = passwordChecks.filter((check) => check.met).length
 
+  // Checks that the recovery link matches the active Supabase session.
   useEffect(() => {
     let active = true
     const params = new URLSearchParams(initialAuthFragment)
@@ -45,6 +47,7 @@ export default function ResetPassword() {
     return () => { active = false }
   }, [])
 
+  // Validates and updates the password, then ends the recovery session.
   async function handleSubmit(event) {
     event.preventDefault()
     setError('')

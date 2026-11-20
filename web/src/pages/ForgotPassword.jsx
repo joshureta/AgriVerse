@@ -2,12 +2,14 @@ import { useState } from 'react'
 import RecoveryLayout from '../components/RecoveryLayout.jsx'
 import { supabase } from '../lib/supabase.js'
 
+// Lets a user request a password reset email.
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Sends a reset link and reports the result to the user.
   async function handleSubmit(event) {
     event.preventDefault()
     setLoading(true)

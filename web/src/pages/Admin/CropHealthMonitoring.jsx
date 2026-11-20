@@ -124,6 +124,8 @@ function DecisionTreeFindings({ factorRatings, limitations }) {
   )
 }
 
+// Displays current decision-tree findings or earlier visual ratings.
+// Displays current decision-tree findings or earlier visual ratings.
 function VisualFindings({ factorRatings, issues, limitations }) {
   if (isDecisionTree(factorRatings)) {
     return <DecisionTreeFindings factorRatings={factorRatings} limitations={limitations} />

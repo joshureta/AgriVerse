@@ -70,12 +70,14 @@ export default function BuyerProfile() {
   const [message, setMessage] = useState('')
   const [toast, setToast] = useState('')
 
+  // Clears the profile success toast after a short delay.
   useEffect(() => {
     if (!toast) return undefined
     const timer = window.setTimeout(() => setToast(''), 4000)
     return () => window.clearTimeout(timer)
   }, [toast])
 
+  // Reports whether a requested email change has been confirmed.
   useEffect(() => {
     if (!user?.id) return
     const key = `agriverse-pending-email-${user.id}`

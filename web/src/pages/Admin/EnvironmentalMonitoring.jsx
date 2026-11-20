@@ -102,6 +102,8 @@ async function requestEnvironmentalReport(field, date, generate = false) {
   return body
 }
 
+// Formats a sensor timestamp in Manila time.
+// Formats a sensor timestamp in Manila time.
 function formatSensorTime(measuredAt) {
   return Number.isNaN(measuredAt.getTime())
     ? 'Unknown'
@@ -110,10 +112,13 @@ function formatSensorTime(measuredAt) {
     })
 }
 
+// Calculates summary statistics for valid visible sensor readings.
+// Calculates summary statistics for valid visible sensor readings.
 function summarizeVisibleMetric(rows, key) {
   const values = rows.map((row) => Number(row[key]))
     .filter((value, index) => rows[index][key] != null && Number.isFinite(value))
   if (!values.length) return { count: 0, average: null, min: null, max: null }
+  // Rounds a metric to one decimal place for display.
   const round = (value) => Math.round(value * 10) / 10
   return {
     count: values.length,

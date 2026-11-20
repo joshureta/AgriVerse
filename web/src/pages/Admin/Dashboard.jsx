@@ -27,6 +27,7 @@ const activityIcons = {
   delivery_ongoing: Truck,
 }
 
+// Formats an activity timestamp as a recent relative time or calendar date.
 function completedWhen(iso, now) {
   const minutes = Math.floor(Math.max(0, now - new Date(iso).getTime()) / 60000)
   if (minutes < 1) return 'just now'
@@ -36,6 +37,7 @@ function completedWhen(iso, now) {
   return completedAtFormat.format(new Date(iso))
 }
 
+// Displays one completed or ongoing farm activity.
 function ActivityRow({ activity, now, ongoing = false }) {
   const ActivityIcon = activityIcons[activity.type] || CircleCheck
   return <article>
@@ -51,6 +53,7 @@ function ActivityRow({ activity, now, ongoing = false }) {
   </article>
 }
 
+// Shows current farm metrics, inventory, trends, and recent activity.
 export default function AdminDashboard() {
   const { profile } = useAuth()
   const [revenueData, setRevenueData] = useState(null)
@@ -70,12 +73,14 @@ export default function AdminDashboard() {
   const firstName = displayName.split(' ')[0]
   const revenue = revenueData?.revenue
 
+  // Loads this month's revenue and its request status.
   const fetchRevenue = useCallback(async () => {
     try {
       setRevenueData(await loadAdminRevenue('month'))
       setRevenueError('')
     } catch (error) { setRevenueError(error.message) }
   }, [])
+  // Loads recent activities and updates their relative time reference.
   const fetchActivities = useCallback(async () => {
     try {
       const { completed, ongoing } = await loadAdminActivities(ACTIVITY_MAX_COUNT)
@@ -86,20 +91,25 @@ export default function AdminDashboard() {
     } catch (error) { setActivitiesError(error.message) }
     finally { setActivitiesLoading(false) }
   }, [])
+  // Loads inventory quantities for the stock chart.
   const fetchInventory = useCallback(async () => {
     try { setInventory(await loadAdminInventory()); setInventoryError('') }
     catch (error) { setInventoryError(error.message) }
   }, [])
+  // Loads the farm summary counts.
   const fetchSummary = useCallback(async () => {
     try { setSummary(await loadAdminSummary()); setSummaryError('') }
     catch (error) { setSummaryError(error.message) }
   }, [])
+  // Loads productivity data for the dashboard panel.
   const fetchProductivity = useCallback(async () => {
     try { setProductivity(await loadAdminProductivity()); setProductivityError('') }
     catch (error) { setProductivityError(error.message) }
   }, [])
 
+  // Refreshes dashboard data on mount and at the configured interval.
   useEffect(() => {
+    // Reloads each dashboard section during a scheduled refresh.
     const refresh = () => {
       fetchRevenue(); fetchActivities(); fetchInventory(); fetchSummary(); fetchProductivity()
     }
@@ -110,6 +120,7 @@ export default function AdminDashboard() {
 
   const hasActivities = completedActivities.length + ongoingActivities.length > 0
   const totalStock = inventory?.reduce((total, item) => total + item.quantity, 0) ?? 0
+  // Builds the inventory chart segments from each size's stock share.
   const inventoryGradient = useMemo(() => {
     if (!totalStock) return 'conic-gradient(#dfe8df 0 100%)'
     let cursor = 0

@@ -17,6 +17,7 @@ import '../../styles/work-order-dialogs.css'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
 const PAGE_SIZE = 10
+// Identifies overdue incidents that still need recovery or review.
 const needsOverdueFollowup = (incident) => !incident.recovered_at || (incident.task_id && incident.recovery_action === 'completed' && !incident.reviewed_at)
 const emptyForm = {
   assigned_worker_id: '', worker_category: '', category_id: '', activity_type: '', field_id: '', priority_id: '', status_id: '',
@@ -85,6 +86,7 @@ function formatSchedule(value) {
   }).format(date)
 }
 
+// Displays the dated events in a work order's timeline.
 function WorkOrderTimeline({ events, title = 'Task timeline' }) {
   if (!events.length) return null
   return (
@@ -428,6 +430,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [])
 
+  // Refreshes overdue counts periodically and when the window regains focus.
   useEffect(() => {
     loadOperationsData()
     const timer = window.setInterval(loadOperationsData, 30000)
@@ -438,6 +441,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [loadOperationsData, refreshKey])
 
+  // Indexes unresolved overdue incidents by task and order.
   const activeOverdueMap = useMemo(() => {
     const tasksMap = new Map()
     const ordersMap = new Map()
@@ -450,6 +454,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     return { tasks: tasksMap, orders: ordersMap }
   }, [operationsData.incidents])
 
+  // Gets today's Manila date for overdue comparisons.
   const todayManila = useMemo(() => {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Manila',
@@ -459,6 +464,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }).format(new Date())
   }, [])
 
+  // Checks a task against its incident and scheduled date.
   const checkIsTaskOverdue = useCallback((task) => {
     if (!task) return { isOverdue: false, incident: null }
     const incident = activeOverdueMap.tasks.get(Number(task.id))
@@ -473,6 +479,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [activeOverdueMap.tasks, todayManila])
 
+  // Checks a delivery against its incident and scheduled date.
   const checkIsOrderOverdue = useCallback((order) => {
     if (!order) return { isOverdue: false, incident: null }
     const incident = activeOverdueMap.orders.get(Number(order.id))
@@ -672,6 +679,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }
 
+  // Cancels the task or driver assignment linked to an overdue incident.
   async function cancelOverdueAssignment(incident, confirmed = false) {
     if (incident.task_id) {
       if (!confirmed && !window.confirm(`Cancel ${incident.label || `task #${incident.task_id}`}? The worker will be notified.`)) return false
@@ -1513,6 +1521,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         const items = Array.isArray(order.items) ? order.items : []
         const reached = [true, isAccepted, isPickedUp, isDelivered]
         const firstOpen = reached.findIndex((done) => !done)
+        // Marks each delivery timeline step as done, current, or pending.
         const stepState = (index) => (reached[index] ? 'is-done' : index === firstOpen ? 'is-now' : '')
         const steps = [
           { label: 'Assigned', note: order.driver_assigned_at ? formatSchedule(order.driver_assigned_at) : (order.delivery_scheduled_at ? formatSchedule(order.delivery_scheduled_at) : 'Dispatched'), state: stepState(0) },
@@ -1721,6 +1730,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         const resolutionOutcome = order.delivery_dispute_resolution === 'refunded'
           ? `${refundStatusLabel(order)}${order.refund_amount != null ? ` ₱${Number(order.refund_amount).toFixed(2)}` : ''}`
           : order.delivery_dispute_resolution === 'dismissed' ? 'Claim dismissed' : 'Resolved'
+        // Selects a dispute outcome and provides a matching notes draft.
         const chooseDecision = (decision) => {
           setDisputeDecision(decision)
           if (decision === 'refunded' && (!disputeResolutionNotes || disputeResolutionNotes.includes('Claim dismissed'))) {
@@ -1997,6 +2007,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         const damagedShare = total > 0 ? ((counts.damaged / total) * 100).toFixed(1) : '0.0'
         const rejecting = harvestDecision === 'reject'
         const worker = task.assigned_worker
+        // Renders an editable count for a harvest size or damaged fruit.
         const countField = (key, label) => (
           <WoField label={label} htmlFor={`harvest-${key}`} key={key}>
             <input

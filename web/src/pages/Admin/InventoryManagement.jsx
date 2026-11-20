@@ -18,6 +18,7 @@ const emptyItemForm = {
   equipment_type_id: '', condition: '', last_maintenance: '',
 }
 
+// Formats the local date for a date input's initial value.
 function todayForDateInput() {
   const today = new Date()
   const year = today.getFullYear()
@@ -78,6 +79,7 @@ function formatDate(value) {
   }).format(new Date(value))
 }
 
+// Formats an inventory price in Philippine pesos.
 function formatPrice(value) {
   return `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
@@ -331,6 +333,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setModal({ mode: 'add-stock', item, direction: 'add' })
   }
 
+  // Opens the price editor with the item's current selling price.
   function openEditPrice(item) {
     setPriceDraft(Number(item.selling_price).toFixed(2))
     setError('')
@@ -338,6 +341,7 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
     setModal({ mode: 'edit-price', item })
   }
 
+  // Validates and saves a changed pineapple selling price.
   async function savePrice(event) {
     event.preventDefault()
     const price = priceDraft.trim()

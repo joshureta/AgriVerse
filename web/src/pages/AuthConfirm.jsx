@@ -2,9 +2,11 @@ import { useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth.js'
 import '../styles/auth.css'
 
+// Shows email verification status and redirects confirmed buyers to the marketplace.
 export default function AuthConfirm() {
   const { loading, user } = useAuth()
 
+  // Clears the pending signup and redirects after the confirmed session loads.
   useEffect(() => {
     if (!loading && user) {
       window.sessionStorage.removeItem('agriverse-pending-signup-email')

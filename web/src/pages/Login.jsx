@@ -7,18 +7,21 @@ import jtoledoLogo from '../assets/Jtoledologo.png'
 import AuthHero from '../components/AuthHero.jsx'
 import '../styles/login.css'
 
+// Signs users in and routes them to the workspace for their role.
 export default function Login() {
   const { loading: sessionLoading, profile, user } = useAuth()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
+  // Redirects users who already have a loaded session and profile.
   useEffect(() => {
     if (!sessionLoading && user && profile) {
       window.location.replace(getHomePathForRole(profile.role, profile.worker_category))
     }
   }, [profile, sessionLoading, user])
 
+  // Authenticates the credentials and loads the role needed for routing.
   async function handleSubmit(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)

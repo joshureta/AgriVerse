@@ -6,6 +6,7 @@ import { saveOwnProfile } from '../services/profile.js'
 import '../styles/Buyer/buyerProfile.css'
 import '../styles/own-profile.css'
 
+// Converts a saved profile into editable form values.
 function fromProfile(profile) {
   return {
     full_name: profile?.full_name || '', mobile_number: profile?.mobile_number || '',
@@ -14,6 +15,7 @@ function fromProfile(profile) {
   }
 }
 
+// Displays and updates the signed-in worker or admin profile.
 export default function OwnProfile() {
   const { profile, refreshProfile, signOut, user } = useAuth()
   const [form, setForm] = useState(() => fromProfile(profile))
@@ -21,7 +23,9 @@ export default function OwnProfile() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [addressVersion, setAddressVersion] = useState(0)
+  // Refreshes the form when the loaded profile changes.
   useEffect(() => { setForm(fromProfile(profile)) }, [profile])
+  // Hides a success message after a short delay.
   useEffect(() => {
     if (!toast) return undefined
     const timer = window.setTimeout(() => setToast(''), 4000)
@@ -35,6 +39,7 @@ export default function OwnProfile() {
     : profile?.worker_category === 'seller' ? 'Seller'
       : profile?.worker_category === 'driver' ? 'Driver' : 'Crop worker'
 
+  // Validates and saves the profile, then reloads the shared account data.
   async function save(event) {
     event.preventDefault()
     setError('')

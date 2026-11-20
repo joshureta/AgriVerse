@@ -192,9 +192,12 @@ function RecordsReportMenu({ category, categoryId, kind, activity, search, order
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
 
+  // Attaches outside-click and Escape handlers while the report menu is open.
   useEffect(() => {
     if (!open) return undefined
+    // Closes the report menu when a pointer event lands outside it.
     const closeOutside = (event) => { if (!menuRef.current?.contains(event.target)) setOpen(false) }
+    // Closes the report menu when Escape is pressed.
     const closeEscape = (event) => { if (event.key === 'Escape') setOpen(false) }
     document.addEventListener('pointerdown', closeOutside)
     document.addEventListener('keydown', closeEscape)
@@ -204,6 +207,7 @@ function RecordsReportMenu({ category, categoryId, kind, activity, search, order
     }
   }, [open])
 
+  // Builds and downloads a PDF for the selected records and period.
   async function generate(event) {
     event.preventDefault()
     setGenerating(true)
