@@ -122,7 +122,9 @@ export default function ChangePasswordScreen() {
 
             <ScrollView
               contentContainerStyle={styles.scrollContent}
+              keyboardDismissMode="none"
               keyboardShouldPersistTaps="handled"
+              removeClippedSubviews={false}
               showsVerticalScrollIndicator={false}>
               
               {/* Stepper Progress Indicator */}
@@ -139,6 +141,7 @@ export default function ChangePasswordScreen() {
               {/* New Password */}
               <Text style={styles.label}>New password</Text>
               <View
+                collapsable={false}
                 style={[
                   styles.inputRow,
                   focusedField === 'new' && styles.inputRowFocused,
@@ -178,6 +181,7 @@ export default function ChangePasswordScreen() {
               {/* Confirm Password */}
               <Text style={styles.label}>Confirm password</Text>
               <View
+                collapsable={false}
                 style={[
                   styles.inputRow,
                   focusedField === 'confirm' && styles.inputRowFocused,
