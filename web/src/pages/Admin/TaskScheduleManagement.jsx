@@ -23,6 +23,16 @@ const emptyForm = {
   assigned_worker_id: '', worker_category: '', category_id: '', activity_type: '', field_id: '', priority_id: '', status_id: '',
   start_date: '', start_time: '07:00', end_time: '08:00', estimated_duration_minutes: '60', description: '',
 }
+// Stock Check: the worker counts pineapple stock by size and condition (codes match public.stock_conditions).
+const STOCK_CHECK = 'Stock Check'
+const STOCK_CONDITIONS = [
+  { code: 'good', label: 'Good' },
+  { code: 'minor_damage', label: 'Minor damage' },
+  { code: 'overripe', label: 'Overripe' },
+  { code: 'spoiled', label: 'Spoiled' },
+  { code: 'pest_disease', label: 'Pest or disease damage' },
+]
+const stockKey = (size, condition) => `${size}|${condition}`
 const emptyOptions = {
   workers: [], categories: [], fields: [], priorities: [], statuses: [], scheduleStatuses: [],
 }
@@ -346,6 +356,104 @@ function AssignmentWarning({ message }) {
 }
 
 // Displays task assignments, reviews, and schedule settings.
+// Totals for one size of a Stock Check. The approval applies good count minus the recorded quantity.
+function stockSizeTotals(size, systemQuantity, quantityOf) {
+  const counted = STOCK_CONDITIONS.reduce((sum, condition) => sum + quantityOf(size, condition.code), 0)
+  const good = quantityOf(size, 'good')
+  const unaccounted = Math.max(systemQuantity - counted, 0)
+  const found = Math.max(counted - systemQuantity, 0)
+  const writtenOff = counted - good + unaccounted - found
+  return { counted, good, unaccounted, found, writtenOff, updated: systemQuantity - writtenOff }
+}
+
+// Quantity by Condition, Inventory Adjustment and photos of a Stock Check (review and view dialogs).
+// With onChange the counts are editable before approval.
+function StockCheckSections({ data, counts, onChange, onOpenPhoto, workerName }) {
+  if (!data) return <p className="wo-hint">Loading stock count…</p>
+  const sizes = data.snapshot.map((row) => row.size)
+  if (!sizes.length) return <p className="wo-hint">No stock count was recorded for this task.</p>
+  const quantityOf = (size, condition) => Number(counts[stockKey(size, condition)]) || 0
+  const totals = Object.fromEntries(data.snapshot.map((row) => [row.size, { system: row.system_quantity, ...stockSizeTotals(row.size, row.system_quantity, quantityOf) }]))
+  const sum = (key) => sizes.reduce((total, size) => total + totals[size][key], 0)
+  const edited = data.counts.some((count) => count.quantity !== count.worker_quantity)
+  return (
+    <>
+      <WoSection title="Quantity by Condition">
+        {onChange && <p className="wo-hint">Quantities may be adjusted prior to approval.</p>}
+        <table className="wo-table is-counts">
+          <thead><tr><th><span className="sr-only">Condition</span></th>{sizes.map((size) => <th key={size}>{size}</th>)}<th>Total</th></tr></thead>
+          <tbody>
+            {STOCK_CONDITIONS.map((condition) => {
+              const rowTotal = sizes.reduce((total, size) => total + quantityOf(size, condition.code), 0)
+              return (
+                <tr key={condition.code}>
+                  <td className={condition.code === 'good' ? 'is-good' : ''}>{condition.label}</td>
+                  {sizes.map((size) => (
+                    <td key={size} className={condition.code === 'good' ? 'is-good' : condition.code === 'pest_disease' && quantityOf(size, condition.code) > 0 ? 'is-flag' : ''}>
+                      {onChange ? (
+                        <input
+                          className="wo-num"
+                          type="number"
+                          min="0"
+                          aria-label={`${size} ${condition.label}`}
+                          value={counts[stockKey(size, condition.code)] ?? ''}
+                          onChange={(event) => onChange(stockKey(size, condition.code), event.target.value)}
+                        />
+                      ) : quantityOf(size, condition.code)}
+                    </td>
+                  ))}
+                  <td className={condition.code === 'good' ? 'is-good' : ''}>{rowTotal}</td>
+                </tr>
+              )
+            })}
+            <tr className="is-total"><td>Total counted</td>{sizes.map((size) => <td key={size}>{totals[size].counted}</td>)}<td>{sum('counted')}</td></tr>
+            <tr><td className="is-muted">Unaccounted for</td>{sizes.map((size) => <td key={size} className={totals[size].unaccounted ? 'is-flag' : 'is-muted'}>{totals[size].unaccounted}</td>)}<td className="is-muted">{sum('unaccounted')}</td></tr>
+          </tbody>
+        </table>
+        {edited && !onChange && <p className="wo-fine">Some quantities were adjusted by the administrator before approval.</p>}
+      </WoSection>
+
+      <WoSection title="Inventory Adjustment">
+        <table className="wo-table is-counts">
+          <thead><tr><th>Size</th><th>Recorded quantity</th><th>Written off</th><th>Updated quantity</th></tr></thead>
+          <tbody>
+            {sizes.map((size) => (
+              <tr key={size}>
+                <td>{size}</td>
+                <td>{totals[size].system}</td>
+                <td className={totals[size].writtenOff > 0 ? 'is-flag' : ''}>{totals[size].writtenOff > 0 ? `−${totals[size].writtenOff}` : totals[size].writtenOff < 0 ? `+${-totals[size].writtenOff}` : '0'}</td>
+                <td><strong>{totals[size].updated}</strong></td>
+              </tr>
+            ))}
+            <tr className="is-total"><td>Total</td><td>{sum('system')}</td><td>{sum('writtenOff') > 0 ? `−${sum('writtenOff')}` : sum('writtenOff') < 0 ? `+${-sum('writtenOff')}` : '0'}</td><td>{sum('updated')}</td></tr>
+          </tbody>
+        </table>
+        <p className="wo-fine">Recorded quantity is the stock when the count started. Orders placed during the count are kept.</p>
+      </WoSection>
+
+      <WoSection title={`Photographic Evidence (${data.photos.length})`}>
+        {data.photos.length ? (
+          <div className="wo-photo-grid">
+            {data.photos.map((photo) => (
+              <figure key={photo.id}>
+                <button
+                  type="button"
+                  className="wo-photo is-thumb"
+                  aria-label={`View ${photo.size}, ${photo.condition_name} photo full size`}
+                  onClick={() => onOpenPhoto({ url: photo.image_url, title: `${photo.size}, ${photo.condition_name}`, subtitle: `Submitted by ${workerName || 'the worker'}` })}
+                >
+                  <img src={photo.image_url} alt={`${photo.size}, ${photo.condition_name}`} />
+                </button>
+                <figcaption>{photo.size}, {photo.condition_name.toLowerCase()}</figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : <p className="wo-hint">No photos were required for this count.</p>}
+      </WoSection>
+    </>
+  )
+}
+
 export default function TaskScheduleManagement({ settingsOnly = false }) {
   const [activeTab, setActiveTab] = useState(() => {
     if (settingsOnly) return 'fields'
@@ -388,6 +496,8 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const [harvestRejectionReason, setHarvestRejectionReason] = useState('')
   const [harvestDecision, setHarvestDecision] = useState('approve')
   const [harvestApprovalCount, setHarvestApprovalCount] = useState(0)
+  const [stockCheck, setStockCheck] = useState(null)
+  const [stockCounts, setStockCounts] = useState({})
   const [dismissedReviewAlerts, setDismissedReviewAlerts] = useState({ tasks: false, disputes: false, overdue: false })
   const [refreshKey, setRefreshKey] = useState(0)
   const [overdueCount, setOverdueCount] = useState(0)
@@ -611,9 +721,31 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [disputeActivePhoto])
 
+  // Loads the snapshot, counts and photos of a Stock Check for the review and view dialogs.
+  useEffect(() => {
+    const task = modal?.task
+    if (!task || task.category !== STOCK_CHECK || !['view', 'review-stock-check'].includes(modal.mode)) return undefined
+    let cancelled = false
+    setStockCheck(null)
+    apiRequest(`/api/admin/tasks/${task.id}/stock-check`)
+      .then((data) => {
+        if (cancelled) return
+        setStockCheck(data)
+        setStockCounts(Object.fromEntries((data.counts || []).map((count) => [stockKey(count.size, count.condition), String(count.quantity)])))
+      })
+      .catch((requestError) => { if (!cancelled) setError(requestError.message) })
+    return () => { cancelled = true }
+  }, [modal?.mode, modal?.task])
+
   // Opens the review form for a harvest task.
   function openReviewHarvest(task) {
     setError('')
+    if (task.category === STOCK_CHECK) {
+      setHarvestRejectionReason('')
+      setHarvestDecision('approve')
+      setModal({ mode: 'review-stock-check', task })
+      return
+    }
     setHarvestApprovalForm({
       harvest_small_count: String(task.harvest_small_count ?? 0),
       harvest_medium_count: String(task.harvest_medium_count ?? 0),
@@ -630,7 +762,21 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     setSaving(true)
     setError('')
     const isHarvest = modal.task.category === 'Harvesting'
+    const isStockCheckTask = modal.task.category === STOCK_CHECK
     try {
+      if (isStockCheckTask) {
+        // The admin's corrected counts are applied; Pineapple Stock changes only here.
+        const counts = (stockCheck?.counts || []).map((count) => {
+          const value = stockCounts[stockKey(count.size, count.condition)]
+          const quantity = Number(value)
+          if (value === '' || !Number.isInteger(quantity) || quantity < 0) throw new Error('Counts must be whole numbers 0 or greater.')
+          return { size: count.size, condition: count.condition, quantity, damage_types: count.damage_types || [] }
+        })
+        await apiRequest(`/api/admin/tasks/${modal.task.id}/approve-stock-check`, { method: 'POST', body: JSON.stringify({ counts }) })
+        setModal(null)
+        setRefreshKey((key) => key + 1)
+        return
+      }
       // Harvesting is approved with its (editable) counts, which are added to inventory.
       await apiRequest(`/api/admin/tasks/${modal.task.id}/${isHarvest ? 'approve-harvest' : 'approve'}`, {
         method: 'POST',
@@ -1411,7 +1557,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             footer={<>
               {isAwaitingApproval && (
                 <button type="button" className="wo-btn is-primary" onClick={() => { const taskToReview = modal.task; setModal(null); openReviewHarvest(taskToReview) }}>
-                  <Check size={15} aria-hidden="true" />Review harvest
+                  <Check size={15} aria-hidden="true" />{task.category === STOCK_CHECK ? 'Review stock check' : task.category === 'Harvesting' ? 'Review harvest' : 'Review task'}
                 </button>
               )}
               {isScheduled && !isOverdue && (
@@ -1483,6 +1629,20 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                   </p>
                 )}
               </WoSection>
+            )}
+
+            {task.category === STOCK_CHECK && (isCompleted || isAwaitingApproval) && (
+              <div className="wo-two is-even">
+                <StockCheckSections
+                  data={stockCheck}
+                  counts={stockCounts}
+                  onOpenPhoto={setDisputeActivePhoto}
+                  workerName={worker?.full_name}
+                />
+              </div>
+            )}
+            {task.category === STOCK_CHECK && isCompleted && (
+              <p className="wo-fine">Pineapple Stock was updated upon approval. Each write-off is recorded in the Stock Movement History.</p>
             )}
 
             <WoSection title="Instructions">
@@ -2155,6 +2315,123 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                     </>
                   ) : (
                     <p className="wo-note">{isHarvestReview ? 'Approving adds the counts to Inventory and marks the task Completed.' : 'Approving marks the task Completed and adds it to Records.'}</p>
+                  )}
+                  {error && <p className="wo-error" role="alert">{error}</p>}
+                </WoSection>
+              </div>
+            </div>
+          </WorkOrderDialog>
+        )
+      })()}
+
+      {/* Stock Check review: approving corrects Pineapple Stock. */}
+      {modal?.mode === 'review-stock-check' && (() => {
+        const task = modal.task
+        const worker = task.assigned_worker
+        const rejecting = harvestDecision === 'reject'
+        const quantityOf = (size, condition) => Number(stockCounts[stockKey(size, condition)]) || 0
+        const writtenOff = (stockCheck?.snapshot || []).reduce((total, row) => total + stockSizeTotals(row.size, row.system_quantity, quantityOf).writtenOff, 0)
+        const pestCount = (stockCheck?.snapshot || []).reduce((total, row) => total + quantityOf(row.size, 'pest_disease'), 0)
+        const rejectionPresets = [
+          ['Recount needed', 'Please recount the pineapples and submit the stock check again.'],
+          ['Photo unclear', 'One or more photos are unclear. Please retake them and submit the stock check again.'],
+          ['Condition incorrect', 'Some pineapples appear to be in the wrong condition. Please check and submit again.'],
+        ]
+        return (
+          <WorkOrderDialog
+            size="wide"
+            eyebrow="Stock Count Approval"
+            id={`#TASK-${String(task.id).padStart(4, '0')}`}
+            title="Review Stock Check"
+            titleId="review-stock-check-title"
+            sub={task.completed_at ? `Submitted on ${formatSchedule(task.completed_at)}${worker?.full_name ? ` by ${worker.full_name}` : ''}` : null}
+            onClose={() => setModal(null)}
+            footerNote={rejecting
+              ? 'Pineapple Stock is not changed. The task returns to the worker for a recount.'
+              : writtenOff > 0
+                ? `Approval will deduct ${writtenOff} pcs from Pineapple Stock and record each condition in the Stock Movement History.`
+                : writtenOff < 0
+                  ? `Approval will add ${-writtenOff} pcs to Pineapple Stock and record it in the Stock Movement History.`
+                  : 'Approval will mark the task Completed. Pineapple Stock is unchanged.'}
+            footer={<>
+              <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Cancel</button>
+              {rejecting ? (
+                <button type="button" className="wo-btn is-danger" disabled={saving || !harvestRejectionReason.trim()} onClick={rejectTask}>
+                  {saving ? 'Saving…' : 'Return for recount'}
+                </button>
+              ) : (
+                <button type="button" className="wo-btn is-primary" disabled={saving || !stockCheck?.counts?.length} onClick={approveTask}>
+                  <Check size={15} aria-hidden="true" />{saving ? 'Saving…' : 'Approve & Update Inventory'}
+                </button>
+              )}
+            </>}
+          >
+            {pestCount > 0 && (
+              <div className="wo-assignment-warning" role="status">
+                <span className="wo-assignment-warning-icon" aria-hidden="true"><TriangleAlert /></span>
+                <span>{pestCount === 1 ? 'One (1) pineapple shows' : `${pestCount} pineapples show`} signs of pest or disease damage. A Pest and Disease inspection is recommended.</span>
+              </div>
+            )}
+            <div className="wo-two">
+              <div>
+                <WoSection title="Task">
+                  <WoList>
+                    <WoRow label="Farm worker">{worker?.full_name || 'Unassigned worker'}</WoRow>
+                    <WoRow label="Location">{task.field || '—'}</WoRow>
+                    <WoRow label="Category">{task.category}</WoRow>
+                    <WoRow label="Priority"><span className={`wo-priority is-${task.priority || 'medium'}`}>{task.priority_label || 'Normal'}</span></WoRow>
+                    <WoRow label="Scheduled">{task.schedule?.start_time && task.schedule?.end_time ? `${formatSchedule(task.schedule_start)} – ${formatTime12(task.schedule.end_time)}` : formatSchedule(task.schedule_start)}</WoRow>
+                    <WoRow label="Finished">{formatSchedule(task.completed_at)}</WoRow>
+                  </WoList>
+                </WoSection>
+                {task.completion_notes && (
+                  <WoSection title="Remarks from Assigned Worker">
+                    <p className="wo-prose">{task.completion_notes}</p>
+                  </WoSection>
+                )}
+                {task.delay_reason_submitted_at && (
+                  <WoSection title="Reason for late completion">
+                    <p className="wo-prose">{task.delay_reason_notes || 'No explanation was recorded.'}</p>
+                  </WoSection>
+                )}
+              </div>
+              <div>
+                <StockCheckSections
+                  data={stockCheck}
+                  counts={stockCounts}
+                  onChange={rejecting ? null : (key, value) => setStockCounts((current) => ({ ...current, [key]: value }))}
+                  onOpenPhoto={setDisputeActivePhoto}
+                  workerName={worker?.full_name}
+                />
+                <WoSection title="Decision">
+                  <WoRadios
+                    label="Stock check decision"
+                    options={[{ value: 'approve', label: 'Approve' }, { value: 'reject', label: 'Return for recount' }]}
+                    value={harvestDecision}
+                    onChange={setHarvestDecision}
+                  />
+                  {rejecting && (
+                    <>
+                      <div className="wo-grid is-one">
+                        <WoField label="Reason for returning (required)" htmlFor="stock-check-rejection-reason">
+                          <textarea
+                            id="stock-check-rejection-reason"
+                            className="wo-input"
+                            value={harvestRejectionReason}
+                            onChange={(event) => setHarvestRejectionReason(event.target.value)}
+                            rows={3}
+                            maxLength={1000}
+                            placeholder="Explain what needs to be recounted…"
+                          />
+                        </WoField>
+                      </div>
+                      <p className="wo-links">
+                        <span>Presets</span>
+                        {rejectionPresets.map(([label, text]) => (
+                          <button type="button" key={label} onClick={() => setHarvestRejectionReason(text)}>{label}</button>
+                        ))}
+                      </p>
+                    </>
                   )}
                   {error && <p className="wo-error" role="alert">{error}</p>}
                 </WoSection>

@@ -155,7 +155,21 @@ function categoryKind(categoryName, activityType) {
   if (key === 'pest & disease') return activityType === 'action' ? 'pestaction' : 'inspection'
   if (key === 'harvesting') return 'harvesting'
   if (key === 'weeding') return 'weeding'
+  if (key === 'stock check') return 'stockcheck'
   return 'generic'
+}
+
+// Totals of an approved Stock Check, sent by the records API as stock_check_summary.
+function stockCheckTotals(task) {
+  const summary = task.stock_check_summary
+  const orDash = (value) => (summary ? value : '—')
+  return {
+    counted: orDash(`${summary?.counted} pcs`),
+    good: orDash(`${summary?.good} pcs`),
+    nonSaleable: orDash(`${summary?.non_saleable} pcs`),
+    unaccounted: orDash(`${summary?.unaccounted} pcs`),
+    writtenOff: orDash(summary?.written_off < 0 ? `+${-summary.written_off} pcs` : `${summary?.written_off} pcs`),
+  }
 }
 
 // Builds a table row from a completed task.
@@ -170,6 +184,7 @@ function recordRow(task, kind) {
   if (kind === 'pestaction') return [task.field, worker, date, suppliesName(task), suppliesAmount(task), insight]
   if (kind === 'harvesting') { const sizes = harvestCounts(task); return [task.field, worker, date, sizes.small, sizes.medium, sizes.large, sizes.damaged, insight] }
   if (kind === 'weeding') return [task.field, worker, date, insight]
+  if (kind === 'stockcheck') { const totals = stockCheckTotals(task); return [task.field, worker, date, totals.counted, totals.good, totals.nonSaleable, totals.unaccounted, insight] }
   return [task.field, worker, formatDate(task.started_at), date, insight]
 }
 
@@ -181,6 +196,7 @@ const RECORD_COLUMNS = {
   pestaction: ['FIELD', 'FARM WORKER', 'ACTION DATE', 'PESTICIDE', 'AMOUNT USED', 'INSIGHTS', 'ACTIONS'],
   harvesting: ['FIELD', 'FARM WORKER', 'HARVEST DATE', 'SMALL', 'MEDIUM', 'LARGE', 'DAMAGED', 'INSIGHTS', 'ACTIONS'],
   weeding: ['FIELD', 'FARM WORKER', 'DATE & TIME', 'INSIGHTS', 'ACTIONS'],
+  stockcheck: ['LOCATION', 'CONDUCTED BY', 'COUNT DATE', 'QUANTITY COUNTED', 'GOOD', 'NON-SALEABLE', 'UNACCOUNTED FOR', 'INSIGHTS', 'ACTIONS'],
   generic: ['FIELD', 'FARM WORKER', 'DATE STARTED', 'DATE COMPLETED', 'INSIGHTS', 'ACTIONS'],
 }
 
@@ -494,6 +510,22 @@ export default function RecordsManagement() {
               {modal.kind === 'fertilization' && <><div className="task-view-tile"><span className="task-view-tile-label">Fertilizer</span><strong className="task-view-tile-value">{suppliesName(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Amount Used</span><strong className="task-view-tile-value">{suppliesAmount(modal.task)}</strong></div></>}
               {modal.kind === 'pestaction' && <><div className="task-view-tile"><span className="task-view-tile-label">Pesticide</span><strong className="task-view-tile-value">{suppliesName(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Amount Used</span><strong className="task-view-tile-value">{suppliesAmount(modal.task)}</strong></div></>}
               {modal.kind === 'inspection' && <><div className="task-view-tile"><span className="task-view-tile-label">Crop Condition</span><strong className="task-view-tile-value">{detailText(modal.task, 'crop_condition')}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Pest/Disease Observed</span><strong className="task-view-tile-value">{detailText(modal.task, 'pest_observed')}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Recommended Action</span><strong className="task-view-tile-value">{detailText(modal.task, 'recommended_action')}</strong></div></>}
+              {modal.kind === 'stockcheck' && (() => {
+                const totals = stockCheckTotals(modal.task)
+                const sizes = modal.task.stock_check_summary?.sizes || []
+                return <>
+                  <div className="task-view-tile"><span className="task-view-tile-label">Quantity Counted</span><strong className="task-view-tile-value">{totals.counted}</strong></div>
+                  <div className="task-view-tile"><span className="task-view-tile-label">Good / Non-saleable</span><strong className="task-view-tile-value">{totals.good} / {totals.nonSaleable}</strong></div>
+                  <div className="task-view-tile"><span className="task-view-tile-label">Unaccounted For</span><strong className="task-view-tile-value">{totals.unaccounted}</strong></div>
+                  <div className="task-view-tile"><span className="task-view-tile-label">Written Off</span><strong className="task-view-tile-value">{totals.writtenOff}</strong></div>
+                  {sizes.map((size) => (
+                    <div className="task-view-tile" key={size.size}>
+                      <span className="task-view-tile-label">{size.size}: Recorded → Updated</span>
+                      <strong className="task-view-tile-value">{size.system_quantity} → {size.updated_quantity} pcs</strong>
+                    </div>
+                  ))}
+                </>
+              })()}
               {modal.kind === 'harvesting' && <><div className="task-view-tile"><span className="task-view-tile-label">Small / Medium / Large</span><strong className="task-view-tile-value">{harvestCounts(modal.task).small} / {harvestCounts(modal.task).medium} / {harvestCounts(modal.task).large}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Damaged</span><strong className="task-view-tile-value">{harvestCounts(modal.task).damaged} damaged</strong></div></>}
               <div className="task-view-tile">
                 <span className="task-view-tile-label">Date Started</span>
@@ -505,7 +537,9 @@ export default function RecordsManagement() {
               </div>
             </div>
             <section className="task-view-description"><span>Insights</span><p>{insightText(modal.task.completion_notes, 'No insights were added.')}</p></section>
-            <section className="task-view-description"><span>Photo proof</span><ProofPhoto url={modal.task.harvest_proof_image_url || modal.task.completion_proof_image_url} alt="Photo proof of completed work" /></section>
+            {modal.kind === 'stockcheck'
+              ? <section className="task-view-description"><span>Photographic evidence</span><p>The photos and the count for each condition are shown in Task and Schedule, in this task's View dialog.</p></section>
+              : <section className="task-view-description"><span>Photo proof</span><ProofPhoto url={modal.task.harvest_proof_image_url || modal.task.completion_proof_image_url} alt="Photo proof of completed work" /></section>}
           </div>
         </section>
       </div>}

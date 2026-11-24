@@ -2,7 +2,8 @@ const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { assertCropTaskSchedule } = require("../lib/crop-work-hours");
-const { ACTIVITY_TYPES, readActivityType } = require("../lib/task-details");
+const { ACTIVITY_TYPES, PINEAPPLE_SIZES, isStockCheck, readActivityType, readStockCounts } = require("../lib/task-details");
+const { loadStockChecks } = require("../lib/stock-check");
 const { httpError } = require("../lib/http-error");
 const { notifyTaskAssignment, notifyTaskCancellation, notifyTaskUpdate } = require("../lib/task-notifications");
 const { assertWorkerScheduleAvailable, mapScheduleConflictDatabaseError } = require("../lib/schedule-conflicts");
@@ -130,6 +131,9 @@ async function readTaskBody(body) {
   if (category.category_name === "Harvesting" && ["completed", "awaiting_approval"].includes(taskStatus.code)) {
     throw httpError(400, "Harvesting tasks can only be completed through the harvest review flow (Approve/Reject), not edited directly.");
   }
+  if (isStockCheck(category.category_name) && ["completed", "awaiting_approval"].includes(taskStatus.code)) {
+    throw httpError(400, "Stock Check tasks can only be completed through the stock check review (Approve/Return for recount).");
+  }
   const worker = await ensureFarmWorker(assignedWorkerId);
 
   const scheduleDate = readDate(body.schedule_date);
@@ -145,6 +149,7 @@ async function readTaskBody(body) {
 
   return {
     workerCategory: worker.worker_category,
+    isStockCheck: isStockCheck(category.category_name),
     task: {
       assigned_worker_id: assignedWorkerId,
       category_id: category.id,
@@ -322,8 +327,14 @@ router.get("/records", async (req, res, next) => {
     }
     if (error) throw error;
     const total = count || 0;
+    const tasks = (data || []).map(serializeTask);
+    // Stock Check rows in Records show counted, good, non-saleable and unaccounted-for totals.
+    const stockChecks = await loadStockChecks(supabase, tasks.filter((task) => isStockCheck(task.category)).map((task) => task.id));
+    for (const task of tasks) {
+      if (stockChecks[task.id]) task.stock_check_summary = stockChecks[task.id].summary;
+    }
     return res.json({
-      tasks: (data || []).map(serializeTask),
+      tasks,
       pagination: { page, pageSize, total, totalPages: Math.max(Math.ceil(total / pageSize), 1) },
     });
   } catch (error) { return next(error); }
@@ -332,6 +343,18 @@ router.get("/records", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try { return res.json({ task: await fetchTask(readTaskId(req.params.id)) }); }
   catch (error) { return next(error); }
+});
+
+// Snapshot, counts, photos and totals of a Stock Check, for the review and view dialogs and Records.
+router.get("/:id/stock-check", async (req, res, next) => {
+  try {
+    const id = readTaskId(req.params.id);
+    const task = await fetchTask(id);
+    if (!isStockCheck(task.category)) throw httpError(400, "This task is not a Stock Check");
+    const stockChecks = await loadStockChecks(getSupabase(), [id]);
+    const data = stockChecks[id] || { snapshot: [], counts: [], photos: [], summary: null };
+    return res.json(data);
+  } catch (error) { return next(error); }
 });
 
 router.post("/", async (req, res, next) => {
@@ -364,7 +387,7 @@ router.patch("/:id", async (req, res, next) => {
     const id = readTaskId(req.params.id);
     const payload = await readTaskBody(req.body);
     const { data: current, error: currentError } = await getSupabase().from("tasks")
-      .select("assigned_worker_id, category_id, field_id, priority_id, status_id, task_name, estimated_duration_minutes, description, activity_type, started_at, completed_at, inventory_item_id, assigned_worker:profiles!tasks_assigned_worker_id_fkey(worker_category), task_status:task_statuses!tasks_status_id_fkey(code)")
+      .select("assigned_worker_id, category_id, field_id, priority_id, status_id, task_name, estimated_duration_minutes, description, activity_type, details, started_at, completed_at, inventory_item_id, assigned_worker:profiles!tasks_assigned_worker_id_fkey(worker_category), task_status:task_statuses!tasks_status_id_fkey(code), category:task_categories!tasks_category_id_fkey(category_name)")
       .eq("id", id).maybeSingle();
     if (currentError) throwDatabaseError(currentError);
     if (!current) throw httpError(404, "Task was not found");
@@ -377,6 +400,10 @@ router.patch("/:id", async (req, res, next) => {
     if (current.inventory_item_id && current.category_id !== payload.task.category_id) {
       throw httpError(400, "The category cannot be changed after supplies were taken for this task.");
     }
+    if (current.task_status?.code !== "pending" && current.category_id !== payload.task.category_id
+      && (isStockCheck(current.category?.category_name) || payload.isStockCheck)) {
+      throw httpError(400, "A Stock Check cannot change category after it has started.");
+    }
     await assertTaskScheduleAvailable(payload, id);
     const { error: taskError } = await getSupabase().from("tasks").update(payload.task).eq("id", id);
     if (taskError) throwDatabaseError(taskError);
@@ -385,7 +412,7 @@ router.patch("/:id", async (req, res, next) => {
     if (scheduleError) {
       // The task and its schedule live in separate tables. Restore the task if
       // the database catches a conflict that appeared after the preflight check.
-      const { task_status: _taskStatus, assigned_worker: _assignedWorker, inventory_item_id: _inventoryItemId, ...originalTask } = current;
+      const { task_status: _taskStatus, assigned_worker: _assignedWorker, inventory_item_id: _inventoryItemId, category: _category, ...originalTask } = current;
       const { error: rollbackError } = await getSupabase().from("tasks").update(originalTask).eq("id", id);
       if (rollbackError) console.error("Failed to restore task after schedule update failure:", rollbackError.message);
       throwDatabaseError(scheduleError);
@@ -502,6 +529,31 @@ router.post("/:id/approve-harvest", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+// Approves a Stock Check and corrects Pineapple Stock. The admin may correct counts first;
+// body.counts uses the same shape as the worker's stock_counts.
+router.post("/:id/approve-stock-check", async (req, res, next) => {
+  try {
+    const id = readTaskId(req.params.id);
+    const task = await fetchTask(id);
+    if (!isStockCheck(task.category)) throw httpError(400, "This task is not a Stock Check");
+    const stockChecks = await loadStockChecks(getSupabase(), [id]);
+    const recordedSizes = (stockChecks[id]?.snapshot || []).map((row) => row.size);
+    const sizes = recordedSizes.length ? recordedSizes : PINEAPPLE_SIZES;
+    const counts = req.body?.counts == null ? null : readStockCounts(req.body.counts, sizes);
+    const { error } = await getSupabase().rpc("approve_stock_check_task", {
+      p_task_id: id, p_admin_id: req.user.id, p_counts: counts,
+    });
+    if (error) {
+      if (/not awaiting approval|not a stock check|not found|no counts|not enough|whole numbers/i.test(error.message || "")) {
+        throw httpError(409, error.message);
+      }
+      throw error;
+    }
+    await syncScheduleStatus(id, "completed");
+    return res.json({ task: await fetchTask(id) });
+  } catch (error) { return next(error); }
+});
+
 // Approves any task except Harvesting, which has its own route because the admin can correct the
 // counts and approving adds them to inventory. Approving completes the task, so it now appears in Records.
 router.post("/:id/approve", async (req, res, next) => {
@@ -515,6 +567,9 @@ router.post("/:id/approve", async (req, res, next) => {
     if (task.task_status?.code !== "awaiting_approval") throw httpError(409, "Task is not awaiting approval");
     if (task.category?.category_name === "Harvesting") {
       throw httpError(400, "Harvesting tasks are approved from the harvest report, where the counts can be checked");
+    }
+    if (isStockCheck(task.category?.category_name)) {
+      throw httpError(400, "Stock Check tasks are approved from the stock check review, which updates Pineapple Stock");
     }
     const awaitingId = await lookupIdByCode("task_statuses", "awaiting_approval");
     const completedId = await lookupIdByCode("task_statuses", "completed");
@@ -569,7 +624,13 @@ async function rejectTask(req, res, next) {
     }).eq("id", id).eq("status_id", awaitingId).select("id").maybeSingle();
     if (error) throwDatabaseError(error);
     if (!data) throw httpError(409, "Task is not awaiting approval");
-    return res.json({ task: await fetchTask(id) });
+    const task = await fetchTask(id);
+    // A recount starts from the stock as it is now, so orders placed since the first count are not counted twice.
+    if (isStockCheck(task.category)) {
+      const { error: snapshotError } = await getSupabase().rpc("capture_stock_check_snapshot", { p_task_id: id });
+      if (snapshotError) throw snapshotError;
+    }
+    return res.json({ task });
   } catch (error) { return next(error); }
 }
 

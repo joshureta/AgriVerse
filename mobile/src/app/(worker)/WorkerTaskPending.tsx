@@ -463,7 +463,7 @@ function TaskCard({
           {busy ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : workAllowed ? (
-            <Text style={styles.startButtonText}>Start Task</Text>
+            <Text style={styles.startButtonText}>{task.category === 'Stock Check' ? 'Start Stock Check' : 'Start Task'}</Text>
           ) : (
             <Text style={[styles.startButtonText, styles.startButtonTextWrap]}>
               {CROP_WORK_HOURS_LABEL}

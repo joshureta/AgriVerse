@@ -208,6 +208,19 @@
 /* ---------- Forms ---------- */
 .wo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 40px; margin-top: 10px; }
 .wo-grid.is-one { grid-template-columns: 1fr; }
+/* Stock Check: quantity by condition, one column per size. */
+.wo-table.is-counts th, .wo-table.is-counts td { padding-top: 5px; padding-bottom: 5px; }
+.wo-table.is-counts th:not(:first-child), .wo-table.is-counts td:not(:first-child) { text-align: right; }
+.wo-table.is-counts th:last-child, .wo-table.is-counts td:last-child { padding-right: 0; }
+.wo-table.is-counts .is-good { color: var(--wo-green); font-weight: 700; }
+.wo-table.is-counts .is-flag { color: var(--wo-red); font-weight: 700; }
+.wo-table.is-counts .is-muted { color: var(--wo-muted); }
+.wo-table.is-counts .is-total td { padding-top: 9px; font-weight: 700; }
+.wo-num { width: 56px; min-height: 30px; box-sizing: border-box; padding: 2px 0; border: 0; border-bottom: 1px solid var(--wo-input-line); border-radius: 0; color: var(--wo-ink); background: transparent; font: inherit; font-size: 14.5px; font-weight: 600; text-align: right; }
+.wo-num:focus { border-bottom: 2px solid var(--wo-green); outline: none; }
+.wo-photo-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.wo-photo-grid figure { margin: 0; }
+.wo-photo-grid figcaption { margin-top: 3px; color: var(--wo-muted); font-size: 11px; }
 .wo-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .wo-field.is-wide { grid-column: 1 / -1; }
 .wo-field > label { color: var(--wo-muted); font-size: 12.5px; font-weight: 600; }

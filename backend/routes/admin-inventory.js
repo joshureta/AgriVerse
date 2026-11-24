@@ -311,9 +311,15 @@ router.get("/stock-history", async (req, res, next) => {
     const itemIds = serializedItems.map((item) => item.id);
     if (!itemIds.length) return res.json(emptyResponse);
 
-    const { data, error, count } = await supabase.from("inventory_stock_movements")
-      .select("id, inventory_item_id, movement_type, quantity, quantity_before, quantity_after, created_at", { count: "exact" })
+    const baseColumns = "id, inventory_item_id, movement_type, quantity, quantity_before, quantity_after, created_at";
+    const readMovements = (columns) => supabase.from("inventory_stock_movements")
+      .select(columns, { count: "exact" })
       .in("inventory_item_id", itemIds).order("created_at", { ascending: false }).range(from, from + pageSize - 1);
+    // Stock Check write-offs carry a reason, condition and task (migration 068). Older databases fall back to the basic columns.
+    let { data, error, count } = await readMovements(`${baseColumns}, reason, task_id, condition:stock_conditions(code, condition_name)`);
+    if (error && ["42703", "PGRST200", "PGRST204"].includes(error.code)) {
+      ({ data, error, count } = await readMovements(baseColumns));
+    }
     if (error) {
       if (error.code === "42P01" || error.code === "PGRST205") {
         throw httpError(503, "Apply migration 010_inventory_stock_movements.sql to enable stock history");
@@ -324,7 +330,13 @@ router.get("/stock-history", async (req, res, next) => {
     return res.json({
       movements: (data || []).map((movement) => {
         const item = itemMap.get(movement.inventory_item_id);
-        return { ...movement, pineapple_size: item?.variant || "Unknown", unit: item?.unit_label || "" };
+        const { condition, ...rest } = movement;
+        return {
+          ...rest,
+          condition_name: condition?.condition_name || null,
+          pineapple_size: item?.variant || "Unknown",
+          unit: item?.unit_label || "",
+        };
       }),
       pagination: { page, pageSize, total, totalPages: Math.max(Math.ceil(total / pageSize), 1) },
     });

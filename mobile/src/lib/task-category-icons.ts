@@ -16,6 +16,7 @@ const taskCategoryIcons: Record<string, number> = {
   'Pest & Disease': require('@/assets/task-category-icons/pest-and-disease.png'),
   'Pests & Disease Control': require('@/assets/task-category-icons/pest-and-disease.png'),
   Harvesting: require('@/assets/task-category-icons/harvesting.png'),
+  'Stock Check': require('@/assets/task-category-icons/harvesting.png'),
 };
 
 export function taskCategoryIconSource(category?: string) {

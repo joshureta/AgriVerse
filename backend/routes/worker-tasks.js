@@ -7,9 +7,18 @@ const {
 } = require("../middleware/auth");
 const { getSupabase } = require("../supabase");
 const { assertCropWorkerCanWork, isTaskStartLocked } = require("../lib/crop-work-hours");
-const { collectsInspectionDetails, readInspectionDetails, requiredInventoryKind } = require("../lib/task-details");
+const {
+  PINEAPPLE_SIZES,
+  STOCK_CONDITIONS,
+  collectsInspectionDetails,
+  isStockCheck,
+  readInspectionDetails,
+  readStockCounts,
+  requiredInventoryKind,
+} = require("../lib/task-details");
 const { httpError } = require("../lib/http-error");
 const { uploadImage } = require("../lib/storage");
+const { loadStockChecks } = require("../lib/stock-check");
 
 const router = express.Router();
 const statuses = new Set(["pending", "in_progress", "awaiting_approval", "completed"]);
@@ -173,6 +182,24 @@ router.get("/inventory-options", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+// The worker's view of a Stock Check: every pineapple size and the counts saved before (for a recount).
+// It is always a blind count, so the recorded quantities are never sent to the worker.
+function workerStockCheck(data) {
+  const sizes = (data?.snapshot || []).map((row) => row.size);
+  return {
+    sizes: sizes.length ? sizes : PINEAPPLE_SIZES,
+    conditions: STOCK_CONDITIONS,
+    counts: (data?.counts || []).map(({ size, condition, quantity, damage_types }) => ({ size, condition, quantity, damage_types })),
+  };
+}
+
+// The sizes a Stock Check counts: those recorded when it started.
+async function stockCheckSizes(taskId) {
+  const stockChecks = await loadStockChecks(getSupabase(), [taskId]);
+  const sizes = (stockChecks[taskId]?.snapshot || []).map((row) => row.size);
+  return sizes.length ? sizes : PINEAPPLE_SIZES;
+}
+
 router.get("/:id", async (req, res, next) => {
   try {
     const db = getSupabase();
@@ -180,9 +207,44 @@ router.get("/:id", async (req, res, next) => {
       .eq("id", readTaskId(req.params.id)).eq("assigned_worker_id", req.user.id).maybeSingle();
     if (error) throw error;
     if (!data) throw httpError(404, "Assigned task was not found");
-    return res.json({ task: serializeTask(data) });
+    const task = serializeTask(data);
+    if (isStockCheck(task.category)) {
+      const stockChecks = await loadStockChecks(db, [task.id]);
+      task.stock_check = workerStockCheck(stockChecks[task.id]);
+    }
+    return res.json({ task });
   } catch (error) { return next(error); }
 });
+
+// Uploads the stock check photos and saves the counts. The database checks that every size and
+// condition was counted and that each non-saleable condition above zero has a photo.
+async function saveStockCheck(taskId, workerId, body, sizes, fieldName) {
+  const counts = readStockCounts(body.stock_counts, sizes);
+  const rawPhotos = Array.isArray(body.stock_photos) ? body.stock_photos : [];
+  if (rawPhotos.length > 30) throw httpError(400, "Attach no more than 30 photos");
+  const photos = [];
+  for (const photo of rawPhotos) {
+    const size = String(photo?.size || "").trim();
+    const condition = String(photo?.condition || "").trim();
+    if (!sizes.includes(size) || !STOCK_CONDITIONS.includes(condition) || typeof photo?.image !== "string" || !photo.image) {
+      throw httpError(400, "Each photo needs a size, a condition and an image");
+    }
+    const mimeType = String(photo.image_mime || "image/jpeg");
+    const base64Data = photo.image.replace(/^data:[^;]+;base64,/, "").trim();
+    const upload = await uploadImage("crop-inspections", base64Data, mimeType, `stock-checks-${fieldName}`);
+    if (!upload?.imageUrl) throw httpError(502, "A photo could not be uploaded. Please try again.");
+    photos.push({ size, condition, image_url: upload.imageUrl, storage_path: upload.storagePath || null });
+  }
+  const { error } = await getSupabase().rpc("save_stock_check_submission", {
+    p_task_id: taskId, p_worker_id: workerId, p_counts: counts, p_photos: photos,
+  });
+  if (error) {
+    if (/photo is required|every size|not part of|unknown condition|whole numbers|only an active|not a stock check|was not found|counts are required|missing its/i.test(error.message || "")) {
+      throw httpError(400, error.message);
+    }
+    throw error;
+  }
+}
 
 router.post("/:id/complete", async (req, res, next) => {
   try {
@@ -195,7 +257,7 @@ router.post("/:id/complete", async (req, res, next) => {
     if (completionNotes.length > 2000) throw httpError(400, "Worker notes must not exceed 2000 characters");
 
     const { data: existingTask, error: existingTaskError } = await getSupabase().from("tasks")
-      .select("id, field_id, activity_type, schedules(schedule_date), category:task_categories!tasks_category_id_fkey(category_name), field:farm_fields!tasks_field_id_fkey(field_name)")
+      .select("id, field_id, activity_type, details, schedules(schedule_date), category:task_categories!tasks_category_id_fkey(category_name), field:farm_fields!tasks_field_id_fkey(field_name)")
       .eq("id", taskId).eq("assigned_worker_id", req.user.id).maybeSingle();
     if (existingTaskError) throw existingTaskError;
     if (!existingTask) throw httpError(404, "Assigned task was not found");
@@ -209,20 +271,24 @@ router.post("/:id/complete", async (req, res, next) => {
     const categoryName = existingTask.category?.category_name || "Crop";
     const fieldName = existingTask.field?.field_name || "Field A";
     const isHarvestingTask = categoryName === "Harvesting";
+    const isStockCheckTask = isStockCheck(categoryName);
     const harvestCounts = isHarvestingTask ? readHarvestCounts(req.body) : {};
     const inspectionDetails = collectsInspectionDetails(categoryName, existingTask.activity_type)
       ? readInspectionDetails(req.body.details) : null;
 
     const rawImage = req.body.image || req.body.photo;
     const hasPhoto = Boolean(rawImage && typeof rawImage === "string");
-    if (!hasPhoto) {
+    // A stock check carries one photo per non-saleable condition instead of one proof photo.
+    if (isStockCheckTask) {
+      await saveStockCheck(taskId, req.user.id, req.body, await stockCheckSizes(taskId), fieldName);
+    } else if (!hasPhoto) {
       throw httpError(400, "A photo of the completed work is required to submit for approval");
     }
 
     let uploadResult = null;
     let mimeType = "image/jpeg";
     let imageName = `Task ${taskId} Proof Photo`;
-    if (hasPhoto) {
+    if (hasPhoto && !isStockCheckTask) {
       mimeType = String(req.body.image_mime || req.body.imageMime || "image/jpeg");
       imageName = String(req.body.image_name || req.body.imageName || imageName);
       const base64Data = rawImage.replace(/^data:[^;]+;base64,/, "").trim();
@@ -290,6 +356,21 @@ router.patch("/:id/status", async (req, res, next) => {
       throw httpError(409, "Tasks must be submitted with a photo for admin approval");
     }
     assertCropWorkerCanWork(req.profile);
+
+    // A Stock Check records the system quantity of each size as it starts (kept from the worker).
+    if (status === "in_progress" && isStockCheck(currentTask.category?.category_name)) {
+      const { error: startError } = await getSupabase().rpc("start_stock_check_task", {
+        p_task_id: taskId, p_worker_id: req.user.id,
+      });
+      if (startError) {
+        if (/not pending|was not found|not a stock check/i.test(startError.message || "")) throw httpError(409, startError.message);
+        throw startError;
+      }
+      await syncScheduleStatus(taskId, status);
+      const { data: startedTask, error: fetchError } = await getSupabase().from("tasks").select(taskSelect).eq("id", taskId).single();
+      if (fetchError) throw fetchError;
+      return res.json({ task: serializeTask(startedTask) });
+    }
 
     // Fertilization and Pest & Disease Action take supplies from inventory as the task starts.
     const supplyKind = status === "in_progress"

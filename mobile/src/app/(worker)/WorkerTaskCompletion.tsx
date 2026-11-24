@@ -33,8 +33,19 @@ import {
   type InspectionDetails,
   type TaskSupplyFields,
 } from '@/lib/task-supplies';
+import { StockCheckCounts } from '@/components/stock-check-counts';
+import {
+  initialDamageTypes,
+  initialStockCounts,
+  isStockCheck,
+  STOCK_CONDITIONS,
+  stockKey,
+  type StockCheckInfo,
+  type StockPhoto,
+} from '@/lib/stock-check';
 
 type WorkerTask = TaskSupplyFields & {
+  stock_check?: StockCheckInfo;
   id: number;
   category: string;
   field: string;
@@ -353,6 +364,11 @@ export default function WorkerTaskCompletionScreen() {
   const [largeCount, setLargeCount] = useState('');
   const [damagedCount, setDamagedCount] = useState('');
 
+  // Stock Check counts, photos and damage types, keyed by size and condition.
+  const [stockCounts, setStockCounts] = useState<Record<string, string>>({});
+  const [stockPhotos, setStockPhotos] = useState<Record<string, StockPhoto>>({});
+  const [stockDamage, setStockDamage] = useState<Record<string, string[]>>({});
+
   // Photo states
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
@@ -421,6 +437,11 @@ export default function WorkerTaskCompletionScreen() {
       const response = await apiRequest<{ task: WorkerTask }>(`/api/worker/tasks/${taskId}`);
       if (response.task.status !== 'in_progress') throw new Error('This task is no longer active.');
       setTask(response.task);
+      // A recount starts from the counts the worker submitted before. Silent refreshes keep the current entries.
+      if (response.task.stock_check && !silent) {
+        setStockCounts(initialStockCounts(response.task.stock_check));
+        setStockDamage(initialDamageTypes(response.task.stock_check));
+      }
     } catch (caught) {
       setTask(null);
       setError(caught instanceof Error ? caught.message : 'Could not load this task.');
@@ -466,8 +487,91 @@ export default function WorkerTaskCompletionScreen() {
     setPhotoName('');
   }
 
+  // Picks the photo for one size and condition of a Stock Check. Smaller files keep several photos within the upload limit.
+  async function handlePickStockPhoto(key: string) {
+    setError('');
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        setError('Photo gallery permission is required to select photos.');
+        Alert.alert('Permission Denied', 'Please enable gallery access in your device settings.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setStockPhotos((current) => ({ ...current, [key]: { uri: asset.uri, base64: asset.base64 || null, mime: asset.mimeType || 'image/jpeg' } }));
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not select photo from gallery.');
+    }
+  }
+
+  // Sends the counts and photos of a Stock Check for admin review.
+  async function submitStockCheck(currentTask: WorkerTask) {
+    const info = currentTask.stock_check;
+    if (!info) {
+      setError('Could not load this stock check. Pull down to refresh and try again.');
+      return;
+    }
+    const stockCountsPayload = [];
+    const stockPhotosPayload = [];
+    for (const size of info.sizes) {
+      for (const condition of STOCK_CONDITIONS) {
+        const key = stockKey(size, condition.code);
+        const value = (stockCounts[key] ?? '').trim();
+        if (!/^\d+$/.test(value)) {
+          setError(`Enter a count for ${size}, ${condition.label} (0 if none).`);
+          return;
+        }
+        const quantity = Number(value);
+        stockCountsPayload.push({ size, condition: condition.code, quantity, damage_types: stockDamage[key] || [] });
+        const photo = stockPhotos[key];
+        if (condition.code !== 'good' && quantity > 0) {
+          if (!photo?.base64) {
+            setError(`A photo is required for ${size}, ${condition.label}.`);
+            return;
+          }
+          stockPhotosPayload.push({ size, condition: condition.code, image: `data:${photo.mime};base64,${photo.base64}`, image_mime: photo.mime });
+        }
+      }
+    }
+    if (isTaskOverdue(currentTask) && delayNotes.trim().length < 5) {
+      setError('Explain why this task is overdue (5–2000 characters).');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      await apiRequest(`/api/worker/tasks/${currentTask.id}/complete`, {
+        method: 'POST',
+        body: JSON.stringify({
+          completed_at: new Date().toISOString(),
+          completion_notes: insights.trim() || null,
+          ...(isTaskOverdue(currentTask) ? { delay_reason_notes: delayNotes.trim() } : {}),
+          stock_counts: stockCountsPayload,
+          stock_photos: stockPhotosPayload,
+        }),
+      });
+      router.replace('/WorkerTaskCompleted');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not submit this stock check.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function submitCompletion() {
     if (!task) return;
+    if (isStockCheck(task.category)) {
+      await submitStockCheck(task);
+      return;
+    }
     const isHarvesting = task.category === 'Harvesting';
     if (!photoUri) {
       setError('A photo of the completed work is required as proof of completion.');
@@ -540,6 +644,7 @@ export default function WorkerTaskCompletionScreen() {
 
   const workAllowed = canWorkCropTaskNow();
   const isHarvesting = task?.category === 'Harvesting';
+  const isStockCheckTask = isStockCheck(task?.category);
   const taskOverdue = isTaskOverdue(task);
 
 
@@ -577,7 +682,7 @@ export default function WorkerTaskCompletionScreen() {
                 {/* Header: Title & Close Button */}
                 <View style={styles.sheetHeaderRow}>
                   <Text style={styles.sheetTitle}>
-                    {isHarvesting ? 'Submit Harvest' : 'Submit Task'}
+                    {isHarvesting ? 'Submit Harvest' : isStockCheckTask ? 'Submit Stock Check' : 'Submit Task'}
                   </Text>
                   <Pressable
                     accessibilityLabel="Close"
@@ -754,8 +859,29 @@ export default function WorkerTaskCompletionScreen() {
                   </View>
                 )}
 
+                {/* Stock Check: counts by size and condition, with a photo for each non-saleable condition */}
+                {isStockCheckTask && task.stock_check ? (
+                  <StockCheckCounts
+                    counts={stockCounts}
+                    damageTypes={stockDamage}
+                    info={task.stock_check}
+                    onChangeCount={(key, value) => setStockCounts((current) => ({ ...current, [key]: value }))}
+                    onPickPhoto={handlePickStockPhoto}
+                    onRemovePhoto={(key) => setStockPhotos((current) => {
+                      const next = { ...current };
+                      delete next[key];
+                      return next;
+                    })}
+                    onToggleDamage={(key, type) => setStockDamage((current) => {
+                      const selected = current[key] || [];
+                      return { ...current, [key]: selected.includes(type) ? selected.filter((item) => item !== type) : [...selected, type] };
+                    })}
+                    photos={stockPhotos}
+                  />
+                ) : null}
+
                 {/* Photo Proof Section (Driver Style) */}
-                <View style={styles.photoSection}>
+                {!isStockCheckTask && <View style={styles.photoSection}>
                   <View style={styles.photoHeaderRow}>
                     <Text style={styles.photoProofKicker}>PHOTO PROOF</Text>
                     <View style={styles.photoRequiredTag}>
@@ -814,7 +940,7 @@ export default function WorkerTaskCompletionScreen() {
                       </Pressable>
                     )}
                   </View>
-                </View>
+                </View>}
 
                 {/* Insights Section */}
                 <View style={styles.insightsSection}>

@@ -45,11 +45,56 @@ function readInspectionDetails(value) {
   return details;
 }
 
+// Stock Check: the worker counts every pineapple size by condition (migration 068).
+// It is always a blind count, and every non-saleable condition above zero needs a photo.
+// The condition codes must match public.stock_conditions and mobile/src/lib/stock-check.ts.
+const STOCK_CHECK = "Stock Check";
+const PINEAPPLE_SIZES = ["Small", "Medium", "Large"];
+const STOCK_CONDITIONS = ["good", "minor_damage", "overripe", "spoiled", "pest_disease"];
+const DAMAGE_TYPES = ["Bruised", "Cracked Skin", "Crown Damage", "Dropped"];
+
+function isStockCheck(categoryName) {
+  return categoryName === STOCK_CHECK;
+}
+
+// The worker's counts: one entry for every size and condition of the task.
+function readStockCounts(value, sizes = PINEAPPLE_SIZES) {
+  if (!Array.isArray(value) || !value.length) throw httpError(400, "Enter the stock counts before submitting");
+  const counts = value.map((entry) => {
+    const size = String(entry?.size || "").trim();
+    const condition = String(entry?.condition || "").trim();
+    const quantity = Number(entry?.quantity);
+    if (!sizes.includes(size)) throw httpError(400, `Size '${size}' is not part of this stock check`);
+    if (!STOCK_CONDITIONS.includes(condition)) throw httpError(400, `Unknown condition '${condition}'`);
+    if (!Number.isInteger(quantity) || quantity < 0 || quantity > 999999) {
+      throw httpError(400, "Counts must be whole numbers 0 or greater");
+    }
+    const damageTypes = Array.isArray(entry.damage_types)
+      ? [...new Set(entry.damage_types.map((type) => String(type).trim()).filter((type) => DAMAGE_TYPES.includes(type)))]
+      : [];
+    return { size, condition, quantity, damage_types: damageTypes };
+  });
+  for (const size of sizes) {
+    for (const condition of STOCK_CONDITIONS) {
+      if (!counts.some((entry) => entry.size === size && entry.condition === condition)) {
+        throw httpError(400, "Enter a count for every size and condition");
+      }
+    }
+  }
+  return counts;
+}
+
 module.exports = {
   ACTIVITY_TYPES,
+  DAMAGE_TYPES,
   INSPECTION_OPTIONS,
+  PINEAPPLE_SIZES,
+  STOCK_CHECK,
+  STOCK_CONDITIONS,
   collectsInspectionDetails,
+  isStockCheck,
   readActivityType,
   readInspectionDetails,
+  readStockCounts,
   requiredInventoryKind,
 };
