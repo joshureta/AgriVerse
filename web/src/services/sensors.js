@@ -34,3 +34,17 @@ export async function fetchSensorDay(table, bounds) {
   }
   return rows
 }
+
+// Loads each sensor device's send interval (admin only).
+export async function fetchSensorSettings() {
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw error
+  const token = data.session?.access_token
+  if (!token) throw new Error('Your session has ended. Please sign in again.')
+  const response = await fetch(`${API_URL}/api/sensors/settings`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Sensor settings are unavailable.')
+  return body.devices || []
+}

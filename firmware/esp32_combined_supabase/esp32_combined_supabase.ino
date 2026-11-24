@@ -14,7 +14,12 @@
 // Calibrate ADC values in dry and wet soil (often dry > wet, but varies).
 const int SOIL_DRY_ADC = 3000;
 const int SOIL_WET_ADC = 1300;
-const unsigned long READ_INTERVAL_MS = 10000UL;
+// The read/send interval is set by admins in Settings > Sensors. This default
+// is used until the first config fetch succeeds (and is kept in flash after).
+const uint32_t DEFAULT_READ_INTERVAL_S = 10;
+const uint32_t MIN_READ_INTERVAL_S = 10;
+const uint32_t MAX_READ_INTERVAL_S = 86400;  // 1 day
+const unsigned long CONFIG_POLL_INTERVAL_MS = 60000UL;
 const unsigned long SYNC_INTERVAL_MS = 1000UL;
 const unsigned long WIFI_OFFLINE_GRACE_MS = 30000UL;
 const unsigned long OFFLINE_SMS_INTERVAL_MS = 30000UL;
@@ -38,6 +43,9 @@ const char* QUEUE_FILE = "/pending-v2.jsonl";
 uint32_t ackOffset = 0;
 uint64_t sequenceNo = 0;
 unsigned long lastRead = 0, lastSync = 0;
+unsigned long readIntervalMs = DEFAULT_READ_INTERVAL_S * 1000UL;
+unsigned long lastConfigPoll = 0;
+bool hasPolledConfig = false;
 unsigned long lastSensorPrint = 0;
 unsigned long lastOfflineSMS = 0;
 unsigned long wifiDisconnectedSince = 0;
@@ -296,6 +304,44 @@ bool uploadSensorReading(const String &json) {
   return false;
 }
 
+uint32_t clampInterval(uint32_t seconds) {
+  if (seconds < MIN_READ_INTERVAL_S) return MIN_READ_INTERVAL_S;
+  if (seconds > MAX_READ_INTERVAL_S) return MAX_READ_INTERVAL_S;
+  return seconds;
+}
+
+// Asks the backend how often to read and send data. Keeps the current interval
+// when offline or when the reply is not understood.
+void fetchConfig() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  WiFiClientSecure client;
+  client.useBuiltinCACertBundle();
+  HTTPClient http;
+  String endpoint = String(API_URL) + "/api/sensors/config?device_id=" + DEVICE_ID;
+  if (!endpoint.startsWith("https://")) return;
+  if (!http.begin(client, endpoint)) return;
+  http.setTimeout(5000);
+  http.addHeader("x-device-token", DEVICE_TOKEN);
+  int status = http.GET();
+  String body = http.getString();
+  http.end();
+  if (status != 200) {
+    Serial.printf("Config fetch failed: HTTP %d\n", status);
+    return;
+  }
+  const char* key = "\"read_interval_seconds\":";
+  int at = body.indexOf(key);
+  if (at < 0) return;
+  long seconds = body.substring(at + strlen(key)).toInt();
+  if (seconds <= 0) return;
+  uint32_t clamped = clampInterval((uint32_t)seconds);
+  unsigned long nextMs = clamped * 1000UL;
+  if (nextMs == readIntervalMs) return;
+  readIntervalMs = nextMs;
+  prefs.putUInt("interval-s", clamped);  // Only written on change to save flash wear.
+  Serial.printf("Send interval changed to %lu seconds\n", (unsigned long)clamped);
+}
+
 void syncPending() {
   if (WiFi.status() != WL_CONNECTED) return;
   File f = LittleFS.open(QUEUE_FILE, "r");
@@ -330,6 +376,8 @@ void setup() {
   prefs.begin("soilmon", false);
   ackOffset = prefs.getUInt("ack-v2", 0);
   sequenceNo = prefs.getULong64("seq", 0);
+  readIntervalMs = clampInterval(prefs.getUInt("interval-s", DEFAULT_READ_INTERVAL_S)) * 1000UL;
+  Serial.printf("Send interval: %lu seconds\n", readIntervalMs / 1000UL);
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   ensureWiFi();
@@ -349,7 +397,13 @@ void loop() {
     clockReady = getISOTime(ts);
     if (!clockReady && WiFi.status() == WL_CONNECTED) syncClock();
   }
-  if (!hasRead || now - lastRead >= READ_INTERVAL_MS) {
+  if (WiFi.status() == WL_CONNECTED &&
+      (!hasPolledConfig || now - lastConfigPoll >= CONFIG_POLL_INTERVAL_MS)) {
+    lastConfigPoll = now; hasPolledConfig = true;
+    fetchConfig();
+    now = millis();
+  }
+  if (!hasRead || now - lastRead >= readIntervalMs) {
     lastRead = now; hasRead = true;
     captureReading();
   }

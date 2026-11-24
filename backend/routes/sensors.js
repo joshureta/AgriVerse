@@ -2,6 +2,12 @@ const crypto = require("node:crypto");
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSensorSupabase } = require("../lib/sensor-supabase");
+const {
+  DEFAULT_INTERVAL_SECONDS,
+  MAX_INTERVAL_SECONDS,
+  MIN_INTERVAL_SECONDS,
+  parseIntervalSeconds,
+} = require("../lib/sensor-interval");
 
 const router = express.Router();
 const tables = new Set(["sensor_readings", "soil_readings", "sensor_device_fields"]);
@@ -23,6 +29,82 @@ function deviceAuthorized(req) {
   const b = Buffer.from(supplied);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+
+// The ESP32 polls this to learn how often it should read and send data.
+router.get("/config", async (req, res, next) => {
+  try {
+    if (!deviceAuthorized(req)) return res.status(401).json({ error: "Invalid device token" });
+    const configuredDevice = process.env.SENSOR_DEVICE_ID?.trim();
+    if (!configuredDevice || req.query.device_id !== configuredDevice) {
+      return res.status(400).json({ error: "Unknown device" });
+    }
+    const { data, error } = await getSensorSupabase().from("sensor_device_settings")
+      .select("read_interval_seconds").eq("device_id", configuredDevice).maybeSingle();
+    if (error) throw error;
+    return res.json({
+      read_interval_seconds: data?.read_interval_seconds ?? DEFAULT_INTERVAL_SECONDS,
+    });
+  } catch (error) { return next(error); }
+});
+
+// Lists every known device with its send interval for the admin Settings page.
+async function listDeviceSettings() {
+  const db = getSensorSupabase();
+  const [fields, settings] = await Promise.all([
+    db.from("sensor_device_fields").select("device_id, field_name"),
+    db.from("sensor_device_settings").select("*"),
+  ]);
+  if (fields.error) throw fields.error;
+  if (settings.error) throw settings.error;
+  const devices = new Map();
+  const configuredDevice = process.env.SENSOR_DEVICE_ID?.trim();
+  if (configuredDevice) devices.set(configuredDevice, { device_id: configuredDevice, field_name: null });
+  for (const row of fields.data || []) devices.set(row.device_id, { ...row });
+  for (const row of settings.data || []) {
+    devices.set(row.device_id, { field_name: null, ...devices.get(row.device_id), ...row });
+  }
+  return [...devices.values()]
+    .map((device) => ({
+      read_interval_seconds: DEFAULT_INTERVAL_SECONDS,
+      updated_at: null,
+      updated_by_name: null,
+      ...device,
+    }))
+    .sort((a, b) => a.device_id.localeCompare(b.device_id));
+}
+
+router.get("/settings", requireAuth, requireRole("admin"), async (req, res, next) => {
+  try {
+    return res.json({ devices: await listDeviceSettings() });
+  } catch (error) { return next(error); }
+});
+
+router.put("/settings/:deviceId", requireAuth, requireRole("admin"), async (req, res, next) => {
+  try {
+    const interval = parseIntervalSeconds(req.body?.read_interval_seconds);
+    if (interval == null) {
+      return res.status(400).json({
+        error: `Send interval must be ${MIN_INTERVAL_SECONDS} seconds to ${MAX_INTERVAL_SECONDS / 86400} day.`,
+      });
+    }
+    const { deviceId } = req.params;
+    const devices = await listDeviceSettings();
+    if (!devices.some((device) => device.device_id === deviceId)) {
+      return res.status(404).json({ error: "Sensor device not found" });
+    }
+    const { data, error } = await getSensorSupabase().from("sensor_device_settings")
+      .upsert({
+        device_id: deviceId,
+        read_interval_seconds: interval,
+        updated_at: new Date().toISOString(),
+        updated_by: req.user.id,
+        updated_by_name: req.profile?.full_name || null,
+      }, { onConflict: "device_id" })
+      .select().single();
+    if (error) throw error;
+    return res.json({ device: data });
+  } catch (error) { return next(error); }
+});
 
 router.get("/:table", requireAuth, requireRole("admin"), async (req, res, next) => {
   try {

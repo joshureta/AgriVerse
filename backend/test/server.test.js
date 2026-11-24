@@ -77,6 +77,24 @@ test("sensor readings require an admin session and device uploads require a toke
   assert.equal((await upload.json()).error, "Invalid device token");
 });
 
+test("sensor interval settings require an admin session and device config requires a token", async () => {
+  const list = await fetch(`${baseUrl}/api/sensors/settings`);
+  assert.equal(list.status, 401);
+  assert.equal((await list.json()).error, "Authentication required");
+
+  const update = await fetch(`${baseUrl}/api/sensors/settings/ESP32_001`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ read_interval_seconds: 60 }),
+  });
+  assert.equal(update.status, 401);
+  assert.equal((await update.json()).error, "Authentication required");
+
+  const config = await fetch(`${baseUrl}/api/sensors/config?device_id=ESP32_001`);
+  assert.equal(config.status, 401);
+  assert.equal((await config.json()).error, "Invalid device token");
+});
+
 test("profile editing requires an access token", async () => {
   const response = await fetch(`${baseUrl}/api/profile`, {
     method: "PATCH",

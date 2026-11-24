@@ -45,3 +45,20 @@
 .settings-modal-actions > button { min-height: 35px; }
 .settings-modal-actions > button:first-child { border: 1px solid #cbdad5; border-radius: 5px; padding: 0 15px; color: #466460; background: #fff; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
 @media (max-width: 760px) { .settings-content { width: min(100% - 22px, 680px); } .settings-toolbar { align-items: stretch; flex-direction: column; } .settings-search { width: 100%; } .settings-toolbar .settings-add-button { align-self: flex-end; } }
+.sensor-interval-modal { width: min(460px, calc(100% - 28px)); }
+.sensor-interval-device { margin: 0; color: #6a7b70; font-size: 12px; }
+.sensor-interval-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; border: 0; padding: 0; }
+.sensor-interval-presets legend { margin-bottom: 8px; padding: 0; color: #46604f; font-size: 12px; font-weight: 800; }
+.sensor-interval-presets button { min-height: 30px; border: 1px solid #cbdad5; border-radius: 5px; padding: 0 12px; color: #466460; background: #fff; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.sensor-interval-presets button:hover { border-color: #78b83d; }
+.sensor-interval-presets button.is-selected { border-color: #196c35; color: #173d25; background: #eaf3de; }
+.sensor-interval-custom { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.sensor-interval-custom.is-disabled { opacity: .5; }
+.sensor-interval-custom label { font-weight: 700; }
+.sensor-interval-custom input { text-align: center; }
+.sensor-interval-custom input[aria-invalid="true"] { border-color: #c4554b; }
+.sensor-interval-error { margin: -4px 0 0; color: #a23d34; font-size: 12px; }
+.sensor-interval-preview { display: grid; gap: 4px; border-radius: 5px; padding: 10px 12px; background: #f2f6ee; font-size: 12px; }
+.sensor-interval-preview strong { color: var(--settings-ink); font-size: 13px; }
+.sensor-interval-preview span { color: #6a7b70; }
+.settings-modal-actions .settings-add-button:disabled { opacity: .5; cursor: not-allowed; }

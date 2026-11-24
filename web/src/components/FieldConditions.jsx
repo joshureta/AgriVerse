@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
-import { fetchSensorRows } from '../services/sensors.js'
-import { latestCurrentReading, latestMoistureReading } from '../lib/sensorStatus.js'
+import { fetchSensorRows, fetchSensorSettings } from '../services/sensors.js'
+import { latestCurrentReading, latestMoistureReading, SENSOR_ONLINE_WINDOW_MS } from '../lib/sensorStatus.js'
+import { onlineWindowMs } from '../lib/sensorInterval.js'
 
 const REFRESH_MS = 10000
 
@@ -35,6 +36,7 @@ export default function FieldConditions() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [now, setNow] = useState(() => Date.now())
+  const [windowMs, setWindowMs] = useState(SENSOR_ONLINE_WINDOW_MS)
 
   useEffect(() => {
     let active = true
@@ -58,6 +60,14 @@ export default function FieldConditions() {
       setLoading(false)
     }
 
+    // Widen the offline window to match the slowest device's send interval.
+    fetchSensorSettings()
+      .then((devices) => {
+        const intervals = devices.map((device) => device.read_interval_seconds).filter(Number.isFinite)
+        if (active && intervals.length) setWindowMs(onlineWindowMs(Math.max(...intervals)))
+      })
+      .catch(() => {})
+
     refresh()
     const interval = window.setInterval(refresh, REFRESH_MS)
     return () => {
@@ -66,10 +76,10 @@ export default function FieldConditions() {
     }
   }, [])
 
-  const temperature = latestCurrentReading(climateReadings, 'temperature_c', now)
-  const soilTemperature = latestCurrentReading(climateReadings, 'soil_temperature_c', now)
-  const humidity = latestCurrentReading(climateReadings, 'humidity_percent', now)
-  const moisture = latestMoistureReading(climateReadings, soilReadings, now)
+  const temperature = latestCurrentReading(climateReadings, 'temperature_c', now, windowMs)
+  const soilTemperature = latestCurrentReading(climateReadings, 'soil_temperature_c', now, windowMs)
+  const humidity = latestCurrentReading(climateReadings, 'humidity_percent', now, windowMs)
+  const moisture = latestMoistureReading(climateReadings, soilReadings, now, windowMs)
   const activeCount = [temperature, soilTemperature, humidity, moisture].filter(Boolean).length
   const lastReadingAt = Math.max(0, ...climateReadings.map((reading) => reading.measuredAt || 0), ...soilReadings.map((reading) => reading.measuredAt || 0))
   const lowMoisture = moisture && Number(moisture.moisture_percent) < 25

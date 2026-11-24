@@ -2,14 +2,25 @@
 
 This is the sketch to upload when all three sensors are connected to the same
 ESP32. It sends DS18B20 soil temperature, DHT22 humidity, and capacitive soil
-moisture to `public.sensor_readings` every 10 seconds through the authenticated
-backend sensor endpoint.
+moisture to `public.sensor_readings` through the authenticated backend sensor
+endpoint. It sends every 10 seconds by default.
+
+## Changing the send interval
+
+Admins set how often each device reads and sends data in **Settings → Sensors**
+(10 seconds to 1 day). Run `supabase/migrations/067_sensor_device_settings.sql`
+in the sensor Supabase project first. The sketch checks
+`GET /api/sensors/config` every minute, so a change takes effect within about a
+minute. The last value is kept in flash, so the device keeps using it after a
+reboot without Wi-Fi. The serial monitor prints `Send interval changed to N seconds`
+when it picks up a new value. The website widens its offline window to match:
+two missed readings plus one minute, and never less than two minutes.
 
 Run `supabase/migrations/040_independent_climate_sensor_readings.sql` in the
 sensor Supabase project before uploading this version. It allows a valid
 temperature or humidity reading to be saved even when the other sensor fails.
 The website shows an offline alert for each sensor without a valid reading in
-the last two minutes.
+its offline window (two minutes at the default interval).
 
 For field-specific monitoring, also run `supabase/migrations/044_sensor_device_fields.sql`
 in the sensor Supabase project. It assigns `esp32-01` to **Field A**. Other

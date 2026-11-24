@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Antenna,
@@ -32,8 +32,9 @@ import temperatureMetricIcon from '../../assets/monitoring/metric-temperature.pn
 import humidityMetricIcon from '../../assets/monitoring/metric-humidity.png'
 import soilMoistureMetricIcon from '../../assets/monitoring/metric-soil-moisture.png'
 import { supabase } from '../../lib/supabase.js'
-import { fetchSensorRows, fetchSensorDay } from '../../services/sensors.js'
+import { fetchSensorRows, fetchSensorDay, fetchSensorSettings } from '../../services/sensors.js'
 import { countConnectedSensors, latestCurrentReading, latestMoistureReading, SENSOR_ONLINE_WINDOW_MS } from '../../lib/sensorStatus.js'
+import { onlineWindowMs } from '../../lib/sensorInterval.js'
 import { manilaDayBounds, readingsForField } from '../../lib/environmentalData.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/monitoring.css'
@@ -240,6 +241,7 @@ export default function EnvironmentalMonitoring() {
   const readingsPerPage = READINGS_PER_PAGE
   const [weather, setWeather] = useState(null)
   const [deviceFields, setDeviceFields] = useState({})
+  const [deviceIntervals, setDeviceIntervals] = useState({})
   const [fieldMappingError, setFieldMappingError] = useState('')
   const [readings, setReadings] = useState([])
   const [soilReadings, setSoilReadings] = useState([])
@@ -280,10 +282,20 @@ export default function EnvironmentalMonitoring() {
       }
     : null
   const displayedReport = liveReportData || reportData
-  const currentTemperature = latestCurrentReading(fieldReadings, 'temperature_c', statusNow)
-  const currentSoilTemperature = latestCurrentReading(fieldReadings, 'soil_temperature_c', statusNow)
-  const currentHumidity = latestCurrentReading(fieldReadings, 'humidity_percent', statusNow)
-  const currentSoil = latestMoistureReading(fieldReadings, fieldSoilReadings, statusNow)
+  // A device that sends every 15 minutes is still online 10 minutes after its
+  // last reading, so the offline window follows the slowest device in the field.
+  const statusWindowMs = useMemo(() => {
+    const fieldDevices = Object.entries(deviceFields).filter(([, field]) => field === activeField).map(([id]) => id)
+    if (activeField === 'Field A') fieldDevices.push('ESP32_001')
+    const intervals = fieldDevices.map((id) => deviceIntervals[id]).filter(Number.isFinite)
+    return intervals.length ? onlineWindowMs(Math.max(...intervals)) : SENSOR_ONLINE_WINDOW_MS
+  }, [deviceFields, deviceIntervals, activeField])
+  const statusWindowRef = useRef(statusWindowMs)
+  statusWindowRef.current = statusWindowMs
+  const currentTemperature = latestCurrentReading(fieldReadings, 'temperature_c', statusNow, statusWindowMs)
+  const currentSoilTemperature = latestCurrentReading(fieldReadings, 'soil_temperature_c', statusNow, statusWindowMs)
+  const currentHumidity = latestCurrentReading(fieldReadings, 'humidity_percent', statusNow, statusWindowMs)
+  const currentSoil = latestMoistureReading(fieldReadings, fieldSoilReadings, statusNow, statusWindowMs)
   // Combines climate and soil data for the history table.
   const combinedReadings = useMemo(
     () => combineSensorReadings(fieldReadings, fieldSoilReadings),
@@ -299,7 +311,7 @@ export default function EnvironmentalMonitoring() {
     page * readingsPerPage,
   )
   const reportingSensors = [currentTemperature, currentSoilTemperature, currentHumidity, currentSoil].filter(Boolean).length
-  const connectedDevices = countConnectedSensors([fieldReadings, fieldSoilReadings], statusNow)
+  const connectedDevices = countConnectedSensors([fieldReadings, fieldSoilReadings], statusNow, statusWindowMs)
   const deviceIsLive = connectedDevices > 0
   const fieldAssigned = Object.values(deviceFields).includes(activeField) ||
     (activeField === 'Field A' && readings.some((reading) => reading.device_id === 'ESP32_001' && reading.field_name == null))
@@ -508,6 +520,13 @@ export default function EnvironmentalMonitoring() {
           setFieldMappingError('Field assignments are currently unavailable. Please contact support.')
         }
       }
+      // Older databases without migration 067 keep the default 2-minute window.
+      try {
+        const settings = await fetchSensorSettings()
+        if (active) setDeviceIntervals(Object.fromEntries(settings.map(({ device_id, read_interval_seconds }) => [device_id, read_interval_seconds])))
+      } catch (error) {
+        if (active) console.warn('Sensor send intervals could not be loaded; using the default offline window:', error)
+      }
     }
 
     // Loads the current day's sensor history.
@@ -556,7 +575,7 @@ export default function EnvironmentalMonitoring() {
         refreshReadings()
         return
       }
-      const recentBounds = { ...bounds, start: Math.max(bounds.start, Date.now() - SENSOR_ONLINE_WINDOW_MS) }
+      const recentBounds = { ...bounds, start: Math.max(bounds.start, Date.now() - statusWindowRef.current) }
       const [climateResult, soilResult] = await Promise.allSettled([
         loadSensorReadings(recentBounds),
         loadSoilReadings(recentBounds),
