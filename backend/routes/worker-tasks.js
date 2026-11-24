@@ -182,22 +182,13 @@ router.get("/inventory-options", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
-// The worker's view of a Stock Check: every pineapple size and the counts saved before (for a recount).
-// It is always a blind count, so the recorded quantities are never sent to the worker.
+// The worker's view of a Stock Check: the pineapple sizes and the damaged counts saved before (for a recount).
 function workerStockCheck(data) {
-  const sizes = (data?.snapshot || []).map((row) => row.size);
   return {
-    sizes: sizes.length ? sizes : PINEAPPLE_SIZES,
+    sizes: PINEAPPLE_SIZES,
     conditions: STOCK_CONDITIONS,
     counts: (data?.counts || []).map(({ size, condition, quantity, damage_types }) => ({ size, condition, quantity, damage_types })),
   };
-}
-
-// The sizes a Stock Check counts: those recorded when it started.
-async function stockCheckSizes(taskId) {
-  const stockChecks = await loadStockChecks(getSupabase(), [taskId]);
-  const sizes = (stockChecks[taskId]?.snapshot || []).map((row) => row.size);
-  return sizes.length ? sizes : PINEAPPLE_SIZES;
 }
 
 router.get("/:id", async (req, res, next) => {
@@ -239,7 +230,7 @@ async function saveStockCheck(taskId, workerId, body, sizes, fieldName) {
     p_task_id: taskId, p_worker_id: workerId, p_counts: counts, p_photos: photos,
   });
   if (error) {
-    if (/photo is required|every size|not part of|unknown condition|whole numbers|only an active|not a stock check|was not found|counts are required|missing its/i.test(error.message || "")) {
+    if (/photo is required|damaged count|not a pineapple size|unknown damage type|whole numbers|only an active|not a stock check|was not found|counts are required|missing its/i.test(error.message || "")) {
       throw httpError(400, error.message);
     }
     throw error;
@@ -280,7 +271,7 @@ router.post("/:id/complete", async (req, res, next) => {
     const hasPhoto = Boolean(rawImage && typeof rawImage === "string");
     // A stock check carries one photo per non-saleable condition instead of one proof photo.
     if (isStockCheckTask) {
-      await saveStockCheck(taskId, req.user.id, req.body, await stockCheckSizes(taskId), fieldName);
+      await saveStockCheck(taskId, req.user.id, req.body, PINEAPPLE_SIZES, fieldName);
     } else if (!hasPhoto) {
       throw httpError(400, "A photo of the completed work is required to submit for approval");
     }

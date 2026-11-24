@@ -352,7 +352,7 @@ router.get("/:id/stock-check", async (req, res, next) => {
     const task = await fetchTask(id);
     if (!isStockCheck(task.category)) throw httpError(400, "This task is not a Stock Check");
     const stockChecks = await loadStockChecks(getSupabase(), [id]);
-    const data = stockChecks[id] || { snapshot: [], counts: [], photos: [], summary: null };
+    const data = stockChecks[id] || { counts: [], photos: [], summary: null };
     return res.json(data);
   } catch (error) { return next(error); }
 });
@@ -536,10 +536,7 @@ router.post("/:id/approve-stock-check", async (req, res, next) => {
     const id = readTaskId(req.params.id);
     const task = await fetchTask(id);
     if (!isStockCheck(task.category)) throw httpError(400, "This task is not a Stock Check");
-    const stockChecks = await loadStockChecks(getSupabase(), [id]);
-    const recordedSizes = (stockChecks[id]?.snapshot || []).map((row) => row.size);
-    const sizes = recordedSizes.length ? recordedSizes : PINEAPPLE_SIZES;
-    const counts = req.body?.counts == null ? null : readStockCounts(req.body.counts, sizes);
+    const counts = req.body?.counts == null ? null : readStockCounts(req.body.counts, PINEAPPLE_SIZES);
     const { error } = await getSupabase().rpc("approve_stock_check_task", {
       p_task_id: id, p_admin_id: req.user.id, p_counts: counts,
     });
@@ -624,13 +621,7 @@ async function rejectTask(req, res, next) {
     }).eq("id", id).eq("status_id", awaitingId).select("id").maybeSingle();
     if (error) throwDatabaseError(error);
     if (!data) throw httpError(409, "Task is not awaiting approval");
-    const task = await fetchTask(id);
-    // A recount starts from the stock as it is now, so orders placed since the first count are not counted twice.
-    if (isStockCheck(task.category)) {
-      const { error: snapshotError } = await getSupabase().rpc("capture_stock_check_snapshot", { p_task_id: id });
-      if (snapshotError) throw snapshotError;
-    }
-    return res.json({ task });
+    return res.json({ task: await fetchTask(id) });
   } catch (error) { return next(error); }
 }
 

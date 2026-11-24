@@ -12,13 +12,14 @@ const scalar = async (sql, args = []) => Object.values((await db.query(sql, args
 const quantity = (size) => scalar(`select i.quantity from inventory_items i join pineapple_inventory p on p.inventory_id = i.id
   join pineapple_sizes s on s.id = p.size_id where s.size_name = $1`, [size]);
 
-// Every size and condition for the given sizes, with quantities from overrides.
+// Every size and damage type; overrides set the damaged quantities.
 function counts(sizes, overrides = {}) {
-  const conditions = ['good', 'minor_damage', 'overripe', 'spoiled', 'pest_disease'];
+  const conditions = ['minor_damage', 'overripe', 'spoiled', 'pest_disease'];
   return JSON.stringify(sizes.flatMap((size) => conditions.map((condition) => ({
     size, condition, quantity: overrides[`${size}|${condition}`] ?? 0,
   }))));
 }
+const photosFor = (size, conditions) => JSON.stringify(conditions.map((condition) => ({ size, condition, image_url: `https://x/${condition}.jpg` })));
 
 before(async () => {
   db = new PGlite();
@@ -62,19 +63,15 @@ beforeEach(async () => {
     delete from inventory_stock_movements;
   `);
   const categoryId = await scalar(`select id from task_categories where category_name = 'Stock Check'`);
-  await db.query(`insert into tasks(id, assigned_worker_id, category_id, status_id, details) values
-    (1, $1, $2, 1, null)`, [worker, categoryId]);
+  await db.query(`insert into tasks(id, assigned_worker_id, category_id, status_id) values (1, $1, $2, 1)`, [worker, categoryId]);
 });
 
-test('starting a stock check records the system quantity of each size', async () => {
+test('starting a stock check moves it to in progress', async () => {
   await db.query('select public.start_stock_check_task(1, $1)', [worker]);
   assert.equal(await scalar('select status_id from tasks where id = 1'), 2);
-  const rows = (await db.query(`select s.size_name, n.system_quantity from stock_check_snapshots n
-    join pineapple_sizes s on s.id = n.pineapple_size_id order by s.id`)).rows;
-  assert.deepEqual(rows.map((row) => [row.size_name, row.system_quantity]), [['Small', 63], ['Medium', 86], ['Large', 0]]);
 });
 
-test('a non-saleable condition above zero needs a photo before submission', async () => {
+test('a damage type above zero needs a photo before submission', async () => {
   await db.query('select public.start_stock_check_task(1, $1)', [worker]);
   await assert.rejects(
     db.query('select public.save_stock_check_submission(1, $1, $2::jsonb, $3::jsonb)', [worker, counts(['Small', 'Medium', 'Large'], { 'Small|spoiled': 1 }), '[]']),
@@ -82,46 +79,70 @@ test('a non-saleable condition above zero needs a photo before submission', asyn
   );
   await assert.rejects(
     db.query('select public.save_stock_check_submission(1, $1, $2::jsonb, $3::jsonb)', [worker, counts(['Small']), '[]']),
-    /every size and condition/,
+    /damaged count for every size/,
   );
 });
 
-test('approval applies only the difference found and logs each condition', async () => {
+test('approval removes only the damaged pineapples and logs each damage type', async () => {
   await db.query('select public.start_stock_check_task(1, $1)', [worker]);
-  // A buyer orders 2 Small pineapples while the count is in progress.
-  await db.exec('update inventory_items set quantity = quantity - 2 where id = 11');
-  const photos = JSON.stringify(['minor_damage', 'overripe', 'spoiled'].map((condition) => ({ size: 'Small', condition, image_url: `https://x/${condition}.jpg` })));
   await db.query('select public.save_stock_check_submission(1, $1, $2::jsonb, $3::jsonb)', [worker,
-    counts(['Small', 'Medium', 'Large'], { 'Small|good': 58, 'Small|minor_damage': 2, 'Small|overripe': 1, 'Small|spoiled': 1, 'Medium|good': 86 }), photos]);
+    counts(['Small', 'Medium', 'Large'], { 'Small|minor_damage': 2, 'Small|overripe': 1, 'Small|spoiled': 1, 'Medium|pest_disease': 1 }),
+    JSON.stringify([...JSON.parse(photosFor('Small', ['minor_damage', 'overripe', 'spoiled'])), ...JSON.parse(photosFor('Medium', ['pest_disease']))])]);
   await db.exec('update tasks set status_id = 3 where id = 1');
 
   await db.query('select public.approve_stock_check_task(1, $1, null)', [admin]);
-  // Small: 61 now + 58 good - 63 recorded = 56. Medium unchanged. Large has no item and nothing found.
-  assert.equal(await quantity('Small'), 56);
-  assert.equal(await quantity('Medium'), 86);
+  assert.equal(await quantity('Small'), 59); // 63 - 4 damaged
+  assert.equal(await quantity('Medium'), 85); // 86 - 1 damaged
   assert.equal(await scalar('select status_id from tasks where id = 1'), 4);
   const movements = (await db.query(`select m.quantity, m.reason, c.code from inventory_stock_movements m
     left join stock_conditions c on c.id = m.condition_id where m.task_id = 1 order by m.id`)).rows;
   assert.deepEqual(movements.map((row) => [row.reason, row.code, row.quantity]), [
     ['stock_check', 'minor_damage', 2], ['stock_check', 'overripe', 1], ['stock_check', 'spoiled', 1],
-    ['stock_check_unaccounted', null, 1],
+    ['stock_check', 'pest_disease', 1],
   ]);
 });
 
-test('admin corrections are applied and pineapples found above the record are added', async () => {
+test('approval stops when there is not enough stock, and changes nothing', async () => {
   await db.query('select public.start_stock_check_task(1, $1)', [worker]);
   await db.query('select public.save_stock_check_submission(1, $1, $2::jsonb, $3::jsonb)', [worker,
-    counts(['Small', 'Medium', 'Large'], { 'Small|good': 63, 'Medium|good': 86 }), '[]']);
+    counts(['Small', 'Medium', 'Large'], { 'Small|spoiled': 70 }),
+    photosFor('Small', ['spoiled'])]);
   await db.exec('update tasks set status_id = 3 where id = 1');
-  await db.query('select public.approve_stock_check_task(1, $1, $2::jsonb)', [admin,
-    counts(['Small', 'Medium', 'Large'], { 'Small|good': 63, 'Medium|good': 86, 'Large|good': 4 })]);
-  assert.equal(await quantity('Large'), 4);
-  assert.equal(await scalar(`select worker_quantity from stock_check_counts c join stock_conditions s on s.id = c.condition_id
-    join pineapple_sizes p on p.id = c.pineapple_size_id where p.size_name = 'Large' and s.code = 'good'`), 0);
-  assert.equal(await scalar(`select reason from inventory_stock_movements where task_id = 1`), 'stock_check_found');
+  await assert.rejects(db.query('select public.approve_stock_check_task(1, $1, null)', [admin]), /Not enough Small Pineapple stock/);
+  assert.equal(await quantity('Small'), 63);
+  assert.equal(await scalar('select status_id from tasks where id = 1'), 3);
 });
 
-test('a stock check cannot be approved twice or before it is submitted', async () => {
+test('the admin can correct the damaged counts before approving', async () => {
+  await db.query('select public.start_stock_check_task(1, $1)', [worker]);
+  await db.query('select public.save_stock_check_submission(1, $1, $2::jsonb, $3::jsonb)', [worker,
+    counts(['Small', 'Medium', 'Large'], { 'Small|overripe': 1 }), photosFor('Small', ['overripe'])]);
+  await db.exec('update tasks set status_id = 3 where id = 1');
+  await db.query('select public.approve_stock_check_task(1, $1, $2::jsonb)', [admin,
+    counts(['Small', 'Medium', 'Large'], { 'Small|overripe': 3 })]);
+  assert.equal(await quantity('Small'), 60);
+});
+
+test('a stock check cannot be approved before it is submitted', async () => {
   await db.query('select public.start_stock_check_task(1, $1)', [worker]);
   await assert.rejects(db.query('select public.approve_stock_check_task(1, $1, null)', [admin]), /not awaiting approval/);
+});
+
+test('migration 069 upgrades legacy Good counts and required worker_quantity', async () => {
+  await db.exec(`
+    insert into stock_conditions(code, condition_name, status) values ('good', 'Good', true);
+    alter table stock_check_counts add column worker_quantity integer not null default 0;
+    alter table stock_check_counts alter column worker_quantity drop default;
+  `);
+  await db.exec(readFileSync(join(__dirname, '../../supabase/migrations/069_damage_only_stock_check_upgrade.sql'), 'utf8'));
+  assert.equal(await scalar("select status from stock_conditions where code = 'good'"), false);
+  assert.equal(await scalar("select is_nullable from information_schema.columns where table_name = 'stock_check_counts' and column_name = 'worker_quantity'"), 'YES');
+
+  await db.query('select public.start_stock_check_task(1, $1)', [worker]);
+  await db.query('select public.save_stock_check_submission(1, $1, $2::jsonb, $3::jsonb)', [worker,
+    counts(['Small', 'Medium', 'Large'], { 'Medium|minor_damage': 3 }), photosFor('Medium', ['minor_damage'])]);
+  assert.equal(await scalar('select count(*) from stock_check_counts where task_id = 1'), 12);
+  await db.exec('update tasks set status_id = 3 where id = 1');
+  await db.query('select public.approve_stock_check_task(1, $1, null)', [admin]);
+  assert.equal(await quantity('Medium'), 83);
 });

@@ -184,7 +184,7 @@ function recordRow(task, kind) {
   if (kind === 'pestaction') return [task.field, worker, date, suppliesName(task), suppliesAmount(task), insight]
   if (kind === 'harvesting') { const sizes = harvestCounts(task); return [task.field, worker, date, sizes.small, sizes.medium, sizes.large, sizes.damaged, insight] }
   if (kind === 'weeding') return [task.field, worker, date, insight]
-  if (kind === 'stockcheck') { const totals = stockCheckTotals(task); return [task.field, worker, date, totals.counted, totals.good, totals.nonSaleable, totals.unaccounted, insight] }
+  if (kind === 'stockcheck') return [task.field, worker, date, stockCheckTotals(task).removed, insight]
   return [task.field, worker, formatDate(task.started_at), date, insight]
 }
 
@@ -196,7 +196,7 @@ const RECORD_COLUMNS = {
   pestaction: ['FIELD', 'FARM WORKER', 'ACTION DATE', 'PESTICIDE', 'AMOUNT USED', 'INSIGHTS', 'ACTIONS'],
   harvesting: ['FIELD', 'FARM WORKER', 'HARVEST DATE', 'SMALL', 'MEDIUM', 'LARGE', 'DAMAGED', 'INSIGHTS', 'ACTIONS'],
   weeding: ['FIELD', 'FARM WORKER', 'DATE & TIME', 'INSIGHTS', 'ACTIONS'],
-  stockcheck: ['LOCATION', 'CONDUCTED BY', 'COUNT DATE', 'QUANTITY COUNTED', 'GOOD', 'NON-SALEABLE', 'UNACCOUNTED FOR', 'INSIGHTS', 'ACTIONS'],
+  stockcheck: ['LOCATION', 'CONDUCTED BY', 'CHECK DATE', 'DAMAGED REMOVED', 'INSIGHTS', 'ACTIONS'],
   generic: ['FIELD', 'FARM WORKER', 'DATE STARTED', 'DATE COMPLETED', 'INSIGHTS', 'ACTIONS'],
 }
 
@@ -510,22 +510,15 @@ export default function RecordsManagement() {
               {modal.kind === 'fertilization' && <><div className="task-view-tile"><span className="task-view-tile-label">Fertilizer</span><strong className="task-view-tile-value">{suppliesName(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Amount Used</span><strong className="task-view-tile-value">{suppliesAmount(modal.task)}</strong></div></>}
               {modal.kind === 'pestaction' && <><div className="task-view-tile"><span className="task-view-tile-label">Pesticide</span><strong className="task-view-tile-value">{suppliesName(modal.task)}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Amount Used</span><strong className="task-view-tile-value">{suppliesAmount(modal.task)}</strong></div></>}
               {modal.kind === 'inspection' && <><div className="task-view-tile"><span className="task-view-tile-label">Crop Condition</span><strong className="task-view-tile-value">{detailText(modal.task, 'crop_condition')}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Pest/Disease Observed</span><strong className="task-view-tile-value">{detailText(modal.task, 'pest_observed')}</strong></div><div className="task-view-tile task-view-tile-full"><span className="task-view-tile-label">Recommended Action</span><strong className="task-view-tile-value">{detailText(modal.task, 'recommended_action')}</strong></div></>}
-              {modal.kind === 'stockcheck' && (() => {
-                const totals = stockCheckTotals(modal.task)
-                const sizes = modal.task.stock_check_summary?.sizes || []
-                return <>
-                  <div className="task-view-tile"><span className="task-view-tile-label">Quantity Counted</span><strong className="task-view-tile-value">{totals.counted}</strong></div>
-                  <div className="task-view-tile"><span className="task-view-tile-label">Good / Non-saleable</span><strong className="task-view-tile-value">{totals.good} / {totals.nonSaleable}</strong></div>
-                  <div className="task-view-tile"><span className="task-view-tile-label">Unaccounted For</span><strong className="task-view-tile-value">{totals.unaccounted}</strong></div>
-                  <div className="task-view-tile"><span className="task-view-tile-label">Written Off</span><strong className="task-view-tile-value">{totals.writtenOff}</strong></div>
-                  {sizes.map((size) => (
-                    <div className="task-view-tile" key={size.size}>
-                      <span className="task-view-tile-label">{size.size}: Recorded → Updated</span>
-                      <strong className="task-view-tile-value">{size.system_quantity} → {size.updated_quantity} pcs</strong>
-                    </div>
-                  ))}
-                </>
-              })()}
+              {modal.kind === 'stockcheck' && <>
+                <div className="task-view-tile"><span className="task-view-tile-label">Damaged Removed</span><strong className="task-view-tile-value">{stockCheckTotals(modal.task).removed}</strong></div>
+                {(modal.task.stock_check_summary?.sizes || []).map((size) => (
+                  <div className="task-view-tile" key={size.size}>
+                    <span className="task-view-tile-label">{size.size}</span>
+                    <strong className="task-view-tile-value">{size.removed} pcs</strong>
+                  </div>
+                ))}
+              </>}
               {modal.kind === 'harvesting' && <><div className="task-view-tile"><span className="task-view-tile-label">Small / Medium / Large</span><strong className="task-view-tile-value">{harvestCounts(modal.task).small} / {harvestCounts(modal.task).medium} / {harvestCounts(modal.task).large}</strong></div><div className="task-view-tile"><span className="task-view-tile-label">Damaged</span><strong className="task-view-tile-value">{harvestCounts(modal.task).damaged} damaged</strong></div></>}
               <div className="task-view-tile">
                 <span className="task-view-tile-label">Date Started</span>

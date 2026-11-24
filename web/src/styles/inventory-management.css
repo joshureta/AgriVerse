@@ -204,7 +204,6 @@
 .movement-badge { display: inline-flex; min-height: 24px; align-items: center; border-radius: 999px; padding: 0 9px; font-size: 9px; font-weight: 850; }
 .movement-in { color: #176c35; background: #e4f3e2; }
 .movement-out { color: #a33b2f; background: #fde9e5; }
-.movement-reason { display: block; margin-top: 4px; color: #66756a; font-size: 9px; font-weight: 650; }
 .movement-positive { color: #187437; }
 .movement-negative { color: #b34437; }
 .stock-history-section > .inventory-notice { margin: 12px; }

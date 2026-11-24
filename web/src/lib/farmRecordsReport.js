@@ -57,13 +57,9 @@ function taskDetails(tasks, kind) {
     [task.harvest_small_count, task.harvest_medium_count, task.harvest_large_count].map((value) => value ?? '—').join(' / '),
     cell(task.harvest_damaged_count),
   ]))]
-  if (kind === 'stockcheck') return [section('Stock count results', ['Location', 'Date', 'Counted', 'Good', 'Non-saleable', 'Unaccounted for'], tasks.map((task) => {
-    const summary = task.stock_check_summary
-    return [
-      cell(task.field), dateTime(task.completed_at),
-      ...(summary ? [summary.counted, summary.good, summary.non_saleable, summary.unaccounted].map((value) => `${value} pcs`) : ['—', '—', '—', '—']),
-    ]
-  }))]
+  if (kind === 'stockcheck') return [section('Damaged pineapples removed', ['Location', 'Date', 'Damaged removed'], tasks.map((task) => [
+    cell(task.field), dateTime(task.completed_at), task.stock_check_summary ? `${task.stock_check_summary.removed} pcs` : '—',
+  ]))]
   return []
 }
 

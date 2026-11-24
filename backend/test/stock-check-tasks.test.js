@@ -12,31 +12,31 @@ const workerId = '11111111-1111-4111-8111-111111111111';
 const adminId = '22222222-2222-4222-8222-222222222222';
 const statusIds = { pending: 1, in_progress: 2, awaiting_approval: 3, completed: 4 };
 
-// Every size and condition counted; overrides set specific quantities.
-function fullCounts(sizes, overrides = {}) {
+// Every size and damage type; overrides set the damaged quantities.
+function damagedCounts(sizes, overrides = {}) {
   return sizes.flatMap((size) => STOCK_CONDITIONS.map((condition) => ({
     size, condition, quantity: overrides[`${size}|${condition}`] ?? 0, damage_types: [],
   })));
 }
 
-test('stock counts must cover every size and condition with whole numbers', () => {
-  assert.equal(readStockCounts(fullCounts(['Small']), ['Small']).length, STOCK_CONDITIONS.length);
-  assert.throws(() => readStockCounts(fullCounts(['Small']).slice(1), ['Small']), /every size and condition/);
-  assert.throws(() => readStockCounts(fullCounts(['Small'], { 'Small|good': 1.5 }), ['Small']), /whole numbers/);
-  assert.throws(() => readStockCounts(fullCounts(['Medium']), ['Small']), /not part of this stock check/);
+test('damaged counts must cover every size and damage type with whole numbers', () => {
+  assert.equal(readStockCounts(damagedCounts(['Small', 'Medium', 'Large']), ['Small', 'Medium', 'Large']).length, 3 * STOCK_CONDITIONS.length);
+  assert.throws(() => readStockCounts(damagedCounts(['Small', 'Medium', 'Large']).slice(1), ['Small', 'Medium', 'Large']), /damaged count for every size/);
+  assert.throws(() => readStockCounts(damagedCounts(['Small'], { 'Small|spoiled': 1.5 }), ['Small']), /whole numbers/);
+  assert.throws(() => readStockCounts(damagedCounts(['Medium']), ['Small']), /not part of this stock check/);
 });
 
-test('totals write off non-saleable and unaccounted pineapples and add pineapples found', () => {
-  const counts = [
-    { size: 'Small', condition: 'good', quantity: 58 }, { size: 'Small', condition: 'minor_damage', quantity: 2 },
-    { size: 'Small', condition: 'overripe', quantity: 1 }, { size: 'Small', condition: 'spoiled', quantity: 1 },
-    { size: 'Large', condition: 'good', quantity: 62 },
-  ];
-  const result = summarize([{ size: 'Small', system_quantity: 63 }, { size: 'Large', system_quantity: 60 }], counts);
-  const [small, large] = result.sizes;
-  assert.deepEqual([small.counted, small.good, small.non_saleable, small.unaccounted, small.written_off, small.updated_quantity], [62, 58, 4, 1, 5, 58]);
-  assert.deepEqual([large.found, large.written_off, large.updated_quantity], [2, -2, 62]);
-  assert.equal(result.written_off, 3);
+test('good pineapples are never recorded: only damage types are accepted', () => {
+  assert.throws(() => readStockCounts([{ size: 'Small', condition: 'good', quantity: 50 }], ['Small']), /Unknown condition/);
+});
+
+test('removed totals add up the damaged pineapples per size', () => {
+  const result = summarize([
+    { size: 'Small', condition: 'minor_damage', quantity: 2 }, { size: 'Small', condition: 'spoiled', quantity: 1 },
+    { size: 'Large', condition: 'overripe', quantity: 1 },
+  ]);
+  assert.deepEqual(result.sizes, [{ size: 'Small', removed: 3 }, { size: 'Large', removed: 1 }]);
+  assert.equal(result.removed, 4);
 });
 
 // A small fake of the Supabase client: task rows by ID, and a record of RPC calls and uploads.
@@ -60,7 +60,7 @@ class Query {
     }
     if (this.table === 'schedule_statuses') return { data: { id: 9, code: 'in_progress' }, error: null };
     if (this.table === 'schedules') return { data: null, error: null };
-    if (['stock_check_snapshots', 'stock_check_counts', 'stock_check_photos'].includes(this.table)) return { data: [], error: null };
+    if (['stock_check_counts', 'stock_check_photos'].includes(this.table)) return { data: [], error: null };
     const id = this.filters.find(([column]) => column === 'id')?.[1];
     const task = tasks[id];
     if (!task) return { data: null, error: null };
@@ -123,28 +123,28 @@ async function post(path, body) {
   return { response, result: await response.json() };
 }
 
-test('a stock check is submitted with counts and per-condition photos instead of one proof photo', async () => {
+test('the worker submits damaged counts with a photo for each damage type above zero', async () => {
   const { response } = await post('/api/worker/tasks/7/complete', {
     completed_at: new Date().toISOString(),
-    stock_counts: fullCounts(['Small', 'Medium', 'Large'], { 'Small|good': 58, 'Small|spoiled': 1 }),
+    stock_counts: damagedCounts(['Small', 'Medium', 'Large'], { 'Small|spoiled': 1 }),
     stock_photos: [{ size: 'Small', condition: 'spoiled', image: 'data:image/jpeg;base64,AA==', image_mime: 'image/jpeg' }],
   });
   assert.equal(response.status, 200);
   assert.equal(uploads.length, 1);
   const save = rpcCalls.find((call) => call.name === 'save_stock_check_submission');
-  assert.ok(save, 'counts are saved through the database function');
+  assert.ok(save, 'damaged counts are saved through the database function');
   assert.equal(save.args.p_counts.length, 3 * STOCK_CONDITIONS.length);
   assert.deepEqual(save.args.p_photos.map(({ size, condition }) => `${size}|${condition}`), ['Small|spoiled']);
   assert.equal(tasks[7].status_id, statusIds.awaiting_approval);
 });
 
-test('a stock check missing a size is rejected before anything is uploaded or saved', async () => {
+test('a submission missing a size is rejected before anything is uploaded or saved', async () => {
   const { response, result } = await post('/api/worker/tasks/7/complete', {
     completed_at: new Date().toISOString(),
-    stock_counts: fullCounts(['Small']),
+    stock_counts: damagedCounts(['Small']),
   });
   assert.equal(response.status, 400);
-  assert.match(result.error, /every size and condition/);
+  assert.match(result.error, /damaged count for every size/);
   assert.equal(uploads.length, 0);
   assert.equal(rpcCalls.length, 0);
   assert.equal(tasks[7].status_id, statusIds.in_progress);
@@ -154,25 +154,25 @@ test('a missing photo reported by the database keeps the task in progress', asyn
   rpcErrors.save_stock_check_submission = { message: 'A photo is required for Small, Spoiled' };
   const { response, result } = await post('/api/worker/tasks/7/complete', {
     completed_at: new Date().toISOString(),
-    stock_counts: fullCounts(['Small', 'Medium', 'Large'], { 'Small|spoiled': 1 }),
+    stock_counts: damagedCounts(['Small', 'Medium', 'Large'], { 'Small|spoiled': 1 }),
   });
   assert.equal(response.status, 400);
   assert.match(result.error, /photo is required/);
   assert.equal(tasks[7].status_id, statusIds.in_progress);
 });
 
-test('the admin approves a stock check through its own route with the corrected counts', async () => {
+test('the admin approves a stock check with the corrected damaged counts', async () => {
   tasks[7].status_id = statusIds.awaiting_approval;
   tasks[7].task_status = { code: 'awaiting_approval' };
-  const counts = fullCounts(['Small', 'Medium', 'Large'], { 'Small|good': 57 });
+  const counts = damagedCounts(['Small', 'Medium', 'Large'], { 'Small|minor_damage': 3 });
   const { response } = await post('/api/admin/tasks/7/approve-stock-check', { counts });
   assert.equal(response.status, 200);
   const approve = rpcCalls.find((call) => call.name === 'approve_stock_check_task');
   assert.equal(approve.args.p_admin_id, adminId);
-  assert.equal(approve.args.p_counts.find((count) => count.size === 'Small' && count.condition === 'good').quantity, 57);
+  assert.equal(approve.args.p_counts.find((count) => count.size === 'Small' && count.condition === 'minor_damage').quantity, 3);
 });
 
-test('the generic approve route refuses a stock check so stock is never skipped', async () => {
+test('the generic approve route refuses a stock check so pineapples are never skipped', async () => {
   tasks[7].task_status = { code: 'awaiting_approval' };
   const { response, result } = await post('/api/admin/tasks/7/approve', {});
   assert.equal(response.status, 400);

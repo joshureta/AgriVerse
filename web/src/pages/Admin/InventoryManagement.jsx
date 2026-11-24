@@ -80,16 +80,6 @@ function formatDate(value) {
 }
 
 // Formats an inventory price in Philippine pesos.
-// Explains a stock change made by an approved Stock Check task (migration 068).
-function movementReason(movement) {
-  if (!movement.reason) return ''
-  const task = movement.task_id ? ` #TASK-${String(movement.task_id).padStart(4, '0')}` : ''
-  if (movement.reason === 'stock_check') return `Stock Check${task} · ${movement.condition_name || 'Non-saleable'}`
-  if (movement.reason === 'stock_check_unaccounted') return `Stock Check${task} · Unaccounted for`
-  if (movement.reason === 'stock_check_found') return `Stock Check${task} · Found during count`
-  return ''
-}
-
 function formatPrice(value) {
   return `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
@@ -624,7 +614,6 @@ export default function InventoryManagement({ workspace = 'admin', initialView =
                         <td><strong>{movement.pineapple_size}</strong></td>
                         <td>
                           <span className={`movement-badge movement-${movement.movement_type === 'stock_in' ? 'in' : 'out'}`}>{movement.movement_type === 'stock_in' ? 'Stock In' : 'Stock Out'}</span>
-                          {movementReason(movement) && <small className="movement-reason">{movementReason(movement)}</small>}
                         </td>
                         <td><strong className={movement.movement_type === 'stock_in' ? 'movement-positive' : 'movement-negative'}>{movement.movement_type === 'stock_in' ? '+' : '−'}{movement.quantity} {movement.unit}</strong></td>
                         <td>{movement.quantity_before}</td><td>{movement.quantity_after}</td>

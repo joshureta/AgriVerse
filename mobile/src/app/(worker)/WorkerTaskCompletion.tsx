@@ -532,7 +532,7 @@ export default function WorkerTaskCompletionScreen() {
         const quantity = Number(value);
         stockCountsPayload.push({ size, condition: condition.code, quantity, damage_types: stockDamage[key] || [] });
         const photo = stockPhotos[key];
-        if (condition.code !== 'good' && quantity > 0) {
+        if (quantity > 0) {
           if (!photo?.base64) {
             setError(`A photo is required for ${size}, ${condition.label}.`);
             return;

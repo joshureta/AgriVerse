@@ -23,14 +23,13 @@ const emptyForm = {
   assigned_worker_id: '', worker_category: '', category_id: '', activity_type: '', field_id: '', priority_id: '', status_id: '',
   start_date: '', start_time: '07:00', end_time: '08:00', estimated_duration_minutes: '60', description: '',
 }
-// Stock Check: the worker counts pineapple stock by size and condition (codes match public.stock_conditions).
+// Stock Check: the worker records the DAMAGED pineapples by size and damage type (codes match public.stock_conditions).
 const STOCK_CHECK = 'Stock Check'
 const STOCK_CONDITIONS = [
-  { code: 'good', label: 'Good' },
   { code: 'minor_damage', label: 'Minor damage' },
   { code: 'overripe', label: 'Overripe' },
   { code: 'spoiled', label: 'Spoiled' },
-  { code: 'pest_disease', label: 'Pest or disease damage' },
+  { code: 'pest_disease', label: 'Pest or disease' },
 ]
 const stockKey = (size, condition) => `${size}|${condition}`
 const emptyOptions = {
@@ -356,40 +355,29 @@ function AssignmentWarning({ message }) {
 }
 
 // Displays task assignments, reviews, and schedule settings.
-// Totals for one size of a Stock Check. The approval applies good count minus the recorded quantity.
-function stockSizeTotals(size, systemQuantity, quantityOf) {
-  const counted = STOCK_CONDITIONS.reduce((sum, condition) => sum + quantityOf(size, condition.code), 0)
-  const good = quantityOf(size, 'good')
-  const unaccounted = Math.max(systemQuantity - counted, 0)
-  const found = Math.max(counted - systemQuantity, 0)
-  const writtenOff = counted - good + unaccounted - found
-  return { counted, good, unaccounted, found, writtenOff, updated: systemQuantity - writtenOff }
-}
-
-// Quantity by Condition, Inventory Adjustment and photos of a Stock Check (review and view dialogs).
-// With onChange the counts are editable before approval.
+// Damaged pineapples removed by a Stock Check, from the damaged counts.
+// With onChange the damaged counts are editable before approval.
 function StockCheckSections({ data, counts, onChange, onOpenPhoto, workerName }) {
   if (!data) return <p className="wo-hint">Loading stock count…</p>
-  const sizes = data.snapshot.map((row) => row.size)
-  if (!sizes.length) return <p className="wo-hint">No stock count was recorded for this task.</p>
+  const sizes = ['Small', 'Medium', 'Large']
   const quantityOf = (size, condition) => Number(counts[stockKey(size, condition)]) || 0
-  const totals = Object.fromEntries(data.snapshot.map((row) => [row.size, { system: row.system_quantity, ...stockSizeTotals(row.size, row.system_quantity, quantityOf) }]))
-  const sum = (key) => sizes.reduce((total, size) => total + totals[size][key], 0)
-  const edited = data.counts.some((count) => count.quantity !== count.worker_quantity)
+  const sizeTotal = (size) => STOCK_CONDITIONS.reduce((sum, condition) => sum + quantityOf(size, condition.code), 0)
+  const grandTotal = sizes.reduce((sum, size) => sum + sizeTotal(size), 0)
+  const edited = (data.counts || []).some((count) => count.quantity !== count.worker_quantity)
   return (
     <>
-      <WoSection title="Quantity by Condition">
-        {onChange && <p className="wo-hint">Quantities may be adjusted prior to approval.</p>}
+      <WoSection title="Damaged Pineapples">
+        {onChange && <p className="wo-hint">Quantities may be adjusted after checking the photos.</p>}
         <table className="wo-table is-counts">
-          <thead><tr><th><span className="sr-only">Condition</span></th>{sizes.map((size) => <th key={size}>{size}</th>)}<th>Total</th></tr></thead>
+          <thead><tr><th><span className="sr-only">Damage type</span></th>{sizes.map((size) => <th key={size}>{size}</th>)}<th>Total</th></tr></thead>
           <tbody>
             {STOCK_CONDITIONS.map((condition) => {
               const rowTotal = sizes.reduce((total, size) => total + quantityOf(size, condition.code), 0)
               return (
                 <tr key={condition.code}>
-                  <td className={condition.code === 'good' ? 'is-good' : ''}>{condition.label}</td>
+                  <td>{condition.label}</td>
                   {sizes.map((size) => (
-                    <td key={size} className={condition.code === 'good' ? 'is-good' : condition.code === 'pest_disease' && quantityOf(size, condition.code) > 0 ? 'is-flag' : ''}>
+                    <td key={size} className={quantityOf(size, condition.code) > 0 && condition.code === 'pest_disease' ? 'is-flag' : ''}>
                       {onChange ? (
                         <input
                           className="wo-num"
@@ -402,36 +390,26 @@ function StockCheckSections({ data, counts, onChange, onOpenPhoto, workerName })
                       ) : quantityOf(size, condition.code)}
                     </td>
                   ))}
-                  <td className={condition.code === 'good' ? 'is-good' : ''}>{rowTotal}</td>
+                  <td>{rowTotal}</td>
                 </tr>
               )
             })}
-            <tr className="is-total"><td>Total counted</td>{sizes.map((size) => <td key={size}>{totals[size].counted}</td>)}<td>{sum('counted')}</td></tr>
-            <tr><td className="is-muted">Unaccounted for</td>{sizes.map((size) => <td key={size} className={totals[size].unaccounted ? 'is-flag' : 'is-muted'}>{totals[size].unaccounted}</td>)}<td className="is-muted">{sum('unaccounted')}</td></tr>
+            <tr className="is-total"><td>Total damaged</td>{sizes.map((size) => <td key={size} className="is-flag">{sizeTotal(size)}</td>)}<td className="is-flag">{grandTotal}</td></tr>
           </tbody>
         </table>
         {edited && !onChange && <p className="wo-fine">Some quantities were adjusted by the administrator before approval.</p>}
       </WoSection>
 
-      <WoSection title="Inventory Adjustment">
+      <WoSection title="Total Damages">
         <table className="wo-table is-counts">
-          <thead><tr><th>Size</th><th>Recorded quantity</th><th>Written off</th><th>Updated quantity</th></tr></thead>
           <tbody>
-            {sizes.map((size) => (
-              <tr key={size}>
-                <td>{size}</td>
-                <td>{totals[size].system}</td>
-                <td className={totals[size].writtenOff > 0 ? 'is-flag' : ''}>{totals[size].writtenOff > 0 ? `−${totals[size].writtenOff}` : totals[size].writtenOff < 0 ? `+${-totals[size].writtenOff}` : '0'}</td>
-                <td><strong>{totals[size].updated}</strong></td>
-              </tr>
-            ))}
-            <tr className="is-total"><td>Total</td><td>{sum('system')}</td><td>{sum('writtenOff') > 0 ? `−${sum('writtenOff')}` : sum('writtenOff') < 0 ? `+${-sum('writtenOff')}` : '0'}</td><td>{sum('updated')}</td></tr>
+            <tr className="is-total"><td>Pineapples removed from stock</td><td className={grandTotal > 0 ? "is-flag" : ""}>{grandTotal > 0 ? `−${grandTotal} pcs` : "0 pcs"}</td></tr>
           </tbody>
         </table>
-        <p className="wo-fine">Recorded quantity is the stock when the count started. Orders placed during the count are kept.</p>
+        <p className="wo-fine">Each removed pineapple is recorded in the Stock Movement History with its damage type.</p>
       </WoSection>
 
-      <WoSection title={`Photographic Evidence (${data.photos.length})`}>
+      <WoSection title={`Photo Proof (${data.photos.length})`}>
         {data.photos.length ? (
           <div className="wo-photo-grid">
             {data.photos.map((photo) => (
@@ -448,7 +426,7 @@ function StockCheckSections({ data, counts, onChange, onOpenPhoto, workerName })
               </figure>
             ))}
           </div>
-        ) : <p className="wo-hint">No photos were required for this count.</p>}
+        ) : <p className="wo-hint">No photos were attached to this record.</p>}
       </WoSection>
     </>
   )
@@ -721,7 +699,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [disputeActivePhoto])
 
-  // Loads the snapshot, counts and photos of a Stock Check for the review and view dialogs.
+  // Loads the damaged counts and photos of a Stock Check for the review and view dialogs.
   useEffect(() => {
     const task = modal?.task
     if (!task || task.category !== STOCK_CHECK || !['view', 'review-stock-check'].includes(modal.mode)) return undefined
@@ -1642,7 +1620,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               </div>
             )}
             {task.category === STOCK_CHECK && isCompleted && (
-              <p className="wo-fine">Pineapple Stock was updated upon approval. Each write-off is recorded in the Stock Movement History.</p>
+              <p className="wo-fine">Damaged pineapples were removed from Pineapple Stock upon approval. Each one is recorded in the Stock Movement History.</p>
             )}
 
             <WoSection title="Instructions">
@@ -2324,18 +2302,18 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
         )
       })()}
 
-      {/* Stock Check review: approving corrects Pineapple Stock. */}
+      {/* Stock Check review: approving removes the damaged pineapples from Pineapple Stock. */}
       {modal?.mode === 'review-stock-check' && (() => {
         const task = modal.task
         const worker = task.assigned_worker
         const rejecting = harvestDecision === 'reject'
         const quantityOf = (size, condition) => Number(stockCounts[stockKey(size, condition)]) || 0
-        const writtenOff = (stockCheck?.snapshot || []).reduce((total, row) => total + stockSizeTotals(row.size, row.system_quantity, quantityOf).writtenOff, 0)
-        const pestCount = (stockCheck?.snapshot || []).reduce((total, row) => total + quantityOf(row.size, 'pest_disease'), 0)
+        const damagedTotal = ['Small', 'Medium', 'Large'].reduce((total, size) => total + STOCK_CONDITIONS.reduce((sum, condition) => sum + quantityOf(size, condition.code), 0), 0)
+        const pestCount = ['Small', 'Medium', 'Large'].reduce((total, size) => total + quantityOf(size, 'pest_disease'), 0)
         const rejectionPresets = [
-          ['Recount needed', 'Please recount the pineapples and submit the stock check again.'],
+          ['Recount needed', 'Please check the damaged pineapples again and submit the stock check again.'],
           ['Photo unclear', 'One or more photos are unclear. Please retake them and submit the stock check again.'],
-          ['Condition incorrect', 'Some pineapples appear to be in the wrong condition. Please check and submit again.'],
+          ['Condition incorrect', 'Some pineapples appear to be in the wrong damage type. Please check and submit again.'],
         ]
         return (
           <WorkOrderDialog
@@ -2348,11 +2326,9 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             onClose={() => setModal(null)}
             footerNote={rejecting
               ? 'Pineapple Stock is not changed. The task returns to the worker for a recount.'
-              : writtenOff > 0
-                ? `Approval will deduct ${writtenOff} pcs from Pineapple Stock and record each condition in the Stock Movement History.`
-                : writtenOff < 0
-                  ? `Approval will add ${-writtenOff} pcs to Pineapple Stock and record it in the Stock Movement History.`
-                  : 'Approval will mark the task Completed. Pineapple Stock is unchanged.'}
+              : damagedTotal > 0
+                ? `Approval will remove ${damagedTotal} damaged pcs from Pineapple Stock and record each in the Stock Movement History.`
+                : 'Approval will mark the task Completed. Pineapple Stock is unchanged.'}
             footer={<>
               <button type="button" className="wo-btn" disabled={saving} onClick={() => setModal(null)}>Cancel</button>
               {rejecting ? (
@@ -2360,7 +2336,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                   {saving ? 'Saving…' : 'Return for recount'}
                 </button>
               ) : (
-                <button type="button" className="wo-btn is-primary" disabled={saving || !stockCheck?.counts?.length} onClick={approveTask}>
+                <button type="button" className="wo-btn is-primary" disabled={saving || !stockCheck} onClick={approveTask}>
                   <Check size={15} aria-hidden="true" />{saving ? 'Saving…' : 'Approve & Update Inventory'}
                 </button>
               )}
@@ -2369,7 +2345,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
             {pestCount > 0 && (
               <div className="wo-assignment-warning" role="status">
                 <span className="wo-assignment-warning-icon" aria-hidden="true"><TriangleAlert /></span>
-                <span>{pestCount === 1 ? 'One (1) pineapple shows' : `${pestCount} pineapples show`} signs of pest or disease damage. A Pest and Disease inspection is recommended.</span>
+                <span>{pestCount === 1 ? 'One (1) pineapple shows' : `${pestCount} pineapples show`} pest or disease damage. A Pest and Disease inspection is recommended.</span>
               </div>
             )}
             <div className="wo-two">
@@ -2421,7 +2397,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                             onChange={(event) => setHarvestRejectionReason(event.target.value)}
                             rows={3}
                             maxLength={1000}
-                            placeholder="Explain what needs to be recounted…"
+                            placeholder="Explain what needs to be rechecked…"
                           />
                         </WoField>
                       </div>
