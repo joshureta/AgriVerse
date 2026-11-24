@@ -267,3 +267,35 @@
 @media (max-width: 360px) {
   .seller-dashboard .seller-inventory-statistics-content { grid-template-columns: minmax(0, 1fr); justify-items: center; }
 }
+
+/* Mobile seller dialogs: consistent gutters, fixed header/footer, scrolling body. */
+@media (max-width: 640px) {
+  .seller-orders-page .seller-order-modal-backdrop { align-items: center; justify-content: center; padding: 12px; box-sizing: border-box; }
+  .seller-orders-page .seller-order-modal { width: 100%; max-width: 500px; height: calc(100dvh - 24px); max-height: calc(100dvh - 24px); min-height: 0; border-radius: 16px; }
+  .seller-orders-page .seller-order-modal > header { min-height: 0; gap: 12px; padding: 18px 16px; }
+  .seller-orders-page .seller-order-modal-heading { gap: 8px; }
+  .seller-orders-page .seller-order-modal-heading > div { align-items: flex-start; gap: 8px; }
+  .seller-orders-page .seller-order-modal h2 { font-size: 22px; }
+  .seller-orders-page .seller-order-modal > header small { overflow-wrap: anywhere; font-size: 10px; }
+  .seller-orders-page .seller-order-modal > header button { width: 44px; height: 44px; flex-basis: 44px; }
+  .seller-orders-page .seller-order-modal-body { min-height: 0; padding: 12px; overscroll-behavior: contain; }
+  .seller-orders-page .seller-order-receipt { padding: 0 14px; }
+  .seller-orders-page .seller-order-modal-body dl > div { grid-template-columns: 78px minmax(0, 1fr); gap: 10px; padding-block: 10px; }
+  .seller-orders-page .seller-order-modal-body dd { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+  .seller-orders-page .seller-order-modal-body dt { font-size: 11px; }
+  .seller-orders-page .seller-modal-items article { grid-template-columns: 28px minmax(0, 1fr); gap: 8px; }
+  .seller-orders-page .seller-modal-items b { grid-column: 2; justify-self: end; white-space: normal; overflow-wrap: anywhere; }
+  .seller-orders-page .seller-order-modal > footer { min-height: 0; gap: 8px; margin: 0; padding: 14px 16px max(14px, env(safe-area-inset-bottom)); }
+  .seller-orders-page .seller-driver-pending-note { font-size: 12px; line-height: 1.5; }
+  .seller-orders-page .seller-confirmation-backdrop { padding: 12px; box-sizing: border-box; }
+  .seller-orders-page .seller-confirmation-dialog { max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; padding: 22px 18px; }
+  .seller-orders-page .seller-confirmation-dialog textarea { min-width: 0; width: 100%; font-size: 16px; }
+  .seller-orders-page .seller-confirmation-dialog > footer button { min-height: 44px; }
+  .seller-inventory-page .inventory-modal-backdrop { padding: 12px; }
+  .seller-inventory-page .inventory-modal { width: 100%; max-height: calc(100dvh - 24px); overscroll-behavior: contain; }
+  .seller-inventory-page .inventory-modal form { grid-template-columns: minmax(0, 1fr); }
+  .seller-inventory-page .inventory-modal :is(label, input, select) { min-width: 0; }
+  .seller-inventory-page .inventory-modal :is(input, select) { font-size: 16px; }
+  .seller-inventory-page .inventory-modal footer { flex-wrap: wrap; gap: 8px; }
+  .seller-inventory-page .inventory-modal footer button { flex: 1; min-height: 44px; }
+}

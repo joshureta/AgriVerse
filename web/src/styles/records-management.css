@@ -356,7 +356,8 @@
   .records-page-heading > .records-report-menu {
     width: min(100%, 190px);
     flex-basis: auto;
-    align-self: flex-start;
+    align-self: flex-end;
+    margin-left: auto;
   }
 
   .records-category-section {

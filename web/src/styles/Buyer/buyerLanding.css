@@ -1547,3 +1547,16 @@ body:has(.buyer-page) #root {
   .buyer-footer-grid { grid-template-columns: minmax(0, 1fr); }
   .buyer-footer-bottom, .buyer-footer-bottom div { flex-wrap: wrap; }
 }
+
+/* Tablet delivery map: trim the asset's wide white margins in its image box. */
+@media (min-width: 641px) and (max-width: 1320px) {
+  .marketplace-delivery { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: center; }
+  .marketplace-delivery-copy { width: 100%; max-width: none; }
+  .marketplace-delivery-map { width: 100%; height: auto; aspect-ratio: 5 / 4; max-height: none; object-fit: cover; object-position: center; border: 1px solid #e3eadf; border-radius: 18px; background: #fff; }
+  .marketplace-delivery-aside { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 24px; }
+  .marketplace-delivery-aside article { height: 100%; padding: 24px; }
+  .marketplace-delivery-copy > p:not(.marketplace-delivery-eyebrow), .marketplace-delivery-aside p { font-size: 14px; line-height: 1.55; }
+  .marketplace-delivery-locations strong { font-size: 13px; }
+  .marketplace-delivery-locations small { font-size: 11px; }
+  .marketplace-delivery-aside li { font-size: 12px; }
+}

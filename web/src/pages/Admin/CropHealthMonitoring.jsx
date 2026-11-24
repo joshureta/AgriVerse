@@ -854,7 +854,7 @@ export default function CropHealthMonitoring() {
       {activityToDelete && (
         <div className="task-modal-backdrop">
           <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="delete-inspection-title" style={{ maxWidth: '440px' }}>
-            <div className="task-dialog-header" style={{ minHeight: '68px', padding: '12px 24px', background: 'linear-gradient(90deg,#287a31,#1f6731)' }}>
+            <div className="task-dialog-header inspection-details-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Trash2 color="#fff" size={21} />
                 <div>
@@ -910,8 +910,8 @@ export default function CropHealthMonitoring() {
       {/* Details dialog for a saved inspection. */}
       {selectedActivity && (
         <div className="task-modal-backdrop">
-          <section className="task-reference-modal view-task-modal" role="dialog" aria-modal="true" aria-labelledby="view-task-title" style={{ maxWidth: '640px' }}>
-            <div className="task-dialog-header" style={{ minHeight: '68px', padding: '12px 24px', background: 'linear-gradient(90deg,#287a31,#1f6731)' }}>
+          <section className="task-reference-modal view-task-modal inspection-details-modal" role="dialog" aria-modal="true" aria-labelledby="view-task-title">
+            <div className="task-dialog-header inspection-details-header">
               <div>
                 <div>
                   <p>Inspection Record</p>
@@ -923,7 +923,7 @@ export default function CropHealthMonitoring() {
               </button>
             </div>
 
-            <div className="task-reference-body task-view-body" style={{ padding: '24px 28px' }}>
+            <div className="task-reference-body task-view-body inspection-details-body">
               {selectedActivity.image && (
                 <div style={{ borderRadius: '8px', overflow: 'hidden', marginBottom: '18px', border: '1px solid #d4ded2', width: '100%', background: 'transparent' }}>
                   <img
