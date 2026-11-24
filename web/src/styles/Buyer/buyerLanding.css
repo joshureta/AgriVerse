@@ -1396,90 +1396,6 @@ body:has(.buyer-page) #root {
   }
 }
 
-@media (min-width: 601px) and (max-width: 1000px) {
-  .marketplace-delivery {
-    min-height: 560px;
-    grid-template-columns: minmax(160px, .9fr) minmax(0, 1.3fr) minmax(170px, .9fr);
-    align-items: start;
-    gap: clamp(8px, 1.5vw, 18px);
-    padding: 42px clamp(12px, 2vw, 20px);
-    background: #fff;
-  }
-
-  .marketplace-delivery-map {
-    position: absolute;
-    inset: 0;
-    grid-area: auto;
-    width: 100%;
-    height: 100%;
-    max-height: none;
-    justify-self: auto;
-    object-fit: cover;
-    object-position: 40% center;
-  }
-
-  .marketplace-delivery-copy {
-    grid-column: 1;
-    grid-row: 1;
-    width: auto;
-    max-width: none;
-    justify-self: stretch;
-    border-radius: 0;
-    padding: 0;
-    background: transparent;
-    text-align: left;
-    backdrop-filter: none;
-  }
-
-  .marketplace-delivery-copy h2 { font-size: clamp(20px, 2.5vw, 26px); }
-  .marketplace-delivery-copy > p:not(.marketplace-delivery-eyebrow) { margin-inline: 0; font-size: 11px; }
-  .marketplace-delivery-locations { width: 100%; margin-inline: 0; padding: 7px 10px; }
-  .marketplace-delivery-locations li { gap: 8px; padding-block: 8px; }
-  .marketplace-delivery-locations strong { font-size: 11px; }
-  .marketplace-delivery-locations small { font-size: 8px; }
-
-  .marketplace-delivery-aside {
-    grid-column: 3;
-    grid-row: 1;
-    width: auto;
-    max-width: none;
-    grid-template-columns: 1fr;
-    justify-self: stretch;
-    gap: 12px;
-  }
-
-  .marketplace-delivery-aside article { padding: clamp(12px, 1.5vw, 18px); }
-  .marketplace-delivery-aside h3 { font-size: 16px; }
-  .marketplace-delivery-aside p { font-size: 11px; }
-  .marketplace-delivery-aside li { font-size: 10px; }
-  .marketplace-bulk-order a { gap: 8px; padding-inline: 10px; font-size: 10px; }
-}
-
-@media (min-width: 641px) and (max-width: 1100px) {
-  .marketplace-social-proof {
-    min-height: 430px;
-    grid-template-columns: minmax(200px, 1fr) minmax(0, .8fr) minmax(200px, 1fr);
-    align-items: center;
-    gap: clamp(10px, 1.5vw, 22px);
-    padding: 36px clamp(12px, 2vw, 24px);
-    background-position: right center;
-    background-size: cover;
-  }
-
-  .marketplace-business-trust,
-  .marketplace-testimonial {
-    border-radius: 0;
-    padding: 0;
-  }
-
-  .marketplace-business-trust { grid-column: 1; }
-  .marketplace-testimonial { grid-column: 3; }
-  .marketplace-business-types { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .marketplace-business-types span { width: 48px; height: 48px; }
-  .marketplace-business-types img { width: 40px; height: 40px; }
-  .marketplace-testimonial article { min-height: 185px; padding: 30px 16px 20px; }
-}
-
 @media (max-width: 640px) {
   .marketplace-social-proof {
     min-height: 0;
@@ -1551,4 +1467,83 @@ body:has(.buyer-page) #root {
   .marketplace-product-card img { height: clamp(100px, 25vw, 130px); }
   .marketplace-product-copy h3 { font-size: clamp(11px, 2.7vw, 14px); }
   .marketplace-product-copy span { padding: 4px 6px; font-size: 9px; }
+}
+
+/* Reflow the marketplace before desktop columns exceed the viewport. */
+@media (max-width: 1320px) {
+  .marketplace-delivery {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 28px;
+    padding: 40px 24px;
+    background: #f8fbf6;
+  }
+  .marketplace-delivery-copy { grid-area: 1 / 1; width: 100%; padding: 0; background: transparent; text-align: left; }
+  .marketplace-delivery-copy > p:not(.marketplace-delivery-eyebrow) { margin-inline: 0; }
+  .marketplace-delivery-locations { width: 100%; margin-inline: 0; }
+  .marketplace-delivery-map { position: static; grid-area: 1 / 2; width: 100%; height: auto; max-height: 440px; align-self: center; object-fit: contain; }
+  .marketplace-delivery-aside { grid-area: 2 / 1 / auto / -1; width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .marketplace-social-proof { min-height: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; padding: 40px 24px; }
+  .marketplace-business-trust, .marketplace-testimonial { min-width: 0; padding: 0; }
+  .marketplace-business-trust { grid-column: 1; }
+  .marketplace-testimonial { grid-column: 2; }
+  .marketplace-business-types { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .buyer-footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .buyer-footer-grid > section { min-width: 0; overflow-wrap: anywhere; }
+  .buyer-newsletter { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .buyer-newsletter input { min-width: 0; }
+}
+
+@media (max-width: 1090px) {
+  .marketplace-hero { min-height: 460px; padding: 40px 28px 64px; background-size: cover; background-position: center; }
+  .marketplace-hero-copy { width: 48%; }
+  .marketplace-trust-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; }
+  .marketplace-trust-item { min-height: 112px; grid-template-columns: 46px minmax(0, 1fr); align-content: center; padding: 18px; text-align: left; }
+  .marketplace-trust-item h2 { font-size: 14px; }
+  .marketplace-trust-item p { font-size: 12px; }
+  .marketplace-product-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .marketplace-product-card { max-width: none; grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+  .marketplace-product-copy h3 { font-size: 20px; }
+  .marketplace-product-copy span { font-size: 12px; }
+}
+
+@media (max-width: 780px) {
+  .buyer-profile-menu summary { pointer-events: auto; min-height: 44px; }
+  .buyer-profile-dropdown { display: block; }
+  .buyer-icon-link, .buyer-cart-link, .buyer-mobile-menu summary { width: 44px; height: 44px; }
+  .buyer-mobile-menu { top: 14px; left: 12px; }
+  .buyer-mobile-menu nav { top: 48px; max-height: calc(100dvh - 88px); overflow-y: auto; }
+}
+
+@media (max-width: 640px) {
+  .marketplace-hero { min-height: 570px; align-items: flex-start; padding: 32px 20px 270px; background-position: right bottom; background-size: auto 300px; }
+  .marketplace-hero::before { display: none; }
+  .marketplace-hero-copy { width: 100%; max-width: 440px; padding: 0; }
+  .marketplace-eyebrow { font-size: 20px; }
+  .marketplace-hero h1 { font-size: clamp(34px, 9vw, 48px); }
+  .marketplace-hero h1 span { font-size: .52em; }
+  .marketplace-intro { margin-top: 16px; font-size: 15px; line-height: 1.55; }
+  .marketplace-shop-button { min-height: 44px; margin-top: 18px; font-size: 13px; }
+  .marketplace-trust-panel { width: calc(100% - 32px); margin-top: -18px; border-radius: 18px; }
+  .marketplace-trust-item { min-height: 150px; grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 10px; padding: 16px 12px; }
+  .marketplace-trust-icon { width: 42px; height: 42px; }
+  .marketplace-trust-item h2 { font-size: 12px; }
+  .marketplace-trust-item p { font-size: 12px; line-height: 1.45; }
+  .marketplace-products { width: calc(100% - 32px); padding-block: 40px; }
+  .marketplace-section-heading p { font-size: 14px; }
+  .marketplace-product-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .marketplace-product-card { min-height: 180px; grid-template-columns: minmax(0, 42%) minmax(0, 1fr); padding: 16px; text-align: left; justify-items: stretch; }
+  .marketplace-product-card img { height: 160px; }
+  .marketplace-product-copy { align-self: center; }
+  .marketplace-delivery { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 32px 16px; }
+  .marketplace-delivery-copy { grid-area: 1 / 1; }
+  .marketplace-delivery-map { grid-area: 2 / 1; max-height: 300px; }
+  .marketplace-delivery-aside { grid-area: 3 / 1; grid-template-columns: minmax(0, 1fr); max-width: none; }
+  .marketplace-social-proof { grid-template-columns: minmax(0, 1fr); padding: 32px 16px 120px; }
+  .marketplace-business-trust, .marketplace-testimonial { grid-column: 1; width: 100%; }
+  .marketplace-business-types { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .marketplace-business-trust > p, .marketplace-testimonial blockquote { font-size: 14px; }
+  .buyer-site-footer { padding: 32px 20px 90px; }
+  .buyer-footer-grid { grid-template-columns: minmax(0, 1fr); }
+  .buyer-footer-bottom, .buyer-footer-bottom div { flex-wrap: wrap; }
 }

@@ -119,10 +119,11 @@
 .farm-chat-composer button svg { width: 19px; height: 19px; }
 
 @media (max-width: 600px) {
-  .farm-chat-widget { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); }
+  .farm-chat-widget { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
   .farm-chat-launcher { min-height: 54px; gap: 9px; padding: 0 16px; font-size: 14px; }
   .farm-chat-launcher > svg { width: 22px; height: 22px; }
-  .farm-chat-panel { width: calc(100vw - 24px); height: calc(100dvh - 24px - env(safe-area-inset-bottom)); }
+  .farm-chat-panel { width: calc(100vw - 24px - env(safe-area-inset-right)); height: calc(100dvh - 24px - env(safe-area-inset-bottom)); }
+  .farm-chat-composer input { font-size: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

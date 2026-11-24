@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCheck, ChevronDown, Clock, MessageSquare, Search, Send } from 'lucide-react'
+import { ArrowLeft, CheckCheck, ChevronDown, Clock, MessageSquare, Search, Send } from 'lucide-react'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import { loadAdminConversation, loadAdminConversations, sendAdminMessage, setAdminTyping } from '../../services/adminMessages.js'
 import '../../styles/admin-dashboard.css'
@@ -27,6 +27,7 @@ export default function AdminMessages() {
   const [conversations, setConversations] = useState([])
   const [conversationsLoading, setConversationsLoading] = useState(true)
   const [selectedId, setSelectedId] = useState(null)
+  const [mobileThreadOpen, setMobileThreadOpen] = useState(false)
   const [messages, setMessages] = useState([])
   const [threadLoading, setThreadLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -120,7 +121,7 @@ export default function AdminMessages() {
     } else {
       updateJumpToLatest()
     }
-  }, [messages])
+  }, [messages, mobileThreadOpen])
 
   // Sends the drafted message to the selected buyer.
   async function handleSend() {
@@ -190,7 +191,7 @@ export default function AdminMessages() {
     .find((message) => message.sender_role === 'admin')?.id
 
   return (
-    <main className="admin-dashboard admin-messages-page">
+    <main className={`admin-dashboard admin-messages-page${mobileThreadOpen && selectedConversation ? ' is-mobile-thread-open' : ''}`}>
       {/* Admin navigation and page header. */}
       <AdminSidebar active="messages" />
       <section className="admin-workspace">
@@ -203,6 +204,10 @@ export default function AdminMessages() {
           <div className="admin-messages-shell">
             {/* Sidebar list */}
             <aside className="admin-messages-list" aria-label="Buyer Conversations">
+              <header className="admin-mobile-inbox-heading">
+                <h1>Messages</h1>
+                <p>Conversations with your buyers</p>
+              </header>
               <div className="admin-messages-search-bar">
                 <div className="admin-search-input-wrapper">
                   <Search size={16} className="search-icon" aria-hidden="true" />
@@ -236,7 +241,12 @@ export default function AdminMessages() {
                       key={conversation.id}
                       type="button"
                       className={`admin-messages-list-item${isActive ? ' is-active' : ''}`}
-                      onClick={() => setSelectedId(conversation.id)}
+                      onClick={() => {
+                        if (conversation.id !== selectedId) setDraft('')
+                        shouldScrollToLatestRef.current = true
+                        setSelectedId(conversation.id)
+                        setMobileThreadOpen(true)
+                      }}
                     >
                       <div className="admin-messages-list-avatar" aria-hidden="true">
                         {initial}
@@ -285,6 +295,10 @@ export default function AdminMessages() {
               {selectedConversation && (
                 <>
                   <header className="admin-messages-thread-header">
+                    <button className="admin-chat-back" type="button" aria-label="Back to conversations"
+                      onClick={() => setMobileThreadOpen(false)}>
+                      <ArrowLeft size={22} aria-hidden="true" />
+                    </button>
                     <div className="admin-thread-user-info">
                       <div className="admin-thread-avatar">
                         {(selectedConversation.buyer?.full_name || 'B').charAt(0).toUpperCase()}

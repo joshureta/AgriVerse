@@ -1,5 +1,6 @@
+import WorkspaceDrawer from './WorkspaceDrawer.jsx'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, LogOut, MessageCircle, Settings } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, MessageCircle, Settings } from 'lucide-react'
 import dateIcon from '../assets/admin-date-icon.png'
 import cropHealthMonitoringIcon from '../assets/crop-health-monitoring-icon.png'
 import cropHealthAssessmentIcon from '../assets/crop-health-assessment-icon.svg'
@@ -145,6 +146,8 @@ function formatDashboardDate(date) {
 }
 
 export function AdminSidebar({ active }) {
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const menuButtonRef = useRef(null)
   const [operationsOpen, setOperationsOpen] = useState(
     active === 'tasks' || active === 'inventory',
   )
@@ -157,12 +160,25 @@ export function AdminSidebar({ active }) {
   }
 
   return (
-    <aside className="admin-sidebar">
+    <aside className={`admin-sidebar${mobileOpen ? ' is-mobile-open' : ''}`} onKeyDown={(event) => {
+      if (event.key === 'Escape' && mobileOpen) {
+        setMobileOpen(false)
+        menuButtonRef.current?.focus()
+      }
+    }}>
       <a className="admin-logo" href="/admin" aria-label="AgriVerse admin home">
         <img className="admin-logo-image" src={agriverseWordmark} alt="AgriVerse" />
       </a>
 
-      <nav className="admin-nav" aria-label="Admin navigation">
+      <button className="admin-mobile-toggle" type="button" ref={menuButtonRef}
+        aria-expanded={mobileOpen} aria-controls="admin-drawer" aria-label="Open navigation"
+        onClick={() => setMobileOpen((open) => !open)}>
+        <Menu aria-hidden="true" />
+      </button>
+
+      <WorkspaceDrawer open={mobileOpen} setOpen={setMobileOpen} triggerRef={menuButtonRef}
+        id="admin-drawer" title="Admin navigation">
+      <nav className="admin-nav" id="admin-navigation" aria-label="Admin navigation">
         {navItems.map((item) => (
           <a
             className={item.key === active ? 'is-active' : ''}
@@ -281,6 +297,7 @@ export function AdminSidebar({ active }) {
         <span>Administrator workspace</span>
         <strong>AgriVerse</strong>
       </div>
+      </WorkspaceDrawer>
     </aside>
   )
 }

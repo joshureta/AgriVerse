@@ -207,3 +207,63 @@
   font-size: var(--seller-type-body);
   font-weight: 700;
 }
+
+/* Responsive seller workspace; desktop rules remain above these breakpoints. */
+@media (max-width: 1200px) {
+  .seller-dashboard .seller-analytics-grid { grid-template-columns: minmax(0, 1fr); }
+  .seller-dashboard .seller-inventory-statistics-content { grid-template-columns: 155px minmax(0, 1fr); }
+  .seller-dashboard .seller-inventory-legend { width: 100%; }
+}
+@media (max-width: 1024px) {
+  .seller-sidebar .admin-nav { margin-top: 12px; }
+  .seller-dashboard .seller-content { width: calc(100% - 40px); padding-top: 20px; }
+  .seller-dashboard .seller-hero-copy { min-width: 0; max-width: 56%; }
+  .seller-dashboard .seller-hero > img { position: static; width: 42%; height: 145px; opacity: .92; }
+  .seller-dashboard .seller-stats > article { padding: 20px 16px; }
+  .seller-dashboard .seller-stats strong { overflow-wrap: anywhere; }
+  .seller-dashboard .seller-dashboard-body { grid-template-columns: minmax(0, 1fr); }
+  .seller-dashboard .seller-panel { min-width: 0; }
+  .seller-dashboard .seller-order-table-wrap { max-width: 100%; overscroll-behavior-x: contain; }
+  :is(.seller-dashboard, .seller-orders-page, .seller-inventory-page) .admin-signout { min-height: 44px; margin-left: 0; flex-shrink: 0; }
+  .seller-orders-page .seller-order-table-wrap { max-width: 100%; overflow-x: auto; }
+}
+@media (max-width: 640px) {
+  .seller-dashboard .seller-content { width: calc(100% - 24px); padding-top: 12px; }
+  :is(.seller-dashboard, .seller-orders-page, .seller-inventory-page) .admin-date { max-width: 130px; }
+  :is(.seller-dashboard, .seller-orders-page, .seller-inventory-page) .admin-account { gap: 6px; }
+  :is(.seller-dashboard, .seller-orders-page, .seller-inventory-page) .admin-avatar { width: 32px; height: 32px; flex-shrink: 0; }
+  :is(.seller-dashboard, .seller-orders-page, .seller-inventory-page) .admin-signout { padding-inline: 10px; font-size: 11px; }
+  .seller-dashboard .seller-hero { min-height: 0; flex-direction: column; align-items: stretch; gap: 16px; padding: 22px 20px 0; }
+  .seller-dashboard .seller-hero-copy { max-width: 100%; padding: 0; }
+  .seller-dashboard .seller-hero-copy h1 { font-size: 32px; overflow-wrap: anywhere; }
+  .seller-dashboard .seller-hero-copy > p:last-child { font-size: 12px; line-height: 1.6; letter-spacing: .04em; }
+  .seller-dashboard .seller-hero > img { position: static; align-self: flex-end; width: min(100%, 320px); height: 120px; object-fit: cover; opacity: 1; }
+  .seller-dashboard .seller-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .seller-dashboard .seller-stats > article { min-height: 116px; padding: 16px; }
+  .seller-dashboard .seller-stats > article:first-child { grid-column: 1 / -1; min-height: 112px; }
+  .seller-dashboard .seller-stats small { font-size: 12px; }
+  .seller-dashboard .seller-stats strong { font-size: 26px; }
+  .seller-dashboard .seller-stats p { font-size: 11px; line-height: 1.5; }
+  .seller-dashboard .seller-analytics-grid { gap: 16px; margin-top: 16px; }
+  .seller-dashboard .seller-panel > header { padding: 18px 16px 10px; flex-wrap: wrap; }
+  .seller-dashboard .seller-inventory-statistics-content { grid-template-columns: 125px minmax(0, 1fr); min-height: 180px; gap: 16px; padding: 12px 16px 20px; justify-items: stretch; }
+  .seller-dashboard .seller-stock-donut { width: 125px; height: 125px; }
+  .seller-dashboard .seller-stock-donut::before { width: 82px; height: 82px; }
+  .seller-dashboard .seller-inventory-legend li { font-size: 12px; }
+  .seller-dashboard .seller-inventory-legend strong { font-size: 12px; }
+  .seller-dashboard .seller-chart { padding: 20px 16px 20px 64px; }
+  .seller-dashboard .seller-chart-labels { left: 12px; font-size: 10px; }
+  .seller-dashboard .seller-chart-months { font-size: 10px; }
+  .seller-dashboard .seller-order-table-wrap { padding-inline: 12px; }
+  .seller-dashboard .seller-order-table-wrap table { font-size: 12px; }
+  .seller-dashboard .seller-order-table-wrap th { font-size: 11px; }
+  .seller-orders-page .seller-order-tabs { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .seller-orders-page .seller-order-tabs button { flex-shrink: 0; min-height: 44px; }
+  .seller-orders-page .seller-order-search { min-width: 0; width: 100%; }
+  .seller-orders-page .seller-order-search input { min-width: 0; font-size: 16px; }
+  .seller-orders-page .seller-order-modal { max-height: calc(100dvh - 24px); }
+  .seller-orders-page .seller-order-modal-body dd { overflow-wrap: anywhere; }
+}
+@media (max-width: 360px) {
+  .seller-dashboard .seller-inventory-statistics-content { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+}
