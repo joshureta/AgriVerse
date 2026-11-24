@@ -48,29 +48,47 @@ router.get("/config", async (req, res, next) => {
 });
 
 // Lists every known device with its send interval for the admin Settings page.
+// Devices that actually sent data are included even when their ID is not
+// registered anywhere else, so the real device can always be configured.
 async function listDeviceSettings() {
   const db = getSensorSupabase();
-  const [fields, settings] = await Promise.all([
+  const recentSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const recent = (table) => db.from(table).select("device_id, field_name, created_at")
+    .gte("created_at", recentSince).order("created_at", { ascending: false }).limit(1000);
+  const [fields, settings, climate, soil] = await Promise.all([
     db.from("sensor_device_fields").select("device_id, field_name"),
     db.from("sensor_device_settings").select("*"),
+    recent("sensor_readings"),
+    recent("soil_readings"),
   ]);
   if (fields.error) throw fields.error;
   if (settings.error) throw settings.error;
   const devices = new Map();
+  const merge = (id, values) => devices.set(id, { device_id: id, field_name: null, ...devices.get(id), ...values });
   const configuredDevice = process.env.SENSOR_DEVICE_ID?.trim();
-  if (configuredDevice) devices.set(configuredDevice, { device_id: configuredDevice, field_name: null });
-  for (const row of fields.data || []) devices.set(row.device_id, { ...row });
-  for (const row of settings.data || []) {
-    devices.set(row.device_id, { field_name: null, ...devices.get(row.device_id), ...row });
+  if (configuredDevice) merge(configuredDevice, {});
+  for (const row of fields.data || []) merge(row.device_id, { field_name: row.field_name });
+  for (const row of settings.data || []) merge(row.device_id, row);
+  // A missing soil table must not hide the list; readings only add last-seen info.
+  for (const row of [...(climate.data || []), ...(soil.data || [])]) {
+    if (typeof row.device_id !== "string" || !row.device_id) continue;
+    const current = devices.get(row.device_id);
+    if (current?.last_seen_at && current.last_seen_at >= row.created_at) continue;
+    merge(row.device_id, {
+      last_seen_at: row.created_at,
+      field_name: current?.field_name || row.field_name || null,
+    });
   }
   return [...devices.values()]
     .map((device) => ({
       read_interval_seconds: DEFAULT_INTERVAL_SECONDS,
       updated_at: null,
       updated_by_name: null,
+      last_seen_at: null,
       ...device,
     }))
-    .sort((a, b) => a.device_id.localeCompare(b.device_id));
+    .sort((a, b) => (b.last_seen_at || "").localeCompare(a.last_seen_at || "") ||
+      a.device_id.localeCompare(b.device_id));
 }
 
 router.get("/settings", requireAuth, requireRole("admin"), async (req, res, next) => {

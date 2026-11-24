@@ -15,6 +15,15 @@ const tabs = [
   { id: 'sensors', label: 'Sensors', plural: 'sensors' },
   { id: 'archive', label: 'Archived Items', plural: 'archived items' },
 ]
+// "Last data 3 min ago" for the Sensors tab, so admins pick the device that is actually sending.
+function lastSeenLabel(value) {
+  if (!value) return 'No data in the last 7 days'
+  const minutes = Math.max(0, Math.round((Date.now() - Date.parse(value)) / 60000))
+  if (minutes < 1) return 'Last data just now'
+  if (minutes < 60) return `Last data ${minutes} min ago`
+  if (minutes < 1440) return `Last data ${Math.round(minutes / 60)} h ago`
+  return `Last data ${Math.round(minutes / 1440)} d ago`
+}
 const vehicleStatuses = { available: 'Available', in_use: 'In Use', maintenance: 'Maintenance', inactive: 'Inactive' }
 
 // Gets an access token for admin requests.
@@ -158,7 +167,7 @@ export default function Settings() {
                   {loading ? <tr><td colSpan="3" className="settings-empty">Loading…</td></tr> : visibleRecords.length === 0 ? <tr><td colSpan="3" className="settings-empty">No {tabConfig.plural} found.</td></tr> : visibleRecords.map((item) => {
                     const name = activeTab === 'sensors' ? item.device_id : activeTab === 'fleet' ? item.vehicle_name : activeTab === 'categories' ? item.category_name : activeTab === 'archive' ? item.name : item.field_name
                     const details = activeTab === 'sensors' ? `Every ${formatInterval(item.read_interval_seconds)}` : activeTab === 'categories' ? item.description || 'No description added' : activeTab === 'fleet' ? vehicleStatuses[item.status] || item.status : activeTab === 'archive' ? 'Archived' : 'Active'
-                    return <tr key={`${activeTab}-${item.id}`}><td><strong>{name}</strong>{activeTab === 'fleet' && <small className="settings-item-detail">{item.plate_number}</small>}{activeTab === 'archive' && <small className="settings-item-detail">{item.type}</small>}{activeTab === 'sensors' && <small className="settings-item-detail">{item.field_name || 'No field assigned'}</small>}</td><td>{details}{activeTab === 'sensors' && item.updated_at && <small className="settings-item-detail">Changed {new Date(item.updated_at).toLocaleString()}{item.updated_by_name ? ` by ${item.updated_by_name}` : ''}</small>}</td><td className="settings-actions-cell"><div className="settings-actions">{activeTab === 'archive' ? <button className="settings-restore" type="button" onClick={() => restore(item)} aria-label={`Restore ${name}`}>Restore</button> : <><button className="settings-edit" type="button" onClick={() => beginEdit(item)} aria-label={`Edit ${name}`}>✎</button>{activeTab !== 'fleet' && activeTab !== 'sensors' && <button className="settings-archive" type="button" onClick={() => archive(item)} aria-label={`Archive ${name}`}><img src={archiveIcon} alt="" /></button>}</>}</div></td></tr>
+                    return <tr key={`${activeTab}-${item.id}`}><td><strong>{name}</strong>{activeTab === 'fleet' && <small className="settings-item-detail">{item.plate_number}</small>}{activeTab === 'archive' && <small className="settings-item-detail">{item.type}</small>}{activeTab === 'sensors' && <small className="settings-item-detail">{item.field_name || 'No field assigned'} · {lastSeenLabel(item.last_seen_at)}</small>}</td><td>{details}{activeTab === 'sensors' && item.updated_at && <small className="settings-item-detail">Changed {new Date(item.updated_at).toLocaleString()}{item.updated_by_name ? ` by ${item.updated_by_name}` : ''}</small>}</td><td className="settings-actions-cell"><div className="settings-actions">{activeTab === 'archive' ? <button className="settings-restore" type="button" onClick={() => restore(item)} aria-label={`Restore ${name}`}>Restore</button> : <><button className="settings-edit" type="button" onClick={() => beginEdit(item)} aria-label={`Edit ${name}`}>✎</button>{activeTab !== 'fleet' && activeTab !== 'sensors' && <button className="settings-archive" type="button" onClick={() => archive(item)} aria-label={`Archive ${name}`}><img src={archiveIcon} alt="" /></button>}</>}</div></td></tr>
                   })}
                 </tbody>
               </table>
