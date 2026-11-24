@@ -21,6 +21,7 @@ const uint32_t MIN_READ_INTERVAL_S = 10;
 const uint32_t MAX_READ_INTERVAL_S = 86400;  // 1 day
 const unsigned long CONFIG_POLL_INTERVAL_MS = 60000UL;
 const unsigned long SYNC_INTERVAL_MS = 1000UL;
+const unsigned long BACKLOG_SYNC_BUDGET_MS = 5000UL;
 const unsigned long WIFI_OFFLINE_GRACE_MS = 10000UL;
 const unsigned long OFFLINE_SMS_INTERVAL_MS = 10000UL;
 
@@ -388,8 +389,12 @@ bool syncQueue(const char* path, uint32_t &offset, const char* ackKey, int maxRe
 
 void syncPending() {
   if (WiFi.status() != WL_CONNECTED) return;
-  if (!syncQueue(FRESH_QUEUE_FILE, freshAckOffset, "ack-live-v1", 2)) return;
-  syncQueue(QUEUE_FILE, ackOffset, "ack-v2", 2);
+  // One queued upload per pass leaves time for the next scheduled reading.
+  if (LittleFS.exists(FRESH_QUEUE_FILE)) {
+    syncQueue(FRESH_QUEUE_FILE, freshAckOffset, "ack-live-v1", 1);
+  } else {
+    syncQueue(QUEUE_FILE, ackOffset, "ack-v2", 1);
+  }
 }
 
 void setup() {
@@ -433,8 +438,10 @@ void loop() {
   if (!hasRead || now - lastRead >= readIntervalMs) {
     lastRead = now; hasRead = true;
     captureReading();
+    now = millis();
   }
-  if (now - lastSync >= SYNC_INTERVAL_MS) {
+  if (now - lastSync >= SYNC_INTERVAL_MS &&
+      (!hasRead || now - lastRead <= readIntervalMs - BACKLOG_SYNC_BUDGET_MS)) {
     lastSync = now;
     syncPending();
   }
