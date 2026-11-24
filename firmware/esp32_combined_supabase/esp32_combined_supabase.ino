@@ -175,6 +175,8 @@ String buildOfflineSMS() {
   return message;
 }
 
+bool uploadSensorReading(const String &json);
+
 void captureReading() {
   String timestamp;
   if (!getISOTime(timestamp)) {
@@ -204,8 +206,12 @@ void captureReading() {
     ",\"humidity_percent\":" + (isnan(humidity) ? String("null") : String(humidity, 2)) +
     ",\"soil_moisture\":" + String(moisture, 2) +
     ",\"created_at\":\"" + timestamp + "\"}";
-  // Persist before uploading. New online readings use a separate queue so
-  // they can be sent before an older offline backlog without losing them.
+  // Send the newest reading now so an old backlog does not make the dashboard
+  // appear offline. If the upload fails, keep the reading for later retry.
+  if (WiFi.status() == WL_CONNECTED && uploadSensorReading(line)) {
+    Serial.println("Current reading uploaded: " + line);
+    return;
+  }
   const char* queue = WiFi.status() == WL_CONNECTED ? FRESH_QUEUE_FILE : QUEUE_FILE;
   if (!enqueue(queue, line)) {
     Serial.println("ERROR: queue write failed; check flash capacity.");
