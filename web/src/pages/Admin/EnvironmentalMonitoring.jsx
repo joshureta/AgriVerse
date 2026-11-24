@@ -32,9 +32,9 @@ import temperatureMetricIcon from '../../assets/monitoring/metric-temperature.pn
 import humidityMetricIcon from '../../assets/monitoring/metric-humidity.png'
 import soilMoistureMetricIcon from '../../assets/monitoring/metric-soil-moisture.png'
 import { supabase } from '../../lib/supabase.js'
-import { sensorSupabase } from '../../lib/sensorSupabase.js'
+import { fetchSensorRows, fetchSensorDay } from '../../services/sensors.js'
 import { countConnectedSensors, latestCurrentReading, latestMoistureReading, SENSOR_ONLINE_WINDOW_MS } from '../../lib/sensorStatus.js'
-import { loadDailySensorRows, manilaDayBounds, readingsForField } from '../../lib/environmentalData.js'
+import { manilaDayBounds, readingsForField } from '../../lib/environmentalData.js'
 import '../../styles/admin-dashboard.css'
 import '../../styles/monitoring.css'
 
@@ -211,13 +211,13 @@ function combineSensorReadings(climateReadings, soilReadings) {
 
 // Loads climate sensor readings for the selected day.
 async function loadSensorReadings(bounds) {
-  const data = await loadDailySensorRows(sensorSupabase, 'sensor_readings', '*', bounds)
+  const data = await fetchSensorDay('sensor_readings', bounds)
   return data.map(formatSensorReading)
 }
 
 // Loads soil readings for the selected day.
 async function loadSoilReadings(bounds) {
-  const data = await loadDailySensorRows(sensorSupabase, 'soil_readings', '*', bounds)
+  const data = await fetchSensorDay('soil_readings', bounds)
   return data.map(formatSoilReading)
 }
 
@@ -303,7 +303,7 @@ export default function EnvironmentalMonitoring() {
   const deviceIsLive = connectedDevices > 0
   const fieldAssigned = Object.values(deviceFields).includes(activeField) ||
     (activeField === 'Field A' && readings.some((reading) => reading.device_id === 'ESP32_001' && reading.field_name == null))
-  const sensorHasError = !sensorSupabase || Boolean(sensorError && soilError)
+  const sensorHasError = Boolean(sensorError && soilError)
   const sensorStatusTitle = sensorLoading
     ? 'Checking Device'
     : deviceIsLive ? 'Device Active'
@@ -490,24 +490,16 @@ export default function EnvironmentalMonitoring() {
     }
   }
 
-  // Subscribes to sensor readings and refreshes device status.
+  // Polls protected sensor readings and refreshes device status.
   useEffect(() => {
-    if (!sensorSupabase) {
-      console.warn('Sensor monitoring requires VITE_SENSOR_SUPABASE_URL and VITE_SENSOR_SUPABASE_PUBLISHABLE_KEY in web/.env.local.')
-      setSensorError('Sensor monitoring is currently unavailable. Please contact support.')
-      setSensorLoading(false)
-      return
-    }
-
     let active = true
     let currentDay = manilaDayBounds()
 
     // Loads which farm field each sensor device belongs to.
     const refreshDeviceFields = async () => {
       try {
-        const { data, error } = await sensorSupabase.from('sensor_device_fields').select('device_id, field_name')
+        const data = await fetchSensorRows('sensor_device_fields')
         if (!active) return
-        if (error) throw error
         setDeviceFields(Object.fromEntries((data || []).map(({ device_id, field_name }) => [device_id, field_name])))
         setFieldMappingError('')
       } catch (error) {
@@ -597,55 +589,10 @@ export default function EnvironmentalMonitoring() {
       refreshReadings()
       refreshDeviceFields()
     }, 5 * 60 * 1000)
-    const climateChannel = sensorSupabase
-      .channel('environmental-sensor-readings')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'sensor_readings' },
-        ({ new: reading }) => {
-          if (!active) return
-          const measuredAt = Date.parse(reading.created_at)
-          if (measuredAt < currentDay.start || measuredAt >= currentDay.end) return
-          setReadings((current) => [
-            formatSensorReading(reading),
-            ...current.filter((item) => item.id !== `climate-${reading.id}`),
-          ])
-          setSensorError('')
-          setSensorLoading(false)
-          setStatusNow(Date.now())
-          setPage(1)
-          refreshRecentReadings()
-        },
-      )
-      .subscribe()
-    const soilChannel = sensorSupabase
-      .channel('environmental-soil-readings')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'soil_readings' },
-        ({ new: reading }) => {
-          if (!active) return
-          const measuredAt = Date.parse(reading.created_at)
-          if (measuredAt < currentDay.start || measuredAt >= currentDay.end) return
-          setSoilReadings((current) => [
-            formatSoilReading(reading),
-            ...current.filter((item) => item.id !== `soil-${reading.id}`),
-          ])
-          setSoilError('')
-          setSensorLoading(false)
-          setStatusNow(Date.now())
-          setPage(1)
-          refreshRecentReadings()
-        },
-      )
-      .subscribe()
-
     return () => {
       active = false
       window.clearInterval(statusTimer)
       window.clearInterval(historyTimer)
-      sensorSupabase.removeChannel(climateChannel)
-      sensorSupabase.removeChannel(soilChannel)
     }
   }, [])
 

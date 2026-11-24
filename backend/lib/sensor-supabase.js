@@ -2,10 +2,18 @@ const { createClient } = require("@supabase/supabase-js");
 
 let sensorClient;
 
+function sensorConfig(env = process.env) {
+  const url = env.SENSOR_SUPABASE_URL?.trim();
+  const mainUrl = env.SUPABASE_URL?.trim();
+  const sameProject = url && mainUrl && url.replace(/\/$/, "") === mainUrl.replace(/\/$/, "");
+  const key = env.SENSOR_SUPABASE_SECRET_KEY?.trim() ||
+    (sameProject ? env.SUPABASE_SERVICE_ROLE_KEY?.trim() : undefined);
+  return { url, key };
+}
+
 function getSensorSupabase() {
   if (sensorClient) return sensorClient;
-  const url = process.env.SENSOR_SUPABASE_URL?.trim();
-  const key = process.env.SENSOR_SUPABASE_PUBLISHABLE_KEY?.trim();
+  const { url, key } = sensorConfig();
   if (!url || !key) {
     const error = new Error("Sensor database is not configured");
     error.status = 503;
@@ -17,4 +25,4 @@ function getSensorSupabase() {
   return sensorClient;
 }
 
-module.exports = { getSensorSupabase };
+module.exports = { getSensorSupabase, sensorConfig };

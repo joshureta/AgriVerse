@@ -1,9 +1,9 @@
 # ESP32 combined soil temperature, humidity, and moisture sensors
 
 This is the sketch to upload when all three sensors are connected to the same
-ESP32. It sends DS18B20 soil temperature and DHT22 humidity to
-`public.sensor_readings`, and capacitive soil moisture to
-`public.soil_readings`, every 30 seconds.
+ESP32. It sends DS18B20 soil temperature, DHT22 humidity, and capacitive soil
+moisture to `public.sensor_readings` every 10 seconds through the authenticated
+backend sensor endpoint.
 
 Run `supabase/migrations/040_independent_climate_sensor_readings.sql` in the
 sensor Supabase project before uploading this version. It allows a valid
@@ -48,8 +48,9 @@ each module instead of relying on wire colors.
 
 ## Upload steps
 
-1. Copy an already configured `secrets.h` from either Supabase firmware folder
-   into this folder. It is ignored by Git.
+1. Copy `secrets.example.h` to `secrets.h` in this folder. It is ignored by Git.
+   Set `API_URL` to the HTTPS backend origin, `DEVICE_TOKEN` to the backend's
+   `SENSOR_DEVICE_TOKEN`, and `DEVICE_ID` to the backend's `SENSOR_DEVICE_ID`.
 2. Open `esp32_combined_supabase.ino` in Arduino IDE.
 3. Install **DHT sensor library by Adafruit**, **OneWire**, and
    **DallasTemperature by Miles Burton** if they are not already installed.

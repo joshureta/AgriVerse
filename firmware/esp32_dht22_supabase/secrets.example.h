@@ -4,6 +4,6 @@
 // Keep secrets.h on your computer and do not commit or share it.
 constexpr char WIFI_SSID[] = "YOUR_2_4_GHZ_WIFI_NAME";
 constexpr char WIFI_PASSWORD[] = "YOUR_WIFI_PASSWORD";
-constexpr char SUPABASE_URL[] = "https://YOUR_PROJECT_REF.supabase.co";
-constexpr char SUPABASE_PUBLISHABLE_KEY[] = "YOUR_PUBLISHABLE_OR_LEGACY_ANON_KEY";
+constexpr char API_URL[] = "https://YOUR_BACKEND_HOST";
+constexpr char DEVICE_TOKEN[] = "YOUR_RANDOM_DEVICE_TOKEN_AT_LEAST_32_CHARACTERS";
 constexpr char DEVICE_ID[] = "esp32-01";

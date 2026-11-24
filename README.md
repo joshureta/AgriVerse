@@ -46,8 +46,10 @@ Weather is excluded because this app does not store historical weather observati
 Apply `supabase/migrations/045_environmental_daily_reports.sql` in the **main**
 AgriVerse Supabase project. The earlier `044_sensor_device_fields.sql` belongs in
 the **sensor** project. Configure the backend with
-`SENSOR_SUPABASE_URL` and `SENSOR_SUPABASE_PUBLISHABLE_KEY` for that sensor
-project. The backend generates final
+`SENSOR_SUPABASE_URL` for that project. When it is the same project as
+`SUPABASE_URL`, the backend reuses its existing `SUPABASE_SERVICE_ROLE_KEY`.
+For a separate sensor project, set `SENSOR_SUPABASE_SECRET_KEY` on the backend.
+Keep secret keys only on the backend. The backend generates final
 reports for the previous Manila day shortly after midnight and checks for a
 missed final report when it starts. Manual summaries can be generated before
 the reports migration is applied, but they are only shown for the current page
@@ -66,6 +68,38 @@ moisture reading too low or recommend watering from that reading alone. Complete
 irrigation tasks for the same field and date are considered before suggesting
 another watering. Historical rainfall is not recorded, so the report never
 claims that rainfall caused a sensor change.
+
+## Close public sensor API access
+
+The sensor project's previous `anon` policies let anyone holding the browser's
+publishable key read readings and submit rows with a claimed device ID. To
+contain an active exposure, run
+`supabase/migrations/066_private_sensor_api.sql` in the **sensor** project's SQL
+Editor now. This temporarily stops the old website monitoring, backend reports,
+and ESP32 uploads until the following configuration is deployed.
+
+1. Set `SENSOR_SUPABASE_URL` on the backend. If the sensor tables are in the
+   same Supabase project as the main app, the existing server-only
+   `SUPABASE_SERVICE_ROLE_KEY` is reused. If they are in a different project,
+   create a secret API key there and set `SENSOR_SUPABASE_SECRET_KEY` on the
+   backend. Remove `SENSOR_SUPABASE_PUBLISHABLE_KEY` from backend configuration.
+2. Generate a random token of at least 32 characters. Set the same token as
+   `SENSOR_DEVICE_TOKEN` on the backend and `DEVICE_TOKEN` in the active ESP32's
+   ignored `secrets.h`. Set backend `SENSOR_DEVICE_ID` to the firmware's
+   `DEVICE_ID` (`ESP32_001` for the combined sketch). Set firmware `API_URL` to
+   the HTTPS backend origin, deploy the backend, and reflash the device. Do not
+   place the sensor project's secret key on the ESP32 or website.
+3. Deploy the updated website. Admin monitoring now reads through authenticated
+   backend routes and polls for changes. Remove the unused `VITE_SENSOR_*`
+   variables from the website's deployment configuration.
+4. Verify an unauthenticated GET to `/rest/v1/sensor_readings` with the
+   publishable key returns permission denied, while the admin monitoring page
+   loads readings and the device receives HTTP 201 for a new reading. The
+   backend's `/api/sensors/sensor_readings` also requires an admin session.
+
+If the combined sketch cannot be reflashed immediately, it will keep readings
+in its local queue. The simpler test sketches do not queue readings. Do not
+restore public insert access to clear the queue.
 
 The Crop Health Assessment page is under Monitoring. For the selected Manila
 date, it combines that day's field sensor readings with the latest valid score

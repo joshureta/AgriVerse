@@ -94,19 +94,19 @@ bool syncClock() {
 
 void sendReading(float temperature, float humidity, float soilMoisture) {
   WiFiClientSecure client;
-  client.useBuiltinCACertBundle(); // Verify Supabase's TLS certificate.
+  client.useBuiltinCACertBundle(); // Verify the backend's TLS certificate.
 
   HTTPClient http;
-  const String url = String(SUPABASE_URL) + "/rest/v1/sensor_readings";
+  const String url = String(API_URL) + "/api/sensors/ingest/sensor_readings";
+  if (!url.startsWith("https://")) return;
   if (!http.begin(client, url)) {
     Serial.println("Could not start HTTPS request.");
     return;
   }
 
   http.setTimeout(10000);
-  http.addHeader("apikey", SUPABASE_PUBLISHABLE_KEY);
+  http.addHeader("x-device-token", DEVICE_TOKEN);
   http.addHeader("Content-Type", "application/json");
-  http.addHeader("Prefer", "return=minimal");
 
   // The database supplies id and created_at.
   const String payload = String("{\"device_id\":\"") + DEVICE_ID +
@@ -119,7 +119,7 @@ void sendReading(float temperature, float humidity, float soilMoisture) {
     Serial.printf("Reading saved: %.1f C, %.1f%% humidity, %.1f%% soil (HTTP %d)\n",
                   temperature, humidity, soilMoisture, status);
   } else if (status > 0) {
-    Serial.printf("Supabase rejected reading (HTTP %d): %s\n",
+    Serial.printf("Sensor API rejected reading (HTTP %d): %s\n",
                   status, http.getString().c_str());
   } else {
     Serial.printf("HTTPS request failed (%d): %s\n",

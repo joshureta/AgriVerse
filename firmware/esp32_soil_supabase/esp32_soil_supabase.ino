@@ -82,16 +82,16 @@ void sendReading(int rawValue, float moisture) {
   client.useBuiltinCACertBundle();
 
   HTTPClient http;
-  const String url = String(SUPABASE_URL) + "/rest/v1/soil_readings";
+  const String url = String(API_URL) + "/api/sensors/ingest/soil_readings";
+  if (!url.startsWith("https://")) return;
   if (!http.begin(client, url)) {
     Serial.println("Could not start HTTPS request.");
     return;
   }
 
   http.setTimeout(10000);
-  http.addHeader("apikey", SUPABASE_PUBLISHABLE_KEY);
+  http.addHeader("x-device-token", DEVICE_TOKEN);
   http.addHeader("Content-Type", "application/json");
-  http.addHeader("Prefer", "return=minimal");
 
   const String payload = String("{\"device_id\":\"") + DEVICE_ID +
                          "\",\"moisture_raw\":" + String(rawValue) +
@@ -102,7 +102,7 @@ void sendReading(int rawValue, float moisture) {
     Serial.printf("Soil reading saved: %d raw, %.1f%% (HTTP %d)\n",
                   rawValue, moisture, status);
   } else if (status > 0) {
-    Serial.printf("Supabase rejected soil reading (HTTP %d): %s\n",
+    Serial.printf("Sensor API rejected soil reading (HTTP %d): %s\n",
                   status, http.getString().c_str());
   } else {
     Serial.printf("HTTPS request failed (%d): %s\n",

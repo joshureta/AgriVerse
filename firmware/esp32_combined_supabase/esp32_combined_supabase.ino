@@ -11,14 +11,6 @@
 #include "secrets.h"
 
 // ===== EDIT THESE SETTINGS =====
-// Paste the trusted root CA certificate for your Supabase HTTPS endpoint.
-// Verify the chain for your actual endpoint. Do not use setInsecure() in production.
-const char SUPABASE_ROOT_CA[] PROGMEM = R"EOF(
------BEGIN CERTIFICATE-----
-PASTE_VERIFIED_ROOT_CA_CERTIFICATE_HERE
------END CERTIFICATE-----
-)EOF";
-
 // Calibrate ADC values in dry and wet soil (often dry > wet, but varies).
 const int SOIL_DRY_ADC = 3000;
 const int SOIL_WET_ADC = 1300;
@@ -283,23 +275,22 @@ bool sendSMS(const String &message) {
   return ok;
 }
 
-bool uploadSupabase(const String &json) {
+bool uploadSensorReading(const String &json) {
   if (WiFi.status() != WL_CONNECTED) return false;
   WiFiClientSecure client;
   client.useBuiltinCACertBundle();
   HTTPClient http;
-  String endpoint = String(SUPABASE_URL) + "/rest/v1/sensor_readings";
+  String endpoint = String(API_URL) + "/api/sensors/ingest/sensor_readings";
+  if (!endpoint.startsWith("https://")) return false;
   if (!http.begin(client, endpoint)) return false;
   http.setTimeout(10000);
-  http.addHeader("apikey", SUPABASE_KEY);
-  http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
+  http.addHeader("x-device-token", DEVICE_TOKEN);
   http.addHeader("Content-Type", "application/json");
-  http.addHeader("Prefer", "return=minimal");
   int status = http.POST(json);
   String response = http.getString();
   http.end();
   if (status >= 200 && status < 300) return true;
-  Serial.printf("Supabase HTTP error: %d (%s)\n", status,
+  Serial.printf("Sensor API HTTP error: %d (%s)\n", status,
                 http.errorToString(status).c_str());
   Serial.println(response);
   return false;
@@ -320,7 +311,7 @@ void syncPending() {
     uint32_t nextOffset = f.position();
     line.trim();
     if (!line.length()) { ackOffset = nextOffset; prefs.putUInt("ack-v2", ackOffset); continue; }
-    if (!uploadSupabase(line)) break;
+    if (!uploadSensorReading(line)) break;
     ackOffset = nextOffset;
     prefs.putUInt("ack-v2", ackOffset);
     sent++;

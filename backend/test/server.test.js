@@ -63,6 +63,20 @@ test("protected routes require an access token", async () => {
   assert.equal(body.error, "Authentication required");
 });
 
+test("sensor readings require an admin session and device uploads require a token", async () => {
+  const read = await fetch(`${baseUrl}/api/sensors/sensor_readings?limit=5`);
+  assert.equal(read.status, 401);
+  assert.equal((await read.json()).error, "Authentication required");
+
+  const upload = await fetch(`${baseUrl}/api/sensors/ingest/sensor_readings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_id: "ESP32_001", temperature_c: 25 }),
+  });
+  assert.equal(upload.status, 401);
+  assert.equal((await upload.json()).error, "Invalid device token");
+});
+
 test("profile editing requires an access token", async () => {
   const response = await fetch(`${baseUrl}/api/profile`, {
     method: "PATCH",

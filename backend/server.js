@@ -33,6 +33,7 @@ const adminReportsRouter = require("./routes/admin-reports");
 const sellerDashboardRouter = require("./routes/seller-dashboard");
 const environmentalReportsRouter = require("./routes/environmental-reports");
 const cropHealthAssessmentRouter = require("./routes/crop-health-assessment");
+const sensorsRouter = require("./routes/sensors");
 
 const app = express();
 
@@ -132,6 +133,7 @@ app.use("/api/operations", require('./routes/operations'));
 app.use("/api/push/devices", pushDevicesRouter);
 app.use("/api/admin/environmental-reports", environmentalReportsRouter);
 app.use("/api/admin/crop-health-assessment", cropHealthAssessmentRouter);
+app.use("/api/sensors", sensorsRouter);
 
 const PORT = process.env.PORT || 5000;
 

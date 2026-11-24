@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
-import { sensorSupabase } from '../lib/sensorSupabase.js'
+import { fetchSensorRows } from '../services/sensors.js'
 import { latestCurrentReading, latestMoistureReading } from '../lib/sensorStatus.js'
 
 const REFRESH_MS = 10000
@@ -32,65 +32,37 @@ function metricValue(reading, field, unit) {
 export default function FieldConditions() {
   const [climateReadings, setClimateReadings] = useState([])
   const [soilReadings, setSoilReadings] = useState([])
-  const [loading, setLoading] = useState(Boolean(sensorSupabase))
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
-    if (!sensorSupabase) {
-      console.warn('Sensor monitoring requires VITE_SENSOR_SUPABASE_URL and VITE_SENSOR_SUPABASE_PUBLISHABLE_KEY in web/.env.local.')
-      return undefined
-    }
     let active = true
 
     async function refresh() {
       const results = await Promise.allSettled([
-        sensorSupabase.from('sensor_readings')
-          .select('*')
-          .order('created_at', { ascending: false }).limit(20),
-        sensorSupabase.from('soil_readings')
-          .select('id, device_id, moisture_percent, created_at')
-          .order('created_at', { ascending: false }).limit(20),
+        fetchSensorRows('sensor_readings', { limit: 20 }),
+        fetchSensorRows('soil_readings', { limit: 20 }),
       ])
       if (!active) return
 
-      const [climate, soil] = results.map((result) => result.status === 'fulfilled' ? result.value : { error: result.reason })
-      if (!climate.error) {
-        setClimateReadings((current) => mergeLatestReadings(current, (climate.data || []).map(withMeasuredAt)))
+      const [climate, soil] = results
+      if (climate.status === 'fulfilled') {
+        setClimateReadings((current) => mergeLatestReadings(current, climate.value.map(withMeasuredAt)))
       }
-      if (!soil.error) {
-        setSoilReadings((current) => mergeLatestReadings(current, (soil.data || []).map(withMeasuredAt)))
+      if (soil.status === 'fulfilled') {
+        setSoilReadings((current) => mergeLatestReadings(current, soil.value.map(withMeasuredAt)))
       }
-      setError(climate.error || soil.error ? 'Some sensor readings could not be loaded.' : '')
+      setError(climate.status === 'rejected' || soil.status === 'rejected' ? 'Some sensor readings could not be loaded.' : '')
       setNow(Date.now())
       setLoading(false)
     }
 
     refresh()
     const interval = window.setInterval(refresh, REFRESH_MS)
-    const climateChannel = sensorSupabase
-      .channel('field-conditions-climate')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sensor_readings' }, ({ new: reading }) => {
-        if (!active) return
-        setClimateReadings((current) => mergeLatestReadings(current, [withMeasuredAt(reading)]))
-        setNow(Date.now())
-        setLoading(false)
-      })
-      .subscribe()
-    const soilChannel = sensorSupabase
-      .channel('field-conditions-soil')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'soil_readings' }, ({ new: reading }) => {
-        if (!active) return
-        setSoilReadings((current) => mergeLatestReadings(current, [withMeasuredAt(reading)]))
-        setNow(Date.now())
-        setLoading(false)
-      })
-      .subscribe()
     return () => {
       active = false
       window.clearInterval(interval)
-      sensorSupabase.removeChannel(climateChannel)
-      sensorSupabase.removeChannel(soilChannel)
     }
   }, [])
 
@@ -103,15 +75,13 @@ export default function FieldConditions() {
   const lowMoisture = moisture && Number(moisture.moisture_percent) < 25
   const highTemperature = temperature && Number(temperature.temperature_c) >= 33
   const fungalRisk = temperature && humidity && Number(temperature.temperature_c) >= 24 && Number(humidity.humidity_percent) >= 80
-  const alert = !sensorSupabase
-    ? 'Sensor monitoring is currently unavailable.'
-    : loading ? 'Checking sensor readings…'
+  const alert = loading ? 'Checking sensor readings…'
       : activeCount < 4 ? (error || 'Some sensors are offline. Check the device connection.')
         : lowMoisture ? 'Low soil moisture — check irrigation.'
           : highTemperature ? 'High air temperature — check crop hydration.'
             : fungalRisk ? 'High humidity may increase fungal risk.'
               : 'No active threshold alerts.'
-  const status = !sensorSupabase || (!loading && activeCount === 0) ? 'Offline'
+  const status = !loading && activeCount === 0 ? 'Offline'
     : loading ? 'Checking' : activeCount < 4 || lowMoisture || highTemperature || fungalRisk ? 'Needs attention' : 'Normal'
   const StatusIcon = status === 'Normal' ? CheckCircle2 : AlertTriangle
 
