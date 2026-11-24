@@ -21,8 +21,8 @@ const uint32_t MIN_READ_INTERVAL_S = 10;
 const uint32_t MAX_READ_INTERVAL_S = 86400;  // 1 day
 const unsigned long CONFIG_POLL_INTERVAL_MS = 60000UL;
 const unsigned long SYNC_INTERVAL_MS = 1000UL;
-const unsigned long WIFI_OFFLINE_GRACE_MS = 30000UL;
-const unsigned long OFFLINE_SMS_INTERVAL_MS = 30000UL;
+const unsigned long WIFI_OFFLINE_GRACE_MS = 10000UL;
+const unsigned long OFFLINE_SMS_INTERVAL_MS = 10000UL;
 
 #define DHT_PIN 4
 #define DHT_TYPE DHT22
@@ -40,7 +40,9 @@ Preferences prefs;
 
 // Use a fresh queue for the corrected Supabase payload. The old queue is retained.
 const char* QUEUE_FILE = "/pending-v2.jsonl";
+const char* FRESH_QUEUE_FILE = "/pending-live-v1.jsonl";
 uint32_t ackOffset = 0;
+uint32_t freshAckOffset = 0;
 uint64_t sequenceNo = 0;
 unsigned long lastRead = 0, lastSync = 0;
 unsigned long readIntervalMs = DEFAULT_READ_INTERVAL_S * 1000UL;
@@ -95,9 +97,10 @@ void ensureWiFi() {
 }
 
 bool sendSMS(const String &message);
+bool uploadSensorReading(const String &json);
 
-bool enqueue(const String &line) {
-  File f = LittleFS.open(QUEUE_FILE, "a");
+bool enqueue(const char* path, const String &line) {
+  File f = LittleFS.open(path, "a");
   if (!f) return false;
   size_t written = f.println(line);
   f.flush();
@@ -201,8 +204,14 @@ void captureReading() {
     ",\"humidity_percent\":" + (isnan(humidity) ? String("null") : String(humidity, 2)) +
     ",\"soil_moisture\":" + String(moisture, 2) +
     ",\"created_at\":\"" + timestamp + "\"}";
-  if (!enqueue(line)) Serial.println("ERROR: queue write failed; check flash capacity.");
-  else Serial.println("Saved locally: " + line);
+  // Persist before uploading. New online readings use a separate queue so
+  // they can be sent before an older offline backlog without losing them.
+  const char* queue = WiFi.status() == WL_CONNECTED ? FRESH_QUEUE_FILE : QUEUE_FILE;
+  if (!enqueue(queue, line)) {
+    Serial.println("ERROR: queue write failed; check flash capacity.");
+  } else {
+    Serial.println("Saved locally: " + line);
+  }
 }
 
 String modemRead(const String &expected, unsigned long timeoutMs) {
@@ -342,28 +351,39 @@ void fetchConfig() {
   Serial.printf("Send interval changed to %lu seconds\n", (unsigned long)clamped);
 }
 
-void syncPending() {
-  if (WiFi.status() != WL_CONNECTED) return;
-  File f = LittleFS.open(QUEUE_FILE, "r");
-  if (!f) return;
-  if (ackOffset > f.size()) {
-    Serial.println("Queue cursor inconsistent; resetting to 0 (upsert prevents duplicates).");
-    ackOffset = 0; prefs.putUInt("ack-v2", ackOffset);
+bool syncQueue(const char* path, uint32_t &offset, const char* ackKey, int maxRecords) {
+  File f = LittleFS.open(path, "r");
+  if (!f) return true;
+  if (offset > f.size()) {
+    Serial.println("Queue cursor inconsistent; resetting to 0.");
+    offset = 0; prefs.putUInt(ackKey, offset);
   }
-  f.seek(ackOffset);
+  f.seek(offset);
   int sent = 0;
-  while (f.available() && sent < 10) {
+  while (f.available() && sent < maxRecords) {
     String line = f.readStringUntil('\n');
     uint32_t nextOffset = f.position();
     line.trim();
-    if (!line.length()) { ackOffset = nextOffset; prefs.putUInt("ack-v2", ackOffset); continue; }
-    if (!uploadSensorReading(line)) break;
-    ackOffset = nextOffset;
-    prefs.putUInt("ack-v2", ackOffset);
+    if (!line.length()) { offset = nextOffset; prefs.putUInt(ackKey, offset); continue; }
+    if (!uploadSensorReading(line)) { f.close(); return false; }
+    offset = nextOffset;
+    prefs.putUInt(ackKey, offset);
     sent++;
   }
+  const bool drained = offset == f.size();
   f.close();
-  if (sent) Serial.printf("Synced %d queued records\n", sent);
+  if (sent) Serial.printf("Synced %d records from %s\n", sent, path);
+  if (drained && LittleFS.remove(path)) {
+    offset = 0;
+    prefs.putUInt(ackKey, offset);
+  }
+  return true;
+}
+
+void syncPending() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  if (!syncQueue(FRESH_QUEUE_FILE, freshAckOffset, "ack-live-v1", 2)) return;
+  syncQueue(QUEUE_FILE, ackOffset, "ack-v2", 2);
 }
 
 void setup() {
@@ -375,6 +395,7 @@ void setup() {
   if (!LittleFS.begin(true)) { Serial.println("LittleFS mount failed"); while (true) delay(1000); }
   prefs.begin("soilmon", false);
   ackOffset = prefs.getUInt("ack-v2", 0);
+  freshAckOffset = prefs.getUInt("ack-live-v1", 0);
   sequenceNo = prefs.getULong64("seq", 0);
   readIntervalMs = clampInterval(prefs.getUInt("interval-s", DEFAULT_READ_INTERVAL_S)) * 1000UL;
   Serial.printf("Send interval: %lu seconds\n", readIntervalMs / 1000UL);
@@ -417,7 +438,7 @@ void loop() {
         (!hasAttemptedOfflineSMS ||
          millis() - lastOfflineSMS >= OFFLINE_SMS_INTERVAL_MS)) {
       hasAttemptedOfflineSMS = true;
-      Serial.printf("Wi-Fi disconnected for 30 seconds (status %d); sending sensor SMS\n", WiFi.status());
+      Serial.printf("Wi-Fi disconnected for 10 seconds (status %d); sending sensor SMS\n", WiFi.status());
       sendSMS(buildOfflineSMS());
       lastOfflineSMS = millis();
     }
