@@ -7,6 +7,7 @@ const { classifyScore } = require("../lib/crop-image-score");
 const { buildAssessment, buildAssessmentPrompt } = require("../lib/pineapple-assessment");
 const { generateVisionJson, visionModels } = require("../lib/gemini-vision");
 const { publicRules, scoreInspection } = require("../lib/crop-rule-inspection");
+const { fromCropInspection } = require("../lib/monitoring-task-automation");
 
 const router = express.Router();
 
@@ -253,6 +254,8 @@ router.post("/crop-rule-inspection", requireAuth, requireRole("admin"), async (r
     };
     const { data, error } = await getSupabase().from("crop_health_inspections").insert(record).select().single();
     if (error) return res.status(500).json({ error: "Failed to save the rule-based inspection." });
+    try { await fromCropInspection(data); }
+    catch (automationError) { console.error("Crop inspection task automation failed:", automationError); }
     return res.json({ success: true, diagnosis, savedRecord: data });
   } catch (error) {
     return res.status(500).json({ error: error.message || "Failed to record the inspection." });
@@ -346,7 +349,14 @@ router.post("/crop-diagnosis", requireAuth, async (req, res) => {
 
       if (saveError) throw saveError;
 
-      if (dbData) savedRecord = dbData;
+      if (dbData) {
+        savedRecord = dbData;
+        // Only an admin's crop assessment can dispatch farm work.
+        if (req.profile?.role === "admin") {
+          try { await fromCropInspection(dbData); }
+          catch (automationError) { console.error("Crop diagnosis task automation failed:", automationError); }
+        }
+      }
     } catch (saveErr) {
       console.warn("Auto-save to Supabase warning:", saveErr.message);
       saveWarning = "Diagnosis completed but could not be saved. Check database availability and crop health migrations 064 and 065, then try again.";

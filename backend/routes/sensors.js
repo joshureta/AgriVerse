@@ -2,6 +2,7 @@ const crypto = require("node:crypto");
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSensorSupabase } = require("../lib/sensor-supabase");
+const { notifyAssignedFindings } = require("../lib/monitoring-task-automation");
 const {
   DEFAULT_INTERVAL_SECONDS,
   MAX_INTERVAL_SECONDS,
@@ -172,8 +173,14 @@ router.post("/ingest/:table", async (req, res, next) => {
       return value != null && (typeof value !== "number" || !Number.isFinite(value) ||
         value < allowed[key][0] || value > allowed[key][1]);
     })) return res.status(400).json({ error: "Invalid sensor reading" });
+    // The insert trigger applies monitoring_task_rules and may create a task.
     const { error } = await getSensorSupabase().from(table).insert(body);
     if (error) throw error;
+    try { await notifyAssignedFindings(); }
+    catch (automationError) {
+      // The reading is already saved; a notification error must not prompt a duplicate upload.
+      console.error("Environmental task notification failed:", automationError);
+    }
     return res.status(201).json({ saved: true });
   } catch (error) { return next(error); }
 });

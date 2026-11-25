@@ -18,6 +18,7 @@ const taskSelect = [
   "harvest_proof_image_url, harvest_proof_image_name",
   "harvest_rejection_reason, harvest_rejected_at, approved_at",
   "completion_proof_image_url, details, inventory_quantity",
+  "automation_kind, automation_source, automation_observed_at",
   "inventory_item:inventory_items!tasks_inventory_item_id_fkey(id, item_name, unit:measurement_units!inventory_items_unit_id_fkey(abbreviation))",
   "assigned_worker:profiles!tasks_assigned_worker_id_fkey(id, full_name, worker_category)",
   "category:task_categories!tasks_category_id_fkey(id, category_name, status)",
@@ -247,7 +248,12 @@ router.get("/", async (req, res, next) => {
     let query = supabase.from("tasks").select(taskSelect, { count: "exact" })
       .order("created_at", { ascending: false });
     if (statusId) query = query.eq("status_id", statusId);
-    if (search) query = query.or(`task_name.ilike.%${search}%,description.ilike.%${search}%`);
+    if (search) {
+      const taskId = /^#?\d+$/.test(search) ? Number(search.replace(/^#/, "")) : null;
+      query = Number.isSafeInteger(taskId) && taskId > 0
+        ? query.eq("id", taskId)
+        : query.or(`task_name.ilike.%${search}%,description.ilike.%${search}%`);
+    }
 
     const inProgressId = await lookupIdByCode("task_statuses", "in_progress");
     const completedId = await lookupIdByCode("task_statuses", "completed");

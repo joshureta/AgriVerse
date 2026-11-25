@@ -479,6 +479,9 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const [dismissedReviewAlerts, setDismissedReviewAlerts] = useState({ tasks: false, disputes: false, overdue: false })
   const [refreshKey, setRefreshKey] = useState(0)
   const [overdueCount, setOverdueCount] = useState(0)
+  const [queuedFindings, setQueuedFindings] = useState([])
+  const [assignedFindings, setAssignedFindings] = useState([])
+  const [dismissedAssignedFindings, setDismissedAssignedFindings] = useState([])
   const [operationsLoaded, setOperationsLoaded] = useState(false)
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false)
   const [selectedRecoveryIncidentId, setSelectedRecoveryIncidentId] = useState(null)
@@ -486,6 +489,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const [operationsData] = useState({ incidents: [], workers: [], reports: [], dependencies: [], metrics: [] })
   const overdueDeepLinkHandled = useRef(false)
   const filterRef = useRef(null)
+  const lastAssignedFindingRef = useRef(null)
 
   // Open a deep-linked review only after the assignee has submitted a reason.
   useEffect(() => {
@@ -518,16 +522,36 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     }
   }, [])
 
+  const loadQueuedFindings = useCallback(async () => {
+    try {
+      const data = await apiRequest('/api/admin/automation-findings')
+      setQueuedFindings(data.findings || [])
+      setAssignedFindings(data.assigned || [])
+      const latest = (data.assigned || [])[0]?.id || ''
+      if (lastAssignedFindingRef.current !== null && latest !== lastAssignedFindingRef.current) {
+        setRefreshKey((key) => key + 1)
+      }
+      lastAssignedFindingRef.current = latest
+    } catch {
+      // The task list remains usable while the automation migration is pending.
+    }
+  }, [])
+
   // Refreshes overdue counts periodically and when the window regains focus.
   useEffect(() => {
     loadOperationsData()
+    loadQueuedFindings()
     const timer = window.setInterval(loadOperationsData, 30000)
+    const queueTimer = window.setInterval(loadQueuedFindings, 30000)
     window.addEventListener('focus', loadOperationsData)
+    window.addEventListener('focus', loadQueuedFindings)
     return () => {
       window.clearInterval(timer)
+      window.clearInterval(queueTimer)
       window.removeEventListener('focus', loadOperationsData)
+      window.removeEventListener('focus', loadQueuedFindings)
     }
-  }, [loadOperationsData, refreshKey])
+  }, [loadOperationsData, loadQueuedFindings, refreshKey])
 
   // Indexes unresolved overdue incidents by task and order.
   const activeOverdueMap = useMemo(() => {
@@ -794,6 +818,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     setError('')
     try {
       await apiRequest(`/api/admin/tasks/${task.id}/cancel`, { method: 'POST', body: '{}' })
+      setAssignedFindings((current) => current.filter((finding) => finding.task?.id !== task.id))
       setModal(null)
       setRefreshKey((key) => key + 1)
     } catch (requestError) {
@@ -808,6 +833,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
     if (incident.task_id) {
       if (!confirmed && !window.confirm(`Cancel ${incident.label || `task #${incident.task_id}`}? The worker will be notified.`)) return false
       await apiRequest(`/api/admin/tasks/${incident.task_id}/cancel`, { method: 'POST', body: '{}' })
+      setAssignedFindings((current) => current.filter((finding) => String(finding.task?.id) !== String(incident.task_id)))
     } else if (incident.order_id) {
       if (!confirmed && !window.confirm(`Cancel the driver assignment for ${incident.label || `order #${incident.order_id}`}? The order can be assigned again.`)) return false
       await apiRequest(`/api/admin/deliveries/${incident.order_id}/cancel-assignment`, { method: 'POST', body: '{}' })
@@ -1235,6 +1261,9 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const settingsTotalPages = Math.max(1, Math.ceil(visibleSettings.length / PAGE_SIZE))
   const settingsStart = (page - 1) * PAGE_SIZE
   const paginatedSettings = visibleSettings.slice(settingsStart, settingsStart + PAGE_SIZE)
+  const visibleAssignedFindings = assignedFindings
+    .filter((finding) => finding.task?.id && !finding.task.cancelled_at && !dismissedAssignedFindings.includes(finding.id))
+    .slice(0, 3)
 
   return (
     <main className="admin-dashboard task-schedule-page">
@@ -1254,8 +1283,8 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
           </header>
 
           {/* Alerts for tasks and cases needing review. */}
-          {!settingsOnly && ((harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks) || (openDisputeCount + openRefundCount > 0 && !dismissedReviewAlerts.disputes) || (overdueCount > 0 && !dismissedReviewAlerts.overdue)) && (
-            <section className="task-review-alerts" aria-label="Items needing review">
+          {!settingsOnly && ((harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks) || (openDisputeCount + openRefundCount > 0 && !dismissedReviewAlerts.disputes) || (overdueCount > 0 && !dismissedReviewAlerts.overdue) || visibleAssignedFindings.length > 0) && (
+            <section className="task-review-alerts" aria-label="Task notifications">
               {overdueCount > 0 && !dismissedReviewAlerts.overdue && (
                 <div className="task-review-alert is-overdue" role="status">
                   <span className="task-review-alert-icon"><TriangleAlert aria-hidden="true" /></span>
@@ -1265,6 +1294,17 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                   <button type="button" className="task-review-alert-dismiss" aria-label="Dismiss overdue operations alert" onClick={() => setDismissedReviewAlerts((current) => ({ ...current, overdue: true }))}><X aria-hidden="true" /></button>
                 </div>
               )}
+              {visibleAssignedFindings.map((finding) => {
+                const schedule = Array.isArray(finding.task.schedules) ? finding.task.schedules[0] : finding.task.schedules
+                return <div className="task-review-alert is-automation" role="status" key={finding.id}>
+                  <span className="task-review-alert-icon"><Check aria-hidden="true" /></span>
+                  <p><strong>Automated task assigned:</strong>{' '}
+                    {finding.task.category?.category_name || 'Monitoring'} · {finding.field?.field_name || 'Field'} · {finding.source === 'crop_health' ? 'Crop Health' : 'Environmental'} · Assigned to {finding.task.assigned_worker?.full_name || 'a crop worker'} · {schedule ? formatSchedule(`${schedule.schedule_date}T${String(schedule.start_time).slice(0, 8)}+08:00`) : 'Scheduling pending'}
+                  </p>
+                  <button type="button" className="task-review-alert-action" onClick={() => { setActiveTab('tasks'); setWorkView('crop'); setFilter(''); setSearch(String(finding.task.id)); setPage(1) }}>View task</button>
+                  <button type="button" className="task-review-alert-dismiss" aria-label="Dismiss automated task notification" onClick={() => setDismissedAssignedFindings((current) => [...current, finding.id])}><X aria-hidden="true" /></button>
+                </div>
+              })}
               {harvestApprovalCount > 0 && !dismissedReviewAlerts.tasks && (
                 <div className="task-review-alert is-tasks" role="status">
                   <span className="task-review-alert-icon"><ClipboardCheck aria-hidden="true" /></span>
@@ -1373,6 +1413,15 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               <button className={workView === 'crop' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('crop'); setFilter((current) => current.startsWith('delivery:') ? '' : current); setPage(1) }}>Crop Management</button>
               <button className={workView === 'deliveries' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('deliveries'); setFilter((current) => current && !current.startsWith('delivery:') ? '' : current); setPage(1) }}>Driver Deliveries</button>
             </nav>
+            {workView === 'crop' && queuedFindings.length > 0 && (
+              <section className="task-automation-queue" aria-label="Monitoring findings awaiting assignment">
+                <strong>{queuedFindings.length} monitoring finding{queuedFindings.length === 1 ? '' : 's'} awaiting assignment</strong>
+                <p>The system will retry when a crop management worker has a free future work slot.</p>
+                {queuedFindings.slice(0, 5).map((finding) => (
+                  <div key={finding.id}><span>{finding.field?.field_name || 'Field'} · {finding.source === 'crop_health' ? 'Crop Health' : 'Environmental'} Monitoring</span><span>{finding.evidence}</span></div>
+                ))}
+              </section>
+            )}
             <div className="tasks-toolbar">
               <div className="task-filter" ref={filterRef}>
                 <button type="button" onClick={() => setFilterOpen((open) => !open)} aria-haspopup="listbox" aria-expanded={filterOpen}>
@@ -1566,6 +1615,8 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                   <WoRow label="Assigned to">{worker?.full_name || 'Unassigned worker'}</WoRow>
                   <WoRow label="Role">{workerCategoryLabels[worker?.worker_category] || 'Crop Management Worker'}</WoRow>
                   <WoRow label="Category">{task.category || 'Farm Operations'}</WoRow>
+                  {task.automation_source && <WoRow label="Created from">{task.automation_source === 'crop_health' ? 'Crop Health Monitoring' : 'Environmental Monitoring'}</WoRow>}
+                  {task.automation_observed_at && <WoRow label="Finding time">{formatSchedule(task.automation_observed_at)}</WoRow>}
                   {task.activity_type && <WoRow label="Activity">{task.activity_type === 'action' ? 'Action' : 'Inspection'}</WoRow>}
                   <WoRow label="Field">{task.field || 'General Farm Plot'}</WoRow>
                   <WoRow label="Location">{task.schedule?.location || 'Pineapple Plantation · Designated Block'}</WoRow>

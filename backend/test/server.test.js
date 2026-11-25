@@ -95,6 +95,22 @@ test("sensor interval settings require an admin session and device config requir
   assert.equal((await config.json()).error, "Invalid device token");
 });
 
+test("queued automatic findings require an admin session", async () => {
+  const response = await fetch(`${baseUrl}/api/admin/automation-findings`);
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, "Authentication required");
+});
+
+test("monitoring rule settings require an admin session", async () => {
+  const list = await fetch(`${baseUrl}/api/admin/monitoring-rules`);
+  assert.equal(list.status, 401);
+  const update = await fetch(`${baseUrl}/api/admin/monitoring-rules/1`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: false }),
+  });
+  assert.equal(update.status, 401);
+  assert.equal((await update.json()).error, "Authentication required");
+});
+
 test("profile editing requires an access token", async () => {
   const response = await fetch(`${baseUrl}/api/profile`, {
     method: "PATCH",

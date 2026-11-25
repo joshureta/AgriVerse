@@ -1,0 +1,105 @@
+<div id="agriverse-automation-mock" class="av-preview">
+  <style>
+    #agriverse-automation-mock { font-family: Inter, system-ui, sans-serif; color: light-dark(#24352a,#e8f1e8); }
+    #agriverse-automation-mock * { box-sizing: border-box; }
+    #agriverse-automation-mock .av-app { display: grid; grid-template-columns: 178px minmax(0,1fr); min-height: 490px; background: light-dark(#f5f8f4,#142019); border: 1px solid light-dark(#dce7da,#33483a); border-radius: 12px; overflow: hidden; }
+    #agriverse-automation-mock .av-sidebar { background: light-dark(#174c2a,#102c1b); color: #f4fff4; padding: 22px 14px; display: flex; flex-direction: column; gap: 22px; }
+    #agriverse-automation-mock .av-brand { font-weight: 700; font-size: 17px; letter-spacing: -.02em; padding: 0 10px; }
+    #agriverse-automation-mock .av-nav { display: grid; gap: 5px; }
+    #agriverse-automation-mock .av-nav span { padding: 9px 10px; border-radius: 7px; font-size: 13px; color: #d6e9d8; }
+    #agriverse-automation-mock .av-nav .active { background: #edf6dd; color: #1b4e2b; font-weight: 600; }
+    #agriverse-automation-mock .av-workspace { padding: 22px 24px 26px; min-width: 0; }
+    #agriverse-automation-mock .av-top { display: flex; justify-content: space-between; align-items: start; gap: 15px; margin-bottom: 20px; padding-right: 72px; }
+    #agriverse-automation-mock .av-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: light-dark(#567564,#a3c5a8); margin-bottom: 5px; }
+    #agriverse-automation-mock h2 { font-size: 22px; margin: 0; font-weight: 650; line-height: 1.2; }
+    #agriverse-automation-mock .av-sub { margin: 6px 0 0; font-size: 12px; color: light-dark(#65776a,#aec1b0); }
+    #agriverse-automation-mock .av-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 650; border-radius: 99px; padding: 6px 9px; background: light-dark(#e4f1db,#24462e); color: light-dark(#256331,#b9e4bd); white-space: nowrap; }
+    #agriverse-automation-mock .av-layout { display: grid; grid-template-columns: minmax(210px, .76fr) minmax(0,1.24fr); gap: 15px; }
+    #agriverse-automation-mock .av-list, #agriverse-automation-mock .av-detail { background: light-dark(#fff,#1d2c22); border: 1px solid light-dark(#dee7dc,#3a4d3e); border-radius: 10px; min-width: 0; }
+    #agriverse-automation-mock .av-list { padding: 15px; }
+    #agriverse-automation-mock h3 { font-size: 13px; margin: 0 0 12px; font-weight: 650; }
+    #agriverse-automation-mock .av-listbtn { width: 100%; text-align: left; border: 1px solid light-dark(#e1e9de,#3b5141); background: light-dark(#fff,#1c2b21); color: inherit; border-radius: 8px; padding: 12px; margin: 0 0 9px; font: inherit; cursor: pointer; }
+    #agriverse-automation-mock .av-listbtn[aria-pressed="true"] { border-color: light-dark(#78ab75,#9ccb96); background: light-dark(#f0f8eb,#284832); }
+    #agriverse-automation-mock .av-listbtn:focus-visible { outline: 2px solid #71a968; outline-offset: 2px; }
+    #agriverse-automation-mock .av-listbtn strong { display: block; font-size: 13px; font-weight: 650; margin-bottom: 5px; }
+    #agriverse-automation-mock .av-listbtn small { display: block; color: light-dark(#64776a,#b3c4b5); font-size: 11px; line-height: 1.4; }
+    #agriverse-automation-mock .av-detail { padding: 17px 18px; }
+    #agriverse-automation-mock .av-detailtop { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+    #agriverse-automation-mock .av-detail h3 { font-size: 18px; margin: 0; }
+    #agriverse-automation-mock .av-meta { color: light-dark(#64776a,#b3c4b5); font-size: 12px; margin: 6px 0 0; }
+    #agriverse-automation-mock .av-rule { margin: 17px 0; padding: 12px 0; border-block: 1px solid light-dark(#e2e9df,#405142); }
+    #agriverse-automation-mock .av-rulelabel { display: block; color: light-dark(#6a7b6d,#a8beac); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 7px; }
+    #agriverse-automation-mock .av-rule strong { font-size: 13px; font-weight: 650; }
+    #agriverse-automation-mock .av-evidence { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+    #agriverse-automation-mock .av-reading { padding: 6px 8px; border-radius: 6px; background: light-dark(#f1f5ed,#293c2e); font-size: 11px; }
+    #agriverse-automation-mock .av-info { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; margin: 16px 0; }
+    #agriverse-automation-mock .av-info div span { display: block; font-size: 11px; color: light-dark(#6a7b6d,#a8beac); margin-bottom: 4px; }
+    #agriverse-automation-mock .av-info div strong { display: block; font-size: 12px; font-weight: 600; }
+    #agriverse-automation-mock .av-instructions { font-size: 12px; line-height: 1.55; background: light-dark(#f7faf5,#23362a); border-radius: 7px; padding: 10px 12px; }
+    #agriverse-automation-mock .av-note { font-size: 11px; color: light-dark(#65776a,#aec1b0); margin-top: 13px; }
+    @media (max-width: 690px) {
+      #agriverse-automation-mock .av-app { grid-template-columns: 1fr; }
+      #agriverse-automation-mock .av-sidebar { padding: 12px 14px; gap: 8px; }
+      #agriverse-automation-mock .av-nav { display: flex; overflow: auto; }
+      #agriverse-automation-mock .av-nav span { white-space: nowrap; }
+      #agriverse-automation-mock .av-workspace { padding: 18px 14px; }
+      #agriverse-automation-mock .av-layout { grid-template-columns: 1fr; }
+      #agriverse-automation-mock .av-top { padding-right: 0; }
+    }
+  </style>
+  <div class="av-app">
+    <aside class="av-sidebar" aria-label="AgriVerse navigation">
+      <div class="av-brand">AgriVerse</div>
+      <div class="av-nav"><span>Dashboard</span><span>Monitoring</span><span class="active">Tasks &amp; Schedules</span><span>Settings</span></div>
+    </aside>
+    <main class="av-workspace">
+      <div class="av-top"><div><div class="av-eyebrow">Proposed admin view · illustrative data</div><h2>Automatically assigned tasks</h2><p class="av-sub">Environmental and crop health findings linked to worker tasks</p></div><span class="av-tag">2 scheduled</span></div>
+      <div class="av-layout">
+        <section class="av-list" aria-label="Example tasks"><h3>Field A · 24 Nov</h3>
+          <button class="av-listbtn" type="button" data-task="irrigation" aria-pressed="true"><strong>Irrigation · Field A</strong><small>Environmental Monitoring · Low soil moisture</small><small>Assigned to Ana Cruz · 9:00 AM</small></button>
+          <button class="av-listbtn" type="button" data-task="pest" aria-pressed="false"><strong>Pest &amp; Disease · Inspection</strong><small>Crop Health Monitoring · Suspected pest</small><small>Assigned to Rico Santos · 10:30 AM</small></button>
+        </section>
+        <section class="av-detail" aria-live="polite" aria-label="Selected task details">
+          <div class="av-detailtop"><div><h3 data-field="title">Irrigation · Field A</h3><p class="av-meta" data-field="source">Environmental Monitoring · 24 Nov, 8:20 AM</p></div><span class="av-tag">Scheduled</span></div>
+          <div class="av-rule"><span class="av-rulelabel">Why this task was created</span><strong data-field="reason">Three recent readings stayed below Field A’s approved 35% target.</strong><div class="av-evidence" data-field="evidence"><span class="av-reading">8:00 · 32%</span><span class="av-reading">8:10 · 31%</span><span class="av-reading">8:20 · 32%</span></div></div>
+          <div class="av-info"><div><span>Existing category</span><strong data-field="category">Irrigation</strong></div><div><span>Worker</span><strong data-field="worker">Ana Cruz</strong></div><div><span>Schedule</span><strong data-field="schedule">24 Nov · 9:00–10:00 AM</strong></div><div><span>Priority</span><strong data-field="priority">High</strong></div></div>
+          <div class="av-instructions" data-field="instructions">Check root-zone moisture in Field A. Irrigate if the soil is dry, then upload a completion photo and notes.</div>
+          <p class="av-note" data-field="note">No second irrigation task is created while this field already has an open irrigation task.</p>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('agriverse-automation-mock');
+      const examples = {
+        irrigation: {
+          title: 'Irrigation · Field A', source: 'Environmental Monitoring · 24 Nov, 8:20 AM',
+          reason: 'Three recent readings stayed below Field A’s approved 35% target.',
+          evidence: ['8:00 · 32%', '8:10 · 31%', '8:20 · 32%'], category: 'Irrigation', worker: 'Ana Cruz',
+          schedule: '24 Nov · 9:00–10:00 AM', priority: 'High',
+          instructions: 'Check root-zone moisture in Field A. Irrigate if the soil is dry, then upload a completion photo and notes.',
+          note: 'No second irrigation task is created while this field already has an open irrigation task.'
+        },
+        pest: {
+          title: 'Pest & Disease · Inspection', source: 'Crop Health Monitoring · 24 Nov, 8:25 AM',
+          reason: 'A new crop photo reported a suspected pest finding with moderate visible symptoms.',
+          evidence: ['Photo assessment · suspected', 'Severity · moderate', 'Field A · today'],
+          category: 'Pest & Disease / Inspection', worker: 'Rico Santos', schedule: '24 Nov · 10:30–11:30 AM', priority: 'High',
+          instructions: 'Inspect affected and nearby pineapple plants. Record what you find, add photos, and recommend the next step.',
+          note: 'This is an inspection task. Treatment is assigned only after the finding is confirmed and approved.'
+        }
+      };
+      root.querySelectorAll('[data-task]').forEach((button) => button.addEventListener('click', () => {
+        const selected = examples[button.dataset.task];
+        root.querySelectorAll('[data-task]').forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        for (const key of ['title','source','reason','category','worker','schedule','priority','instructions','note']) {
+          root.querySelector(`[data-field="${key}"]`).textContent = selected[key];
+        }
+        root.querySelector('[data-field="evidence"]').replaceChildren(...selected.evidence.map((label) => {
+          const item = document.createElement('span'); item.className = 'av-reading'; item.textContent = label; return item;
+        }));
+      }));
+    })();
+  </script>
+</div>

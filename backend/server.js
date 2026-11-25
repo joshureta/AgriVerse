@@ -34,6 +34,8 @@ const sellerDashboardRouter = require("./routes/seller-dashboard");
 const environmentalReportsRouter = require("./routes/environmental-reports");
 const cropHealthAssessmentRouter = require("./routes/crop-health-assessment");
 const sensorsRouter = require("./routes/sensors");
+const automationFindingsRouter = require("./routes/automation-findings");
+const monitoringRulesRouter = require("./routes/monitoring-rules");
 
 const app = express();
 
@@ -134,6 +136,8 @@ app.use("/api/push/devices", pushDevicesRouter);
 app.use("/api/admin/environmental-reports", environmentalReportsRouter);
 app.use("/api/admin/crop-health-assessment", cropHealthAssessmentRouter);
 app.use("/api/sensors", sensorsRouter);
+app.use("/api/admin/automation-findings", automationFindingsRouter);
+app.use("/api/admin/monitoring-rules", monitoringRulesRouter);
 
 const PORT = process.env.PORT || 5000;
 
@@ -177,6 +181,20 @@ if (require.main === module) {
   };
   runFinalization();
   scheduleNextFinalization();
+
+  const { retryQueuedFindings, notifyAssignedFindings } = require("./lib/monitoring-task-automation");
+  let retryRunning = false;
+  const retryAutomation = async () => {
+    if (retryRunning) return;
+    retryRunning = true;
+    try { await retryQueuedFindings(); }
+    catch (error) { console.error("Monitoring task retry failed:", error); }
+    try { await notifyAssignedFindings(); }
+    catch (error) { console.error("Monitoring task notification failed:", error); }
+    finally { retryRunning = false; }
+  };
+  retryAutomation();
+  setInterval(retryAutomation, 60 * 1000);
 }
 
 module.exports = app;

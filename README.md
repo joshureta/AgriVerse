@@ -1,5 +1,51 @@
 # AgriVerse
 
+## Automatic monitoring tasks
+
+Run migrations `070_monitoring_task_automation.sql`,
+`071_overdue_monitoring_task_findings.sql`, then
+`072_assign_new_monitoring_findings.sql` and `073_monitoring_task_rules.sql` in
+the **main** Supabase project before deploying the updated backend. Run only the
+ones you have not applied yet.
+Fresh readings from a device assigned to a field and new admin crop assessments
+can create a task automatically. The backend chooses the least-loaded available
+crop management worker and the first free one-hour slot from the current Manila
+time onward, then sends the normal assignment notification. The admin task page
+shows a recent assignment inline, including category, field, worker, and time.
+Findings with no available worker remain visible there and are retried every
+minute while the backend is running. Older overdue tasks remain overdue;
+they do not hide new findings. Reprocessing the same finding does not create
+another task. Each saved crop assessment has its own finding key, while
+environmental readings of the same condition share a field/day key.
+
+Sensor-based tasks come from the `monitoring_task_rules` table
+(`073_monitoring_task_rules.sql`). A database trigger checks every new row in
+`sensor_readings` and `soil_readings`, including rows inserted in the SQL
+editor. When the three latest readings from that device and field, all from the
+last 10 minutes, meet an enabled rule, the rule's category, priority and
+description become a new task. Each rule creates at most one task per field per
+Manila day. A rule with a `field_name` replaces the all-fields rule of the same
+`kind` for that field. Edit `threshold` or set `enabled = false` in the table to
+change a rule; the starting humidity, soil-temperature and cold-air thresholds
+are placeholders, and the cold-air rule starts disabled. The backend sends the
+assignment notification within a minute. `ENVIRONMENTAL_SOIL_MOISTURE_TARGETS`
+no longer controls task creation; it is still read by the environmental report.
+
+Admin crop photo diagnoses and rule-based inspections create **Pest & Disease
+→ Inspection** for possible pest or disease findings, or **Monitoring** for
+crop condition and nutrient-like symptoms. They do not automatically create
+pesticide or fertilizer application tasks. The assigned worker verifies the
+finding and submits the normal completion evidence for admin review.
+
+To test in a staging project, apply the migration, add an onboarded crop
+management worker, confirm the ESP32 is assigned to a field, and configure that
+field's approved moisture target. Upload three distinct current readings below
+the target and check **Tasks & Schedules** and the worker's mobile tasks. Repeat
+the same condition to confirm no second open task is created. Save an admin crop
+assessment with a possible pest finding to check the Inspection path. In a
+staging project with no eligible crop worker, the finding should appear in the
+admin queue.
+
 ## Signup email verification codes
 
 The web registration page accepts an emailed verification code after

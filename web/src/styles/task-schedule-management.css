@@ -100,6 +100,12 @@
 .work-list-table .task-actions .task-view:hover { background: #12582a; }
 .tasks-empty { height: 180px !important; color: #6f7f73 !important; }
 .tasks-error { padding: 13px 20px; border-top: 1px solid #ffd7d7; color: #b42318; background: #fff0f0; font-size: 11px; }
+.task-automation-queue { margin: 10px 18px; padding: 12px 15px; border: 1px solid #e5d9a6; border-radius: 8px; background: #fffbed; color: #514626; font-size: 12px; }
+.task-automation-queue > strong { display: block; font-size: 13px; }
+.task-automation-queue p { margin: 4px 0 8px; }
+.task-automation-queue > div { display: grid; grid-template-columns: 180px 1fr; gap: 10px; padding: 6px 0; border-top: 1px solid #eee5bd; }
+.task-automation-queue > div span:first-child { font-weight: 700; }
+@media (max-width: 600px) { .task-automation-queue > div { grid-template-columns: 1fr; gap: 2px; } }
 .task-page-heading > button:disabled { cursor: not-allowed; opacity: .48; }
 .task-pagination { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 12px; padding: 10px 14px; border-radius: 8px; color: #66806b; background: #f5f6f3; font-size: 10px; }
 .task-pagination > div { display: flex; align-items: center; gap: 7px; }
@@ -2861,17 +2867,21 @@
 .task-review-alerts { display: grid; gap: 10px; margin-bottom: 22px; }
 .task-review-alert { min-height: 54px; display: flex; align-items: center; gap: 12px; box-sizing: border-box; border: 1px solid; border-left-width: 5px; border-radius: 8px; padding: 9px 14px; }
 .task-review-alert.is-tasks { border-color: #cde8ca; border-left-color: #278538; color: #193b25; background: #f4faf3; }
+.task-review-alert.is-automation { border-color: #cde8ca; border-left-color: #278538; color: #193b25; background: #f4faf3; }
 .task-review-alert.is-disputes { border-color: #f7c8c3; border-left-color: #d93829; color: #45221f; background: #fff5f4; }
 .task-review-alert.is-overdue { border-color: #f7c8c3; border-left-color: #d93829; color: #45221f; background: #fff5f4; }
 .task-review-alert-icon { width: 28px; height: 28px; display: grid; flex: 0 0 28px; place-items: center; border-radius: 50%; color: #fff; }
 .task-review-alert.is-tasks .task-review-alert-icon { background: #278538; }
+.task-review-alert.is-automation .task-review-alert-icon { background: #278538; }
 .task-review-alert.is-disputes .task-review-alert-icon { background: #d93829; }
 .task-review-alert.is-overdue .task-review-alert-icon { background: #d93829; }
 .task-review-alert-icon svg { width: 16px; height: 16px; stroke-width: 2.4; }
 .task-review-alert p { flex: 1; min-width: 0; margin: 0; font-size: 13px; line-height: 1.45; }
 .task-review-alert-link { border: 0; padding: 0; color: inherit; background: none; font: inherit; font-weight: 800; cursor: pointer; }
 .task-review-alert-link:hover { text-decoration: underline; }
-.task-review-alert-link:focus-visible, .task-review-alert-dismiss:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.task-review-alert-action { flex: 0 0 auto; border: 0; padding: 0; color: #176a34; background: none; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.task-review-alert-action:hover { text-decoration: underline; }
+.task-review-alert-link:focus-visible, .task-review-alert-action:focus-visible, .task-review-alert-dismiss:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .task-review-alert-dismiss { width: 28px; height: 28px; display: grid; flex: 0 0 28px; place-items: center; margin-left: auto; border: 0; border-radius: 5px; padding: 0; color: #667568; background: transparent; cursor: pointer; }
 .task-review-alert-dismiss:hover { color: #263b2b; background: rgba(0,0,0,.05); }
 .task-review-alert-dismiss svg { width: 16px; height: 16px; }

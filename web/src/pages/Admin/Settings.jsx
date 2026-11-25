@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import archiveIcon from '../../assets/archive-inventory-icon.png'
 import { AdminSidebar, AdminTopbar } from '../../components/AdminNavigation.jsx'
 import SensorIntervalDialog from '../../components/SensorIntervalDialog.jsx'
+import MonitoringRuleDialog, { ruleCondition, ruleTask } from '../../components/MonitoringRuleDialog.jsx'
 import { formatInterval } from '../../lib/sensorInterval.js'
 import { supabase } from '../../lib/supabase.js'
 import '../../styles/admin-dashboard.css'
@@ -13,6 +14,7 @@ const tabs = [
   { id: 'categories', label: 'Task Categories', plural: 'categories' },
   { id: 'fleet', label: 'Fleet', plural: 'vehicles' },
   { id: 'sensors', label: 'Sensors', plural: 'sensors' },
+  { id: 'rules', label: 'Monitoring Rules', plural: 'rules' },
   { id: 'archive', label: 'Archived Items', plural: 'archived items' },
 ]
 // "Last data 3 min ago" for the Sensors tab, so admins pick the device that is actually sending.
@@ -49,7 +51,7 @@ async function apiRequest(path, options = {}, retry = true) {
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('fields')
   const [search, setSearch] = useState('')
-  const [records, setRecords] = useState({ fields: [], categories: [], fleet: [], sensors: [], archive: [] })
+  const [records, setRecords] = useState({ fields: [], categories: [], fleet: [], sensors: [], rules: [], archive: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
@@ -61,6 +63,9 @@ export default function Settings() {
       if (tab === 'sensors') {
         const data = await apiRequest('/api/sensors/settings')
         setRecords((current) => ({ ...current, sensors: (data.devices || []).map((device) => ({ ...device, id: device.device_id })) }))
+      } else if (tab === 'rules') {
+        const data = await apiRequest('/api/admin/monitoring-rules')
+        setRecords((current) => ({ ...current, rules: data.rules || [] }))
       } else if (tab === 'fleet') {
         const data = await apiRequest('/api/admin/deliveries/vehicles')
         setRecords((current) => ({ ...current, fleet: data.vehicles || [] }))
@@ -91,12 +96,28 @@ export default function Settings() {
   // Opens a blank settings form.
   function beginAdd() { setModal({ mode: activeTab === 'fleet' ? 'vehicle' : 'lookup', item: null }) }
   // Opens the settings form for an existing record.
-  function beginEdit(item) { setModal({ mode: activeTab === 'fleet' ? 'vehicle' : activeTab === 'sensors' ? 'sensor' : 'lookup', item }) }
+  function beginEdit(item) { setModal({ mode: activeTab === 'fleet' ? 'vehicle' : activeTab === 'sensors' ? 'sensor' : activeTab === 'rules' ? 'rule' : 'lookup', item }) }
 
   // Saves a sensor device's send interval.
   async function saveSensorInterval(seconds) {
     await apiRequest(`/api/sensors/settings/${encodeURIComponent(modal.item.device_id)}`, { method: 'PUT', body: JSON.stringify({ read_interval_seconds: seconds }) })
     setModal(null); loadTab()
+  }
+
+  // Saves a monitoring rule's threshold(s).
+  async function saveRule(changes) {
+    await apiRequest(`/api/admin/monitoring-rules/${modal.item.id}`, { method: 'PATCH', body: JSON.stringify(changes) })
+    setModal(null); loadTab()
+  }
+
+  // Turns a monitoring rule on or off, showing the change right away.
+  async function toggleRule(rule) {
+    const enabled = !rule.enabled
+    const setEnabled = (value) => setRecords((current) => ({ ...current, rules: current.rules.map((item) => item.id === rule.id ? { ...item, enabled: value } : item) }))
+    setError(''); setEnabled(enabled)
+    try {
+      await apiRequest(`/api/admin/monitoring-rules/${rule.id}`, { method: 'PATCH', body: JSON.stringify({ enabled }) })
+    } catch (requestError) { setEnabled(rule.enabled); setError(requestError.message) }
   }
 
   // Saves a new or edited settings record.
@@ -157,27 +178,29 @@ export default function Settings() {
           <section className="settings-table-card">
             <div className="settings-toolbar">
               <label className="settings-search"><span className="sr-only">Search {tabConfig.plural}</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${tabConfig.plural}`} /><span aria-hidden="true" /></label>
-              {activeTab !== 'archive' && activeTab !== 'sensors' && <button className="settings-add-button" type="button" onClick={beginAdd}><span aria-hidden="true">＋</span>Add new {activeTab === 'fleet' ? 'vehicle' : activeTab === 'categories' ? 'category' : 'location'}</button>}
+              {activeTab !== 'archive' && activeTab !== 'sensors' && activeTab !== 'rules' && <button className="settings-add-button" type="button" onClick={beginAdd}><span aria-hidden="true">＋</span>Add new {activeTab === 'fleet' ? 'vehicle' : activeTab === 'categories' ? 'category' : 'location'}</button>}
             </div>
             {error && <p className="settings-error" role="alert">{error}</p>}
             <div className="settings-table-scroll">
               <table className="settings-table">
-                <thead><tr><th>{activeTab === 'sensors' ? 'Device' : activeTab === 'fleet' ? 'Vehicle' : activeTab === 'categories' ? 'Task category' : activeTab === 'archive' ? 'Archived item' : 'Field / Location'}</th><th>{activeTab === 'categories' ? 'Description' : activeTab === 'sensors' ? 'Sends data' : 'Status'}</th><th aria-label="Actions" /></tr></thead>
+                <thead><tr><th>{activeTab === 'rules' ? 'Rule' : activeTab === 'sensors' ? 'Device' : activeTab === 'fleet' ? 'Vehicle' : activeTab === 'categories' ? 'Task category' : activeTab === 'archive' ? 'Archived item' : 'Field / Location'}</th><th>{activeTab === 'rules' ? 'Creates a task when' : activeTab === 'categories' ? 'Description' : activeTab === 'sensors' ? 'Sends data' : 'Status'}</th><th aria-label="Actions" /></tr></thead>
                 <tbody>
                   {loading ? <tr><td colSpan="3" className="settings-empty">Loading…</td></tr> : visibleRecords.length === 0 ? <tr><td colSpan="3" className="settings-empty">No {tabConfig.plural} found.</td></tr> : visibleRecords.map((item) => {
-                    const name = activeTab === 'sensors' ? item.device_id : activeTab === 'fleet' ? item.vehicle_name : activeTab === 'categories' ? item.category_name : activeTab === 'archive' ? item.name : item.field_name
-                    const details = activeTab === 'sensors' ? `Every ${formatInterval(item.read_interval_seconds)}` : activeTab === 'categories' ? item.description || 'No description added' : activeTab === 'fleet' ? vehicleStatuses[item.status] || item.status : activeTab === 'archive' ? 'Archived' : 'Active'
-                    return <tr key={`${activeTab}-${item.id}`}><td><strong>{name}</strong>{activeTab === 'fleet' && <small className="settings-item-detail">{item.plate_number}</small>}{activeTab === 'archive' && <small className="settings-item-detail">{item.type}</small>}{activeTab === 'sensors' && <small className="settings-item-detail">{item.field_name || 'No field assigned'} · {lastSeenLabel(item.last_seen_at)}</small>}</td><td>{details}{activeTab === 'sensors' && item.updated_at && <small className="settings-item-detail">Changed {new Date(item.updated_at).toLocaleString()}{item.updated_by_name ? ` by ${item.updated_by_name}` : ''}</small>}</td><td className="settings-actions-cell"><div className="settings-actions">{activeTab === 'archive' ? <button className="settings-restore" type="button" onClick={() => restore(item)} aria-label={`Restore ${name}`}>Restore</button> : <><button className="settings-edit" type="button" onClick={() => beginEdit(item)} aria-label={`Edit ${name}`}>✎</button>{activeTab !== 'fleet' && activeTab !== 'sensors' && <button className="settings-archive" type="button" onClick={() => archive(item)} aria-label={`Archive ${name}`}><img src={archiveIcon} alt="" /></button>}</>}</div></td></tr>
+                    const name = activeTab === 'rules' ? item.rule_name : activeTab === 'sensors' ? item.device_id : activeTab === 'fleet' ? item.vehicle_name : activeTab === 'categories' ? item.category_name : activeTab === 'archive' ? item.name : item.field_name
+                    const details = activeTab === 'rules' ? ruleCondition(item) : activeTab === 'sensors' ? `Every ${formatInterval(item.read_interval_seconds)}` : activeTab === 'categories' ? item.description || 'No description added' : activeTab === 'fleet' ? vehicleStatuses[item.status] || item.status : activeTab === 'archive' ? 'Archived' : 'Active'
+                    return <tr key={`${activeTab}-${item.id}`} className={activeTab === 'rules' && !item.enabled ? 'is-off' : undefined}><td><strong>{name}</strong>{activeTab === 'fleet' && <small className="settings-item-detail">{item.plate_number}</small>}{activeTab === 'archive' && <small className="settings-item-detail">{item.type}</small>}{activeTab === 'rules' && <><small className="settings-item-detail">{ruleTask(item)}</small>{item.needs_review && <span className="monitoring-rule-review">Needs review</span>}</>}{activeTab === 'sensors' && <small className="settings-item-detail">{item.field_name || 'No field assigned'} · {lastSeenLabel(item.last_seen_at)}</small>}</td><td>{details}{activeTab === 'sensors' && item.updated_at && <small className="settings-item-detail">Changed {new Date(item.updated_at).toLocaleString()}{item.updated_by_name ? ` by ${item.updated_by_name}` : ''}</small>}</td><td className="settings-actions-cell"><div className="settings-actions">{activeTab === 'rules' ? <><button className={`monitoring-rule-toggle${item.enabled ? ' is-on' : ''}`} type="button" role="switch" aria-checked={item.enabled} onClick={() => toggleRule(item)} aria-label={`${name}${item.field_name ? ` for ${item.field_name}` : ''}`} title={item.enabled ? 'On' : 'Off'} /><button className="settings-edit" type="button" onClick={() => beginEdit(item)} aria-label={`Edit ${name}${item.field_name ? ` for ${item.field_name}` : ''}`}>✎</button></> : activeTab === 'archive' ? <button className="settings-restore" type="button" onClick={() => restore(item)} aria-label={`Restore ${name}`}>Restore</button> : <><button className="settings-edit" type="button" onClick={() => beginEdit(item)} aria-label={`Edit ${name}`}>✎</button>{activeTab !== 'fleet' && activeTab !== 'sensors' && <button className="settings-archive" type="button" onClick={() => archive(item)} aria-label={`Archive ${name}`}><img src={archiveIcon} alt="" /></button>}</>}</div></td></tr>
                   })}
                 </tbody>
               </table>
             </div>
+            {activeTab === 'rules' && <p className="monitoring-rule-note">Each rule creates at most one task per field per day. Turning a rule off also stops its findings that are waiting for a worker.</p>}
           </section>
         </div>
       </section>
       {/* Form for adding or editing a settings record. */}
       {modal?.mode === 'sensor' && <SensorIntervalDialog device={modal.item} onCancel={() => setModal(null)} onSave={saveSensorInterval} />}
-      {modal && modal.mode !== 'sensor' && <div className="settings-modal-backdrop"><form className="settings-modal" onSubmit={save}><h2>{modal.item ? 'Edit' : 'Add'} {modal.mode === 'vehicle' ? 'vehicle' : activeTab === 'categories' ? 'task category' : 'field / location'}</h2><label>Name<input name="name" defaultValue={modal.item ? (modal.mode === 'vehicle' ? modal.item.vehicle_name : activeTab === 'categories' ? modal.item.category_name : modal.item.field_name) : ''} required /></label>{modal.mode === 'vehicle' ? <><label>Plate number<input name="plate" defaultValue={modal.item?.plate_number || ''} required /></label><label>Status<select name="status" defaultValue={modal.item?.status || 'available'}>{Object.entries(vehicleStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></> : activeTab === 'categories' && <label>Description<textarea name="description" defaultValue={modal.item?.description || ''} /></label>}<div className="settings-modal-actions"><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="settings-add-button" type="submit">Save</button></div></form></div>}
+      {modal?.mode === 'rule' && <MonitoringRuleDialog rule={modal.item} onCancel={() => setModal(null)} onSave={saveRule} />}
+      {modal && modal.mode !== 'sensor' && modal.mode !== 'rule' && <div className="settings-modal-backdrop"><form className="settings-modal" onSubmit={save}><h2>{modal.item ? 'Edit' : 'Add'} {modal.mode === 'vehicle' ? 'vehicle' : activeTab === 'categories' ? 'task category' : 'field / location'}</h2><label>Name<input name="name" defaultValue={modal.item ? (modal.mode === 'vehicle' ? modal.item.vehicle_name : activeTab === 'categories' ? modal.item.category_name : modal.item.field_name) : ''} required /></label>{modal.mode === 'vehicle' ? <><label>Plate number<input name="plate" defaultValue={modal.item?.plate_number || ''} required /></label><label>Status<select name="status" defaultValue={modal.item?.status || 'available'}>{Object.entries(vehicleStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></> : activeTab === 'categories' && <label>Description<textarea name="description" defaultValue={modal.item?.description || ''} /></label>}<div className="settings-modal-actions"><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="settings-add-button" type="submit">Save</button></div></form></div>}
     </main>
   )
 }

@@ -1,0 +1,78 @@
+<div id="av-automation-interface">
+  <style>
+    #av-automation-interface { font-family: Inter, system-ui, sans-serif; color: light-dark(#233629,#e8f2e9); }
+    #av-automation-interface * { box-sizing: border-box; }
+    #av-automation-interface .flow { display: grid; grid-template-columns: minmax(0,1fr) 28px minmax(0,1fr) 28px minmax(0,1fr); gap: 8px; align-items: start; }
+    #av-automation-interface .stage { min-width: 0; }
+    #av-automation-interface .caption { font-size: 12px; font-weight: 650; margin: 0 0 9px; }
+    #av-automation-interface .screen { background: light-dark(#f6f8f4,#17261c); border: 1px solid light-dark(#d6e1d5,#405846); border-radius: 10px; min-height: 360px; overflow: hidden; }
+    #av-automation-interface .topbar { background: light-dark(#19532d,#113720); color: #f5fff2; padding: 10px 12px; font-size: 11px; font-weight: 650; display: flex; justify-content: space-between; }
+    #av-automation-interface .screenbody { padding: 12px; }
+    #av-automation-interface h2 { font-size: 15px; font-weight: 650; line-height: 1.3; margin: 0 0 4px; }
+    #av-automation-interface .muted { color: light-dark(#687a6e,#aec1b2); font-size: 11px; line-height: 1.35; }
+    #av-automation-interface .mini-nav { display: flex; gap: 8px; border-bottom: 1px solid light-dark(#dde7dc,#3c5141); padding: 11px 0 7px; margin-bottom: 10px; font-size: 11px; white-space: nowrap; }
+    #av-automation-interface .mini-nav b { color: light-dark(#1b6131,#b8e4bb); border-bottom: 2px solid currentColor; padding-bottom: 6px; font-weight: 650; }
+    #av-automation-interface .mini-nav span { color: light-dark(#7d8b7e,#9caf9e); }
+    #av-automation-interface .block { background: light-dark(#fff,#24382a); border: 1px solid light-dark(#dce6db,#425947); border-radius: 7px; padding: 10px; margin-top: 9px; }
+    #av-automation-interface .blockhead { display: flex; justify-content: space-between; gap: 6px; align-items: start; }
+    #av-automation-interface .block strong { font-size: 12px; font-weight: 650; line-height: 1.35; }
+    #av-automation-interface .pill { background: light-dark(#e5f3df,#2e5335); color: light-dark(#226333,#c4eec5); border-radius: 99px; padding: 3px 6px; font-size: 10px; white-space: nowrap; font-weight: 650; }
+    #av-automation-interface .field { display: flex; justify-content: space-between; gap: 6px; border-top: 1px solid light-dark(#ecf0e9,#405243); padding-top: 7px; margin-top: 7px; font-size: 11px; }
+    #av-automation-interface .field span { color: light-dark(#687a6e,#aec1b2); }
+    #av-automation-interface .field b { font-weight: 600; text-align: right; }
+    #av-automation-interface .divider { height: 1px; background: light-dark(#e1e9df,#435748); margin: 12px 0; }
+    #av-automation-interface .source { display: inline-block; color: light-dark(#37663c,#b9d9bb); background: light-dark(#eaf3e5,#2c4832); padding: 4px 6px; border-radius: 5px; font-size: 10px; margin-top: 6px; }
+    #av-automation-interface .arrow { color: light-dark(#6d9671,#9bc7a0); font-size: 23px; align-self: center; margin-top: 20px; text-align: center; }
+    #av-automation-interface .phone { width: 86%; max-width: 230px; margin: 0 auto; border: 5px solid light-dark(#2b3d30,#77947e); border-radius: 20px; min-height: 350px; overflow: hidden; background: light-dark(#f8faf7,#1a2c20); }
+    #av-automation-interface .phone .topbar { padding: 15px 10px 10px; }
+    #av-automation-interface .phone .screenbody { padding: 11px; }
+    #av-automation-interface .phone h2 { font-size: 14px; }
+    #av-automation-interface .phone .block { padding: 8px; }
+    #av-automation-interface .mockbutton { background: light-dark(#226b37,#4e9b5d); color: #fff; padding: 8px 9px; border: 0; border-radius: 6px; font: inherit; font-size: 11px; width: 100%; margin-top: 11px; text-align: center; }
+    #av-automation-interface .smallnote { color: light-dark(#657669,#aec1b2); font-size: 11px; line-height: 1.35; margin-top: 10px; }
+    @media (max-width: 760px) {
+      #av-automation-interface .flow { grid-template-columns: 1fr; gap: 8px; }
+      #av-automation-interface .screen { min-height: 0; }
+      #av-automation-interface .arrow { margin: 0; line-height: 1; transform: rotate(90deg); }
+      #av-automation-interface .phone { min-height: 0; max-width: 250px; }
+    }
+  </style>
+  <div class="flow" role="group" aria-label="Proposed automation interface from rule setup to worker task">
+    <section class="stage" aria-label="Admin rule setup">
+      <p class="caption">1 · Admin sets the rules</p>
+      <div class="screen">
+        <div class="topbar"><span>AgriVerse · Settings</span><span>Admin</span></div>
+        <div class="screenbody"><h2>Task automation</h2><div class="muted">Rules for Field A · illustrative settings</div>
+          <div class="mini-nav"><b>Field A</b><span>Field B</span><span>Field C</span></div>
+          <div class="block"><div class="blockhead"><strong>Irrigation</strong><span class="pill">Enabled</span></div><div class="field"><span>Trigger</span><b>Below 35% × 3 readings</b></div><div class="field"><span>Assign to</span><b>Ana Cruz</b></div><div class="field"><span>Repeat limit</span><b>One open task</b></div></div>
+          <div class="block"><div class="blockhead"><strong>Pest &amp; Disease · Inspection</strong><span class="pill">Enabled</span></div><div class="field"><span>Trigger</span><b>New suspected pest finding</b></div><div class="field"><span>Assign to</span><b>Rico Santos</b></div><div class="field"><span>Repeat limit</span><b>One open inspection</b></div></div>
+        </div>
+      </div>
+    </section>
+    <div class="arrow" aria-hidden="true">→</div>
+    <section class="stage" aria-label="Admin task list">
+      <p class="caption">2 · Findings create scheduled tasks</p>
+      <div class="screen">
+        <div class="topbar"><span>AgriVerse · Tasks</span><span>Admin</span></div>
+        <div class="screenbody"><h2>Automatically assigned</h2><div class="muted">Field A · 24 Nov 2026</div>
+          <div class="block"><div class="blockhead"><strong>Irrigation · Field A</strong><span class="pill">Scheduled</span></div><div class="source">Environmental Monitoring</div><div class="field"><span>Evidence</span><b>32%, 31%, 32%</b></div><div class="field"><span>Worker</span><b>Ana · 9:00 AM</b></div></div>
+          <div class="block"><div class="blockhead"><strong>Pest &amp; Disease · Inspection</strong><span class="pill">Scheduled</span></div><div class="source">Crop Health Monitoring</div><div class="field"><span>Evidence</span><b>Suspected pest, moderate</b></div><div class="field"><span>Worker</span><b>Rico · 10:30 AM</b></div></div>
+          <p class="smallnote">Each task links back to the reading or crop photo that triggered it.</p>
+        </div>
+      </div>
+    </section>
+    <div class="arrow" aria-hidden="true">→</div>
+    <section class="stage" aria-label="Worker mobile task">
+      <p class="caption">3 · Worker verifies and reports</p>
+      <div class="phone">
+        <div class="topbar"><span>AgriVerse Worker</span><span>10:30</span></div>
+        <div class="screenbody"><div class="muted">Today · Field A</div><h2>Pest &amp; Disease</h2><span class="pill">Inspection</span>
+          <div class="block"><strong>Why you were assigned</strong><p class="smallnote">Crop photo flagged possible pest symptoms. Check affected and nearby plants.</p></div>
+          <div class="block"><strong>Record your findings</strong><div class="field"><span>Pest observed</span><b>Choose result</b></div><div class="field"><span>Crop condition</span><b>Choose result</b></div><div class="field"><span>Proof photo</span><b>Add photo</b></div></div>
+          <div class="mockbutton">Submit for admin approval</div>
+          <p class="smallnote">Treatment is a separate task after confirmation.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
