@@ -1,7 +1,7 @@
-const crypto = require("node:crypto");
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getSensorSupabase } = require("../lib/sensor-supabase");
+const { configuredDevices, deviceIdForToken } = require("../lib/sensor-devices");
 const { notifyAssignedFindings } = require("../lib/monitoring-task-automation");
 const {
   DEFAULT_INTERVAL_SECONDS,
@@ -22,21 +22,12 @@ function validDate(value) {
     && Number.isFinite(Date.parse(value));
 }
 
-function deviceAuthorized(req) {
-  const expected = process.env.SENSOR_DEVICE_TOKEN?.trim();
-  const supplied = req.get("x-device-token") || "";
-  if (!expected || expected.length < 32 || !supplied) return false;
-  const a = Buffer.from(expected);
-  const b = Buffer.from(supplied);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-}
-
 // The ESP32 polls this to learn how often it should read and send data.
 router.get("/config", async (req, res, next) => {
   try {
-    if (!deviceAuthorized(req)) return res.status(401).json({ error: "Invalid device token" });
-    const configuredDevice = process.env.SENSOR_DEVICE_ID?.trim();
-    if (!configuredDevice || req.query.device_id !== configuredDevice) {
+    const configuredDevice = deviceIdForToken(req.get("x-device-token"));
+    if (!configuredDevice) return res.status(401).json({ error: "Invalid device token" });
+    if (req.query.device_id !== configuredDevice) {
       return res.status(400).json({ error: "Unknown device" });
     }
     const { data, error } = await getSensorSupabase().from("sensor_device_settings")
@@ -66,8 +57,7 @@ async function listDeviceSettings() {
   if (settings.error) throw settings.error;
   const devices = new Map();
   const merge = (id, values) => devices.set(id, { device_id: id, field_name: null, ...devices.get(id), ...values });
-  const configuredDevice = process.env.SENSOR_DEVICE_ID?.trim();
-  if (configuredDevice) merge(configuredDevice, {});
+  for (const device of configuredDevices()) merge(device.id, {});
   for (const row of fields.data || []) merge(row.device_id, { field_name: row.field_name });
   for (const row of settings.data || []) merge(row.device_id, row);
   // A missing soil table must not hide the list; readings only add last-seen info.
@@ -151,12 +141,12 @@ router.get("/:table", requireAuth, requireRole("admin"), async (req, res, next) 
 
 router.post("/ingest/:table", async (req, res, next) => {
   try {
-    if (!deviceAuthorized(req)) return res.status(401).json({ error: "Invalid device token" });
+    const configuredDevice = deviceIdForToken(req.get("x-device-token"));
+    if (!configuredDevice) return res.status(401).json({ error: "Invalid device token" });
     const { table } = req.params;
     const fields = readingFields[table];
     if (!fields) return res.status(404).json({ error: "Sensor table not found" });
     const body = req.body;
-    const configuredDevice = process.env.SENSOR_DEVICE_ID?.trim();
     if (!configuredDevice || !body || Array.isArray(body) ||
         body.device_id !== configuredDevice ||
         Object.keys(body).some((key) => !["device_id", "created_at", ...fields].includes(key)) ||

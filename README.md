@@ -135,6 +135,12 @@ and ESP32 uploads until the following configuration is deployed.
    `DEVICE_ID` (`ESP32_001` for the combined sketch). Set firmware `API_URL` to
    the HTTPS backend origin, deploy the backend, and reflash the device. Do not
    place the sensor project's secret key on the ESP32 or website.
+   For the second ESP32 in Field B, use `firmware/esp32_field_b`. Keep the first
+   device's settings and add backend `SENSOR_DEVICE_2_ID=ESP32_002` and
+   `SENSOR_DEVICE_2_TOKEN` with the distinct token from that sketch's ignored
+   `secrets.h`. Assign `ESP32_002` to `Field B` in the sensor project's
+   `sensor_device_fields` table. The backend also accepts further numbered
+   pairs such as `SENSOR_DEVICE_3_ID` and `SENSOR_DEVICE_3_TOKEN`.
 3. Deploy the updated website. Admin monitoring now reads through authenticated
    backend routes and polls for changes. Remove the unused `VITE_SENSOR_*`
    variables from the website's deployment configuration.
