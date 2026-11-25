@@ -23,8 +23,8 @@ The website shows an offline alert for each sensor without a valid reading in
 its offline window (two minutes at the default interval).
 
 For field-specific monitoring, also run `supabase/migrations/044_sensor_device_fields.sql`
-in the sensor Supabase project. It assigns `esp32-01` to **Field A**. Other
-devices must also be assigned to a field before their readings appear on the
+in the sensor Supabase project. Assign `ESP32_001` to **Field A** in
+`sensor_device_fields`. Other devices must also be assigned to a field before their readings appear on the
 monitoring page.
 The field is saved on each new reading, so moving a device later does not
 relabel its earlier data. Existing readings stay unassigned unless you verify
@@ -43,16 +43,20 @@ All sensors share the ESP32's `3V3` and `GND` connections.
 | --- | --- |
 | DHT22 VCC / `+` | `3V3` |
 | DHT22 GND / `-` | `GND` |
-| DHT22 DATA / `S` / `OUT` | `GPIO 27` |
+| DHT22 DATA / `S` / `OUT` | `GPIO 4` |
 | DS18B20 red / VCC | `3V3` |
 | DS18B20 black / GND | `GND` |
-| DS18B20 yellow / DATA | `GPIO 26` |
+| DS18B20 yellow / DATA | `GPIO 18` |
 | Capacitive soil sensor VCC | `3V3` |
 | Capacitive soil sensor GND | `GND` |
 | Capacitive soil sensor AOUT | `GPIO 34` |
 
 Connect a `4.7K` to `5.1K` pull-up resistor between the DS18B20 DATA wire and
 `3V3`.
+
+For the LTE UART, connect LTE TX to ESP32 GPIO 16, LTE RX to ESP32 GPIO 17,
+and connect their grounds. Power the LTE board with its own suitable supply,
+as in the working Field A setup; do not use ESP32 `3V3` to power it.
 
 Do not connect the soil sensor's digital output. Follow the labels printed on
 each module instead of relying on wire colors.
@@ -69,11 +73,10 @@ each module instead of relying on wire colors.
 5. Upload the sketch.
 6. Open Serial Monitor at **115200 baud**.
 
-A successful cycle prints both:
+A successful Wi-Fi upload prints:
 
 ```text
-Climate readings saved (HTTP 201).
-Soil saved: ... (HTTP 201)
+Current reading uploaded: {"device_id":"ESP32_001", ...}
 ```
 
 Keep the ESP32 powered and connected to its configured 2.4 GHz Wi-Fi.
