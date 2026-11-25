@@ -250,9 +250,26 @@ router.get("/", async (req, res, next) => {
     if (statusId) query = query.eq("status_id", statusId);
     if (search) {
       const taskId = /^#?\d+$/.test(search) ? Number(search.replace(/^#/, "")) : null;
-      query = Number.isSafeInteger(taskId) && taskId > 0
-        ? query.eq("id", taskId)
-        : query.or(`task_name.ilike.%${search}%,description.ilike.%${search}%`);
+      const pattern = `%${search}%`;
+      const [workers, categories, fields, priorities, statuses] = await Promise.all([
+        supabase.from("profiles").select("id").eq("role", "farm_worker").ilike("full_name", pattern),
+        supabase.from("task_categories").select("id").ilike("category_name", pattern),
+        supabase.from("farm_fields").select("id").ilike("field_name", pattern),
+        supabase.from("task_priorities").select("id").ilike("priority_name", pattern),
+        supabase.from("task_statuses").select("id").ilike("status_name", pattern),
+      ]);
+      for (const result of [workers, categories, fields, priorities, statuses]) {
+        if (result.error) throw result.error;
+      }
+      const searchFilters = [`task_name.ilike.%${search}%`, `description.ilike.%${search}%`];
+      if (Number.isSafeInteger(taskId) && taskId > 0) searchFilters.push(`id.eq.${taskId}`);
+      for (const [column, rows] of [
+        ["assigned_worker_id", workers.data], ["category_id", categories.data],
+        ["field_id", fields.data], ["priority_id", priorities.data], ["status_id", statuses.data],
+      ]) {
+        if (rows?.length) searchFilters.push(`${column}.in.(${rows.map((row) => row.id).join(",")})`);
+      }
+      query = query.or(searchFilters.join(","));
     }
 
     const inProgressId = await lookupIdByCode("task_statuses", "in_progress");

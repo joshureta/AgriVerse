@@ -1248,7 +1248,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
   const visibleDeliveryOrders = useMemo(() => {
     const query = search.trim().toLowerCase()
     const requestedStatus = filter.startsWith('delivery:') ? filter.slice('delivery:'.length) : ''
-    return [...deliveryOrders].sort((a, b) => new Date(b.delivery_scheduled_at || 0) - new Date(a.delivery_scheduled_at || 0)).filter((order) => (!filter || requestedStatus) && (!requestedStatus || order.delivery_assignment_status === requestedStatus) && (!query || `${order.order_number} ${order.assigned_driver?.full_name || ''} ${deliveryLocation(order)}`.toLowerCase().includes(query)))
+    return [...deliveryOrders].sort((a, b) => new Date(b.delivery_scheduled_at || 0) - new Date(a.delivery_scheduled_at || 0)).filter((order) => (!filter || requestedStatus) && (!requestedStatus || order.delivery_assignment_status === requestedStatus) && (!query || `${order.order_number} ${order.assigned_driver?.full_name || ''} ${deliveryLocation(order)} ${deliveryAddressSummary(order)} ${order.delivery_region || ''} ${order.delivery_assignment_status || ''}`.toLowerCase().includes(query)))
   }, [deliveryOrders, filter, search])
 
   const deliveryTotalPages = Math.max(1, Math.ceil(visibleDeliveryOrders.length / PAGE_SIZE))
@@ -1453,7 +1453,7 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
                   </>}
                 </div>}
               </div>
-              <label className="task-search"><span className="sr-only">Search tasks</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search tasks" /><span aria-hidden="true" /></label>
+              <label className="task-search"><span className="sr-only">Search workers and task details</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search workers or tasks" /><span aria-hidden="true" /></label>
               <button className="assign-task-toolbar-button" type="button" onClick={openNewTask} disabled={!options.workers.some((worker) => worker.worker_category === (workView === 'deliveries' ? 'driver' : 'crop_management_worker'))}><span>＋</span>{workView === 'deliveries' ? 'Assign New Delivery' : 'Assign New Task'}</button>
             </div>
             {error && !modal && <div className="tasks-error" role="alert">{error}</div>}
