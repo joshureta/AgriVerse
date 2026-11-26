@@ -100,12 +100,14 @@
 .work-list-table .task-actions .task-view:hover { background: #12582a; }
 .tasks-empty { height: 180px !important; color: #6f7f73 !important; }
 .tasks-error { padding: 13px 20px; border-top: 1px solid #ffd7d7; color: #b42318; background: #fff0f0; font-size: 11px; }
-.task-automation-queue { margin: 10px 18px; padding: 12px 15px; border: 1px solid #e5d9a6; border-radius: 8px; background: #fffbed; color: #514626; font-size: 12px; }
-.task-automation-queue > strong { display: block; font-size: 13px; }
-.task-automation-queue p { margin: 4px 0 8px; }
-.task-automation-queue > div { display: grid; grid-template-columns: 180px 1fr; gap: 10px; padding: 6px 0; border-top: 1px solid #eee5bd; }
-.task-automation-queue > div span:first-child { font-weight: 700; }
-@media (max-width: 600px) { .task-automation-queue > div { grid-template-columns: 1fr; gap: 2px; } }
+.task-automation-queue { margin: 10px 18px; padding: 12px 14px; border: 1px solid #ecdca0; border-left: 5px solid #d9a21b; border-radius: 8px; background: #fffbed; color: #4a3f1c; }
+.task-automation-queue-head { display: flex; align-items: flex-start; gap: 12px; }
+.task-automation-queue-icon { width: 28px; height: 28px; display: grid; flex: 0 0 28px; place-items: center; border-radius: 50%; color: #fff; background: #d9a21b; }
+.task-automation-queue-icon svg { width: 16px; height: 16px; stroke-width: 2.4; }
+.task-automation-queue-head strong { display: block; font-size: 14px; line-height: 1.35; }
+.task-automation-queue-head p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; color: #6b5d2b; }
+.task-automation-queue-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.task-automation-queue-tag { flex: 0 0 auto; border-radius: 999px; padding: 2px 10px; background: #f6e8b5; color: #5a4a12; font-size: 12px; font-weight: 700; line-height: 1.5; white-space: nowrap; }
 .task-page-heading > button:disabled { cursor: not-allowed; opacity: .48; }
 .task-pagination { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 12px; padding: 10px 14px; border-radius: 8px; color: #66806b; background: #f5f6f3; font-size: 10px; }
 .task-pagination > div { display: flex; align-items: center; gap: 7px; }

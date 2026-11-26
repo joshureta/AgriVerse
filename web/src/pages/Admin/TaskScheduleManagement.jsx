@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Ban, Check, ChevronDown, CircleAlert, ClipboardCheck, Eye, LockKeyhole, Pencil, Printer, Save, Sprout, TriangleAlert, X } from 'lucide-react'
+import { Ban, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock, Eye, LockKeyhole, Pencil, Printer, Save, Sprout, TriangleAlert, X } from 'lucide-react'
 import completedTaskIcon from '../../assets/task-completed-icon-white.png'
 import progressTaskIcon from '../../assets/task-progress-icon-white.png'
 import totalTaskIcon from '../../assets/task-total-icon-white.png'
@@ -1414,12 +1414,19 @@ export default function TaskScheduleManagement({ settingsOnly = false }) {
               <button className={workView === 'deliveries' ? 'is-active' : ''} type="button" onClick={() => { setWorkView('deliveries'); setFilter((current) => current && !current.startsWith('delivery:') ? '' : current); setPage(1) }}>Driver Deliveries</button>
             </nav>
             {workView === 'crop' && queuedFindings.length > 0 && (
-              <section className="task-automation-queue" aria-label="Monitoring findings awaiting assignment">
-                <strong>{queuedFindings.length} monitoring finding{queuedFindings.length === 1 ? '' : 's'} awaiting assignment</strong>
-                <p>The system will retry when a crop management worker has a free future work slot.</p>
-                {queuedFindings.slice(0, 5).map((finding) => (
-                  <div key={finding.id}><span>{finding.field?.field_name || 'Field'} · {finding.source === 'crop_health' ? 'Crop Health' : 'Environmental'} Monitoring</span><span>{finding.evidence}</span></div>
-                ))}
+              <section className="task-automation-queue" role="status" aria-label="Monitoring findings awaiting assignment">
+                <div className="task-automation-queue-head">
+                  <span className="task-automation-queue-icon"><Clock aria-hidden="true" /></span>
+                  <div>
+                    <div className="task-automation-queue-title">
+                      <strong>{queuedFindings.length} monitoring finding{queuedFindings.length === 1 ? '' : 's'} awaiting assignment</strong>
+                      {queuedFindings.slice(0, 5).map((finding) => (
+                        <span className="task-automation-queue-tag" key={finding.id}>{finding.field?.field_name || 'Field'} · {finding.source === 'crop_health' ? 'Crop Health' : 'Environmental'}</span>
+                      ))}
+                    </div>
+                    <p>The system will retry when a crop management worker has a free work slot.</p>
+                  </div>
+                </div>
               </section>
             )}
             <div className="tasks-toolbar">
